@@ -30,13 +30,23 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 3.1.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.nova` (TeleNova) | 3.1.1 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
 | `plugin.video.telescope` (TeleNova Telegram) | 3.1.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
 | `plugin.program.novawizard` (TeleNova Wizard) | 3.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
 | `repository.telenova` | 3.1.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## 3.1.1 - subtitles at the start of a video
+
+- A video with its own Hebrew subtitle track: the track is chosen about a second after the start and **nothing is
+  searched** (TeleNova, and All_Subs through guard v12).
+- Without one, the video is no longer paused while subtitles are looked for. It was paused for up to 25 seconds
+  and then waited for an AI subtitle server that a TV box usually cannot reach; now the server gets one 1.5-second
+  check, and only when it answers (and the setting asks for it) is the start held.
+- Streams of the Telegram engine are local to the box, so the AI server on another machine is not asked for them.
+- Player calls made while a video closes can no longer raise inside the subtitle check.
 
 ## 3.1.0
 
@@ -57,7 +67,7 @@ The add-on ids are unchanged so that settings, history and favourites survive th
 - **Stability:** a slow box can no longer turn real matches into "nothing found"; an unexpected answer of the
   radio directory no longer breaks the search page; first-run setup of the Telegram engine installs `pyaes` from
   its source archive and retries downloads; the engine installs PyCryptodome for faster decryption.
-- **Build:** `build/TeleNova-3.1.0.zip.part0` + `.part1` (each under GitHub's 100 MB limit), joined and checked by
+- **Build:** `build/TeleNova-3.1.1.zip.part0` + `.part1` (each under GitHub's 100 MB limit), joined and checked by
   the wizard and by the Windows installer.
 
 ## Notes
