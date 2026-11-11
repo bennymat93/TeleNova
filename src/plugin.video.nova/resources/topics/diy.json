@@ -1,0 +1,143 @@
+{
+ "_help": "DIY - hands-on how-to channels.",
+ "min_seconds": 300,
+ "search_scope": "all",
+ "categories": [
+  {
+   "id": "diy_reno",
+   "he": "שיפוצים ותחזוקת הבית",
+   "en": "Home repair & renovation",
+   "ru": "Ремонт дома",
+   "icon": "diy_reno",
+   "channels": [
+    {
+     "id": "UCUtWNBWbFL9We-cdXkiAuJA",
+     "name": "This Old House"
+    },
+    {
+     "id": "UCnorhjQR4zJkT7AVNhu395Q",
+     "name": "Home RenoVision DIY"
+    },
+    {
+     "id": "UCzr30osBdTmuFUS8IfXtXmg",
+     "name": "Essential Craftsman"
+    },
+    {
+     "id": "UCraGaDLfWec67xl9FEPndtw",
+     "name": "See Jane Drill"
+    }
+   ]
+  },
+  {
+   "id": "diy_wood",
+   "he": "נגרות",
+   "en": "Woodworking",
+   "ru": "Столярное дело",
+   "icon": "diy_wood",
+   "channels": [
+    {
+     "id": "UCBB7sYb14uBtk8UqSQYc9-w",
+     "name": "Steve Ramsey"
+    },
+    {
+     "id": "UC4v2tQ8GqP0RbmAzhp4IFkQ",
+     "name": "April Wilkerson"
+    },
+    {
+     "id": "UCckETVOT59aYw80B36aP9vw",
+     "name": "Matthias Wandel"
+    }
+   ]
+  },
+  {
+   "id": "diy_elec",
+   "he": "חשמל ביתי",
+   "en": "Home electrical",
+   "ru": "Электрика дома",
+   "icon": "diy_elec",
+   "channels": [
+    {
+     "id": "UCB3jUEyCLRbCw7QED0vnXYg",
+     "name": "Electrician U"
+    },
+    {
+     "id": "UC3rZo2iZqw4Ob3FZ3amxRmg",
+     "name": "חשמלאי מוסמך"
+    }
+   ]
+  },
+  {
+   "id": "diy_plumb",
+   "he": "אינסטלציה",
+   "en": "Plumbing",
+   "ru": "Сантехника",
+   "icon": "diy_plumb",
+   "channels": [
+    {
+     "id": "UCGIMKh92vaL0_Yc0u4GYhHA",
+     "name": "Roger Wakefield"
+    }
+   ]
+  },
+  {
+   "id": "diy_maker",
+   "he": "אלקטרוניקה וארדואינו",
+   "en": "Electronics & Arduino",
+   "ru": "Электроника и Arduino",
+   "icon": "diy_maker",
+   "channels": [
+    {
+     "id": "UC6mIxFTvXkWQVEHPsEdflzQ",
+     "name": "GreatScott!"
+    },
+    {
+     "id": "UCu7_D0o48KbfhpEohoP7YSQ",
+     "name": "Andreas Spiess"
+    },
+    {
+     "id": "UCfYfK0tzHZTpNFrc_NDKfTA",
+     "name": "Paul McWhorter"
+    }
+   ]
+  },
+  {
+   "id": "diy_print",
+   "he": "הדפסת תלת-ממד",
+   "en": "3D printing",
+   "ru": "3D-печать",
+   "icon": "diy_print",
+   "channels": [
+    {
+     "id": "UCiczXOhGpvoQGhOL16EZiTg",
+     "name": "CNC Kitchen"
+    }
+   ]
+  },
+  {
+   "id": "diy_car",
+   "he": "תיקוני רכב",
+   "en": "Car repair",
+   "ru": "Ремонт авто",
+   "icon": "diy_car",
+   "channels": [
+    {
+     "id": "UCes1EvRjcKU4sY_UEavndBw",
+     "name": "ChrisFix"
+    }
+   ]
+  },
+  {
+   "id": "diy_garden",
+   "he": "גינון",
+   "en": "Gardening",
+   "ru": "Садоводство",
+   "icon": "diy_garden",
+   "channels": [
+    {
+     "id": "UCSbyncU597LMwb3HhnAI_4w",
+     "name": "Epic Gardening"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="repository.telenova" name="TeleNova Repository" version="3.1.0" provider-name="NovaTV">
+  <extension point="xbmc.addon.repository" name="TeleNova Repository">
+    <dir>
+      <info compressed="false">https://bennymat93.github.io/TeleNova/repo/addons.xml</info>
+      <checksum>https://bennymat93.github.io/TeleNova/repo/addons.xml.md5</checksum>
+      <datadir zip="true">https://bennymat93.github.io/TeleNova/repo/</datadir>
+    </dir>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en">TeleNova add-ons and build updates (NovaTV + TeleScope AI)</summary>
+    <platform>all</platform>
+    <assets><icon>icon.png</icon><fanart>fanart.jpg</fanart></assets>
+  </extension>
+</addon>

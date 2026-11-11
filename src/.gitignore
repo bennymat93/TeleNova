@@ -1,0 +1,10 @@
+# kept out of the repository: they are already inside repo/plugin.video.nova/*.zip (or are build leftovers)
+__pycache__/
+*.pyc
+*.bak
+*.nvp
+native/build-*/
+plugin.video.nova/resources/media/
+qa/HANDOFF-copy.md
+# Google OAuth client of the Drive sign-in: GitHub's push protection refuses it as a secret (it ships inside the add-on zip)
+plugin.video.nova/resources/gdrive_client.json

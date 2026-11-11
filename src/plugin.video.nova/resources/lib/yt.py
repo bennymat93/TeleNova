@@ -1,0 +1,287 @@
+# -*- coding: utf-8 -*-
+"""YouTube lists without a personal API key.
+
+The YouTube add-on (7.x) refuses search and channel pages until the user creates Google API
+keys, but it still *plays* any video. NovaTV therefore reads the lists itself from YouTube's
+public web endpoint (the one youtube.com uses) and hands playback to the YouTube add-on.
+Stdlib + requests only; every failure returns an empty list.
+"""
+import json
+import re
+
+PLAY = 'plugin://plugin.video.youtube/play/?video_id=%s'
+VIDEOS_TAB = 'EgZ2aWRlb3PyBgQKAjoA'
+_CTX = {'client': {'clientName': 'WEB', 'clientVersion': '2.20250101.00.00', 'hl': 'en', 'gl': 'IL'}}
+
+
+def _post(endpoint, body, hl=None, timeout=15):
+    """hl: force the answer's language ('en' = numbers and dates in one known format)"""
+    import requests
+    ctx = {'client': dict(_CTX['client'])}
+    try:
+        from .common import ui_lang
+        ctx['client']['hl'] = hl or {'he': 'iw', 'ru': 'ru'}.get(ui_lang(), 'en')
+    except Exception:
+        ctx['client']['hl'] = hl or 'en'
+    body = dict(body, context=ctx)
+    r = requests.post('https://www.youtube.com/youtubei/v1/%s?prettyPrint=false' % endpoint, json=body,
+                      headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}, timeout=timeout)
+    r.raise_for_status()
+    return r.json()
+
+
+def _walk(o, key):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            if k == key:
+                yield v
+            else:
+                yield from _walk(v, key)
+    elif isinstance(o, list):
+        for i in o:
+            yield from _walk(i, key)
+
+
+def _text(t):
+    if not t:
+        return ''
+    if 'simpleText' in t:
+        return t['simpleText']
+    if 'content' in t:
+        return t['content']
+    return ''.join(r.get('text', '') for r in t.get('runs', []))
+
+
+_DUR = re.compile(r'"text":\s*"(\d{1,2}:\d{2}(?::\d{2})?)"')
+_VIEWS = re.compile(r'"content":\s*"([\d.,]+[KMB]?) (?:views|צפיות)"')
+_AGO = re.compile(r'"content":\s*"(\d+ \w+ ago|לפני [^"]+)"')
+
+
+def seconds(duration):
+    """"1:02:03" / "21:33" -> seconds (0 when unknown)"""
+    s = 0
+    for part in (duration or '').split(':'):
+        if not part.isdigit():
+            return 0
+        s = s * 60 + int(part)
+    return s
+
+
+def _views(text):
+    m = re.match(r'([\d.,]+)\s*([KMB]?)', (text or '').replace(',', ''))
+    if not m:
+        return 0
+    return int(float(m.group(1)) * {'': 1, 'K': 1e3, 'M': 1e6, 'B': 1e9}[m.group(2)])
+
+
+def _items(data):
+    """videos of a youtubei answer: id, title, thumb, channel (+ channel_id), duration ("21:33"), secs, views, age.
+    Shorts (reel / shortsLockupViewModel / /shorts/ links) are never returned."""
+    out, seen = [], set()
+    for v in _walk(data, 'videoRenderer'):
+        vid = v.get('videoId')
+        if not vid or vid in seen:
+            continue
+        seen.add(vid)
+        thumbs = (v.get('thumbnail') or {}).get('thumbnails') or [{}]
+        owner = next(_walk(v.get('ownerText') or {}, 'browseId'), '')
+        url = next(_walk(v.get('navigationEndpoint') or {}, 'url'), '')
+        dur = _text(v.get('lengthText'))
+        out.append({'id': vid, 'title': _text(v.get('title')), 'thumb': thumbs[-1].get('url', ''),
+                    'channel': _text(v.get('ownerText')), 'channel_id': owner, 'duration': dur, 'secs': seconds(dur),
+                    'views': _views(_text(v.get('viewCountText'))), 'age': _text(v.get('publishedTimeText')),
+                    'short': '/shorts/' in url,
+                    'plot': _text((v.get('detailedMetadataSnippets') or [{}])[0].get('snippetText'))})
+    for v in _walk(data, 'lockupViewModel'):
+        vid = v.get('contentId')
+        if not vid or vid in seen or v.get('contentType') not in (None, 'LOCKUP_CONTENT_TYPE_VIDEO'):
+            continue
+        seen.add(vid)
+        meta = (v.get('metadata') or {}).get('lockupMetadataViewModel') or {}
+        src = next(_walk(v.get('contentImage') or {}, 'sources'), [{}])
+        blob = json.dumps(v, ensure_ascii=False)            # YouTube's new format: duration / views / age are badges
+        dur = (_DUR.findall(blob) or [''])[0]
+        views = (_VIEWS.findall(blob) or [''])[0]
+        age = (_AGO.findall(blob) or [''])[0]
+        out.append({'id': vid, 'title': _text(meta.get('title')), 'thumb': (src[-1] if src else {}).get('url', ''),
+                    'channel': '', 'channel_id': '', 'duration': dur, 'secs': seconds(dur), 'views': _views(views),
+                    'age': age, 'short': '/shorts/' in blob, 'plot': ''})
+    for v in _walk(data, 'playlistVideoRenderer'):          # course playlists (MIT OCW, NPTEL ...)
+        vid = v.get('videoId')
+        if not vid or vid in seen:
+            continue
+        seen.add(vid)
+        thumbs = (v.get('thumbnail') or {}).get('thumbnails') or [{}]
+        secs = int(v.get('lengthSeconds') or 0)
+        out.append({'id': vid, 'title': _text(v.get('title')), 'thumb': thumbs[-1].get('url', ''),
+                    'channel': _text(v.get('shortBylineText')), 'channel_id': next(_walk(v.get('shortBylineText') or {}, 'browseId'), ''),
+                    'duration': _text(v.get('lengthText')), 'secs': secs, 'views': 0, 'age': '', 'short': False, 'plot': ''})
+    return [i for i in out if i['title'] and not i['short']]
+
+
+def _continuation(data):
+    return next((c.get('token') for c in _walk(data, 'continuationCommand') if c.get('token')), '')
+
+
+CACHE_MAX_AGE = 6 * 3600      # the last good answer is a fallback for a YouTube hiccup, never older than this
+
+
+def norm_query(q):
+    """cache key part: the whole query, case/space-normalised (different searches never share an entry)"""
+    return ' '.join((q or '').lower().split())
+
+
+import threading as _threading
+_CACHE_LOCK = _threading.Lock()
+
+
+_MEM = {'mtime': None, 'data': None}
+_DEPTH = _threading.local()       # 3.3: how deep this thread is inside _cached (search() calls search_videos())
+
+
+def _load_cache(load):
+    """the cache file is several MB: parsed once per process and re-read only when another process changed it
+    (re-parsing it for every channel made cold category loads take 16-29 s, 1.4.7)"""
+    import os
+    try:
+        from .common import _path
+        mt = os.path.getmtime(_path('yt_cache.json'))
+    except Exception:
+        mt = None
+    if _MEM['data'] is None or mt != _MEM['mtime']:
+        _MEM['data'], _MEM['mtime'] = load('yt_cache.json', {}), mt
+    return _MEM['data']
+
+
+def _store(key, value, load, save):
+    """read-modify-write of the cache under a lock: parallel channel fetches overwrote each other's entries"""
+    import time
+    with _CACHE_LOCK:
+        cache = _load_cache(load)
+        now = time.time()
+        cache = {k: v for k, v in cache.items()              # drop old / old-format entries
+                 if isinstance(v, dict) and now - v.get('t', 0) < CACHE_MAX_AGE}
+        cache[key] = {'t': now, 'v': value}
+        save('yt_cache.json', cache)
+        try:
+            import os
+            from .common import _path
+            _MEM['data'], _MEM['mtime'] = cache, os.path.getmtime(_path('yt_cache.json'))
+        except Exception:
+            _MEM['data'] = None
+
+
+def _cached(key, fetch, fresh=0):
+    """one retry, then the last good answer of THIS key (at most CACHE_MAX_AGE old):
+    a single YouTube hiccup must not show an empty list, and nothing stale is ever shown.
+    fresh: an answer younger than this many seconds is used without asking YouTube again (channel pages change
+    a few times a day; refetching 8 channels x 4 pages on every open made dog categories take 15-41 s)"""
+    import time
+    try:
+        from .common import load, save
+    except Exception:
+        load = save = None
+    if fresh and load:
+        hit = _load_cache(load).get(key)
+        if isinstance(hit, dict) and time.time() - hit.get('t', 0) < fresh and hit.get('v'):
+            return hit['v']
+    # 3.3: the second try is only for an error (an empty answer is an answer), the pause is only between the two
+    # tries, and a cached call made from inside another one (search -> search_videos) tries once: with no network
+    # one search used to take 4 x 2 timeouts + sleeps (~130 s) and outlived the caller's time limit
+    depth = getattr(_DEPTH, 'n', 0)
+    tries = 1 if depth else 2
+    for attempt in range(tries):
+        _DEPTH.n = depth + 1
+        try:
+            value = fetch()
+            if value and value[0] if isinstance(value, tuple) else value:
+                if save:
+                    _store(key, value, load, save)
+                return value
+            break
+        except Exception:
+            if attempt + 1 < tries:
+                time.sleep(1)
+        finally:
+            _DEPTH.n = depth
+    hit = _load_cache(load).get(key) if load else None
+    if isinstance(hit, dict) and time.time() - hit.get('t', 0) < CACHE_MAX_AGE:
+        return hit['v']
+    return None
+
+
+def _all_words(title, q):
+    t = (title or '').lower()
+    return all(w in t for w in re.findall(r'\w+', (q or '').lower()) if len(w) > 1)
+
+
+def search(q, limit=60):
+    """the viewer's search (1.4.6): videos only (channels / playlists / Shorts used to take the slots), 3 pages,
+    metadata in the viewer's language; when no title holds every word, YouTube's exact-phrase search is added
+    first - a known video that a broad search ranks low is found by its exact name"""
+    def fetch():
+        found = search_videos(q, pages=3, hl=None)
+        if not any(_all_words(v.get('title'), q) for v in found[:10]):
+            exact = search_videos('"%s"' % q, pages=1, hl=None)
+            ids = {v['id'] for v in exact}
+            found = exact + [v for v in found if v['id'] not in ids]
+        seen, out = set(), []
+        for v in found:
+            if v['id'] not in seen:
+                seen.add(v['id'])
+                out.append(v)
+        return out[:limit]
+    res = _cached('s2:' + norm_query(q), fetch)
+    return res or []
+
+
+def channel(channel_id, token=''):
+    """(videos, next_page_token)"""
+    def fetch():
+        data = _post('browse', {'continuation': token} if token else {'browseId': channel_id, 'params': VIDEOS_TAB})
+        return _items(data), _continuation(data)
+    res = _cached('c:%s:%s' % (channel_id, token[:40]), fetch)
+    return tuple(res) if res else ([], '')
+
+
+def channel_videos(channel_id, pages=2):
+    """the newest videos of a channel over `pages` pages (~30 each), English metadata; cached like the lists"""
+    def fetch():
+        out, token = [], ''
+        for _ in range(pages):
+            data = _post('browse', {'continuation': token} if token else {'browseId': channel_id, 'params': VIDEOS_TAB}, hl='en')
+            out += _items(data)
+            token = _continuation(data)
+            if not token:
+                break
+        return out
+    return _cached('cv:%s:%d' % (channel_id, pages), fetch, fresh=3 * 3600) or []
+
+
+def playlist_videos(playlist_id):
+    """every video of a playlist (course lectures in order)"""
+    def fetch():
+        out, token = [], ''
+        for _ in range(10):
+            data = _post('browse', {'continuation': token} if token else {'browseId': 'VL' + playlist_id}, hl='en')
+            out += _items(data)
+            token = _continuation(data)
+            if not token:
+                break
+        return out
+    return _cached('pl:%s' % playlist_id, fetch, fresh=3 * 3600) or []
+
+
+def search_videos(q, pages=1, hl='en'):
+    """search (English metadata, videos only) - callers filter by channel / duration"""
+    def fetch():
+        out, token = [], ''
+        for _ in range(pages):
+            data = _post('search', {'continuation': token} if token else {'query': q, 'params': 'EgIQAQ=='}, hl=hl,
+                         timeout=(3, 6))
+            out += _items(data)
+            token = _continuation(data)
+            if not token:
+                break
+        return out
+    return _cached('sv:%s:%d:%s' % (norm_query(q), pages, hl or 'ui'), fetch) or []

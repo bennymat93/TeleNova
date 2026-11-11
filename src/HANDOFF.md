@@ -1,0 +1,145 @@
+# TeleNova – Handoff
+
+עודכן: 2026-11-12 (לילה). המסמך הזה מספיק כדי להמשיך את העבודה מסשן חדש בלי ההיסטוריה.
+
+## 0. עדכון אחרון (2026-11-12 00:35) – לקרוא קודם
+
+כל מה שמתואר בסעיף 4 **נפרס, נארז ועבר QA** (מחליף את סעיף 2 ואת צעדים 1–6 שבסעיף 5):
+
+- החבילה `build/TeleNova-3.3.0.zip.part0` + `build.json` + `repo/` מעודכנים וכוללים את כל השינויים. Kodi במחשב רץ עם ההתקנה הנקייה מהחבילה.
+- תוצאות QA על ההתקנה הנקייה: זיהוי מכשיר `pc, certain` בלי חלון שאלה; 147 מסכים / 4,429 פריטים / 0 שגיאות / 0 איטיים (מעל 6 שניות); ניגון 11/11; אשף 4/4; פרופילים 30/30; ליבה 50/50; הצפנת nvp עוברת; מנוע טלגרם 24/25.
+- בדיקת עומס: 63 בקשות עוינות – Kodi חי, בלי הודעות שגיאה למשתמש; 3 סבבים × 16 קריאות בו-זמנית – Kodi חי, 3–5 סירובי חיבור לסבב שהם מגבלת ערוץ ה-TCP של Kodi (לא הבילד); דפדוף ערוצים מהיר – Kodi חי.
+- המדריך `guide.html` נכתב מחדש (עברית) עם 7 צילומי מסך ב-`img/guide/`. README עודכן.
+- כלי ה-QA הועתקו ל-`src\qa\` (הריצה המלאה: `qa_all.ps1`; עם `$env:QA_SKIP_BUILD='1'` מדלג על בנייה).
+
+**מה נשאר פתוח**
+
+1. פרסום ל-GitHub – רק באישור מפורש של המשתמש.
+2. בדיקה על מכשירים אמיתיים: Android (סטרימר 32/64, טלפון, רכב), iOS, Mac – הזיהוי נבדק רק בסימולציה וב-Windows.
+3. הזרמה אמיתית מטלגרם (אין חשבון מחובר) – כולל האסימון החדש ב-URL, ביטול קריאה-מראש וחיבור מחדש.
+4. `test_c4b_seek_cancels_old_readahead` (ציפייה אחת נכשלת) + הפריטים C11/C12/C16/C17/C18 שלא ידוע אם הושלמו.
+5. לא רצו שוב אחרי הסבב האחרון: מנוחה 11.5 דקות + זמן יציאה (רצו רק על הגרסה הקודמת).
+6. ידוע ולא טופל: שגיאות קוסמטיות של סקין FENtastic בלוג (`Misplaced ]`, `unmatched parentheses`, `Control 60 ... can't focus`); YouTube 403/429; `EXCEPTION: Kodi is not playing any file` בעצירה מהירה של זרם (מקור לא אותר).
+7. המדריך בעברית בלבד (הקודם היה גם באנגלית) – להוסיף אנגלית/רוסית אם צריך.
+
+## 0.1 המשך עבודה מחשבון אחר + הערכת זמן
+
+- המסמך הזה: `C:\My Projects\novaTV Addon\src\HANDOFF.md` (עותק: `src\qa\HANDOFF-copy.md`). בסשן החדש לפתוח את התיקייה `C:\My Projects\novaTV Addon` ולבקש: "קרא את src\HANDOFF.md והמשך משם".
+- הכול נמצא על המחשב הזה ולא תלוי בחשבון: הקוד ב-`src\`, כלי ה-QA ב-`src\qa\`, החבילה ב-`build\` + `repo\`, Kodi מותקן ורץ.
+- **נדחף ל-GitHub (2026-11-12)**: האתר עם גרסה 3.3.0 (כלומר 3.3.0 כבר מפורסמת למשתמשים), וגם התיקייה `src/` עם המסמך הזה, קוד המקור וכלי ה-QA. מחוץ למאגר נשארו (ראה `src/.gitignore`): `plugin.video.nova/resources/gdrive_client.json` (GitHub חוסם אותו כסוד – מזהה וסוד OAuth של Google), קובצי `.nvp`, `plugin.video.nova/resources/media/` ותוצרי הקימפול – כולם נמצאים בתוך `repo/plugin.video.nova/plugin.video.nova-3.3.0.zip`. במחשב אחר: לשכפל את המאגר ולחלץ מה-zip הזה את `resources/media` ואת שני קובצי ה-`.nvp` אל `src/plugin.video.nova/resources/` לפני אריזה.
+- **שים לב**: תיקיית ה-stage (`...\scratchpad\stage`) היא תיקייה זמנית של הסשן הקודם. אם היא עדיין קיימת – להשתמש בה. אם נמחקה: לחלץ את `build/TeleNova-3.2.0.zip.part0+part1` מ-git (`git show HEAD:build/TeleNova-3.2.0.zip.part0 > part0` וכו'), לחבר, לחלץ לתיקייה חדשה ולהריץ עליה `src\qa\Clean-Build.ps1`. בסקריפטים שב-`src\qa\` המשתנה `$s` / `$PSScriptRoot` מצביע על התיקייה שבה הם יושבים, אז אפשר להריץ אותם משם.
+- **הערכת זמן למה שנשאר**:
+  - פרסום ל-GitHub (commit + push, באישור המשתמש): כ-5 דקות.
+  - מנוחה 11.5 דקות + בדיקת יציאה על הגרסה הסופית: כ-15 דקות.
+  - סגירת הפריטים הפתוחים של מנוע הטלגרם (C4b, C11, C12, C16, C17, C18) + אריזה + QA מלא: כ-45–60 דקות.
+  - בדיקה על מכשיר Android / iOS / Mac אמיתי והזרמה מטלגרם עם חשבון מחובר: תלוי במשתמש (דורש את המכשירים ואת החשבון); כ-30–60 דקות לכל מכשיר.
+  - סך הכול בלי מכשירים אמיתיים: **כשעה עד שעה וחצי**. הבילד עצמו כבר שמיש ונבדק ב-Windows; מה שנשאר הוא ליטוש ואימות.
+
+## 1. מה זה ואיפה הכול
+
+| מה | איפה |
+|---|---|
+| המאגר (אתר ההפצה, ענף `gh-pages`, GitHub `bennymat93/TeleNova`) | `C:\My Projects\novaTV Addon` |
+| קוד מקור פתוח של התוספים (מוחרג מ-git דרך `.git/info/exclude`) | `C:\My Projects\novaTV Addon\src\` |
+| כלי אריזה והגדרות | `src\tools\package.py`, `src\tools\build_config.py`, `src\tools\nvp_clean.py` |
+| ספריית AES מקורית (קוד C) | `src\native\tnige.c` → `src\plugin.video.telescope\resources\bin\win-*\tnige.dll` |
+| Kodi 21.3 מותקן | `C:\Program Files\Kodi`, פרופיל ב-`%APPDATA%\Kodi` |
+| גיבוי פרופיל ישן (אפשר למחוק) | `%APPDATA%\Kodi.qa-backup-20261111-231418` |
+| כלי QA (תיקיית scratch של הסשן – **להעתיק ל-`src\qa\` אם רוצים לשמר**) | `C:\Users\benny\AppData\Local\Temp\claude\0df07f8c0e21f4a7\f8dd45ee-32ee-4d66-b008-da9e8aed6da8\scratchpad\` |
+
+**שום דבר לא נדחף ל-GitHub.** הגרסה המפורסמת היא עדיין 3.2.0. כל 3.3.0 קיים רק מקומית (עץ העבודה של git מלוכלך בכוונה).
+
+## 2. מצב נוכחי בשורה אחת
+
+גרסה 3.3.0 ארוזה ונבדקה (סבב QA ראשון עבר נקי). אחריה בוצע סבב שיפורים גדול בקוד (כ-55 תיקונים + פרופילי מכשיר חדשים) ש**עדיין לא נפרס ל-Kodi, לא נארז ולא עבר QA**. זו המשימה הבאה.
+
+## 3. מה כבר בוצע ואומת (ארוז ב-`build/TeleNova-3.3.0.zip.part0`, sha ב-`build.json`)
+
+- פענוח טלגרם ב-Windows: 0.2 → ~350MB/s (ספריית `tnige.dll`, אומתה מול OpenSSL).
+- ניקוי הבילד: ~24MB (Estuary כפול, 9 מודולים, סקרייפרים, אייקוני POV), מועדפים מתים.
+- אשף העדכון תוקן (דרש `xbmc.python` 3.1.0 שלא קיים) + "התקנה נקייה" באמת מוחקת + "עדכון" שומר מועדפים.
+- זיהוי כתוביות עברית מובנות (לפי קוד שפה או שם רצועה; All_Subs guard v13).
+- כפתורי סקין מתים חוברו/הוסתרו; רדיו עם מטמון 6 שעות; פרקים 14→4 שניות; ערוצים בהתקנה חדשה תוך ~58 שניות.
+- QA: 147 מסכים/0 שגיאות, ניגון 11/11, מנוחה 11.5 דק' נקי, אשף 4 תרחישים, התקנה נקייה מהחבילה.
+
+## 4. מה בוצע בקוד אחרי האריזה האחרונה – **לא נפרס, לא נבדק ב-Kodi**
+
+### 4.1 ליבת TeleNova (`plugin.video.nova`: default.py, common.py, providers.py, iptv.py, radio.py, yt.py, livebar.py, epmatch.py, topics.py)
+18 תיקונים (A1–A18), 50/50 בדיקות יחידה עוברות (`scratchpad\agentA\t.py`):
+מטמון TMDb אטומי + נפילה למטמון ישן; `load/save` בטוחים (לא דורסים מועדפים/היסטוריה על שגיאת קריאה, קובצי `.bak`); רדיו – תשובה לא-רשימה לא נשמרת, timeouts קצרים; YouTube – בלי המתנות מיותרות; ערוצים שנפלו נבדקים שוב וחוזרים; כתיבת M3U אטומית; `install_addon` לא לוחץ "כן" על חלון לא קשור; תרגומי עלילה שנכשלו לא נשמרים; פרמטר חסר לא מציג הודעת שגיאה; memo לספקים; שורת "ריק" ברשימות ריקות; התאמת שמות פרקים גמישה יותר; מיון ודירוג ברשימות.
+
+### 4.2 שירות ונגן (`service.py`, player_menus, playerctl, subsmenu, livesubs, substore, backup, preset, ytport)
+20 תיקונים (B1–B20). בדיקת תאימות הצפנת `.nvp` עוברת (`python scratchpad\agentB\test_preset.py <נתיב plugin.video.nova>`):
+פחות עבודה בהפעלה במצב קל; היסטוריה נכתבת ב-thread נפרד (500 רשומות); שחזור גיבוי מוגבל ל-`addon_data/` + קבצים מוכרים, בלי אסימון Google Drive; בלי `xbmc.Player()` חדש בכל קריאה; `tv_try` מתנקה; כתוביות לא נכבות בטלוויזיה חיה; מאפיינים לא דולפים לסרט הבא; תעודות לא משונמכות; לולאות דגימה איטיות יותר; פענוח `.nvp` במקטעים של 1MB; ניקוי מטמון TMDb יומי.
+
+### 4.3 מנוע הטלגרם (`plugin.video.telescope/resources/lib`) – **הסוכן נקטע באמצע (מגבלת שימוש)**
+רוב C1–C18 נכנסו; `python scratchpad\agentC\test_all.py` → 24/25 עוברות.
+- נכנס: חיבור מחדש אינסופי, שרת HTTP עולה לפני Telegram, ריפוד ב-OpenSSL, אין הורדות כפולות של מקטע, ביטול קריאה-מראש אחרי קפיצה, תוצאות לא נחתכות ל-6, מדידת מהירות נכונה, **אסימון HMAC ב-URL של הזרם + בדיקת Host**, מפתחות לא נכתבים ללוג, טריילר לפי שם קובץ, תבניות רוסית, COMPLETE בסרטים, מפתח dedup ל-Stremio, "לא מחובר" במקום "אין קבצים", ניקוי מטמון.
+- **לבדוק**: הבדיקה `test_c4b_seek_cancels_old_readahead` נכשלת בטענה האחרונה (מקטע 11 נמשך 3 פעמים במקום 2) – הקוד נראה נכון, כנראה ציפייה מחמירה מדי; לא הוכרע.
+- **לא ידוע אם הושלמו**: C11 (עצירה מוקדמת של חיפוש), C12 (מפתח מטמון ל-hub מהיר), C16 (endOfDirectory אחרי חריגה), C17 (קריאה ל-`purge_expired` מהשירות), C18 (פריטים קטנים). לחפש `# 3.3:` בקבצים ולהשוות לרשימה שבסעיף 8.
+
+### 4.4 פרופילי מכשיר (`resources/lib/profiles.py`, נכתב מחדש) – 30/30 מכשירים מדומים עוברים (`scratchpad\t_profiles.py <lib>`)
+פרופילים: `pc` (Windows), `tv64` / `tv32` (סטרימרים), `phone`, `tablet`, `car`, `ios`, `mac`. הערכים הישנים `tv`/`touch` עדיין נתמכים.
+זיהוי: `facts()` → `classify()` דורש שני סימנים בלתי תלויים; `detect()` קורא 3 פעמים וכולן חייבות להסכים; רק אז `auto()` מחיל בלי לשאול, אחרת `wizard()` שואל עם הניחוש מסומן. `service.py` קורא ל-`profiles.auto()`.
+**לא נבדק על מכשיר אמיתי** (Android/iOS/Mac). ב-Android הזיהוי מריץ `/system/bin/pm list features` ו-`getprop`; אם לא קריאים – שואלים.
+
+### 4.5 הגדרות וסקין (`src\tools\build_config.py`, נבדק על עותק)
+פורט שלט-רחוק לא פתוח לרשת; קידוד כתוביות CP1255; ניגון אוטומטי רק לסדרות; שפת שמע מקורית; שם מכשיר TeleNova; שורת "חם השבוע" בסרטים ובסדרות; מסד הווידג'טים של הסקין בלי POV; מפתח MDbList זר בוטל; שמות POV/DarkSubs הוחלפו; 2 גופני כתוביות בלי עברית הוסרו.
+
+## 5. הצעדים הבאים, לפי סדר
+
+1. **בדיקות סטטיות**: `python scratchpad\undef.py src` + בדיקת תחביר 3.8 (פקודה בסעיף 7).
+2. **להכין stage ולארוז**: `Clean-Build.ps1 -Root scratchpad\stage -Src src` → `python src\tools\build_config.py scratchpad\stage` → `python scratchpad\addonsdb.py scratchpad\stage --fix` → `python src\tools\package.py scratchpad\stage`.
+3. **התקנה נקייה מהחבילה**: לסגור Kodi, למחוק/לשנות שם ל-`%APPDATA%\Kodi`, לחלץ את החבילה (ראה סעיף 7), להפעיל.
+4. **QA מחמיר**: `crawl.py 3 2 <nova> <telescope>`, `playtest.py`, `final_checks.py`, `stress.py` (אחרי שמוציאים ממנו את שתי שורות `?mode=play` – הן פותחות חלון אישור שחוסם את ערוץ ה-RPC), `wizard_test.py`, מנוחה 11.5 דק' + בדיקת יציאה.
+   לוודא במיוחד: זיהוי המכשיר ב-Windows נרשם בלוג כ-`device detection: pc, certain` בלי חלון שאלה; ניגון ערוצים עדיין עובד אחרי `pvrplayback.confirmchannelswitch=false`; אין הודעות שגיאה על פרמטרים חסרים.
+5. **מדריך למשתמש** (`guide.html`, כרגע "BN Stream 1.5.1" – מיושן): לכתוב מחדש ל-TeleNova 3.3 עם צילומי מסך (אפשר דרך JSON-RPC: `Input.ExecuteAction` עם `screenshot`, אחרי הגדרת תיקיית צילומים), כולל פרק "מקסימום תוכן מטלגרם" (סעיף 6) ופרק הפרופילים.
+6. **README + גרסה**: להוסיף לסעיף 3.3.0 ב-README את מה שבסעיף 4. הגרסה נשארת 3.3.0 (עוד לא פורסמה).
+7. **פרסום** – רק באישור מפורש של המשתמש: commit + push ל-`gh-pages`.
+
+## 6. חומר לפרק "מקסימום תוכן מטלגרם" במדריך
+
+- להתחבר: TeleNova → טלגרם → חשבון ומצב. צריך `api_id` + `api_hash` (my.telegram.org) – פעם אחת, ואז קוד או QR.
+- **התוכן מגיע רק מערוצים וקבוצות שהחשבון חבר בהם.** יותר ערוצים = יותר קישורים. "הטלגרם שלי" → גילוי/הצטרפות.
+- "צ'יקו מדיה": ערוצים מוכרים מקבלים עדיפות (מילות מפתח בהגדרות).
+- מפתח Gemini (חינמי) בהגדרות: שמות חלופיים בעברית/רוסית/אנגלית + אימות התאמות → יותר תוצאות נכונות.
+- מפתח TMDb אישי (אופציונלי) – הבילד מגיע עם אחד.
+- הגדרות שמשפיעות על כמות: `strict` (כיבוי = מציג גם התאמות קרובות, מסומנות `?`), `min_quality`, `hide_cam`, `hide_slow`, `keep_unprobed`, `probe_count`, `max_results`, `search_limit`, `max_aliases`, `max_queries`.
+- הגדרות שמשפיעות על חלקות: `parallel`, `readahead`, `cache_mb` (48MB ברירת מחדל; בסטרימר 32 ביט לא להעלות).
+- Telemedia מותקן ומחובר? המנוע משתמש בו כמקור נוסף (`use_telemedia`). שרתי Stremio: `stremio_servers`.
+- שורת "מצב": TeleNova → טלגרם → חשבון ומצב מציג backend ההצפנה ומהירותו; מתחת ל-1.5MB/s עדיף קבצים עד 720p.
+
+## 7. פקודות שימושיות (PowerShell)
+
+```powershell
+$s = "C:\Users\benny\AppData\Local\Temp\claude\0df07f8c0e21f4a7\f8dd45ee-32ee-4d66-b008-da9e8aed6da8\scratchpad"
+$R = "C:\My Projects\novaTV Addon"
+# תחביר Python 3.8 + שמות לא מוגדרים
+python -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read(),f,feature_version=(3,8)) for f in glob.glob(r'C:\My Projects\novaTV Addon\src\**\*.py',recursive=True)]; print('ok')"
+python "$s\undef.py" "$R\src"
+# stage + אריזה
+& "$s\Clean-Build.ps1" -Root "$s\stage" -Src "$R\src"; python "$R\src\tools\build_config.py" "$s\stage"; python "$s\addonsdb.py" "$s\stage" --fix; python "$R\src\tools\package.py" "$s\stage"
+# בדיקות
+python "$s\crawl.py" 3 2 "plugin://plugin.video.nova/" "plugin://plugin.video.telescope/"
+python "$s\playtest.py"; python "$s\final_checks.py"; python "$s\stress.py"; python "$s\wizard_test.py" $R $s
+python "$s\t_profiles.py" "$R\src\plugin.video.nova\resources\lib"; python "$s\t_subs.py"
+```
+
+`scratchpad\stage` הוא חילוץ של הבילד המקורי 3.2.0 שעליו מוחלים הניקוי והתוספים המעודכנים. אם התיקייה נעלמה: לחלץ את `build/TeleNova-3.2.0.zip.part0+part1` מ-`git show HEAD:build/...` (או מהגרסה המפורסמת) ולהריץ שוב.
+
+## 8. מלכודות שנלמדו
+
+- **ערוץ ה-JSON-RPC (TCP 9090) נחסם כל עוד חלון מודאלי פתוח** שנפתח מתוך קריאת `Files.GetDirectory`. בדיקות לא יכולות לקרוא לפעולות שפותחות חלון (חיפוש עם מקלדת, `mode=play` של טלגרם בלי חשבון, `profile_pick`). אם הפורט מסרב – להפעיל מחדש את Kodi.
+- בהפעלה ראשונה היה נפתח חלון "איזה מכשיר זה?" – עם הזיהוי החדש ב-Windows הוא לא אמור להיפתח.
+- PowerShell: `python -c "..."` עם סוגריים מרובעים/מירכאות נשבר – לכתוב סקריפט לקובץ ולהריץ.
+- git ב-Windows המיר LF→CRLF בקובצי טקסט; `package.py` כותב `addons.xml` ב-LF ומחשב md5 על LF.
+- שגיאות ידועות שלא טופלו: 4× `Misplaced ]` של סקין FENtastic בטעינת הבית (קוסמטי); 6 קובצי XML של הסקין לא תקינים פורמלית (Kodi טוען אותם); YouTube 403/429 מצד YouTube; אזהרות `inputstream.rtmp/ffmpegdirect` חסרים ל-pvr.iptvsimple.
+- `preset.nvp` / `build.nvp` (47MB, מוצפנים בסיסמת הבעלים) נשארים בבילד לבקשת המשתמש. לניקוי פיזי: `python src\tools\nvp_clean.py` (מבקש סיסמה מקומית) ואז אריזה מחדש. **אבטחה**: הם במאגר ציבורי וניתנים לניחוש סיסמה offline; ייתכן שמכילים אסימון Google Drive של הבעלים (גיבויים חדשים כבר לא כוללים אותו).
+- ממצאי מחקר שלא יושמו בכוונה: החזרת 9 תוספי תוכן (docs/ספורט – הוסרו ב-3.1), אמון בשרת כתוביות שמתגלה אוטומטית ברשת (מפתח Gemini נשלח ב-HTTP), מיזוג Drive דו-כיווני, מעבר לגיבוי Idan+ בערוץ שנכשל, מטמון רדיו/YouTube בקובץ לכל מפתח.
+
+## 9. בקשות המשתמש הפתוחות (מהודעתו האחרונה)
+
+1. ✅ פרופילים: Windows, סטרימרים 32/64, טלפוני אנדרואיד, רכב אנדרואיד, iOS/iPad/Mac + זיהוי ודאי עם בדיקה חוזרת – **נכתב ונבדק בסימולציה; לפרוס ולבדוק ב-Kodi**.
+2. ⬜ עריכת המדריך למשתמש למצב החדש, עם צילומי מסך, והרחבה על מקסום תוכן מטלגרם.
+3. ⬜ QA קיצוני סופי על הכול, מטרה: ~0 באגים. לקצר זמני ריצה: להריץ crawl/playtest/stress ברצף אחד ברקע, לא בנפרד.
+4. ⬜ בסוף: רשימת כל השינויים + מה כל אחד תורם (חומר הגלם בסעיפים 3–4).

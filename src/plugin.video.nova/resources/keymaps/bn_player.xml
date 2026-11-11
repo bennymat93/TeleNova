@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BN Stream: VLC-style keys in the player (docs/v1.1.0/KEYMAP.md). Installed to userdata/keymaps by the NovaTV service. -->
+<keymap>
+  <FullscreenVideo>
+    <keyboard>
+      <g>SubtitleDelayMinus</g>
+      <h>SubtitleDelayPlus</h>
+      <j>AudioDelayMinus</j>
+      <k>AudioDelayPlus</k>
+      <v>RunPlugin(plugin://plugin.video.nova/?a=subs_menu)</v>
+      <s mod="shift">RunPlugin(plugin://plugin.video.nova/?a=sync_menu)</s>
+      <b>AudioNextLanguage</b>
+      <t>NextSubtitle</t>
+      <leftbracket>PlayerControl(TempoDown)</leftbracket>
+      <rightbracket>PlayerControl(TempoUp)</rightbracket>
+      <e mod="ctrl">RunPlugin(plugin://plugin.video.nova/?a=settings_menu)</e>
+      <n>RunPlugin(plugin://plugin.video.nova/?a=next_episode)</n>
+      <a>AspectRatio</a>
+      <p mod="shift">TakeScreenshot</p>
+    </keyboard>
+    <remote>
+      <subtitle>RunPlugin(plugin://plugin.video.nova/?a=subs_menu)</subtitle>
+      <language>AudioNextLanguage</language>
+    </remote>
+  </FullscreenVideo>
+  <FullscreenLiveTV>
+    <!-- BN live-TV bar (Custom_1190_BNLiveBar.xml): OK / Enter / click / tap; up/down stay channel up/down -->
+    <keyboard>
+      <return>ActivateWindow(1190)</return>
+      <enter>ActivateWindow(1190)</enter>
+      <c>ActivateWindow(1190)</c>
+      <pageup>ChannelUp</pageup>
+      <pagedown>ChannelDown</pagedown>
+      <t>RunPlugin(plugin://plugin.video.nova/?a=live_subs)</t>
+      <v>RunPlugin(plugin://plugin.video.nova/?a=live_subs)</v>
+    </keyboard>
+    <remote>
+      <select>ActivateWindow(1190)</select>
+      <menu>ActivateWindow(1190)</menu>
+      <pageplus>ChannelUp</pageplus>
+      <pageminus>ChannelDown</pageminus>
+      <guide>ActivateWindow(1190)</guide>
+      <subtitle>RunPlugin(plugin://plugin.video.nova/?a=live_subs)</subtitle>
+    </remote>
+    <gamepad>
+      <a>ActivateWindow(1190)</a>
+    </gamepad>
+    <mouse>
+      <leftclick>ActivateWindow(1190)</leftclick>
+      <wheelup>ChannelUp</wheelup>
+      <wheeldown>ChannelDown</wheeldown>
+    </mouse>
+    <touch>
+      <!-- phones / tablets / car screens: tap = channel bar, swipe up/down = next/previous channel,
+           swipe left/right = channel bar (1.4.11) -->
+      <tap>ActivateWindow(1190)</tap>
+      <swipe direction="up">ChannelUp</swipe>
+      <swipe direction="down">ChannelDown</swipe>
+      <swipe direction="left">ActivateWindow(1190)</swipe>
+      <swipe direction="right">ActivateWindow(1190)</swipe>
+    </touch>
+  </FullscreenLiveTV>
+</keymap>

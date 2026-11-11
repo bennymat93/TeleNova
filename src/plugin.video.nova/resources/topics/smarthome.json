@@ -1,0 +1,88 @@
+{
+ "_help": "בית חכם - DIY (Home Assistant, ESPHome) to professional systems, plus what is new.",
+ "min_seconds": 300,
+ "search_scope": "all",
+ "categories": [
+  {
+   "id": "smart_ha",
+   "he": "Home Assistant ובית חכם DIY",
+   "en": "Home Assistant & DIY smart home",
+   "ru": "Home Assistant и DIY",
+   "icon": "smart_ha",
+   "channels": [
+    {
+     "id": "UCbX3YkedQunLt7EQAdVxh7w",
+     "name": "Home Assistant"
+    },
+    {
+     "id": "UCrVLgIniVg6jW38uVqDRIiQ",
+     "name": "Everything Smart Home"
+    },
+    {
+     "id": "UCVtQ4AOSmCFUuvixddYiSxw",
+     "name": "Smart Home Junkie"
+    },
+    {
+     "id": "UC2gyzKcHbYfqoXA5xbyGXtQ",
+     "name": "The Hook Up"
+    },
+    {
+     "id": "UC67SMH0qLMJ4b4Guud0mKjw",
+     "name": "Home Automation Guy"
+    }
+   ]
+  },
+  {
+   "id": "smart_pro",
+   "he": "מערכות ומוצרים",
+   "en": "Systems & products",
+   "ru": "Системы и устройства",
+   "icon": "smart_pro",
+   "channels": [
+    {
+     "id": "UCwOBG77Tm8cE24FPxHb_abw",
+     "name": "Smart Home Solver"
+    },
+    {
+     "id": "UCYLnawaM-36HncBBUeWrlGA",
+     "name": "Paul Hibbert"
+    },
+    {
+     "id": "UCbsZRChOGBmMXx9-6PhCxdw",
+     "name": "Shelly"
+    }
+   ]
+  },
+  {
+   "id": "smart_he",
+   "he": "בית חכם בעברית",
+   "en": "Smart home in Hebrew",
+   "ru": "Умный дом на иврите",
+   "icon": "smart_he",
+   "channels": [
+    {
+     "id": "UCu03MbHnMTCcL3mMTnNrMPg",
+     "name": "בית חכם זה פשוט"
+    },
+    {
+     "id": "UCoLAjeN8p_WOnWpB5f9bLSg",
+     "name": "BSWITCH"
+    }
+   ]
+  },
+  {
+   "id": "smart_new",
+   "he": "חידושים בבית חכם",
+   "en": "Latest in smart home",
+   "ru": "Новинки умного дома",
+   "icon": "smart_new",
+   "channels": [],
+   "queries": [
+    "Matter smart home 2026",
+    "new smart home devices 2026",
+    "Home Assistant release 2026"
+   ],
+   "search_any": true
+  }
+ ]
+}

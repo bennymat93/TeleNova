@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.nova" name="TeleNova" version="3.3.0" provider-name="NovaTV">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0"/>
+    <import addon="script.module.requests" version="2.22.0"/>
+    <import addon="plugin.video.telescope" version="3.1.0" optional="true"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="default.py">
+    <provides>video audio</provides>
+  </extension>
+  <extension point="xbmc.service" library="service.py"/>
+  <extension point="xbmc.addon.metadata">
+    <reuselanguageinvoker>false</reuselanguageinvoker>
+    <summary lang="en">TeleNova - Movies, Series, Live TV and Radio with Telegram links</summary>
+    <summary lang="he">TeleNova - סרטים, סדרות, ערוצים ורדיו עם קישורי טלגרם</summary>
+    <summary lang="ru">TeleNova - фильмы, сериалы, ТВ и радио со ссылками Telegram</summary>
+    <description lang="en">Unified hub: TMDb catalogue, every title opens its list of tested Telegram links (TeleScope AI engine) next to the other sources, merged IPTV with auto numbering, radio, watch history, favourites, accounts and AI Hebrew subtitles.</description>
+    <platform>all</platform>
+    <license>GPL-3.0-or-later</license>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.jpg</fanart>
+    </assets>
+  </extension>
+</addon>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+  <category label="General">
+    <setting id="tmdb_token" type="text" default="" visible="false"/>
+    <setting id="lite_done" type="text" default="" visible="false"/>
+    <setting id="depov_done" type="text" default="" visible="false"/>
+    <setting id="wizard_fix" type="text" default="" visible="false"/>
+    <setting id="tmdb_key" label="TMDb API key (v3, optional)" type="text" default=""/>
+    <setting id="content_lang" label="Metadata language" type="enum" values="auto|he-IL|en-US|ru-RU" default="0"/>
+    <setting id="open_on_start" label="Open NovaTV on Kodi start" type="bool" default="false"/>
+    <setting id="bn_player_ver" type="text" default="" visible="false"/>
+    <setting id="help_lang" type="text" default="" visible="false"/>
+    <setting id="brand_ver" type="text" default="" visible="false"/>
+    <setting id="device_profile" type="text" default="" visible="false"/>
+    <setting id="brand_offer" type="text" default="" visible="false"/>
+    <setting id="ui_sounds" label="Navigation sounds" type="bool" default="true"/>
+    <setting id="lite" label="Light mode: no background extras (best for TV boxes)" type="bool" default="true"/>
+    <setting id="ticker" label="News and weather ticker at the bottom of the home screen" type="bool" default="false"/>
+    <setting id="ticker_city" label="Weather city" type="text" default="באר שבע"/>
+  </category>
+  <category label="Subtitles">
+    <setting id="ai_subs" label="AI Hebrew subtitles when none found" type="bool" default="true"/>
+    <setting id="auto_align" label="Sync downloaded subtitles to the speech automatically" type="bool" default="true"/>
+    <setting id="status_on_start" label="Show the system status table when BN starts" type="bool" default="false"/>
+    <setting id="ai_prepare" label="Pause at start until Hebrew subtitles are ready" type="bool" default="false"/>
+    <setting id="ai_wait" label="Seconds to wait for human subtitles" type="slider" range="5,5,90" option="int" default="10"/>
+    <setting id="sub_server" label="AI subtitle server (http://PC-IP:8765)" type="text" default="http://127.0.0.1:8765"/>
+    <setting id="gd_auto" label="Google Drive: weekly backup + sync" type="bool" default="true"/>
+    <setting id="gd_keep" label="Google Drive: backups to keep" type="slider" range="1,1,20" option="int" default="5"/>
+    <setting id="gd_client_id" label="Google OAuth client id (set by the build)" type="text" option="hidden" visible="false" default=""/>
+    <setting id="gd_client_secret" label="Google OAuth client secret (set by the build)" type="text" option="hidden" visible="false" default=""/>
+    <setting id="sub_server_remote" label="Subtitle server outside home (Tailscale address)" type="text" default="http://100.104.55.83:8765"/>
+    <setting id="subs_folder" label="Subtitle folder (every created subtitle is saved here)" type="folder" default=""/>
+    <setting id="subs_cleanup" label="Keep subtitles" type="enum" values="All|Last N per video|Delete older than N days" default="0"/>
+    <setting id="subs_keep_last" label="N (subtitles per video / days)" type="slider" range="1,1,120" option="int" default="10"/>
+    <setting id="subs_pref_source" label="Preferred subtitle source" type="enum" values="Automatic|Human (downloaded)|AI|Machine translation" default="0"/>
+    <setting id="opensubs_key" label="OpenSubtitles API key (optional, for hash search)" type="text" option="hidden" default=""/>
+    <setting id="resume_same" label="Resume the same video" type="enum" values="Ask (Kodi)|Always|Never" default="0"/>
+    <setting id="sync_step" type="number" default="0.5" visible="false"/>
+    <setting id="gemini_key" label="Gemini API key (optional)" type="text" option="hidden" default=""/>
+  </category>
+  <category label="Sources">
+    <setting id="tg_first" label="Telegram first: search Telegram (TeleScope AI) before POV / Real-Debrid" type="bool" default="false"/>
+    <setting label="Telegram engine settings (login, Chiko Media, Gemini AI)" type="action" action="Addon.OpenSettings(plugin.video.telescope)"/>
+    <setting label="Sources: view, enable or disable every source searched by NovaTV" type="action" action="ActivateWindow(Videos,plugin://plugin.video.nova/?a=sources,return)"/>
+    <setting label="Install all stable sources" type="action" action="RunPlugin(plugin://plugin.video.nova/?a=prov_install_all)"/>
+  </category>
+  <category label="Live TV">
+    <setting id="free_epg" label="TV guide for the free channels" type="bool" default="true"/>
+    <setting id="epg_lang" label="TV guide language" type="select" values="he|en|orig" default="he"/>
+    <setting id="iptv_refresh_h" label="Refresh every (hours)" type="slider" range="1,1,48" option="int" default="12"/>
+  </category>
+</settings>

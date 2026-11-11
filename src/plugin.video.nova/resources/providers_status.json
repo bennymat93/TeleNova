@@ -1,0 +1,402 @@
+{
+ "idanplus": {
+  "addon": "plugin.video.idanplus",
+  "stable": true,
+  "checked": "2026-10-08",
+  "menu": 9,
+  "search": 18,
+  "play": "ok (Kan VOD YouTube id fixed 1.4.11)"
+ },
+ "youtube": {
+  "addon": "plugin.video.youtube",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 13,
+  "search": 27,
+  "play": "ok"
+ },
+ "archive": {
+  "addon": "plugin.video.archive.org",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 3,
+  "search": 30,
+  "play": "ok"
+ },
+ "pluto": {
+  "addon": "plugin.video.plutotv",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 5,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "popcornflix": {
+  "addon": "plugin.video.popcornflix",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "shoutfactory": {
+  "addon": "plugin.video.shoutfactorytv",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 2,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "contv": {
+  "addon": "plugin.video.contv",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "dailymotion": {
+  "addon": "plugin.video.dailymotion_com",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "fail: timeout/TimeoutError",
+  "search": "fail: timeout/TimeoutError",
+  "play": "nothing playable found"
+ },
+ "vimeo": {
+  "addon": "plugin.video.vimeo",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 6,
+  "search": 19,
+  "play": "no playback"
+ },
+ "twitch": {
+  "addon": "plugin.video.twitch",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 1,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "lbry": {
+  "addon": "plugin.video.lbry",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 4,
+  "search": 21,
+  "play": "no playback"
+ },
+ "peertube": {
+  "addon": "plugin.video.pt",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 1000,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "docheaven": {
+  "addon": "plugin.video.documentaryheaven",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 5,
+  "search": "",
+  "play": "ok"
+ },
+ "filmsforaction": {
+  "addon": "plugin.video.filmsforaction",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 2,
+  "search": "",
+  "play": "ok"
+ },
+ "nasa": {
+  "addon": "plugin.video.nasa",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 2,
+  "search": "",
+  "play": "no playback"
+ },
+ "esa": {
+  "addon": "plugin.video.esa",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 5,
+  "search": "",
+  "play": "ok"
+ },
+ "eso": {
+  "addon": "plugin.video.eso",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: timeout/TimeoutError",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "arte": {
+  "addon": "plugin.video.arteplussept",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "fail: timeout/TimeoutError",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "ccc": {
+  "addon": "plugin.video.media-ccc-de",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 7,
+  "search": "",
+  "play": "ok"
+ },
+ "fosdem": {
+  "addon": "plugin.video.fosdem",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 15,
+  "search": "",
+  "play": "ok"
+ },
+ "nhk": {
+  "addon": "plugin.video.nhklive",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "cbcnews": {
+  "addon": "plugin.video.cbcnews",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "fail",
+  "search": "",
+  "play": ""
+ },
+ "wsj": {
+  "addon": "plugin.video.wsj",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "foxnews": {
+  "addon": "plugin.video.fox.news",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "npr": {
+  "addon": "plugin.video.npr",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "pbskids": {
+  "addon": "plugin.video.pbskids",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "fail: timeout/ConnectionResetError",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "tvokids": {
+  "addon": "plugin.video.tvokids",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "",
+  "search": "",
+  "play": ""
+ },
+ "redbull": {
+  "addon": "plugin.video.redbull.tv",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 6,
+  "search": "",
+  "play": "ok"
+ },
+ "f1": {
+  "addon": "plugin.video.formula1",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 4,
+  "search": "",
+  "play": "ok"
+ },
+ "motorsport": {
+  "addon": "plugin.video.motorsporthub",
+  "stable": true,
+  "checked": "2026-09-25",
+  "menu": 9,
+  "search": "",
+  "play": "ok"
+ },
+ "eventvods": {
+  "addon": "plugin.video.eventvods",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 7,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "buzzr": {
+  "addon": "plugin.video.buzzr",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "comet": {
+  "addon": "plugin.video.comettv",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "dabl": {
+  "addon": "plugin.video.dabl",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "courttv": {
+  "addon": "plugin.video.courttv",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "metv": {
+  "addon": "plugin.video.metv",
+  "stable": false,
+  "checked": "2026-09-25",
+  "menu": 0,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "imdbtrailers": {
+  "addon": "plugin.video.imdb.trailers",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 8,
+  "search": "fail: timeout/TimeoutError",
+  "play": "nothing playable found"
+ },
+ "ted": {
+  "addon": "plugin.video.ted.talks",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 4,
+  "search": "",
+  "play": "no playback"
+ },
+ "cnet": {
+  "addon": "plugin.video.cnet.podcasts",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 0,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "tekthing": {
+  "addon": "plugin.video.tekthing",
+  "stable": true,
+  "checked": "2026-10-08",
+  "menu": 14,
+  "search": "",
+  "play": "ok"
+ },
+ "longnow": {
+  "addon": "plugin.video.longnow",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "travel": {
+  "addon": "plugin.video.travel",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 0,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "cook": {
+  "addon": "plugin.video.cook",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 0,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "catchup": {
+  "addon": "plugin.video.catchuptvandmore",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 5,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "newson": {
+  "addon": "plugin.video.newson",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "fail",
+  "search": "",
+  "play": ""
+ },
+ "crackle": {
+  "addon": "plugin.video.crackle",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "",
+  "search": "",
+  "play": ""
+ },
+ "invidious": {
+  "addon": "plugin.video.invidious",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "fail: Invalid params.",
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "arte_de": {
+  "addon": "plugin.video.artemediathek",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": 5,
+  "search": "",
+  "play": "nothing playable found"
+ },
+ "rtve": {
+  "addon": "plugin.video.rtve",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "fail",
+  "search": "",
+  "play": ""
+ },
+ "raitv": {
+  "addon": "plugin.video.raitv",
+  "stable": false,
+  "checked": "2026-10-08",
+  "menu": "fail: timeout/ConnectionResetError",
+  "search": "",
+  "play": "nothing playable found"
+ }
+}

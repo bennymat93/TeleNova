@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BN live-TV bar (1.4.4), modelled on the Partner TV bar the owner showed: programme cards along the bottom
+     (now first, then the next ones), the channel column on the right, the channel logo
+     top right. Opened with OK / click / tap on live TV (keymaps/bn_player.xml). Lists come from NovaTV
+     (resources/lib/livebar.py). Remote: left/right = programmes, right edge -> channel column, up/down there =
+     channels, OK = switch. Mouse / touch: every card and channel is clickable; Back or a tap above closes. -->
+<window id="1190" type="dialog">
+	<defaultcontrol always="true">9100</defaultcontrol>
+	<animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
+	<animation effect="fade" start="100" end="0" time="150">WindowClose</animation>
+	<zorder>2</zorder>
+	<controls>
+		<!-- tap / click on the picture above the bar closes it -->
+		<control type="button" id="9300">
+			<left>0</left><top>0</top><width>1920</width><height>560</height>
+			<texturefocus /><texturenofocus />
+			<onclick>Dialog.Close(1190)</onclick>
+			<onup>9200</onup><ondown>9200</ondown><onleft>9200</onleft><onright>9200</onright>
+		</control>
+		<!-- shade under the bar -->
+		<control type="image">
+			<left>0</left><top>560</top><width>1920</width><height>520</height>
+			<texture colordiffuse="E6000000">colors/black.png</texture>
+			<animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
+		</control>
+		<control type="image">
+			<left>0</left><top>430</top><width>1920</width><height>130</height>
+			<texture colordiffuse="E6FFFFFF">bn/shade.png</texture>
+		</control>
+		<!-- 1.4.11: "Subtitles" - live Hebrew subtitles (AI / automatic / off), resources/lib/livesubs.py -->
+		<control type="button" id="9400">
+			<left>40</left><top>40</top><width>300</width><height>84</height>
+			<label>$INFO[Window(Home).Property(BN.LiveSubsLabel)]</label>
+			<font>font13</font><align>center</align><aligny>center</aligny>
+			<textcolor>FFF5F5F5</textcolor><focusedcolor>FF101010</focusedcolor>
+			<texturenofocus border="20" colordiffuse="CC1A1A1A">bn/panel.png</texturenofocus>
+			<texturefocus border="20" colordiffuse="FFE8BE5A">bn/panel.png</texturefocus>
+			<onclick>Dialog.Close(1190)</onclick>
+			<onclick>RunPlugin(plugin://plugin.video.nova/?a=live_subs)</onclick>
+			<ondown>9100</ondown><onright>9401</onright><onleft>9200</onleft><onup>9300</onup>
+		</control>
+		<control type="button" id="9401">
+			<left>356</left><top>40</top><width>230</width><height>84</height>
+			<label>$INFO[Window(Home).Property(BN.ExitTvLabel)]</label>
+			<font>font13</font><align>center</align><aligny>center</aligny>
+			<textcolor>FFF5F5F5</textcolor><focusedcolor>FF101010</focusedcolor>
+			<texturenofocus border="20" colordiffuse="CC1A1A1A">bn/panel.png</texturenofocus>
+			<texturefocus border="20" colordiffuse="FFE8BE5A">bn/panel.png</texturefocus>
+			<onclick>Dialog.Close(1190)</onclick>
+			<onclick>PlayerControl(Stop)</onclick>
+			<ondown>9100</ondown><onleft>9400</onleft><onright>9200</onright><onup>9300</onup>
+		</control>
+		<!-- channel logo, top right -->
+		<control type="image">
+			<right>40</right><top>36</top><width>230</width><height>120</height>
+			<aspectratio aligny="top">keep</aspectratio>
+			<texture>$INFO[Player.Icon]</texture>
+		</control>
+		<!-- info strip: channel number + name, time, quality, audio -->
+		<control type="label">
+			<left>40</left><top>578</top><width>1500</width><height>44</height>
+			<font>font13</font><align>right</align><aligny>center</aligny>
+			<textcolor>FFE0E0E0</textcolor>
+			<label>[B]$INFO[VideoPlayer.ChannelNumberLabel,,  ]$INFO[VideoPlayer.ChannelName][/B]$INFO[System.Time,   ·   ]$INFO[VideoPlayer.VideoResolution,   ·   ,p]$INFO[VideoPlayer.AudioCodec,   ·   ]$INFO[VideoPlayer.AudioChannels, ,ch]</label>
+		</control>
+		<control type="label">
+			<left>40</left><top>628</top><width>1500</width><height>40</height>
+			<font>font12</font><align>right</align><aligny>center</aligny>
+			<textcolor>FFE8BE5A</textcolor>
+			<label>$INFO[VideoPlayer.Title,עכשיו: ]$INFO[VideoPlayer.NextTitle,   ·   הבא: ]$INFO[VideoPlayer.NextStartTime, (,)]</label>
+			<visible>String.StartsWith(System.Language,Hebrew)</visible>
+		</control>
+		<control type="label">
+			<left>40</left><top>628</top><width>1500</width><height>40</height>
+			<font>font12</font><align>left</align><aligny>center</aligny>
+			<textcolor>FFE8BE5A</textcolor>
+			<label>$INFO[VideoPlayer.Title,Now: ]$INFO[VideoPlayer.NextTitle,   ·   Next: ]$INFO[VideoPlayer.NextStartTime, (,)]</label>
+			<visible>!String.StartsWith(System.Language,Hebrew)</visible>
+		</control>
+		<!-- programme cards: the one on air first (focused), then the next ones - same direction as every row of the build -->
+		<control type="fixedlist" id="9100">
+			<left>40</left><top>672</top><width>1520</width><height>380</height>
+			<orientation>horizontal</orientation>
+			<focusposition>0</focusposition>
+			<movement>3</movement>
+			<scrolltime tween="cubic" easing="out">250</scrolltime>
+			<onright>9200</onright>
+			<onup>9400</onup>
+			<ondown>9200</ondown>
+			<itemlayout width="380" height="380">
+				<control type="image">
+					<left>10</left><top>10</top><width>360</width><height>203</height>
+					<texture colordiffuse="FFD6DAE0" border="12">bn/panel.png</texture>
+				</control>
+				<control type="image">
+					<left>20</left><top>18</top><width>340</width><height>187</height>
+					<aspectratio>keep</aspectratio>
+					<texture background="true" fallback="DefaultTVShows.png">$INFO[ListItem.Art(thumb)]</texture>
+				</control>
+				<control type="progress">
+					<left>10</left><top>216</top><width>360</width><height>8</height>
+					<info>ListItem.Property(progress)</info>
+					<visible>!String.IsEmpty(ListItem.Property(now))</visible>
+				</control>
+				<control type="label">
+					<left>10</left><top>230</top><width>360</width><height>44</height>
+					<font>font13</font><align>right</align><textcolor>FFE0E0E0</textcolor>
+					<label>$INFO[ListItem.Label]</label>
+				</control>
+				<control type="label">
+					<left>10</left><top>272</top><width>360</width><height>36</height>
+					<font>font12</font><align>right</align><textcolor>FFA0A0A0</textcolor>
+					<label>$INFO[ListItem.Label2]</label>
+				</control>
+			</itemlayout>
+			<focusedlayout width="380" height="380">
+				<control type="image">
+					<left>2</left><top>2</top><width>376</width><height>219</height>
+					<texture colordiffuse="FFE8BE5A" border="14">bn/panel.png</texture>
+					<visible>Control.HasFocus(9100)</visible>
+				</control>
+				<control type="image">
+					<left>10</left><top>10</top><width>360</width><height>203</height>
+					<texture colordiffuse="FFD6DAE0" border="12">bn/panel.png</texture>
+				</control>
+				<control type="image">
+					<left>20</left><top>18</top><width>340</width><height>187</height>
+					<aspectratio>keep</aspectratio>
+					<texture background="true" fallback="DefaultTVShows.png">$INFO[ListItem.Art(thumb)]</texture>
+				</control>
+				<control type="progress">
+					<left>10</left><top>216</top><width>360</width><height>8</height>
+					<info>ListItem.Property(progress)</info>
+					<visible>!String.IsEmpty(ListItem.Property(now))</visible>
+				</control>
+				<control type="label">
+					<left>10</left><top>230</top><width>360</width><height>44</height>
+					<font>font13</font><align>right</align><textcolor>FFFFFFFF</textcolor><scroll>true</scroll>
+					<label>[B]$INFO[ListItem.Label][/B]</label>
+				</control>
+				<control type="label">
+					<left>10</left><top>272</top><width>360</width><height>36</height>
+					<font>font12</font><align>right</align><textcolor>FFE8BE5A</textcolor>
+					<label>$INFO[ListItem.Label2]</label>
+				</control>
+			</focusedlayout>
+			<content target="videos">plugin://plugin.video.nova/?a=lb_epg&amp;r=$INFO[VideoPlayer.ChannelName]$INFO[System.Time(hh:mm)]</content>
+		</control>
+		<!-- separator -->
+		<control type="image">
+			<left>1588</left><top>600</top><width>2</width><height>440</height>
+			<texture colordiffuse="66FFFFFF">colors/white.png</texture>
+		</control>
+		<!-- channel column (right) -->
+		<control type="list" id="9200">
+			<left>1610</left><top>600</top><width>290</width><height>460</height>
+			<orientation>vertical</orientation>
+			<scrolltime tween="cubic" easing="out">200</scrolltime>
+			<onleft>9100</onleft>
+			<onright>Dialog.Close(1190)</onright>
+			<onclick>RunPlugin($INFO[Container(9200).ListItem.FileNameAndPath])</onclick>
+			<itemlayout width="290" height="115">
+				<control type="label">
+					<left>0</left><top>0</top><width>70</width><height>105</height>
+					<font>font12</font><align>center</align><aligny>center</aligny><textcolor>FFA0A0A0</textcolor>
+					<label>$INFO[ListItem.Label2]</label>
+				</control>
+				<control type="image">
+					<left>80</left><top>10</top><width>190</width><height>85</height>
+					<aspectratio>keep</aspectratio>
+					<texture background="true" fallback="DefaultTVShows.png">$INFO[ListItem.Art(thumb)]</texture>
+				</control>
+				<control type="image">
+					<left>0</left><top>8</top><width>4</width><height>89</height>
+					<texture colordiffuse="FFE8BE5A">colors/white.png</texture>
+					<visible>!String.IsEmpty(ListItem.Property(playing))</visible>
+				</control>
+			</itemlayout>
+			<focusedlayout width="290" height="115">
+				<control type="image">
+					<left>0</left><top>2</top><width>290</width><height>105</height>
+					<texture colordiffuse="FFE8BE5A" border="14">bn/panel.png</texture>
+					<visible>Control.HasFocus(9200)</visible>
+				</control>
+				<control type="image">
+					<left>4</left><top>6</top><width>282</width><height>97</height>
+					<texture colordiffuse="E6101418" border="12">bn/panel.png</texture>
+				</control>
+				<control type="label">
+					<left>0</left><top>0</top><width>70</width><height>105</height>
+					<font>font13</font><align>center</align><aligny>center</aligny><textcolor>FFFFFFFF</textcolor>
+					<label>[B]$INFO[ListItem.Label2][/B]</label>
+				</control>
+				<control type="image">
+					<left>80</left><top>10</top><width>190</width><height>85</height>
+					<aspectratio>keep</aspectratio>
+					<texture background="true" fallback="DefaultTVShows.png">$INFO[ListItem.Art(thumb)]</texture>
+				</control>
+			</focusedlayout>
+			<content target="videos">plugin://plugin.video.nova/?a=lb_channels&amp;r=$INFO[VideoPlayer.ChannelName]</content>
+		</control>
+	</controls>
+</window>

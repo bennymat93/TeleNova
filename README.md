@@ -30,13 +30,63 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 3.2.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 3.2.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.video.nova` (TeleNova) | 3.3.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 3.3.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
 | `plugin.program.novawizard` (TeleNova Wizard) | 3.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
 | `repository.telenova` | 3.1.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## 3.3.0 - fast Telegram decryption on Windows, cleaner build
+
+- **Telegram engine on Windows:** Kodi for Windows has no reachable OpenSSL, so chunks were decrypted block by block
+  in Python at about 0.2 MB/s. The engine now carries its own small AES-IGE library (`resources/bin/win-*/tnige.dll`,
+  AES-NI when the CPU has it, checked against OpenSSL): about 350 MB/s inside Kodi.
+- **Removed from the build (about 24 MB unpacked):** the modified copy of Estuary (Kodi's own stays as the fallback
+  skin), Python modules nothing uses (beautifulsoup4, soupsieve, dateutil, future, html5lib, kodi-six, routing, six,
+  webencodings), music-library scrapers, and the old POV wizard's icons, screenshots and files.
+- **Favourites:** the entries that opened removed add-ons (anime, POV wizard, quick update, speed test, favourites
+  order) are gone; boxes that update from the repository get the same clean-up once.
+- **Embedded Hebrew subtitles are recognised properly.** A Hebrew track is found by its language code *or* by its
+  name ("Hebrew" / "עברית" on a track marked `und` - common in Telegram uploads), and the track list is read until it
+  stops changing (up to 8 s) instead of giving up 1.5 s into the video. With a full Hebrew track the subtitle add-on
+  (All_Subs, guard v13) does not search at all; without one it searches as before. A *forced* Hebrew track (foreign
+  lines only) does not count as subtitles of the whole video.
+- **Backups:** restoring a backup or a locked profile made on an older build skips the settings of add-ons the build
+  no longer has and drops favourites that open them. New backups no longer include All Subs Plus and Magneto.
+  `src/tools/nvp_clean.py` removes the same from the two shipped encrypted profiles (asks for their password).
+- No more `Unknown addon id` errors (`plugin.video.pov`, `plugin.video.telemedia`) in the log.
+- **Wizard 3.3.0 - it works again.** The wizard asked for `xbmc.python` 3.1.0; Kodi 21 has 3.0.1, so Kodi kept it
+  disabled and it could not be installed from the repository. Fixed, and TeleNova repairs and switches on a wizard
+  that is already installed. "Update" no longer replaces the viewer's own Kodi favourites / sources / passwords;
+  "Fresh install (wipe everything)" now really removes the old settings folders (it left all of them, accounts
+  included).
+- **Skin buttons that did nothing:** "replace source" in the player and Play / seasons / episodes in the information
+  window open the same title in TeleNova; "search by year" opens the year list; items with no TeleNova counterpart
+  (collections, people, Trakt lists, the POV wizard's skin switch) are hidden.
+- **Device profiles, chosen by themselves.** At the first start the build recognises the device and applies its
+  profile: Windows computer, streaming box 64-bit, streaming box 32-bit (small cache for the weak boxes), Android
+  phone / tablet, Android car screen, iPhone / iPad, Mac. Each profile needs two independent signs that agree, the
+  device is read three times and all readings must match - only then is it applied without a question; otherwise
+  the viewer is asked with the best guess first. Change it any time in TeleNova > Device type.
+- **Safer data:** favourites / history are never overwritten after a failed read (retry + `.bak` copy), caches and
+  the channel list are written atomically, a restore accepts only settings files, new backups carry no Google
+  Drive sign-in, unlocking a profile no longer needs 150-200 MB of memory.
+- **Telegram engine:** reconnects by itself after an outage, answers at once after Kodi starts, no duplicate chunk
+  downloads, a seek drops the old read-ahead, results are no longer cut to the 6 tested links, link speed is
+  measured correctly, the stream address carries a signed token (other programs on the device cannot read it), API
+  keys never reach the log, better file-name rules (trailers, Russian season / episode words, COMPLETE, Heb.Dub).
+- **Defaults:** the remote-control port no longer listens on the whole network, Hebrew subtitle files in
+  Windows-1255 display correctly, "play next" only for series, original audio language, a "trending this week" row
+  first on Movies and Series, POV / DarkSubs names replaced, the skin's widget database rebuilt for TeleNova.
+- **Quieter and lighter:** no error box for a stale link, no status collection at start in light mode, slower
+  polling loops, a channel that failed is tested again and comes back, empty lists say so.
+- `guide.html` rewritten for 3.3 with screenshots, the device profiles and "the most content from Telegram".
+- **Faster:** a season's episode list with missing Hebrew descriptions opens in about 4 s instead of 10-15 (the
+  translations run side by side); radio lists are answered from a 6-hour cache and retried once when every mirror
+  refuses right after start; the Telegram engine's menus open about a second sooner.
+- The build package is one file again: `build/TeleNova-3.3.0.zip.part0` (99 MB, was 111 MB).
 
 ## 3.2.0 - light build for average and weaker TV boxes
 
@@ -79,7 +129,7 @@ The add-on ids are unchanged so that settings, history and favourites survive th
 - **Stability:** a slow box can no longer turn real matches into "nothing found"; an unexpected answer of the
   radio directory no longer breaks the search page; first-run setup of the Telegram engine installs `pyaes` from
   its source archive and retries downloads; the engine installs PyCryptodome for faster decryption.
-- **Build:** `build/TeleNova-3.2.0.zip.part0` + `.part1` (each under GitHub's 100 MB limit), joined and checked by
+- **Build:** `build/TeleNova-3.3.0.zip.part0` (one or more parts, each under GitHub's 100 MB limit), joined and checked by
   the wizard and by the Windows installer.
 
 ## Notes

@@ -1,0 +1,569 @@
+# TeleScope AI language file
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en_GB\n"
+
+msgctxt "#30000"
+msgid "Search"
+msgstr ""
+
+msgctxt "#30001"
+msgid "Movies"
+msgstr ""
+
+msgctxt "#30002"
+msgid "TV Shows"
+msgstr ""
+
+msgctxt "#30003"
+msgid "Israeli / Hebrew"
+msgstr ""
+
+msgctxt "#30004"
+msgid "Russian"
+msgstr ""
+
+msgctxt "#30005"
+msgid "Kids & Family"
+msgstr ""
+
+msgctxt "#30006"
+msgid "My Telegram"
+msgstr ""
+
+msgctxt "#30007"
+msgid "Account & Status"
+msgstr ""
+
+msgctxt "#30008"
+msgid "Settings"
+msgstr ""
+
+msgctxt "#30009"
+msgid "Chiko Media"
+msgstr ""
+
+msgctxt "#30010"
+msgid "Trending"
+msgstr ""
+
+msgctxt "#30011"
+msgid "Popular"
+msgstr ""
+
+msgctxt "#30012"
+msgid "Top rated"
+msgstr ""
+
+msgctxt "#30013"
+msgid "Now playing"
+msgstr ""
+
+msgctxt "#30014"
+msgid "Upcoming"
+msgstr ""
+
+msgctxt "#30015"
+msgid "Genres"
+msgstr ""
+
+msgctxt "#30016"
+msgid "By year"
+msgstr ""
+
+msgctxt "#30017"
+msgid "Airing today"
+msgstr ""
+
+msgctxt "#30018"
+msgid "On the air"
+msgstr ""
+
+msgctxt "#30019"
+msgid "Hebrew-language movies"
+msgstr ""
+
+msgctxt "#30020"
+msgid "Israeli series"
+msgstr ""
+
+msgctxt "#30021"
+msgid "Russian movies"
+msgstr ""
+
+msgctxt "#30022"
+msgid "Russian series"
+msgstr ""
+
+msgctxt "#30023"
+msgid "Soviet classics"
+msgstr ""
+
+msgctxt "#30024"
+msgid "Turkish series"
+msgstr ""
+
+msgctxt "#30025"
+msgid "Korean series"
+msgstr ""
+
+msgctxt "#30026"
+msgid "Animation"
+msgstr ""
+
+msgctxt "#30027"
+msgid "Next page"
+msgstr ""
+
+msgctxt "#30028"
+msgid "Season %d"
+msgstr ""
+
+msgctxt "#30029"
+msgid "Specials"
+msgstr ""
+
+msgctxt "#30030"
+msgid "Search movies"
+msgstr ""
+
+msgctxt "#30031"
+msgid "Search TV shows"
+msgstr ""
+
+msgctxt "#30032"
+msgid "AI smart search (describe what you want)"
+msgstr ""
+
+msgctxt "#30033"
+msgid "Search Telegram files directly"
+msgstr ""
+
+msgctxt "#30034"
+msgid "Enter search text"
+msgstr ""
+
+msgctxt "#30040"
+msgid "My channels & groups"
+msgstr ""
+
+msgctxt "#30041"
+msgid "Discover public channels"
+msgstr ""
+
+msgctxt "#30042"
+msgid "Join channel / invite link"
+msgstr ""
+
+msgctxt "#30043"
+msgid "Search in this chat"
+msgstr ""
+
+msgctxt "#30044"
+msgid "Leave chat"
+msgstr ""
+
+msgctxt "#30045"
+msgid "Enter @username or t.me link"
+msgstr ""
+
+msgctxt "#30046"
+msgid "Joined successfully"
+msgstr ""
+
+msgctxt "#30047"
+msgid "Older videos"
+msgstr ""
+
+msgctxt "#30050"
+msgid "Login with phone number"
+msgstr ""
+
+msgctxt "#30051"
+msgid "Login with QR code"
+msgstr ""
+
+msgctxt "#30052"
+msgid "Logout"
+msgstr ""
+
+msgctxt "#30053"
+msgid "Connection status"
+msgstr ""
+
+msgctxt "#30054"
+msgid "Test Gemini AI"
+msgstr ""
+
+msgctxt "#30055"
+msgid "Clear cache"
+msgstr ""
+
+msgctxt "#30056"
+msgid "Reinstall Telegram components"
+msgstr ""
+
+msgctxt "#30057"
+msgid "Phone number (international format, e.g. +972501234567)"
+msgstr ""
+
+msgctxt "#30058"
+msgid "Enter the login code Telegram sent you"
+msgstr ""
+
+msgctxt "#30059"
+msgid "Two-step verification password"
+msgstr ""
+
+msgctxt "#30060"
+msgid "Logged in as %s"
+msgstr ""
+
+msgctxt "#30061"
+msgid "Scan with Telegram: Settings > Devices > Link Desktop Device"
+msgstr ""
+
+msgctxt "#30062"
+msgid "Telegram API ID / API hash are missing. Get them for free at my.telegram.org (API development tools) and enter them in the add-on settings, then log in from 'Account & Status'."
+msgstr ""
+
+msgctxt "#30063"
+msgid "Not logged in to Telegram. Open 'Account & Status' to log in."
+msgstr ""
+
+msgctxt "#30064"
+msgid "The TeleScope service is not running. Restart Kodi and try again."
+msgstr ""
+
+msgctxt "#30065"
+msgid "Done"
+msgstr ""
+
+msgctxt "#30066"
+msgid "Logged out"
+msgstr ""
+
+msgctxt "#30070"
+msgid "Searching sources..."
+msgstr ""
+
+msgctxt "#30071"
+msgid "Loading details"
+msgstr ""
+
+msgctxt "#30072"
+msgid "AI: expanding title names"
+msgstr ""
+
+msgctxt "#30073"
+msgid "Searching Telegram"
+msgstr ""
+
+msgctxt "#30074"
+msgid "Matching files"
+msgstr ""
+
+msgctxt "#30075"
+msgid "AI: verifying matches"
+msgstr ""
+
+msgctxt "#30076"
+msgid "Testing links"
+msgstr ""
+
+msgctxt "#30077"
+msgid "Done"
+msgstr ""
+
+msgctxt "#30078"
+msgid "No working sources found"
+msgstr ""
+
+msgctxt "#30079"
+msgid "Select source"
+msgstr ""
+
+msgctxt "#30080"
+msgid "Choose source..."
+msgstr ""
+
+msgctxt "#30081"
+msgid "Refresh sources"
+msgstr ""
+
+msgctxt "#30082"
+msgid "Using cached results"
+msgstr ""
+
+msgctxt "#30083"
+msgid "sources"
+msgstr ""
+
+msgctxt "#30091"
+msgid "verified"
+msgstr ""
+
+msgctxt "#30092"
+msgid "untested"
+msgstr ""
+
+msgctxt "#30093"
+msgid "Hebrew subs"
+msgstr ""
+
+msgctxt "#30094"
+msgid "Hebrew dub"
+msgstr ""
+
+msgctxt "#30095"
+msgid "Russian audio"
+msgstr ""
+
+msgctxt "#30096"
+msgid "Russian subs"
+msgstr ""
+
+msgctxt "#30097"
+msgid "AI"
+msgstr ""
+
+msgctxt "#30098"
+msgid "No Chiko Media chats found - join their channel first (invite link)"
+msgstr ""
+
+msgctxt "#30099"
+msgid "Refresh chat list"
+msgstr ""
+
+msgctxt "#30100"
+msgid "Telegram returned no files for this title. Sources come only from channels and groups your account has joined - join channels that carry it."
+msgstr ""
+
+msgctxt "#30101"
+msgid "Telegram returned %d files, but none is exactly this title / episode."
+msgstr ""
+
+msgctxt "#30900"
+msgid "Installing Telegram components (first run)..."
+msgstr ""
+
+msgctxt "#32000"
+msgid "Telegram"
+msgstr ""
+
+msgctxt "#32001"
+msgid "API ID (my.telegram.org)"
+msgstr ""
+
+msgctxt "#32002"
+msgid "API hash"
+msgstr ""
+
+msgctxt "#32003"
+msgid "Extra chat IDs to always search (comma separated)"
+msgstr ""
+
+msgctxt "#32004"
+msgid "Offline dependency zip (optional)"
+msgstr ""
+
+msgctxt "#32005"
+msgid "Phone number"
+msgstr ""
+
+msgctxt "#32006"
+msgid "Wizard shown"
+msgstr ""
+
+msgctxt "#32007"
+msgid "Use installed Telemedia login (no second login needed)"
+msgstr ""
+
+msgctxt "#32008"
+msgid "Stremio-protocol Telegram servers (manifest URLs, comma separated)"
+msgstr ""
+
+msgctxt "#32010"
+msgid "Metadata"
+msgstr ""
+
+msgctxt "#32011"
+msgid "TMDB API key (v3 key or v4 token; empty = Cinemeta)"
+msgstr ""
+
+msgctxt "#32012"
+msgid "Metadata language"
+msgstr ""
+
+msgctxt "#32013"
+msgid "Include adult content"
+msgstr ""
+
+msgctxt "#32020"
+msgid "AI (Gemini)"
+msgstr ""
+
+msgctxt "#32021"
+msgid "Gemini API key"
+msgstr ""
+
+msgctxt "#32022"
+msgid "Model (empty = automatic)"
+msgstr ""
+
+msgctxt "#32023"
+msgid "Expand title names with AI (Hebrew / Russian)"
+msgstr ""
+
+msgctxt "#32024"
+msgid "Verify ambiguous matches with AI"
+msgstr ""
+
+msgctxt "#32025"
+msgid "Verify every match with AI (slower)"
+msgstr ""
+
+msgctxt "#32030"
+msgid "Sources"
+msgstr ""
+
+msgctxt "#32031"
+msgid "Strict matching"
+msgstr ""
+
+msgctxt "#32032"
+msgid "Preferred language"
+msgstr ""
+
+msgctxt "#32033"
+msgid "Minimum quality"
+msgstr ""
+
+msgctxt "#32034"
+msgid "Hide CAM releases"
+msgstr ""
+
+msgctxt "#32035"
+msgid "Test every link before showing (recommended)"
+msgstr ""
+
+msgctxt "#32036"
+msgid "Number of links to test"
+msgstr ""
+
+msgctxt "#32037"
+msgid "Link test timeout (seconds)"
+msgstr ""
+
+msgctxt "#32038"
+msgid "Hide links too slow for smooth playback"
+msgstr ""
+
+msgctxt "#32039"
+msgid "Also show untested links"
+msgstr ""
+
+msgctxt "#32040"
+msgid "Maximum results"
+msgstr ""
+
+msgctxt "#32041"
+msgid "Auto-play best source"
+msgstr ""
+
+msgctxt "#32042"
+msgid "Results per Telegram query"
+msgstr ""
+
+msgctxt "#32043"
+msgid "Search timeout (seconds)"
+msgstr ""
+
+msgctxt "#32050"
+msgid "Streaming"
+msgstr ""
+
+msgctxt "#32051"
+msgid "Parallel downloads"
+msgstr ""
+
+msgctxt "#32052"
+msgid "Read-ahead (MB)"
+msgstr ""
+
+msgctxt "#32053"
+msgid "Memory cache (MB)"
+msgstr ""
+
+msgctxt "#32054"
+msgid "Local port"
+msgstr ""
+
+msgctxt "#32060"
+msgid "Advanced"
+msgstr ""
+
+msgctxt "#32061"
+msgid "Debug logging"
+msgstr ""
+
+msgctxt "#32062"
+msgid "Max title aliases per search"
+msgstr ""
+
+msgctxt "#32063"
+msgid "Max queries per search"
+msgstr ""
+
+msgctxt "#32070"
+msgid "Any"
+msgstr ""
+
+msgctxt "#32071"
+msgid "Hebrew"
+msgstr ""
+
+msgctxt "#32072"
+msgid "Russian"
+msgstr ""
+
+msgctxt "#32073"
+msgid "English"
+msgstr ""
+
+msgctxt "#32080"
+msgid "Any"
+msgstr ""
+
+msgctxt "#32081"
+msgid "480p"
+msgstr ""
+
+msgctxt "#32082"
+msgid "720p"
+msgstr ""
+
+msgctxt "#32083"
+msgid "1080p"
+msgstr ""
+
+msgctxt "#32084"
+msgid "2160p (4K)"
+msgstr ""
+
+msgctxt "#32090"
+msgid "Chiko Media"
+msgstr ""
+
+msgctxt "#32091"
+msgid "Search Chiko Media chats directly and rank them first"
+msgstr ""
+
+msgctxt "#32092"
+msgid "Chat name keywords (comma separated)"
+msgstr ""
+
+msgctxt "#32093"
+msgid "Ranking boost"
+msgstr ""
