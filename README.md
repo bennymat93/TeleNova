@@ -30,13 +30,25 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 3.1.1 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 3.1.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.video.nova` (TeleNova) | 3.2.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 3.2.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
 | `plugin.program.novawizard` (TeleNova Wizard) | 3.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
 | `repository.telenova` | 3.1.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## 3.2.0 - light build for average and weaker TV boxes
+
+- Removed (and switched off on boxes that update): All Subs Plus (a second automatic subtitle search at every
+  start of a video), its plugin cache service, Unpause Jumpback, keyboard autocompletion.
+- Light mode (TeleNova setting, on by default): no news ticker, no topic pre-loading, no periodic stream checks,
+  no status table at start; backups, Drive sync, IPTV and guide refresh wait until nothing is playing.
+- A video is never paused at its start for subtitles unless the setting is turned on again.
+- Memory: Kodi video cache is an eighth of the memory (64 MB on a 2 GB box, was 128), the Telegram engine keeps
+  48 MB of chunks (was 128).
+- Telegram engine: looks for OpenSSL inside Kodi's own library on Android; measures the decryption speed and shows
+  it on its status page, with a notice when the device is too slow for heavy files.
 
 ## 3.1.1 - subtitles at the start of a video
 
@@ -67,7 +79,7 @@ The add-on ids are unchanged so that settings, history and favourites survive th
 - **Stability:** a slow box can no longer turn real matches into "nothing found"; an unexpected answer of the
   radio directory no longer breaks the search page; first-run setup of the Telegram engine installs `pyaes` from
   its source archive and retries downloads; the engine installs PyCryptodome for faster decryption.
-- **Build:** `build/TeleNova-3.1.1.zip.part0` + `.part1` (each under GitHub's 100 MB limit), joined and checked by
+- **Build:** `build/TeleNova-3.2.0.zip.part0` + `.part1` (each under GitHub's 100 MB limit), joined and checked by
   the wizard and by the Windows installer.
 
 ## Notes
