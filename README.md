@@ -1,18 +1,18 @@
-# TeleNova V3.0
+# TeleNova 3.1
 
 Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one catalogue for movies and series,
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-3.0.0.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-3.1.0.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
 ## Windows
 
 Download [`windows/TeleNova-Setup.cmd`](https://bennymat93.github.io/TeleNova/windows/TeleNova-Setup.cmd) and double-click it.
-It installs Kodi 21 when it is missing, downloads the build (checked against the SHA-256 in `build.json`), puts
-NovaTV 3.0.0 over it and creates a desktop shortcut. An existing `%APPDATA%\Kodi` folder is renamed to a backup
+It installs Kodi 21 when it is missing, downloads the build in two parts, joins and checks them against the SHA-256 in
+`build.json`, and creates a desktop shortcut. An existing `%APPDATA%\Kodi` folder is renamed to a backup
 folder, never deleted. For the Microsoft Store version of Kodi use the wizard inside Kodi instead.
 
 ## Web version
@@ -30,50 +30,38 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` | 3.0.0 | The hub: TMDb catalogue, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` | 3.0.1 | TeleScope AI, the Telegram engine: exact movie / episode matching, link and speed testing, range-streaming proxy |
-| `plugin.program.novawizard` | 3.0.0 | Installs and updates the build |
+| `plugin.video.nova` (TeleNova) | 3.1.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 3.1.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 3.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 3.0.0 | This repository |
+| `repository.telenova` | 3.1.0 | This repository |
 
-## 3.0.0 – Telegram is part of the build
+The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
 
-- NovaTV installs `plugin.video.telescope` from this repository by itself (builds installed before 1.7.0 included).
-- **Search all sources** lists Telegram results next to TMDb, the other add-ons, live channels and radio.
-  An episode search lists only the exact season and episode.
-- **Playing a movie or an episode**: when POV / Real-Debrid has nothing, the source list starts with Telegram links
-  that TeleScope matched by TMDb id and tested (first megabyte downloaded, container checked, speed measured).
-  Setting *Telegram first* asks Telegram before POV.
-- Long-press on a movie or an episode: **Telegram sources (choose)**.
-- Main menu: **Telegram – TeleScope AI** (Chiko Media channels, my channels and groups, login and status).
-- Login: an installed and logged-in Telemedia add-on is reused; otherwise phone or QR login with your own
-  `api_id` / `api_hash` from my.telegram.org. Only chats your account has joined are searched.
-- The TMDb and Gemini keys entered in NovaTV are shared with the Telegram engine.
+## 3.1.0
 
-### Fixes in this release
-
-- TeleScope 3.0.0: first-run setup failed with "No compatible wheel for pyaes" (pyaes publishes only a source
-  archive) - it is now installed from the source archive, downloads are retried, and login retries the setup.
-- Movies > Search and Series > Search also list the files the Telegram engine finds for the same text.
-
-- Wizard 0.2.1: an *update* no longer deletes add-ons that were installed from the repository after the build was
-  made; the partly downloaded build file is removed after a cancelled, failed or corrupt download.
-- NovaTV: the "searching all sources" progress bar no longer stays on screen when a source search fails;
-  duplicate `IsPlayable` property on movie rows removed.
-- Repository: old `plugin.video.nova` packages (1.5.1 – 1.6.3, about 325 MB) removed; only 3.0.0 is kept.
-
-### Hub API of the Telegram engine (for other add-ons)
-
-```
-plugin://plugin.video.telescope/?mode=hub&q=<text>
-plugin://plugin.video.telescope/?mode=hub&type=movie|tv&tmdb=<id>[&season=..&episode=..][&title=..]
-```
-
-Both return a plain folder of playable items and never open a dialog.
+- **TeleNova** is the new name of NovaTV. The Telegram engine stays a separate add-on with its own settings, and
+  TeleNova uses it everywhere: search all sources, Movies > Search, Series > Search, and every movie / episode.
+- **Links like Telemedia:** choosing a title opens one list - Telegram links first (matched by TMDb id, exact
+  season and episode, tested), then the other sources. When nothing passes the strict rules the close matches are
+  listed, marked `?`.
+- **POV removed.** The build no longer contains POV, its repository, or the add-ons that gave no content
+  (version check, speed tester, Archive.org add-on, Vimeo, Dailymotion, Red Bull TV, Formula 1, Motorsport Hub,
+  Documentary Heaven, Films For Action, ESA, FOSDEM, media.ccc.de, TekThing). The skin's POV links (search, home
+  rows, season and episode buttons) point at TeleNova; POV favourites were removed. A box that updates from the
+  repository gets the same change once, with a backup copy of every file it touches (`*.pre-telenova`).
+- **Faster search:** one Telegram request per query instead of two, a Telegram rate limit fails that one query
+  instead of freezing the search, 12-second limit, slow stragglers are not waited for, AI and the channel list
+  never hold a search up, link test reads 128 KB. The link list opens as soon as Telegram answered; other sources
+  get a few seconds at most.
+- **Stability:** a slow box can no longer turn real matches into "nothing found"; an unexpected answer of the
+  radio directory no longer breaks the search page; first-run setup of the Telegram engine installs `pyaes` from
+  its source archive and retries downloads; the engine installs PyCryptodome for faster decryption.
+- **Build:** `build/TeleNova-3.1.0.zip.part0` + `.part1` (each under GitHub's 100 MB limit), joined and checked by
+  the wizard and by the Windows installer.
 
 ## Notes
 
-- `build.json` points the wizard to the base build package (hosted in the `novatv` releases); after it is installed,
-  NovaTV 3.0.0 and TeleScope AI 3.0.0 arrive through the add-on repository. No APK files are kept in this repository.
+- `build.json` lists the parts of the build package and its SHA-256. No APK files are kept in this repository.
 - TeleScope AI keeps its own settings screen (login, Chiko Media, Gemini); NovaTV only links to it.
 - Content availability depends on the services and Telegram chats each user has access to.

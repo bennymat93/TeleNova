@@ -1,8 +1,12 @@
 {
  "name": "TeleNova",
- "version": "3.0",
+ "version": "3.1.0",
  "kodi": "21",
- "url": "https://github.com/bennymat93/novatv/releases/download/v1.5.1/NovaTV-1.5.1.zip",
- "size": 121129447,
- "sha256": "f4202c4fb341e346c6b3ff6f72991e3fdff1f43e3268c47e338dfcdf90cbff50"
+ "parts": [
+  "https://bennymat93.github.io/TeleNova/build/TeleNova-3.1.0.zip.part0",
+  "https://bennymat93.github.io/TeleNova/build/TeleNova-3.1.0.zip.part1"
+ ],
+ "url": "https://bennymat93.github.io/TeleNova/build/TeleNova-3.1.0.zip.part0",
+ "size": 112235784,
+ "sha256": "090cde46cc76b1a258f24dcf23841164b476ff095f05415d03b9a7f9813b5500"
 }
