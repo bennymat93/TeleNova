@@ -8,6 +8,24 @@ Install from zip file > `repository.telenova-3.0.0.zip`, then install **NovaTV W
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
+## Windows
+
+Download [`windows/TeleNova-Setup.cmd`](https://bennymat93.github.io/TeleNova/windows/TeleNova-Setup.cmd) and double-click it.
+It installs Kodi 21 when it is missing, downloads the build (checked against the SHA-256 in `build.json`), puts
+NovaTV 3.0.0 over it and creates a desktop shortcut. An existing `%APPDATA%\Kodi` folder is renamed to a backup
+folder, never deleted. For the Microsoft Store version of Kodi use the wizard inside Kodi instead.
+
+## Web version
+
+[`web/`](https://bennymat93.github.io/TeleNova/web/) runs in any browser: phones, tablets, computers and TV browsers.
+
+- Layouts for small phones, phones on their side, tablets, wide desktop screens and televisions (10-foot view).
+- TV remotes and keyboards: the arrows move between items, Enter opens, Back / Escape returns.
+- Installable as an app (manifest + service worker); the shell opens without a connection.
+- Optional own TMDb key in Settings for the full movie and series catalogue with no server; without it the
+  catalogue comes from the Internet Archive. Live TV: iptv-org; radio: radio-browser. The web version has no
+  Telegram sources - those need the Kodi build.
+
 ## Add-ons in this repository
 
 | Add-on | Version | What it does |

@@ -2,7 +2,14 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BN Stream">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>BN Stream Web</title>
 <meta name="description" content="BN Stream in the browser: movies, series, live TV, radio and favorites">
 <link rel="icon" href="icon.png">
@@ -11,6 +18,7 @@
 <script src="app.js" defer></script>
 </head>
 <body>
+<noscript><p style="padding:24px">BN Stream Web needs JavaScript.</p></noscript>
 <header class="top">
   <a class="brand" href="#/"><img src="icon.png" alt=""><span>BN Stream</span></a>
   <nav id="nav"></nav>

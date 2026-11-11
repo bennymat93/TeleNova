@@ -63,3 +63,39 @@ h2 small{color:var(--muted);font-weight:400;font-size:13px}
   main{padding:4px 16px 24px}.grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px}
   .detail{grid-template-columns:1fr;padding:16px}.detail img{max-width:160px}
 }
+
+/* ---------------------------------------------------------------- 3.0: every device */
+html{-webkit-text-size-adjust:100%;scroll-padding:90px 0 110px}
+body{min-height:100dvh;overflow-x:hidden}
+.settings input{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--panel2);border-radius:10px;padding:9px 14px;font:inherit}
+.tile:focus-visible,.card:focus-visible,.chip:focus-visible,.btn:focus-visible,nav a:focus-visible,.backbtn:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+img{max-width:100%}
+/* notches and rounded screens (phones in any orientation, installed app) */
+.top{padding-top:max(12px,env(safe-area-inset-top));padding-inline:max(24px,env(safe-area-inset-left)) max(24px,env(safe-area-inset-right))}
+.radiobar{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+.foot{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+/* touch screens: finger-sized targets, no hover lift that sticks after a tap */
+@media (hover:none){.card:hover,.tile:hover{transform:none;box-shadow:none}nav a,.chip,.btn,.backbtn{min-height:40px;display:inline-flex;align-items:center}
+  nav{scrollbar-width:none}nav::-webkit-scrollbar{display:none}}
+/* small phones */
+@media (max-width:400px){.grid{grid-template-columns:repeat(3,1fr);gap:8px}.card .t{font-size:12px;margin:8px 8px 0}.card .s{margin:2px 8px 8px}
+  .brand span{font-size:16px}.pagehead h1{font-size:21px}.tile b{font-size:16px}.top{padding-inline:12px}main{padding-inline:12px}}
+/* phones on their side: the player gets the whole height */
+@media (orientation:landscape) and (max-height:520px){.top{position:static}.sheet{max-height:100dvh;border-radius:0}.modal{padding:0}
+  .player{aspect-ratio:auto;height:100dvh}.detail{grid-template-columns:140px 1fr;padding:14px}}
+/* tablets */
+@media (min-width:761px) and (max-width:1100px){.top{grid-template-columns:auto 1fr;row-gap:8px}.search{grid-column:1/-1}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(135px,1fr))}.menu{grid-template-columns:repeat(3,1fr)}}
+/* wide desktop screens */
+@media (min-width:1700px){main{max-width:1800px}.grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}}
+/* televisions (10-foot view): larger text and cards, a thick focus frame, nothing depends on hover */
+html.tv body{font-size:20px}
+html.tv .grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:24px}
+html.tv .card .t{font-size:18px}html.tv .card .s{font-size:15px}
+html.tv .menu{grid-template-columns:repeat(4,1fr);gap:24px}html.tv .tile{min-height:220px}html.tv .tile b{font-size:26px}html.tv .tile .ic{font-size:56px}
+html.tv nav a,html.tv .chip,html.tv .btn,html.tv .backbtn{font-size:19px;padding:12px 20px}
+html.tv .tile:focus,html.tv .card:focus,html.tv .chip:focus,html.tv .btn:focus,html.tv nav a:focus,html.tv .backbtn:focus{outline:4px solid var(--accent);outline-offset:4px;transform:scale(1.04)}
+html.tv main{max-width:none;padding-inline:48px}html.tv .top{padding-inline:48px}
+@media (min-width:2400px){html.tv body{font-size:28px}html.tv .grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+@media print{.top,.radiobar,.foot,.modal{display:none}}

@@ -93,10 +93,28 @@ const t = (k) => L[cfg.lang][k];
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const view = $('#view');
+// 3.0: texts added with the all-devices version
+const X3 = {
+  he: {tmdb: 'מפתח TMDb אישי (רשות)', tmdb_hint: 'עם מפתח חינמי מ-themoviedb.org מתקבל הקטלוג המלא של סרטים וסדרות, בלי שרת. המפתח נשמר רק בדפדפן הזה.', install: 'התקן כאפליקציה במכשיר הזה'},
+  en: {tmdb: 'Your TMDb key (optional)', tmdb_hint: 'A free key from themoviedb.org gives the full movie and series catalogue with no server. The key stays in this browser only.', install: 'Install as an app on this device'},
+  ru: {tmdb: 'Ваш ключ TMDb (необязательно)', tmdb_hint: 'Бесплатный ключ с themoviedb.org открывает полный каталог без сервера. Ключ хранится только в этом браузере.', install: 'Установить как приложение'},
+};
+const X = (k) => (X3[cfg.lang] || X3.en)[k];
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; });
 let hls = null, hasTmdb = true;
 
 // ---------------------------------------------------------------- sources
 async function tmdb(path, params = {}) {
+  const key = (cfg.tmdb || '').trim();
+  if (key) {                                  // the viewer's own TMDb key: the full catalogue with no server
+    const qs = new URLSearchParams({language: TMDB_LANG[cfg.lang], ...params});
+    const bearer = key.length > 40;
+    if (!bearer) qs.set('api_key', key);
+    const r = await fetch('https://api.themoviedb.org/3' + path + '?' + qs, bearer ? {headers: {Authorization: 'Bearer ' + key}} : {});
+    if (!r.ok) throw new Error('TMDb ' + r.status);
+    return r.json();
+  }
   if (!hasTmdb) throw new Error('no tmdb');
   const qs = new URLSearchParams({path, language: TMDB_LANG[cfg.lang], ...params});
   const r = await fetch('api/tmdb?' + qs).catch(() => ({status: 404}));
@@ -395,7 +413,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.nova-1.0.0.zip">${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-3.0.0.zip">${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
@@ -408,12 +426,17 @@ function pageSettings() {
     <label>${esc(t('s_theme'))}<select id="s_theme">${opt([['auto', t('t_auto')], ['dark', t('t_dark')], ['light', t('t_light')]], cfg.theme)}</select></label>
     <label>${esc(t('s_live'))}<select id="s_live">${opt(Object.entries(t('lists')), cfg.live)}</select></label>
     <label>${esc(t('s_radio'))}<select id="s_radio">${opt(Object.entries(t('countries')), cfg.radio)}</select></label>
+    <label>${esc(X('tmdb'))}<input id="s_tmdb" type="password" autocomplete="off" dir="ltr" value="${esc(cfg.tmdb || '')}"></label>
+    <p class="hint">${esc(X('tmdb_hint'))}</p>
+    <div class="row"><button class="btn ghost" id="s_install" hidden>${esc(X('install'))}</button></div>
     <div class="row"><b>${esc(t('s_family'))}</b><span>${esc(t('s_family_txt'))}</span></div>
     <div class="row"><button class="btn ghost" id="s_clear">${esc(t('s_clear'))}</button><span id="s_done"></span></div>
     <p class="hint">${esc(t('s_store'))}</p></div>`);
   for (const k of ['lang', 'theme', 'live', 'radio']) {
     $('#s_' + k).onchange = (e) => { cfg[k] = e.target.value; put('cfg', cfg); applyCfg(); if (k === 'lang') { shell(); pageSettings(); } };
   }
+  $('#s_tmdb').onchange = (e) => { cfg.tmdb = e.target.value.trim(); hasTmdb = true; put('cfg', cfg); };
+  if (installEvt) { $('#s_install').hidden = false; $('#s_install').onclick = () => { installEvt.prompt(); installEvt = null; $('#s_install').hidden = true; }; }
   $('#s_clear').onclick = () => { put('favs', []); $('#s_done').textContent = t('s_cleared'); };
 }
 async function pageSearch(q) {
@@ -476,3 +499,63 @@ $('#search').onsubmit = (e) => {
 };
 window.addEventListener('hashchange', route);
 applyCfg(); shell(); route();
+
+
+// ---------------------------------------------------------------- 3.0: every device
+// TV remotes and keyboards: the arrows move the focus to the nearest item in that direction, Enter opens it,
+// Back / Escape closes the open sheet or goes one page back. Touch and mouse are untouched.
+(function () {
+  const ua = navigator.userAgent;
+  const isTv = /\b(TV|Tizen|Web0S|WebOS|AFT[A-Z]|BRAVIA|GoogleTV|Android TV|CrKey|HbbTV|NetCast|Viera|AppleTV)\b/i.test(ua);
+  if (isTv) document.documentElement.classList.add('tv');
+  const SEL = 'a[href],button:not([disabled]),input,select,[tabindex]:not([tabindex="-1"])';
+  const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && !el.closest('[hidden]'); };
+  const scope = () => ($('#modal').hidden ? document : $('#modal'));
+  function move(dir) {
+    const cur = document.activeElement;
+    const all = [...scope().querySelectorAll(SEL)].filter(visible);
+    if (!all.length) return false;
+    if (!cur || cur === document.body || !all.includes(cur)) { all[0].focus(); return true; }
+    const a = cur.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+    let best = null, bestScore = Infinity;
+    for (const el of all) {
+      if (el === cur) continue;
+      const b = el.getBoundingClientRect(), dx = b.left + b.width / 2 - ax, dy = b.top + b.height / 2 - ay;
+      const along = dir === 'left' ? -dx : dir === 'right' ? dx : dir === 'up' ? -dy : dy;
+      const across = Math.abs(dir === 'left' || dir === 'right' ? dy : dx);
+      if (along < 8) continue;
+      const score = along + across * 2.5;
+      if (score < bestScore) { bestScore = score; best = el; }
+    }
+    if (!best) return false;
+    best.focus({preventScroll: true});
+    best.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'smooth'});
+    return true;
+  }
+  const DIR = {ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down'};
+  document.addEventListener('keydown', (e) => {
+    const el = document.activeElement, tag = el && el.tagName;
+    const typing = tag === 'INPUT' && el.type !== 'checkbox';
+    if (DIR[e.key]) {
+      if (tag === 'SELECT' || tag === 'VIDEO' || tag === 'AUDIO') return;
+      if (typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && el.value) return;   // caret inside the text
+      if (move(DIR[e.key])) e.preventDefault();
+      return;
+    }
+    // remote "Back": Tizen 10009, webOS 461, Android TV browsers send BrowserBack / GoBack
+    const back = e.key === 'BrowserBack' || e.key === 'GoBack' || e.keyCode === 10009 || e.keyCode === 461 ||
+                 (e.key === 'Backspace' && !typing);
+    if (back) {
+      e.preventDefault();
+      if (!$('#modal').hidden) closeModal();
+      else if (location.hash && location.hash !== '#/') history.back();
+    }
+  });
+  // a page drawn after a remote / keyboard action starts with the focus on its first item
+  let keyboard = false;
+  document.addEventListener('keydown', () => { keyboard = true; }, true);
+  document.addEventListener('pointerdown', () => { keyboard = false; }, true);
+  window.addEventListener('hashchange', () => { if (keyboard || isTv) setTimeout(() => {
+    const first = view.querySelector('.tile,.card,.chip,a[href],button'); if (first) first.focus({preventScroll: true}); }, 350); });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
