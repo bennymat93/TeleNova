@@ -195,3 +195,165 @@ def keyboard_buttons(xml):
     t = t[:m.end()] + add + t[m.end():]
     open(p, 'w', encoding='utf-8', newline='').write(t)
     return 1
+
+# ------------------------------------------------------------------ 3.3.3: slim notification at the top of the screen
+NOTE_MARK = '<!-- BN notification v1 -->'
+NOTE_XML = '''<?xml version="1.0" encoding="UTF-8"?>
+<window>
+	<zorder>3</zorder>
+	<controls>
+		<control type="group">
+			''' + NOTE_MARK + '''
+			<depth>DepthMax</depth>
+			<top>-6</top>
+			<right>0</right>
+			<width>500</width>
+			<include>OpenClose_Right</include>
+			<visible>String.IsEmpty(Window(Home).Property(script.cinemavision.running))</visible>
+			<control type="image">
+				<left>0</left>
+				<top>0</top>
+				<width>500</width>
+				<height>100</height>
+				<texture colordiffuse="button_focus">masks/dialog-notification-border.png</texture>
+				<bordersize>15</bordersize>
+			</control>
+			<control type="image">
+				<left>0</left>
+				<top>0</top>
+				<width>500</width>
+				<height>100</height>
+				<texture colordiffuse="dialog_bg">masks/dialog-notification.png</texture>
+				<bordersize>17</bordersize>
+			</control>
+			<control type="image" id="400">
+				<description>avatar</description>
+				<left>426</left>
+				<top>25</top>
+				<width>50</width>
+				<height>50</height>
+				<aspectratio>keep</aspectratio>
+			</control>
+			<control type="fadelabel" id="401">
+				<description>Line 1 Label</description>
+				<left>28</left>
+				<top>19</top>
+				<width>388</width>
+				<height>28</height>
+				<font>font12</font>
+				<textcolor>button_focus</textcolor>
+				<align>right</align>
+				<aligny>center</aligny>
+				<scrollout>false</scrollout>
+				<pauseatend>2000</pauseatend>
+			</control>
+			<control type="fadelabel" id="402">
+				<description>Line 2 Label</description>
+				<left>28</left>
+				<top>49</top>
+				<width>388</width>
+				<height>28</height>
+				<font>font10</font>
+				<textcolor>white</textcolor>
+				<align>right</align>
+				<aligny>center</aligny>
+				<scrollout>false</scrollout>
+				<pauseatend>2000</pauseatend>
+			</control>
+		</control>
+	</controls>
+</window>
+'''
+
+
+def notification(xml):
+    """Kodi's pop-up notification as a slim bar in the top corner: 500x100 instead of 720x160 (the visible box is
+    about 76 high: the texture has a soft margin), at the top edge instead of 100 px below it, both lines in explicit colours. -> 1 when the file was changed, 0 when already there."""
+    p = os.path.join(xml, 'DialogNotification.xml')
+    if not os.path.exists(p):
+        return 0
+    if open(p, encoding='utf-8', newline='').read() == NOTE_XML:
+        return 0
+    open(p, 'w', encoding='utf-8', newline='').write(NOTE_XML)
+    return 1
+
+
+# ------------------------------------------------------------------ 3.3.3: home screen - toolbar and menu on one axis
+HOME_MARK = '<!-- BN home layout v1 -->'
+TOOL_BUTTON = '''<include name="BNToolButton">
+		<param name="visible">true</param>
+		<param name="size">40</param>
+		<param name="pos">40</param>
+		<definition>
+			<control type="radiobutton" id="$PARAM[control_id]">
+				<include>FocusBounce</include>
+				<width>120</width>
+				<height>120</height>
+				<align>center</align>
+				<aligny>center</aligny>
+				<onclick>$PARAM[onclick]</onclick>
+				<font></font>
+				<label>$PARAM[label]</label>
+				<texturefocus colordiffuse="button_focus">buttons/roundbutton-fo.png</texturefocus>
+				<texturenofocus />
+				<radioposx>$PARAM[pos]</radioposx>
+				<radioposy>0</radioposy>
+				<radiowidth>$PARAM[size]</radiowidth>
+				<radioheight>$PARAM[size]</radioheight>
+				<textureradioonfocus colordiffuse="focused_text">$PARAM[icon]</textureradioonfocus>
+				<textureradioonnofocus colordiffuse="grey">$PARAM[icon]</textureradioonnofocus>
+				<textureradioofffocus colordiffuse="focused_text">$PARAM[icon]</textureradioofffocus>
+				<textureradiooffnofocus colordiffuse="grey">$PARAM[icon]</textureradiooffnofocus>
+				<visible>$PARAM[visible]</visible>
+			</control>
+		</definition>
+	</include>
+	'''
+
+
+def _sub(rx, new, text, want=None):
+    text, k = re.subn(rx, new, text, flags=re.S)
+    assert k and (want is None or k == want), 'home layout: %r matched %d times' % (rx, k)
+    return text
+
+
+def home_layout(xml):
+    """The side column of the home screen (0..503 wide, centre 251): the menu buttons (395 wide) are centred in it,
+    the toolbar icons stand on the same axis at equal distances (82 between centres, glyphs drawn at one visual size:
+    the update and help pictures have a transparent margin), icon and text sit on the vertical middle of each button.
+    -> 1 when the skin was changed, 0 when already there."""
+    p = os.path.join(xml, 'Home.xml')
+    b = os.path.join(xml, 'Includes_Buttons.xml')
+    if not (os.path.exists(p) and os.path.exists(b)):
+        return 0
+    t = open(p, encoding='utf-8', newline='').read()
+    if HOME_MARK in t:
+        return 0
+    # ---- toolbar
+    i = t.index('<control type="grouplist" id="700">')
+    j = t.index('</control>', i)
+    bar = t[i:j]
+    bar = _sub(r'<itemgap>0</itemgap>', '<itemgap>-38</itemgap>', bar, 1)
+    bar = _sub(r'<left>45</left>', '<left>-14</left>', bar, 1)
+    bar = _sub(r'<width>380</width>', '<width>530</width>', bar, 1)
+    bar = _sub(r'<align>justify</align>', '<align>center</align>', bar, 1)
+    bar = _sub(r'content="IconButton"', 'content="BNToolButton"', bar)
+    for icon, size in (('icons/bn_update.png', 50), ('icons/sidemenu/bn_help.png', 56)):
+        tag = '<param name="icon" value="%s" />' % icon
+        assert tag in bar, 'home layout: %s not in the toolbar' % icon
+        bar = bar.replace(tag, tag + '<param name="size" value="%d" /><param name="pos" value="%d" />' % (size, (120 - size) // 2))
+    # ---- menu
+    k = t.index('<control type="fixedlist" id="9000">')
+    assert k < i
+    e = t.index('<content>', k)
+    menu = t[k:e]
+    menu = _sub(r'<left>25</left>(\s*)<top>240</top>(\s*)<width>492</width>', r'<left>53</left>\1<top>240</top>\2<width>400</width>', menu, 1)
+    menu = _sub(r'<left>5</left>(\s*)<top>1</top>', r'<left>5</left>\1<top>-2</top>', menu, 2)
+    menu = _sub(r'<left>96</left>(\s*)<top>0</top>(\s*)<height>95</height>', r'<left>96</left>\1<top>7</top>\2<height>76</height>', menu, 3)
+    t = t[:k] + HOME_MARK + menu + t[e:i] + bar + t[j:]
+    s = open(b, encoding='utf-8', newline='').read()
+    if 'name="BNToolButton"' not in s:
+        s = _sub(r'<include name="IconButton">', lambda m: TOOL_BUTTON + m.group(0), s, 1)
+        open(b, 'w', encoding='utf-8', newline='').write(s)
+    open(p, 'w', encoding='utf-8', newline='').write(t)
+    return 1

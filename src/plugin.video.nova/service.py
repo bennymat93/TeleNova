@@ -728,9 +728,13 @@ def main():
         import xbmcvfs
         from resources.lib import skinpatch
         skin_xml = xbmcvfs.translatePath('special://home/addons/skin.fentastic/xml')
-        if os.path.isdir(skin_xml) and skinpatch.keyboard_buttons(skin_xml):       # 3.3.3: Paste on the keyboard
-            log('paste buttons added to the keyboard')
-            xbmc.executebuiltin('ReloadSkin()')
+        if os.path.isdir(skin_xml):
+            kb = skinpatch.keyboard_buttons(skin_xml)        # 3.3.3: Paste on the keyboard
+            note = skinpatch.notification(skin_xml)          # 3.3.3: slim notification at the top
+            home = skinpatch.home_layout(skin_xml)           # 3.3.3: toolbar and menu centred on one axis
+            if kb or note or home:
+                log('skin updated: keyboard buttons %s, notification %s, home layout %s' % (kb, note, home))
+                xbmc.executebuiltin('ReloadSkin()')
     except Exception as e:
         log('keyboard buttons: %s' % e, xbmc.LOGWARNING)
     try:

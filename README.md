@@ -30,13 +30,31 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 3.3.2 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 3.3.3 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.video.nova` (TeleNova) | 3.3.3 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 3.3.4 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
 | `plugin.program.novawizard` (TeleNova Wizard) | 3.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
 | `repository.telenova` | 3.1.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## Build 3.3.3 - slim notification, home screen on one axis
+
+Skin changes only (`skinpatch.py` in `plugin.video.nova`; applied to the build, and once by the service on boxes
+that update from the repository, followed by one skin reload):
+
+- **Notification** (`skinpatch.notification`): Kodi's pop-up is a slim bar in the top right corner - 500 x 100
+  instead of 720 x 160 (the visible box is about 76 high), at the top edge instead of 100 below it; both text
+  lines have explicit colours.
+- **Home screen** (`skinpatch.home_layout`): the menu buttons are centred in the side column (they stood 25 from
+  the left and about 80 from the right), the five toolbar icons stand on the same axis at equal distances, the
+  update and help icons are drawn at the same visual size as the others, icon and text sit on the vertical middle
+  of each menu button.
+- Checked on Windows in a 4:3 window (screenshots, arrow-key navigation through the toolbar). Not checked on a
+  16:9 screen or during playback, when a sixth toolbar button (full screen) appears.
+- QA tools: `src/qa/qa_live.ps1` runs the suites on the profile as it is (`qa_all.ps1` deletes the Kodi profile,
+  logins included); `t_rd_live.py` tests Real-Debrid with the logged-in account - 3 titles, 15 sources each,
+  9 of 9 links resolved and served video.
 
 ## Build 3.3.2 - Paste on the keyboard, configuration transfer, iPhone / iPad
 

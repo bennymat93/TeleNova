@@ -11,3 +11,5 @@ plugin.video.nova/resources/gdrive_client.json
 qa/agentC/agentC_*/
 qa/agentC/bots_*/
 qa/agentC/rd_*/
+qa/wiz_build.json
+qa/stage/

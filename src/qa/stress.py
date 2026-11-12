@@ -74,7 +74,7 @@ hostile = [
     N + '?a=noopbuild_season_list&tmdb_id=', N + '?a=help_show', N + '?a=sysfix', N + '?a=prov_toggle', N + '?a=fav_rm', N + '?a=acc',
     N + '?a=tv_do', N + '?a=lb_play', N + '?a=gd_play', N + '?' + 'x=' + 'y' * 4000, N + '?a=list&m=movie&path=%2Fmovie%2Fpopular&page=99999',
     T + '?mode=doesnotexist', T + '?mode=list', T + '?mode=list&kind=zz&cat=zz', T + '?mode=list&kind=movie&cat=discover&f=notjson',
-    T + '?mode=seasons', T + '?mode=episodes', T + '?mode=genres&kind=zz', T + '?mode=hub', T + '?mode=hub&type=movie&tmdb=abc',
+    T + '?mode=seasons', T + '?mode=episodes', T + '?mode=genres&kind=zz', T + '?mode=hub', T + '?mode=hub&type=movie&tmdb=abc&fast=1',      # fast: never writes to a bot when an account is connected
     T + '?mode=chiko&chat=abc',      # (mode=play asks "log in to Telegram?" - a modal dialog blocks the RPC channel) T + '?mode=list&kind=movie&cat=trending&page=-5',
 ]
 print('== 1. hostile parameters: %d calls' % len(hostile), flush=True)
