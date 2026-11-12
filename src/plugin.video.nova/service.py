@@ -158,14 +158,17 @@ class Flow:
                 n = len(subdetect.tracks() or [])
                 steady = steady + 1 if n == seen else 0
                 seen = n
-                try:
-                    settled = steady >= 3 and p.getTime() > 2.0
-                except RuntimeError:
+                if not p.isPlayingVideo():
                     return
-                if settled:
+                if steady >= 3 and subdetect.play_secs() >= 3:      # read as a label: never raises on a closing video
                     break
                 if mon.waitForAbort(0.5) or not self.alive():
                     return
+            # 3.3: a live stream opened by its address (not through the TV service) has no subtitle file to wait
+            # for and nothing to transcribe ahead - the same rule All_Subs follows (guard v14)
+            if subdetect.is_live():
+                log('subtitles: live stream - nothing to search')
+                return
             # 2. is AI generation possible at all? one short check; without a reachable server nothing waits for it
             kind = p.getVideoInfoTag().getMediaType()
             server_ok = False

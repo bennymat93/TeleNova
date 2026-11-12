@@ -9,6 +9,7 @@ print('v12 present before:', subspatch.MARK12 in before, '| v13 before:', subspa
 print('apply ->', subspatch.apply(r'C:\Users\benny\AppData\Local\Temp\claude\0df07f8c0e21f4a7\f8dd45ee-32ee-4d66-b008-da9e8aed6da8\scratchpad\allsubs_test'), '| again ->', subspatch.apply(r'C:\Users\benny\AppData\Local\Temp\claude\0df07f8c0e21f4a7\f8dd45ee-32ee-4d66-b008-da9e8aed6da8\scratchpad\allsubs_test'))
 after = open(p, encoding='utf-8').read()
 ast.parse(after)
+print('v14 after:', subspatch.MARK14 in after, '| live check wired:', 'if _bn_file and _bn_live():' in after, '| getTime() left in guard:', '_BN_PLAYER.getTime() > 2.0' in after)
 print('v13 after:', subspatch.MARK13 in after, '| compiles: True | getTime() > 1.5 gone:', 'getTime() > 1.5' not in after)
 # run the generated function against fake players
 src = after[after.index('def _bn_embedded_hebrew'):after.index('def _bn_same_video')]
@@ -20,7 +21,7 @@ def run(subs, t=5.0):
         def getAvailableSubtitleStreams(self): return [s.get('language') for s in subs]
     class M:
         def abortRequested(self): return False
-    x = types.SimpleNamespace(executeJSONRPC=lambda q: json.dumps({'result': {'subtitles': subs}}), sleep=lambda ms: None)
+    x = types.SimpleNamespace(executeJSONRPC=lambda q: json.dumps({'result': {'subtitles': subs}}), sleep=lambda ms: None, getInfoLabel=lambda l: '00:00:05')
     g = {'_BN_PLAYER': P(), 'monit': M(), 'xbmc': x}
     exec(src, g); return g['_bn_embedded_hebrew']()
 cases = [('heb code', [{'language': 'heb', 'name': ''}], True),

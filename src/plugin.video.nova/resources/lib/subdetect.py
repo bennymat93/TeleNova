@@ -42,6 +42,40 @@ def tracks():
         return None
 
 
+def _hms(label):
+    """'01:02:03' -> seconds; '' or anything else -> 0"""
+    try:
+        parts = [int(x) for x in (label or '').split(':')]
+    except ValueError:
+        return 0
+    secs = 0
+    for p in parts:
+        secs = secs * 60 + p
+    return secs
+
+
+def play_secs():
+    """seconds played, read as a label: unlike Player.getTime() it never raises (and never writes an EXCEPTION
+    line into Kodi's log) when the video closed a moment ago"""
+    return _hms(xbmc.getInfoLabel('Player.Time(hh:mm:ss)'))
+
+
+def is_live():
+    """the playing video is a live stream (a TV channel, a live HLS address): it has no length, so there is no
+    subtitle file to look for and nothing to prepare ahead"""
+    if xbmc.getCondVisibility('PVR.IsPlayingTV | PVR.IsPlayingRadio | VideoPlayer.Content(livetv)'):
+        return True
+    try:
+        r = json.loads(xbmc.executeJSONRPC(json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'Player.GetProperties',
+                                                        'params': {'playerid': 1, 'properties': ['live']}})))
+        if (r.get('result') or {}).get('live'):
+            return True
+    except Exception:
+        pass
+    # a few seconds in and still no length at all
+    return play_secs() >= 3 and _hms(xbmc.getInfoLabel('Player.Duration(hh:mm:ss)')) == 0
+
+
 def hebrew_index(subs=None):
     """index of the full (not forced) Hebrew track, or -1"""
     subs = tracks() if subs is None else subs

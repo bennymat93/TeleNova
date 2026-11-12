@@ -53,6 +53,9 @@ The add-on ids are unchanged so that settings, history and favourites survive th
   stops changing (up to 8 s) instead of giving up 1.5 s into the video. With a full Hebrew track the subtitle add-on
   (All_Subs, guard v13) does not search at all; without one it searches as before. A *forced* Hebrew track (foreign
   lines only) does not count as subtitles of the whole video.
+- A live stream opened by its address (not through the TV service) is not searched for subtitles (All_Subs guard
+  v14, same rule in TeleNova), and All_Subs no longer fills the log with `EXCEPTION: Kodi is not playing` lines
+  after a video is closed quickly (guard v15).
 - **Backups:** restoring a backup or a locked profile made on an older build skips the settings of add-ons the build
   no longer has and drops favourites that open them. New backups no longer include All Subs Plus and Magneto.
   `src/tools/nvp_clean.py` removes the same from the two shipped encrypted profiles (asks for their password).

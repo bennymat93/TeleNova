@@ -263,6 +263,55 @@ HEB13 = '''def _bn_embedded_hebrew():   %s
 AUTOSUB13 = [(HEB12, HEB13)]
 
 
+MARK14 = '# BN guard v14'
+# 3.3: a live stream opened by its address (an HLS channel that is not one of the TV service's) was searched like a
+# film: dozens of site requests and parsing threads for a broadcast no subtitle file exists for - and while they
+# ran every menu took 3-5 s to open (all Kodi add-ons share one Python lock). No length = live = no search.
+# The times are read as labels, which never raise while a video closes (no EXCEPTION lines in Kodi's log).
+LIVE14 = '''def _bn_live():   %s
+    """the playing video is a live stream: it has no length, so there is no subtitle file to find"""
+    try:
+        if not _BN_PLAYER.isPlayingVideo():
+            return False
+        import json as _j
+
+        def _secs(label):
+            n = 0
+            for part in (xbmc.getInfoLabel(label) or '').split(':'):
+                n = n * 60 + int(part)
+            return n
+        res = _j.loads(xbmc.executeJSONRPC(_j.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'Player.GetProperties',
+                                                     'params': {'playerid': 1, 'properties': ['live']}}))).get('result') or {}
+        if res.get('live'):
+            return True
+        return _secs('Player.Time(hh:mm:ss)') >= 3 and _secs('Player.Duration(hh:mm:ss)') == 0
+    except Exception:
+        return False
+
+
+''' % MARK14
+V12_CALL = ("            if _bn_file and _bn_embedded_hebrew():   %s\n"
+            "                log.warning('BN guard: embedded Hebrew subtitles - no search')\n"
+            "                return\n" % MARK12)
+AUTOSUB14 = [("def _bn_same_video():\n", LIVE14 + "def _bn_same_video():\n"),
+             (V12_CALL, V12_CALL +
+              "            if _bn_file and _bn_live():   %s\n"
+              "                log.warning('BN guard: live stream - no search')\n"
+              "                return\n" % MARK14),
+             # the track-list wait of v13 read the position with getTime(), which raises on a closing video
+             ("            if steady >= 3 and _BN_PLAYER.getTime() > 2.0:      # the track list stopped changing: no Hebrew\n",
+              "            if steady >= 3 and (xbmc.getInfoLabel('Player.Time(hh:mm:ss)') or '00:00:00') >= '00:00:03':"
+              "      # the track list stopped changing: no Hebrew\n")]
+
+
+MARK15 = '# BN guard v15'
+# 3.3: its two "wait for the video" loops ask the player for the position up to 70 times; when the video was closed
+# in the meantime every one of those calls raised and wrote an EXCEPTION line into Kodi's log (47 lines after a few
+# quick starts and stops). The position is asked only while a video plays.
+AUTOSUB15 = [('vidtime = _BN_PLAYER.getTime()',
+              'vidtime = _BN_PLAYER.getTime() if _BN_PLAYER.isPlayingVideo() else 0   %s' % MARK15)]
+
+
 def apply(addon_dir):
     """All_Subs: 1 when a file was changed, 0 when the guards were already there; raises if it changed shape"""
     path = os.path.join(addon_dir, 'autosub.py')
@@ -301,6 +350,8 @@ def apply(addon_dir):
         n = 1
     n |= _patch(path, MARK12, AUTOSUB12)
     n |= _patch(path, MARK13, AUTOSUB13)
+    n |= _patch(path, MARK14, AUTOSUB14)
+    n |= _patch(path, MARK15, AUTOSUB15)
     return n
 
 
