@@ -38,6 +38,22 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
 
+## Telegram engine 3.3.2 - fast decryption on Android (the real cause of the freezing)
+
+- On Android the engine found no reachable OpenSSL and decrypted block by block in Python: the status line said
+  `pycryptodome, 0.1 MB/s` and a video froze every few seconds. The engine now carries its own AES-IGE library
+  for Android as well (`resources/bin/android-*/libtnige.so`: ARM 64-bit with the CPU's AES instructions, ARM
+  32-bit, x86, x86_64 - built from `src/native/tnige.c` with the NDK).
+- Kodi's data folder is on shared storage, where Android refuses to load code from; the library is copied to
+  Kodi's private folder (where Kodi puts its own binary add-ons) and loaded from there. Both candidate files for
+  the process's pointer size are tried, and a self-test against the Python implementation runs before it is used.
+- Checked: all four Android builds give exactly the output of the Windows build that was verified against
+  OpenSSL (run on Android 15 / 16 emulators); inside Kodi 21.3 for Android the status line changed from
+  `pycryptodome, 0.1 MB/s` to `tnige-armv8, 5.0 MB/s` on an emulator that translates ARM code (a real ARM device
+  is much faster). Not yet run on a physical device.
+- When the library cannot be loaded, the reason is written next to the speed in the log and in
+  Telegram > Account & status > Connection status.
+
 ## Telegram engine 3.3.1 - playback that froze every few seconds
 
 - The player often keeps two connections to one file (the picture, and the index at the end of the file). Since

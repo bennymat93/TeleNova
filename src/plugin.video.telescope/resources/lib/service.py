@@ -86,7 +86,8 @@ class Service(xbmc.Monitor):
                 common.notify(common.lang(30900))
             self.deps_ok = deps.ensure()
             impl = aesfast.patch_telethon()
-            common.log('crypto backend: %s, %s MB/s' % (impl, aesfast.bench()), xbmc.LOGINFO)
+            common.log('crypto backend: %s, %s MB/s%s' % (impl, aesfast.bench(),
+                                                         (' (%s)' % aesfast.note()) if aesfast.note() else ''), xbmc.LOGINFO)
             if 0 < aesfast.bench() < 1.5:     # below ~12 Mbit/s: heavy files will buffer on this device
                 common.notify(u'\u05e4\u05e2\u05e0\u05d5\u05d7 \u05d8\u05dc\u05d2\u05e8\u05dd \u05d0\u05d9\u05d8\u05d9 \u05d1\u05de\u05db\u05e9\u05d9\u05e8 \u05d4\u05d6\u05d4 (%s MB/s): \u05e2\u05d3\u05d9\u05e3 \u05e7\u05d1\u05e6\u05d9\u05dd \u05e2\u05d3 720p' % aesfast.bench())
         except Exception as exc:
@@ -227,7 +228,8 @@ class Service(xbmc.Monitor):
             if not self._started.wait(15):
                 raise RuntimeError('service_starting')
         if method == 'status':
-            st = {'deps': self.deps_ok, 'error': self.tg_error, 'crypto': '%s, %s MB/s' % (aesfast.impl_name(), aesfast.bench()),
+            st = {'deps': self.deps_ok, 'error': self.tg_error, 'crypto': '%s, %s MB/s%s' % (aesfast.impl_name(), aesfast.bench(),
+                                               (' (%s)' % aesfast.note()) if aesfast.note() else ''),
                   'versions': deps.versions(), 'ai': bool(self.ai), 'tmdb': bool(self.s['tmdb_key'])}
             if self.tg:
                 try:

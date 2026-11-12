@@ -1,36 +1,48 @@
 /* tnige - AES-256-IGE for the TeleNova Telegram engine (MTProto file chunks).
  *
- * Kodi for Windows links OpenSSL statically into its Python, so no AES_ige_encrypt can be reached through ctypes;
- * the engine then decrypted block by block in Python at about 0.2 MB/s. This tiny library has no dependency
- * (static CRT), uses AES-NI when the CPU has it and a plain portable AES otherwise.
+ * Kodi links OpenSSL statically into its Python (Windows) or into libkodi.so with hidden symbols (Android), so no
+ * AES_ige_encrypt can be reached through ctypes; the engine then decrypted block by block in Python at about
+ * 0.1-0.2 MB/s - a video stalls every few seconds. This tiny library has no dependency, uses the CPU's AES
+ * instructions when it has them (AES-NI on x86, the ARMv8 crypto extension on 64-bit ARM) and a plain portable
+ * AES otherwise.
  *
  *   void tn_ige(const uint8_t *in, uint8_t *out, size_t len, const uint8_t key[32], const uint8_t iv[32], int flags)
- *       flags bit 0: 1 = encrypt, 0 = decrypt        flags bit 1: never use AES-NI (tests)
+ *       flags bit 0: 1 = encrypt, 0 = decrypt        flags bit 1: never use the CPU's AES instructions (tests)
  *       len must be a multiple of 16; in and out may not overlap
- *   int tn_ige_info(void)   -> 2 when AES-NI is used, 1 portable
+ *   int tn_ige_info(void)   -> 2 when the CPU's AES instructions are used, 1 portable
  *
- * Build (MSVC):  cl /nologo /O2 /MT /LD tnige.c /Fe:tnige.dll
+ * Build:  Windows (MSVC)   cl /nologo /O2 /MT /LD tnige.c /Fe:tnige.dll
+ *         Android (NDK)    <abi>-linux-android21-clang -O2 -fPIC -shared -Wl,-soname,libtnige.so -o libtnige.so tnige.c
  * GPL-3.0-or-later, like the add-on.
  */
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include <intrin.h>
-#include <wmmintrin.h>
-#include <emmintrin.h>
 
-#define EXPORT __declspec(dllexport)
+#if defined(_MSC_VER)
+#  include <intrin.h>
+#  include <wmmintrin.h>
+#  include <emmintrin.h>
+#  define EXPORT __declspec(dllexport)
+#  define HW_X86 1
+#else
+#  define EXPORT __attribute__((visibility("default")))
+#  if defined(__aarch64__)
+#    include <arm_neon.h>
+#    include <sys/auxv.h>
+#    define HW_ARM64 1
+#  endif
+#endif
 
 static uint8_t SBOX[256], INV[256];
 static volatile int ready = 0;
-static int has_aesni = 0;
+static int has_hw = 0;
 
 static uint8_t rotl8(uint8_t x, int s) { return (uint8_t)((x << s) | (x >> (8 - s))); }
 
 static void init(void)
 {
     uint8_t p = 1, q = 1;
-    int regs[4];
     int i;
     if (ready) return;
     do {
@@ -45,8 +57,15 @@ static void init(void)
     } while (p != 1);
     SBOX[0] = 0x63;
     for (i = 0; i < 256; i++) INV[SBOX[i]] = (uint8_t)i;
-    __cpuid(regs, 1);
-    has_aesni = ((regs[2] >> 25) & 1) && ((regs[3] >> 26) & 1);      /* AES + SSE2 */
+#if defined(HW_X86)
+    {
+        int regs[4];
+        __cpuid(regs, 1);
+        has_hw = ((regs[2] >> 25) & 1) && ((regs[3] >> 26) & 1);      /* AES + SSE2 */
+    }
+#elif defined(HW_ARM64)
+    has_hw = (getauxval(AT_HWCAP) & (1UL << 3)) ? 1 : 0;              /* HWCAP_AES */
+#endif
     ready = 1;
 }
 
@@ -159,8 +178,9 @@ static void ige_portable(const uint8_t *in, uint8_t *out, size_t len, const uint
     }
 }
 
-/* ------------------------------------------------------------------ AES-NI */
-static void ige_aesni(const uint8_t *in, uint8_t *out, size_t len, const uint8_t *rk, const uint8_t *iv, int enc)
+/* ------------------------------------------------------------------ the CPU's AES instructions */
+#if defined(HW_X86)
+static void ige_hw(const uint8_t *in, uint8_t *out, size_t len, const uint8_t *rk, const uint8_t *iv, int enc)
 {
     __m128i k[15], pc, pp, cur, x;
     size_t off;
@@ -192,6 +212,48 @@ static void ige_aesni(const uint8_t *in, uint8_t *out, size_t len, const uint8_t
         _mm_storeu_si128((__m128i *)(out + off), x);
     }
 }
+#elif defined(HW_ARM64)
+/* AESE(s, k) = SubBytes(ShiftRows(s ^ k)), AESMC = MixColumns; AESD(s, k) = InvSubBytes(InvShiftRows(s ^ k)),
+ * AESIMC = InvMixColumns. Decryption uses the equivalent inverse cipher: keys 1..13 pass through AESIMC. */
+__attribute__((target("aes")))
+static void ige_hw(const uint8_t *in, uint8_t *out, size_t len, const uint8_t *rk, const uint8_t *iv, int enc)
+{
+    uint8x16_t k[15], pc, pp, cur, x;
+    size_t off;
+    int i;
+    if (enc) {
+        for (i = 0; i < 15; i++) k[i] = vld1q_u8(rk + 16 * i);
+    } else {
+        k[0] = vld1q_u8(rk + 16 * 14);
+        for (i = 1; i < 14; i++) k[i] = vaesimcq_u8(vld1q_u8(rk + 16 * (14 - i)));
+        k[14] = vld1q_u8(rk);
+    }
+    pc = vld1q_u8(iv);
+    pp = vld1q_u8(iv + 16);
+    for (off = 0; off < len; off += 16) {
+        cur = vld1q_u8(in + off);
+        if (enc) {
+            x = veorq_u8(cur, pc);
+            for (i = 0; i < 13; i++) x = vaesmcq_u8(vaeseq_u8(x, k[i]));
+            x = veorq_u8(veorq_u8(vaeseq_u8(x, k[13]), k[14]), pp);
+            pp = cur;
+            pc = x;
+        } else {
+            x = veorq_u8(cur, pp);
+            for (i = 0; i < 13; i++) x = vaesimcq_u8(vaesdq_u8(x, k[i]));
+            x = veorq_u8(veorq_u8(vaesdq_u8(x, k[13]), k[14]), pc);
+            pc = cur;
+            pp = x;
+        }
+        vst1q_u8(out + off, x);
+    }
+}
+#else
+static void ige_hw(const uint8_t *in, uint8_t *out, size_t len, const uint8_t *rk, const uint8_t *iv, int enc)
+{
+    ige_portable(in, out, len, rk, iv, enc);
+}
+#endif
 
 EXPORT void tn_ige(const uint8_t *in, uint8_t *out, size_t len, const uint8_t *key, const uint8_t *iv, int flags)
 {
@@ -199,8 +261,8 @@ EXPORT void tn_ige(const uint8_t *in, uint8_t *out, size_t len, const uint8_t *k
     init();
     len &= ~(size_t)15;
     expand(key, rk);
-    if (has_aesni && !(flags & 2))
-        ige_aesni(in, out, len, rk, iv, flags & 1);
+    if (has_hw && !(flags & 2))
+        ige_hw(in, out, len, rk, iv, flags & 1);
     else
         ige_portable(in, out, len, rk, iv, flags & 1);
 }
@@ -208,5 +270,5 @@ EXPORT void tn_ige(const uint8_t *in, uint8_t *out, size_t len, const uint8_t *k
 EXPORT int tn_ige_info(void)
 {
     init();
-    return has_aesni ? 2 : 1;
+    return has_hw ? 2 : 1;
 }

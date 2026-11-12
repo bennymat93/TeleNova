@@ -104,22 +104,112 @@ def ossl_decrypt_ige(cipher, key, iv):
 _tn = None
 
 
-def _load_tnige():
-    if sys.platform != 'win32':
-        return None
+_tn_note = ''        # why the bundled library could not be used (shown in the log / status line)
+
+
+def note():
+    return _tn_note
+
+
+def _is_android():
+    return 'ANDROID_ROOT' in os.environ or 'ANDROID_DATA' in os.environ or hasattr(sys, 'getandroidapilevel')
+
+
+def _tn_file():
+    """(path of the bundled library for this device, is_android) or (None, ...) when there is none"""
+    import platform
+    bits64 = ctypes.sizeof(ctypes.c_void_p) == 8
+    base = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'bin')
+    if sys.platform == 'win32':
+        return os.path.join(base, 'win-x64' if bits64 else 'win-x86', 'tnige.dll'), False
+    if not _is_android():
+        return None, False
+    # the pointer size of this process decides between the 64- and the 32-bit files (a 32-bit Kodi on a 64-bit box
+    # needs the 32-bit one). The machine name only orders the two candidates: it can name the HOST processor when
+    # Kodi runs through a translation layer (seen on an x86_64 device running the ARM build), and the system
+    # refuses a file of the wrong architecture without harm - so both are tried.
+    m = (platform.machine() or '').lower()
+    x86 = 'x86' in m or 'amd64' in m or m in ('i686', 'i586', 'i386')
+    abis = ['arm64-v8a', 'x86_64'] if bits64 else ['armeabi-v7a', 'x86']
+    if x86:
+        abis.reverse()
+    return [os.path.join(base, 'android-' + a, 'libtnige.so') for a in abis], True
+
+
+def _exec_dirs():
+    """3.3.2 (Android): Kodi's data folder is on shared storage, where the system refuses to load code from. The
+    library is copied to the app's own private folder - the same place Kodi itself copies its binary add-ons to
+    before loading them."""
+    out = []
+
+    def add(p):
+        if p and p not in out:
+            out.append(p)
+    env = os.environ
+    add(env.get('KODI_BINADDON_PATH'))
+    if env.get('KODI_BINADDON_PATH'):
+        add(os.path.dirname(env['KODI_BINADDON_PATH'].rstrip('/')))
+    for key in ('KODI_BIN_HOME', 'KODI_HOME'):          # .../cache/apk/assets -> .../cache
+        p = env.get(key)
+        if p:
+            add(os.path.dirname(os.path.dirname(p.rstrip('/'))))
     try:
-        arch = 'win-x64' if ctypes.sizeof(ctypes.c_void_p) == 8 else 'win-x86'
-        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'bin', arch, 'tnige.dll')
-        if not os.path.isfile(path):
-            return None
-        lib = ctypes.CDLL(path)
-        lib.tn_ige.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_char_p,
-                               ctypes.c_int]
-        lib.tn_ige.restype = None
-        lib.tn_ige_info.restype = ctypes.c_int
-        return lib
-    except (OSError, AttributeError, TypeError):
+        import xbmcvfs
+        p = xbmcvfs.translatePath('special://xbmc/').rstrip('/')
+        add(os.path.dirname(os.path.dirname(p)))
+        add(xbmcvfs.translatePath('special://temp/').rstrip('/'))
+    except Exception:
+        pass
+    add(env.get('TMPDIR'))
+    return out
+
+
+def _open_tnige(path):
+    lib = ctypes.CDLL(path)
+    lib.tn_ige.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_char_p,
+                           ctypes.c_int]
+    lib.tn_ige.restype = None
+    lib.tn_ige_info.restype = ctypes.c_int
+    return lib
+
+
+def _load_tnige():
+    global _tn_note
+    try:
+        path, android = _tn_file()
+    except Exception as exc:
+        _tn_note = 'bundled AES: %s' % exc
         return None
+    if not path:
+        return None
+    paths = [p for p in (path if isinstance(path, list) else [path]) if os.path.isfile(p)]
+    if not paths:
+        _tn_note = 'bundled AES: no file for this device'
+        return None
+    errors = []
+    folders = _exec_dirs() if android else []
+    for path in paths:
+        try:
+            return _open_tnige(path)             # Windows; Android when Kodi's data is on internal storage
+        except (OSError, AttributeError, TypeError) as exc:
+            errors.append('%s' % exc)
+        if not android:
+            continue
+        import shutil
+        name = 'libtnige_%s_%d.so' % (os.path.basename(os.path.dirname(path))[8:], os.path.getsize(path))
+        for folder in folders:
+            dest = os.path.join(folder, name)
+            try:
+                if not os.path.isdir(folder):
+                    continue
+                if not os.path.isfile(dest) or os.path.getsize(dest) != os.path.getsize(path):
+                    shutil.copyfile(path, dest)
+                    os.chmod(dest, 0o755)
+                return _open_tnige(dest)
+            except (OSError, AttributeError, TypeError) as exc:
+                errors.append('%s: %s' % (folder, exc))
+    _tn_note = 'bundled AES not loaded: ' + ' | '.join(e[-110:] for e in errors[-3:])
+    return None
 
 
 def _tn_run(data, key, iv, flags):
@@ -254,7 +344,9 @@ def best_pair():
             if ok and ref:
                 ok = ref[0](sample, k, iv) == enc
             if ok:
-                return ('tnige-aesni' if _tn.tn_ige_info() == 2 else 'tnige'), tn_encrypt_ige, tn_decrypt_ige
+                hw = _tn.tn_ige_info() == 2
+                name = ('tnige-aesni' if sys.platform == 'win32' else 'tnige-armv8') if hw else 'tnige'
+                return name, tn_encrypt_ige, tn_decrypt_ige
         except Exception:
             pass
     pair = _cryptodome_pair()

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.telescope" name="TeleNova Telegram (TeleScope AI)" version="3.3.1" provider-name="TeleScope">
+<addon id="plugin.video.telescope" name="TeleNova Telegram (TeleScope AI)" version="3.3.2" provider-name="TeleScope">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.requests" version="2.22.0"/>
@@ -20,7 +20,7 @@
         <platform>all</platform>
         <license>GPL-3.0-or-later</license>
         <language>en he ru</language>
-        <news>3.3.1 - Smoother playback: two connections of the player no longer cancel each other's read-ahead, a Telegram flood limit slows all requests down together instead of freezing the picture again and again, every stall is written to the log with its reason. 3.3.0 - Own native AES library on Windows (hundreds of MB/s instead of 0.2): Telegram streams play without buffering; no log errors about the removed POV add-on. 3.1.0 - Part of TeleNova. Much faster search: one request per query, a Telegram rate limit no longer freezes the search, 12 s limit, stragglers not waited for, AI and channel list never hold it up. Close matches are listed (marked ?) when nothing passes the strict rules. 3.0.1 - Link test reads 128 KB instead of 1 MB and never hides real matches when a slow box cannot finish it; faster AES on PyCryptodome; the "nothing found" box says why. 3.0.0 - Fixed first-run setup (pyaes is installed from its source archive; downloads are retried); login retries the setup by itself. 1.2.0 - Embedding API for NovaTV.</news>
+        <news>3.3.2 - Fast decryption on Android as well: the engine now carries its own AES library for Android (ARM 64 / 32-bit, x86), so Telegram videos no longer stall on devices where it reported 0.1 MB/s. 3.3.1 - Smoother playback: two connections of the player no longer cancel each other's read-ahead, a Telegram flood limit slows all requests down together instead of freezing the picture again and again, every stall is written to the log with its reason. 3.3.0 - Own native AES library on Windows (hundreds of MB/s instead of 0.2): Telegram streams play without buffering; no log errors about the removed POV add-on. 3.1.0 - Part of TeleNova. Much faster search: one request per query, a Telegram rate limit no longer freezes the search, 12 s limit, stragglers not waited for, AI and channel list never hold it up. Close matches are listed (marked ?) when nothing passes the strict rules. 3.0.1 - Link test reads 128 KB instead of 1 MB and never hides real matches when a slow box cannot finish it; faster AES on PyCryptodome; the "nothing found" box says why. 3.0.0 - Fixed first-run setup (pyaes is installed from its source archive; downloads are retried); login retries the setup by itself. 1.2.0 - Embedding API for NovaTV.</news>
         <assets>
             <icon>resources/icon.png</icon>
             <fanart>resources/fanart.jpg</fanart>

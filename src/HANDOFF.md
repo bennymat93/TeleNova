@@ -22,7 +22,19 @@
 6. ידוע ולא טופל: שגיאות קוסמטיות של סקין FENtastic בלוג (`Misplaced ]`, `unmatched parentheses`, `Control 60 ... can't focus`); YouTube 403/429; `EXCEPTION: Kodi is not playing any file` בעצירה מהירה של זרם (מקור לא אותר).
 7. המדריך בעברית בלבד (הקודם היה גם באנגלית) – להוסיף אנגלית/רוסית אם צריך.
 
-## 0.000 דיווח משתמש: ניגון מטלגרם נתקע כל כמה שניות (2026-11-12 03:35) – הכי עדכני
+## 0.0000 הסיבה לתקיעות נמצאה ותוקנה: פענוח 0.1MB/s ב-Android (2026-11-12 06:35) – הכי עדכני
+
+המשתמש דיווח שקפצה הודעת "פענוח איטי 0.1MB/s" – כלומר במכשיר שלו (לא המחשב הזה) המנוע נפל ל-PyCryptodome בלוק-בלוק. **שוחזר**: Kodi 21.3 רשמי ל-Android (arm64) על אמולטור הטאבלט (`Medium_Tablet`, Android 15, x86_64 עם תרגום ARM) + הבילד → `crypto backend: pycryptodome, 0.1 MB/s`.
+
+**התיקון (מנוע 3.3.2)**
+- `src\native\tnige.c` הפך לנייד: MSVC/AES-NI ב-Windows, הרחבת ה-AES של ARMv8 ב-arm64 (זיהוי ב-`getauxval(AT_HWCAP)`), קוד נייד בשאר. קומפל עם NDK 28 ל-`resources/bin/android-{arm64-v8a,armeabi-v7a,x86_64,x86}/libtnige.so` (פקודת הבנייה בראש הקובץ; ה-NDK ב-`%LOCALAPPDATA%\Android\Sdk\ndk\28.2.13676358`).
+- `aesfast.py`: ב-Android מעתיק את הספרייה לתיקייה הפנימית של Kodi (`KODI_BINADDON_PATH` = `/data/user/0/org.xbmc.kodi/cache/lib`, ועוד מועמדים) כי האחסון המשותף הוא `noexec` (אומת באמולטור: `mount` מראה `noexec` על `/storage/emulated`). מנסה את שני הקבצים שמתאימים לגודל המצביע של התהליך (שם המכונה יכול להיות של המארח תחת תרגום). בדיקה עצמית מול PyCryptodome לפני שימוש. סיבת כישלון נכתבת בלוג ובשורת המצב (`aesfast.note()`).
+- **אומת**: `src\qa\android_native_test.py` – ארבע הגרסאות נותנות פלט זהה לגרסת Windows שאומתה מול OpenSSL (אמולטור TV x86 Android 16: x86 + armeabi-v7a; אמולטור טאבלט: x86_64 + arm64-v8a עם הוראות AES). בתוך Kodi על האמולטור: `tnige-armv8, 5.0 MB/s` (תחת תרגום ARM→x86; במכשיר ARM אמיתי מהיר בהרבה). זיהוי המכשיר שם: `tablet, certain`.
+- **לא אומת**: מכשיר פיזי; ניגון בפועל מטלגרם (עדיין אין חשבון מחובר בסביבת בדיקה).
+- איך לשחזר את בדיקת ה-Android: להפעיל AVD, `adb install` ל-APK הרשמי (נמצא ב-`scratchpad\kodi-dl\`), לתת הרשאת אחסון (`appops set org.xbmc.kodi MANAGE_EXTERNAL_STORAGE allow`), לפרוס את הבילד ל-`/sdcard/Download/tn/.kodi` ולכתוב `xbmc.data=/sdcard/Download/tn` ל-`/sdcard/xbmc_env.properties` (ל-adb אין הרשאת כתיבה ל-`Android/data/org.xbmc.kodi`).
+- שעון האמולטור היה באוגוסט ולכן TMDb נכשל שם ב-"certificate is not yet valid" – תוצר של האמולטור.
+
+## 0.000 דיווח משתמש: ניגון מטלגרם נתקע כל כמה שניות (2026-11-12 03:35)
 
 המשתמש בדק הזרמה מטלגרם (במכשיר אחר – ב-Kodi שבמחשב הזה טלגרם לא מחובר, אין לוג) ודיווח שהתמונה נתקעת כל כמה שניות לזמן ארוך. **לא שוחזר ולא אומת מול טלגרם אמיתי.** מה שנעשה, לפי קריאת הקוד:
 
