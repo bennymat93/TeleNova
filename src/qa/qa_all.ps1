@@ -85,4 +85,23 @@ Select-String -Path $log -Pattern '^\s+(\w+Error|\w+Exception): |EXCEPTION:| (er
     ForEach-Object { ($_.Line -replace '^\S+ \S+ T:\d+\s+', '').Trim() } |
     ForEach-Object { $_.Substring(0, [Math]::Min(170, $_.Length)) } | Group-Object | Sort-Object Count -Descending |
     Select-Object -First 40 | ForEach-Object { "{0,3}x {1}" -f $_.Count, $_.Name }
+Section 'idle 11.5 min + clean exit'
+Stop-KodiFully
+Remove-Item $log -ErrorAction SilentlyContinue
+Start-Process 'C:\Program Files\Kodi\kodi.exe'
+Start-Sleep 690
+$p = Get-Process kodi -ErrorAction SilentlyContinue
+if ($p) { "after idle: mem {0} MB, cpu {1:N0}s, threads {2}" -f [int]($p.WorkingSet64 / 1MB), $p.CPU, $p.Threads.Count } else { 'KODI DIED DURING IDLE' }
+"errors / warnings while idle (deduped):"
+Select-String -Path $log -Pattern ' (error|warning|fatal) <|Traceback|EXCEPTION' |
+    ForEach-Object { ($_.Line -replace '^\S+ \S+ T:\d+\s+', '') } |
+    Where-Object { $_ -notmatch 'Misplaced|parsing boolean|xbmc_context_ui|OutputControlPort|SettingList|inputstream\.(rtmp|ffmpegdirect)' } |
+    Group-Object | Sort-Object Count -Descending | Select-Object -First 15 |
+    ForEach-Object { "{0,3}x {1}" -f $_.Count, $_.Name.Substring(0, [Math]::Min(180, $_.Name.Length)) }
+Select-String -Path $log -Pattern '\[NovaTV\]|\[plugin\.video\.telescope\]' | ForEach-Object { $_.Line.Substring(11, [Math]::Min(150, $_.Line.Length - 11)) } | Select-Object -First 20
+$q = Get-Date
+python "$s\quit.py"
+for ($i = 0; $i -lt 60; $i++) { if (-not (Get-Process kodi -ErrorAction SilentlyContinue)) { break }; Start-Sleep 1 }
+"kodi exited after {0:N0}s (still running: {1})" -f ((Get-Date) - $q).TotalSeconds, [bool](Get-Process kodi -ErrorAction SilentlyContinue)
+Start-Process 'C:\Program Files\Kodi\kodi.exe'
 Section 'done'

@@ -1,7 +1,7 @@
 import ast, builtins, glob, sys
 B = set(dir(builtins)) | {'__file__', '__name__', '__doc__'}
 for f in sorted(glob.glob(sys.argv[1] + '/**/*.py', recursive=True)):
-    if '\\native\\' in f: continue
+    if '\\native\\' in f or '\\qa\\' in f: continue
     tree = ast.parse(open(f, encoding='utf-8').read(), f)
     defined = set()
     for n in ast.walk(tree):

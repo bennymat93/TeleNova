@@ -7,10 +7,16 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 
 def rpc(method, params=None, timeout=90):
-    try:
-        s = socket.create_connection(('127.0.0.1', 9090), timeout=5)
-    except OSError as e:
-        return {'dead': str(e)}
+    s = None
+    for attempt in range(8):        # Kodi's TCP server accepts a few connections at a time: a refusal is retried
+        try:
+            s = socket.create_connection(('127.0.0.1', 9090), timeout=5)
+            break
+        except OSError as e:
+            err = str(e)
+            time.sleep(0.4 + 0.3 * attempt)
+    if s is None:
+        return {'dead': err}
     s.settimeout(timeout)
     try:
         s.sendall(json.dumps({'jsonrpc': '2.0', 'id': 7, 'method': method, 'params': params or {}}).encode())
