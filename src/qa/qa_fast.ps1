@@ -16,7 +16,11 @@ python -c "import ast,glob; fs=glob.glob(r'C:\My Projects\novaTV Addon\src\**\*.
 python "$s\undef.py" "$R\src"
 python "$s\t_profiles.py" "$R\src\plugin.video.nova\resources\lib" | Select-Object -Last 1
 python "$s\agentA\t.py" 2>&1 | Select-Object -Last 1
-Push-Location "$s\agentC"; python test_all.py 2>&1 | Select-Object -Last 1; Pop-Location
+Push-Location "$R\src\qa\agentC"; python test_all.py 2>&1 | Select-Object -Last 1
+foreach ($t in 'test_bots.py', 'test_rd.py') { "$t : " + ((python $t 2>&1 | Select-String '^(OK|FAILED)' | ForEach-Object { $_.Line }) -join ' ') }
+Pop-Location
+python "$R\src\qa\t_config.py" | Select-Object -Last 1
+python "$R\src\qa\t_clip.py" | Select-Object -Last 1
 
 Section 'stage + package'
 & "$s\Clean-Build.ps1" -Root "$s\stage" -Src "$R\src" | Select-Object -Last 2

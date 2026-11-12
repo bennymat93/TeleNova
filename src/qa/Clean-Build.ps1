@@ -41,11 +41,11 @@ foreach ($a in 'plugin.video.nova', 'plugin.video.telescope', 'plugin.program.no
     Get-ChildItem $dst -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
     "updated $a"
 }
-[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 3.3.1`n", $enc)
+[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 3.3.2`n", $enc)
 
 # 5. the build ships with the skin and All_Subs already patched (the service does the same on boxes that update)
 $env:TN_ROOT = $Root; $env:TN_SRC = $Src
-python -c "import os, sys; sys.path.insert(0, os.path.join(os.environ['TN_SRC'], 'plugin.video.nova', 'resources', 'lib')); import depov, subspatch, skinpatch; r = os.environ['TN_ROOT']; print('skin 3.3 patch:', depov.patch_skin33(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| AI button:', skinpatch.apply(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| All_Subs guards:', subspatch.apply(os.path.join(r, 'addons', 'service.subtitles.All_Subs')))"
+python -c "import os, sys; sys.path.insert(0, os.path.join(os.environ['TN_SRC'], 'plugin.video.nova', 'resources', 'lib')); import depov, subspatch, skinpatch; r = os.environ['TN_ROOT']; print('skin 3.3 patch:', depov.patch_skin33(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| AI button:', skinpatch.apply(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| paste:', skinpatch.keyboard_buttons(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| All_Subs guards:', subspatch.apply(os.path.join(r, 'addons', 'service.subtitles.All_Subs')))"
 Get-ChildItem (Join-Path $Root 'addons') -Recurse -File -Filter '*.pre-telenova33' -ErrorAction SilentlyContinue | Remove-Item -Force
 
 $after = (Get-ChildItem $Root -Recurse -File | Measure-Object Length -Sum).Sum

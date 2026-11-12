@@ -19,6 +19,21 @@ class TGError(Exception):
     pass
 
 
+class _Virtual(object):
+    """Looks like a message to _to_cand() / read_chunk(): a document handed out by an inline bot."""
+    virtual = True
+
+    def __init__(self, vid, chat, document, file, text):
+        self.id = vid
+        self.chat = chat
+        self.chat_id = chat.id
+        self.media = document
+        self.file = file
+        self.message = text
+        self.date = getattr(document, 'date', None)
+        self.video = document if (getattr(document, 'mime_type', '') or '').startswith('video/') else None
+
+
 class TG(object):
     def __init__(self, api_id, api_hash, session_path, log, parallel=4):
         self.api_id = int(api_id)
@@ -36,6 +51,9 @@ class TG(object):
         self._dl_sem = None
         self._search_sem = None
         self.me = None
+        self._virtual = collections.OrderedDict()   # 3.3.3: files of inline bots (no message exists for them)
+        self._virtual_seq = 0
+        self._bot_locks = {}
 
     # ------------------------------------------------------------------ lifecycle
     def start(self, timeout=60):
@@ -176,8 +194,22 @@ class TG(object):
         if not name and mime.startswith('video/'):
             name = 'video_%d.%s' % (msg.id, (f.ext or '.mp4').lstrip('.'))
         doc = getattr(msg.media, 'document', None)
-        self._remember(msg)
+        if doc is None and hasattr(msg.media, 'mime_type') and hasattr(msg.media, 'access_hash'):
+            doc = msg.media                    # 3.3.3: a virtual message carries the document itself
+        if not getattr(msg, 'virtual', False):
+            self._remember(msg)
+        if chat is None:
+            kind = ''
+        elif getattr(chat, 'bot', False):
+            kind = 'bot'
+        elif getattr(chat, 'broadcast', False):
+            kind = 'channel'
+        elif hasattr(chat, 'title'):
+            kind = 'group'
+        else:
+            kind = 'user'
         return {
+            'chat_kind': kind,
             'chat_id': msg.chat_id, 'msg_id': msg.id, 'file': name, 'size': f.size or 0, 'mime': mime,
             'duration': int(f.duration or 0) if getattr(f, 'duration', None) else 0,
             'width': getattr(f, 'width', 0) or 0, 'height': getattr(f, 'height', 0) or 0,
@@ -206,25 +238,35 @@ class TG(object):
                     self.log('search %r in %s failed: %s' % (query, entity, exc))
 
         jobs = [one(None, limit)]
+        # 3.3.3: `chats` may hold ids of joined chats (bot chats included) and @names of public channels the
+        # account never joined - Telegram searches inside a public channel without a membership
         for chat in chats or []:
-            jobs.append(one(chat, max(20, limit // 3)))
+            jobs.append(one(self.ref(chat), max(20, limit // 3)))
         await asyncio.gather(*jobs)
         return out
 
-    async def dialogs(self, limit=300):
+    async def dialogs(self, limit=300, bots=True):
+        """Channels, groups and - 3.3.3 - bots. A bot chat is where "request" bots leave their files; it used to be
+        filtered out, so those files could be searched but never browsed and the bot could not be chosen."""
         res = []
         async for d in self.client.iter_dialogs(limit=limit):
-            if not (d.is_channel or d.is_group):
-                continue
             ent = d.entity
+            is_bot = bool(d.is_user and getattr(ent, 'bot', False))
+            if not (d.is_channel or d.is_group or (bots and is_bot)):
+                continue
+            if is_bot and getattr(ent, 'deleted', False):
+                continue
+            kind = 'bot' if is_bot else ('channel' if (d.is_channel and not d.is_group) else 'group')
             res.append({'id': d.id, 'title': d.name, 'username': getattr(ent, 'username', None),
-                        'channel': bool(d.is_channel and not d.is_group), 'unread': d.unread_count,
+                        'channel': kind == 'channel', 'kind': kind, 'unread': d.unread_count,
+                        'inline': bool(getattr(ent, 'bot_inline_placeholder', None)) if is_bot else False,
                         'members': getattr(ent, 'participants_count', None)})
         return res
 
     async def chat_videos(self, chat_id, offset_id=0, limit=50, query=None):
         from telethon.tl import types
         out, last = [], 0
+        chat_id = self.ref(chat_id)                # 3.3.3: also the @name of a public channel that was not joined
         async for msg in self.client.iter_messages(chat_id, limit=limit, offset_id=offset_id, search=query or None,
                                                    filter=types.InputMessagesFilterVideo()):
             c = self._to_cand(msg)
@@ -259,19 +301,151 @@ class TG(object):
         await self.client.delete_dialog(chat_id)
         return True
 
+    @staticmethod
+    def ref(value):
+        from .tgbots import ref
+        return ref(value)
+
+    @staticmethod
+    def _found_row(ent, mine, hits):
+        """One search hit (channel / group / bot) as a plain row, or None for what must never be offered."""
+        from telethon import utils
+        if getattr(ent, 'scam', False) or getattr(ent, 'fake', False) or getattr(ent, 'deleted', False):
+            return None
+        if getattr(ent, 'restricted', False) and getattr(ent, 'restriction_reason', None):
+            return None
+        is_bot = bool(getattr(ent, 'bot', False))
+        if not is_bot and not hasattr(ent, 'title'):
+            return None                                            # a person
+        try:
+            pid = utils.get_peer_id(ent)
+        except Exception:
+            pid = getattr(ent, 'id', 0)
+        if is_bot:
+            title = ' '.join(x for x in [getattr(ent, 'first_name', ''), getattr(ent, 'last_name', '')] if x)
+            kind, joined = 'bot', pid in mine
+            members = getattr(ent, 'bot_active_users', None)
+        else:
+            title = getattr(ent, 'title', '') or ''
+            kind = 'channel' if getattr(ent, 'broadcast', False) else 'group'
+            joined = (pid in mine) or (hasattr(ent, 'left') and not getattr(ent, 'left', True))
+            members = getattr(ent, 'participants_count', None)
+        return {'id': pid, 'title': title, 'username': getattr(ent, 'username', None), 'kind': kind,
+                'channel': kind == 'channel', 'members': members, 'joined': bool(joined),
+                'verified': bool(getattr(ent, 'verified', False)), 'hits': hits,
+                'inline': bool(getattr(ent, 'bot_inline_placeholder', None)) if is_bot else False}
+
     async def discover(self, query, limit=40):
+        """Public channels, groups and bots for a text. 3.3.3: several wordings at once (a list of queries), bots
+        are returned too (they were dropped), scam / fake / restricted chats never are, every row says whether the
+        account is already in it, and the rows come ranked: found by more wordings first, then by audience."""
+        from telethon import utils
         from telethon.tl.functions.contacts import SearchRequest
-        res = await self.client(SearchRequest(q=query, limit=limit))
-        out = []
-        for ch in res.chats:
-            out.append({'id': ch.id, 'title': getattr(ch, 'title', ''), 'username': getattr(ch, 'username', None),
-                        'members': getattr(ch, 'participants_count', None),
-                        'channel': bool(getattr(ch, 'broadcast', False))})
+        queries = [query] if not isinstance(query, (list, tuple)) else list(query)
+        queries = [q for q in queries if q and len(q.strip()) >= 2][:5]
+
+        async def one(q):
+            async with self._search_sem:
+                try:
+                    return await self.client(SearchRequest(q=q, limit=limit))
+                except Exception as exc:
+                    self.log('discover %r failed: %s' % (q, exc))
+                    return None
+        rows = {}
+        for res in await asyncio.gather(*[one(q) for q in queries]):
+            if res is None:
+                continue
+            mine = set()
+            for peer in getattr(res, 'my_results', None) or []:
+                try:
+                    mine.add(utils.get_peer_id(peer))
+                except Exception:
+                    pass
+            for ent in list(getattr(res, 'chats', None) or []) + list(getattr(res, 'users', None) or []):
+                row = self._found_row(ent, mine, 1)
+                if row is None:
+                    continue
+                if row['id'] in rows:
+                    rows[row['id']]['hits'] += 1
+                    rows[row['id']]['joined'] = rows[row['id']]['joined'] or row['joined']
+                else:
+                    rows[row['id']] = row
+        out = list(rows.values())
+        out.sort(key=lambda r: (r['joined'], -r['hits'], -(r['members'] or 0), not r['username']))
         return out
+
+    async def similar(self, chats, limit=60):
+        """3.3.3: channels Telegram itself recommends next to the given ones ("similar channels"). Channels that
+        several of the user's channels point to come first."""
+        from telethon.tl.functions.channels import GetChannelRecommendationsRequest
+        rows = {}
+        for chat in list(chats)[:8]:
+            try:
+                res = await self.client(GetChannelRecommendationsRequest(
+                    channel=await self.client.get_input_entity(self.ref(chat))))
+            except Exception as exc:
+                self.log('similar %s failed: %s' % (chat, exc))
+                continue
+            for ent in getattr(res, 'chats', None) or []:
+                row = self._found_row(ent, (), 1)
+                if row is None or row['joined']:
+                    continue
+                if row['id'] in rows:
+                    rows[row['id']]['hits'] += 1
+                else:
+                    rows[row['id']] = row
+            await asyncio.sleep(0.2)
+        out = sorted(rows.values(), key=lambda r: (-r['hits'], -(r['members'] or 0)))
+        return out[:limit]
+
+    # ------------------------------------------------------------------ bots (3.3.3)
+    def bot_lock(self, bot_id):
+        """One conversation at a time with one bot - two requests in the same chat would read each other's answers."""
+        lock = self._bot_locks.get(bot_id)
+        if lock is None:
+            lock = self._bot_locks[bot_id] = asyncio.Lock()
+        return lock
+
+    def virtual(self, chat, document, text=''):
+        """A file that exists without a message (the answer of an inline bot)."""
+        try:
+            from telethon.tl.custom.file import File
+            self._virtual_seq += 1
+            m = _Virtual(1900000000 + self._virtual_seq, chat, document, File(document), text)
+        except Exception as exc:
+            self.log('virtual file failed: %r' % exc)
+            return None
+        self._virtual[(m.chat_id, m.id)] = m
+        while len(self._virtual) > 300:
+            self._virtual.popitem(last=False)
+        return m
+
+    async def bot_ask(self, bot, queries, timeout=14.0, clicks=5, rank=None, autojoin=False, inline=True):
+        from . import tgbots
+        if not isinstance(queries, (list, tuple)):
+            queries = [queries]
+        jobs = [tgbots.ask_many(self, bot, list(queries), timeout, clicks, rank, autojoin)]
+        if inline:
+            jobs.append(tgbots.inline(self, bot, queries[0], timeout=min(6.0, timeout)))
+        got = await asyncio.gather(*jobs)
+        res = got[0]
+        if len(got) > 1 and got[1]:
+            known = set(c.get('doc_id') for c in res['files'])
+            res['files'] += [c for c in got[1] if c.get('doc_id') not in known]
+            res['inline'] = len(got[1])
+        return res
+
+    async def bots_with_videos(self, ids):
+        from . import tgbots
+        return await tgbots.with_videos(self, ids)
 
     # ------------------------------------------------------------------ files
     async def get_message(self, chat_id, msg_id, refresh=False):
         key = (int(chat_id), int(msg_id))
+        if key in self._virtual:
+            if refresh:
+                raise TGError('inline file expired - search again')
+            return self._virtual[key]
         if not refresh and key in self._docs:
             return self._docs[key]
         msg = await self.client.get_messages(int(chat_id), ids=int(msg_id))

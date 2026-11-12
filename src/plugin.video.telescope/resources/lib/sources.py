@@ -77,6 +77,7 @@ class Job(object):
         self.error = None
         self.created = time.time()
         self.stats = {}
+        self.bots = []            # 3.3.3: (bot, answer) of every bot that finished
 
     def update(self, pct, stage):
         self.progress = int(pct)
@@ -97,7 +98,7 @@ CHIKO_TAG = re.compile(u"\u05e6['\u05f3\u2019`]?\u05d9\u05e7\u05d5|chiko|chico",
 class Finder(object):
     _reduced = False              # 3.3: True on the clone that runs a search with per-request (reduced) options
 
-    def __init__(self, tg, meta, ai, store, cache, settings, log, bridge=None, servers=None):
+    def __init__(self, tg, meta, ai, store, cache, settings, log, bridge=None, servers=None, rd=None):
         self.tg = tg
         self.meta = meta
         self.ai = ai
@@ -107,10 +108,12 @@ class Finder(object):
         self.log = log
         self.bridge = bridge
         self.servers = servers
+        self.rd = rd                  # 3.3.4: Real-Debrid (realdebrid.RealDebrid) or None
         self.jobs = {}
         self._pool = ThreadPoolExecutor(max_workers=8)
         self._chiko = (0, {'tg': [], 'telemedia': []})
         self._bridge_ok = (0, False)
+        self._bots_io = threading.Lock()
 
     # ------------------------------------------------------------------ backends
     def bridge_ok(self):
@@ -174,6 +177,296 @@ class Finder(object):
         if c.get('chat_id') in ids:
             return True
         return bool(CHIKO_TAG.search(c.get('chat_title') or '') or CHIKO_TAG.search(c.get('caption') or ''))
+
+    # ------------------------------------------------------------------ bots (3.3.3)
+    # Which bots are asked for a title:
+    #   - the bots written in the settings and the bots the user switched on in "My bots"  (always)
+    #   - "auto": bots whose chat already holds a video - they have sent this account films before. A bot that
+    #     never did (a bank, a game, an assistant) is never written to on the user's behalf.
+    # A bot the user switched off is never asked. An auto bot that answered four requests with nothing rests a day.
+    def _bots_load(self):
+        path = self.s.get('bots_file')
+        data = None
+        if path:
+            try:
+                import io
+                import json
+                with io.open(path, 'r', encoding='utf-8') as fh:
+                    data = json.load(fh)
+            except (IOError, OSError, ValueError):
+                data = None
+        else:
+            data = self.cache.get('bots:cfg')
+        if not isinstance(data, dict):
+            data = {}
+        data.setdefault('cfg', {})
+        data.setdefault('stats', {})
+        return data
+
+    def _bots_save(self, data):
+        path = self.s.get('bots_file')
+        try:
+            if path:
+                import io
+                import json
+                import os
+                with self._bots_io:
+                    with io.open(path + '.tmp', 'w', encoding='utf-8') as fh:
+                        fh.write(json.dumps(data, ensure_ascii=False))
+                    os.replace(path + '.tmp', path)
+            else:
+                self.cache.set('bots:cfg', data, 10 * 365 * 86400)
+        except Exception as exc:
+            self.log('bots: saving failed: %s' % exc)
+
+    @staticmethod
+    def _bot_key(bot):
+        return str(bot).strip().lstrip('@').lower()
+
+    def bot_mark(self, bot, on, title='', username='', bot_id=None):
+        """on: True = always ask, False = never ask, None = forget the choice (automatic again)."""
+        data = self._bots_load()
+        keys = [self._bot_key(x) for x in (bot, username, bot_id) if x not in (None, '')]
+        for k in keys:
+            data['cfg'].pop(k, None)
+        if on is not None and keys:
+            main = self._bot_key(username) if username else keys[0]
+            data['cfg'][main] = {'state': 'on' if on else 'off', 'title': title or '', 'username': username or '',
+                                 'id': bot_id}
+        self._bots_save(data)
+        return True
+
+    def _bot_state(self, cfg, username, bot_id):
+        for k in (self._bot_key(username or ''), str(bot_id)):
+            if k and k in cfg:
+                return cfg[k].get('state') or ''
+        return ''
+
+    def _auto_bg(self):
+        try:
+            self.auto_bots(refresh=True)
+        except Exception as exc:
+            self.log('bots: scan failed: %s' % exc)
+        finally:
+            self._auto_busy = False
+
+    def auto_bots(self, refresh=False, background=False):
+        """Bots among the account's chats that have already sent it a video (cached for a day)."""
+        from . import tgbots
+        if not self.tg:
+            return []
+        if not refresh:
+            saved = self.cache.get('bots:auto')
+            if saved is not None:
+                return saved
+            if background:
+                if not getattr(self, '_auto_busy', False):
+                    self._auto_busy = True
+                    threading.Thread(target=self._auto_bg, name='telescope-bots', daemon=True).start()
+                return []
+        bots = [d for d in self.tg.run(self.tg.dialogs(500), 60)
+                if d.get('kind') == 'bot' and not tgbots.is_system_bot(d.get('username'))]
+        good = set(self.tg.run(self.tg.bots_with_videos([b['id'] for b in bots]), 120)) if bots else set()
+        res = [{'id': b['id'], 'username': b.get('username'), 'title': b['title']} for b in bots if b['id'] in good]
+        self.cache.set('bots:auto', res, 86400)
+        self.log('bots: %d bot chats, %d of them hold videos' % (len(bots), len(res)))
+        return res
+
+    def content_bots(self, limit=None):
+        from . import tgbots
+        if not self.tg or not self.s.get('bot_request', True):
+            return []
+        data = self._bots_load()
+        cfg, stats = data['cfg'], data['stats']
+        out, seen = [], set()
+
+        def add(ref, title, why, bot_id=None):
+            key = self._bot_key(ref)
+            if not key or key in seen or (bot_id is not None and str(bot_id) in seen):
+                return
+            if tgbots.is_system_bot(key):
+                return
+            seen.add(key)
+            if bot_id is not None:
+                seen.add(str(bot_id))
+            out.append({'ref': tgbots.ref(ref), 'title': title or str(ref), 'why': why, 'key': key})
+        for name in self.s.get('bots') or []:
+            if self._bot_state(cfg, name, None) != 'off':
+                add(name, name, 'setting')
+        for key, v in cfg.items():
+            if v.get('state') == 'on':
+                add(v.get('username') or v.get('id') or key, v.get('title'), 'marked', v.get('id'))
+        if self.s.get('bot_auto', True):
+            for b in self.auto_bots(background=True):
+                if self._bot_state(cfg, b.get('username'), b['id']) == 'off':
+                    continue
+                add(b.get('username') or b['id'], b['title'], 'auto', b['id'])
+        now = time.time()
+
+        def resting(b):
+            st = stats.get(b['key']) or {}
+            return b['why'] == 'auto' and st.get('asked', 0) >= 4 and not st.get('hits') \
+                and now - st.get('last', 0) < 86400
+        out = [b for b in out if not resting(b)]
+        out.sort(key=lambda b: -(stats.get(b['key']) or {}).get('hits', 0))
+        return out[:int(limit or self.s.get('bot_max', 3))]
+
+    def bot_list(self):
+        """For the "My bots" screen: every bot chat of the account + every bot the user chose, with its state."""
+        from . import tgbots
+        data = self._bots_load()
+        cfg, stats = data['cfg'], data['stats']
+        auto = set(b['id'] for b in self.auto_bots(background=True))
+        listed = set(self._bot_key(x) for x in self.s.get('bots') or [])
+        rows, seen = [], set()
+        if self.tg:
+            for d in self.tg.run(self.tg.dialogs(500), 60):
+                if d.get('kind') != 'bot' or tgbots.is_system_bot(d.get('username')):
+                    continue
+                key = self._bot_key(d.get('username') or d['id'])
+                seen.add(key)
+                state = self._bot_state(cfg, d.get('username'), d['id'])
+                if not state:
+                    state = 'on' if key in listed else ('auto' if d['id'] in auto and self.s.get('bot_auto', True) else '')
+                rows.append({'id': d['id'], 'username': d.get('username'), 'title': d['title'], 'state': state,
+                             'inline': d.get('inline', False), 'stats': stats.get(key) or {}})
+        for key, v in cfg.items():
+            if key not in seen and v.get('state') == 'on':
+                seen.add(key)
+                rows.append({'id': v.get('id'), 'username': v.get('username') or key, 'title': v.get('title') or key,
+                             'state': 'on', 'inline': False, 'stats': stats.get(key) or {}})
+        for key in listed - seen:
+            rows.append({'id': None, 'username': key, 'title': key, 'state': 'on', 'inline': False,
+                         'stats': stats.get(key) or {}})
+        order = {'on': 0, 'auto': 1, '': 2, 'off': 3}
+        rows.sort(key=lambda r: (order.get(r['state'], 2), -(r['stats'].get('hits') or 0), r['title'].lower()))
+        return rows
+
+    def _bot_note(self, results):
+        """Remembers how each bot did (asked / brought files) - good bots are asked first next time."""
+        if not results:
+            return
+        data = self._bots_load()
+        for key, res in results:
+            st = data['stats'].setdefault(key, {'asked': 0, 'hits': 0, 'files': 0, 'last': 0})
+            st['asked'] = st.get('asked', 0) + 1
+            if res.get('files'):
+                st['hits'] = st.get('hits', 0) + 1
+                st['files'] = st.get('files', 0) + len(res['files'])
+            st['last'] = int(time.time())
+            st['error'] = res.get('error') or ''
+        self._bots_save(data)
+
+    def bot_ask(self, bot, query, timeout=None):
+        """One request typed by the user in "Ask a bot": the answer as listable rows + what the bot demanded."""
+        from . import tgbots
+        timeout = float(timeout or self.s.get('bot_timeout', 14)) + 4
+        res = self.tg.run(self.tg.bot_ask(tgbots.ref(bot), [query], timeout=timeout, clicks=8,
+                                          autojoin=self.s.get('bot_autojoin', False)), timeout + 20)
+        key = self._bot_key((res.get('bot') or {}).get('username') or bot)
+        self._bot_note([(key, res)])
+        files = []
+        for c in res['files']:
+            c['parsed'] = parse(c['file'], c['caption'], c.get('chat_title', ''))
+            c['ext'] = c['parsed']['ext']
+            c['score'] = 0
+            files.append(c)
+        if files and self.s.get('probe', True):
+            job = Job()
+            files = self.probe(files, job)
+            res['checks'] = job.stats.get('checks')
+        return {'files': [self._public(c) for c in files], 'join': res.get('join') or [], 'notes': res.get('notes') or [],
+                'answered': res.get('answered'), 'error': res.get('error'), 'bot': res.get('bot'),
+                'took': res.get('took'), 'checks': res.get('checks')}
+
+    def bot_queries(self, t, queries):
+        """How a person would type the request: the plain title (with the episode for a series); a second wording
+        in the other script (Hebrew / Russian next to Latin) for bots that index translated names."""
+        first = queries[0] if queries else t['title']
+        base = matcher.clean_query(t['aliases'][0] if t.get('aliases') else t['title']) or t['title']
+        if t['kind'] == 'episode':
+            first = '%s S%02dE%02d' % (base, int(t['season']), int(t['episode']))
+        else:
+            first = base
+
+        def script(text):
+            if any(u'֐' <= ch <= u'׿' for ch in text):
+                return 'he'
+            if any(u'Ѐ' <= ch <= u'ӿ' for ch in text):
+                return 'ru'
+            return 'la'
+        out = [first]
+        for q in queries:
+            if script(q) != script(first):
+                out.append(q)
+                break
+        else:
+            if t['kind'] == 'episode':
+                out.append(base)
+            elif t.get('year'):
+                out.append('%s %s' % (base, t['year']))
+        return out
+
+    def _button_rank(self, t):
+        """How well a button text of a bot fits the wanted title: 0..1, or None for "a different film / episode"."""
+        def rank(text):
+            text = (text or '').strip()
+            if not text:
+                return 0.0
+            p = parse(text, '', '')
+            if p.get('is_trailer') or p.get('is_archive'):
+                return None
+            if t['kind'] == 'episode':
+                if p.get('episode') is not None:
+                    if p.get('episode_end'):
+                        if not (p['episode'] <= int(t['episode']) <= p['episode_end']):
+                            return None
+                    elif int(p['episode']) != int(t['episode']):
+                        return None
+                if p.get('season') is not None and int(p['season']) != int(t['season']):
+                    return None
+                if p.get('season_hint') is not None and int(p['season_hint']) != int(t['season']):
+                    return None
+            else:
+                if p.get('episode') is not None and p.get('season') is not None:
+                    return None
+                if t.get('year') and p.get('year') and abs(int(t['year']) - int(p['year'])) > 1:
+                    return None
+            sc, _ = matcher.best_title_score(p.get('titles') or [text], t['aliases'])
+            if matcher.contains_alias(text, t['aliases']):
+                sc = max(sc, 0.9)
+            if t['kind'] == 'episode' and p.get('episode') is not None and sc < 0.5 and not normalize(p.get('title') or ''):
+                # "S02E05 720p" under a message that names the series: the episode fits, the title is implied
+                sc = 0.55
+            return sc
+        return rank
+
+    def _ask_bot(self, bot, queries, rank, job):
+        async def go():
+            res = await self.tg.bot_ask(bot['ref'], queries, timeout=float(self.s.get('bot_timeout', 14)),
+                                        clicks=int(self.s.get('bot_clicks', 5)), rank=rank,
+                                        autojoin=self.s.get('bot_autojoin', False))
+            job.bots.append((bot, res))
+            return res['files']
+        return self.tg.submit(go())
+
+    def _bots_report(self, job):
+        """Statistics + what the plugin shows about the bots of this search."""
+        rows, joins = [], []
+        for bot, res in list(job.bots):
+            rows.append({'bot': bot['title'], 'files': len(res['files']), 'error': res.get('error'),
+                         'took': res.get('took'), 'join': res.get('join') or []})
+            for link in res.get('join') or []:
+                if link not in joins:
+                    joins.append(link)
+        try:
+            self._bot_note([(bot['key'], res) for bot, res in list(job.bots)])
+        except Exception as exc:
+            self.log('bots: statistics failed: %s' % exc)
+        if rows:
+            self.log('bots: %s' % ', '.join('%s=%d%s' % (r['bot'], r['files'], (' (%s)' % r['error']) if r['error'] else '')
+                                             for r in rows))
+        return rows, joins
 
     # ------------------------------------------------------------------ jobs
     def start(self, target):
@@ -279,6 +572,8 @@ class Finder(object):
             req = dict(req)
             req.pop('opts')
             return clone.find(req, job)
+        if req.get('type') == 'free':            # 3.3.3: free-text file search runs as a job too (progress, link tests)
+            return self.find_free(req, job)
         cache_key = 'src:%s:%s:%s:%s' % (req.get('type'), req.get('tmdb') or req.get('imdb') or req.get('title'),
                                           req.get('season'), req.get('episode'))
         # 3.3: a reduced ("fast" hub) search stores its shorter list under its own key - it used to replace the
@@ -293,62 +588,57 @@ class Finder(object):
         t = self.build_target(req, job)
         queries = self.plan_queries(t)
         self.log('queries: %s' % queries)
-        chats = [int(c) for c in self.s.get('pinned_chats', []) if str(c).lstrip('-').isdigit()]
+        chats = self._pinned()
         chiko = self.chiko_chats(background=True) if self.s.get('chiko', True) else {'tg': [], 'telemedia': []}
         tg_chats = chats + [c['id'] for c in chiko['tg'] if c['id'] not in chats]
         tm_chats = [c['id'] for c in chiko['telemedia']]
+        # 3.3.3: the chats of the content bots are searched by name as well - what a bot sent last week is there
+        logged_in = bool(self.tg and getattr(self.tg, 'me', None))
+        bots = self.content_bots() if logged_in else []
+        tg_chats += [b['ref'] for b in bots if b['ref'] not in tg_chats]
 
         job.update(15, 'telegram_search')
         raw = []
         limit = int(self.s.get('search_limit', 100))
         futs = []
+        rd_on = bool(self.rd and self.rd.enabled)
         if self.tg and not self.bridge_ok() and not (self.servers and self.servers.enabled and t.get('imdb')) \
-                and self._tg_authorized() is False:
+                and not rd_on and self._tg_authorized() is False:
             # 3.3: every query of a logged-out client fails quietly and the user was told to "join channels"
             raise RuntimeError('not_authorized')
         if self.tg:
-            futs += [self.tg.submit(self.tg.search(q, limit=limit, chats=tg_chats[:6] if i < 2 else None))
+            futs += [self.tg.submit(self.tg.search(q, limit=limit, chats=tg_chats[:8] if i < 2 else None))
                      for i, q in enumerate(queries)]
         if self.bridge_ok():
             futs += [self._pool.submit(self.bridge.search, q, limit, tm_chats[:6] if i < 2 else None)
                      for i, q in enumerate(queries)]
         if self.servers and self.servers.enabled and t.get('imdb'):
             futs.append(self._pool.submit(self.servers.streams, t['kind'], t['imdb'], t.get('season'), t.get('episode')))
+        if rd_on:                     # 3.3.4: Real-Debrid - cached torrents by IMDb id + the account's own cloud
+            if t.get('imdb'):
+                futs.append(self._pool.submit(self.rd.streams, t['kind'], t['imdb'], t.get('season'), t.get('episode')))
+            if self.s.get('rd_cloud', True):
+                futs.append(self._pool.submit(self.rd.cloud))
         if not futs:
             raise RuntimeError('no_backend')
-        total = len(futs)
-        done_n = 0
-        t_search = time.time()
-        deadline = t_search + float(self.s.get('search_timeout', 12))
-        pending = set(futs)
+        # 3.3.3: bots that hand out files on request are asked while the searches run
+        bot_futs = set()
+        if bots and self.s.get('bot_request', True):
+            bq = self.bot_queries(t, queries)
+            rank = self._button_rank(t)
+            for b in bots:
+                bot_futs.add(self._ask_bot(b, bq, rank, job))
+            futs += list(bot_futs)
+            self.log('bots asked: %s -> %s' % ([b['title'] for b in bots], bq))
         strict = self.s.get('strict', True)
-        checked, good = 0, 0
-        while pending and time.time() < deadline and not job.cancel:
-            done, pending = fut_wait(pending, timeout=0.25)
-            for f in done:
-                done_n += 1
-                try:
-                    raw.extend(f.result())
-                except Exception as exc:
-                    self.log('query failed: %s' % exc)
-            job.update(15 + 35 * done_n / max(1, total), 'telegram_search')
-            if pending and done_n * 2 >= total and len(raw) >= 30 and time.time() - t_search > 3:
-                # 3.3: "plenty of files" is not enough - 30 wrong files used to cancel the Hebrew / Russian alias
-                # queries that were still running. Stragglers are dropped only when 5 files really match.
-                for c in raw[checked:]:
-                    try:
-                        c['parsed'] = parse(c['file'], c['caption'], c.get('chat_title', ''))
-                        c['ext'] = c['parsed']['ext']
-                        if matcher.evaluate(c, t, strict=strict)[0] == 'accept':
-                            good += 1
-                    except Exception:
-                        pass
-                checked = len(raw)
-                if good >= 5:
-                    break
-        self.log('search: %d/%d queries, %d files in %.1fs' % (done_n, total, len(raw), time.time() - t_search))
-        for f in pending:
-            f.cancel()
+
+        def is_good(c):
+            c['parsed'] = parse(c['file'], c['caption'], c.get('chat_title', ''))
+            c['ext'] = c['parsed']['ext']
+            return matcher.evaluate(c, t, strict=strict)[0] == 'accept'
+        raw, done_n, total, took = self._collect(futs, bot_futs, job, is_good)
+        self.log('search: %d/%d queries, %d files in %.1fs' % (done_n, total, len(raw), took))
+        bot_rows, bot_join = self._bots_report(job)
         if job.cancel:
             return []
 
@@ -378,6 +668,10 @@ class Finder(object):
             verdict, score, why = matcher.evaluate(c, t, strict=strict)
             if c.get('trusted_id') and verdict != 'accept' and not self._conflicts(c['parsed'], t, c):
                 verdict, score, why = 'accept', max(score, 45.0), why + ['matched by IMDb id on server']
+            if c.get('backend') == 'rd' and not (c.get('rd') or {}).get('torrent') and verdict != 'accept' \
+                    and not self._conflicts(c['parsed'], t, c):
+                # 3.3.4: lighter rules for Real-Debrid - the index answered for this IMDb id (and episode)
+                verdict, score, why = 'accept', max(score, 45.0), why + ['Real-Debrid index, IMDb id']
             c['chiko'] = self.is_chiko(c, chiko)
             if c['chiko'] and verdict != 'reject':
                 score += float(self.s.get('chiko_boost', 15))
@@ -388,7 +682,7 @@ class Finder(object):
                 maybe.append(c)
         self.log('candidates: %d raw, %d unique, %d accepted, %d maybe' % (len(raw), len(cands), len(accepted), len(maybe)))
         job.stats = {'raw': len(raw), 'unique': len(cands), 'accepted': len(accepted), 'maybe': len(maybe),
-                     'queries': len(queries)}
+                     'queries': len(queries), 'bots': bot_rows, 'bot_join': bot_join}
 
         # ---- AI verification
         use_ai = self.ai and self.ai.enabled and self.s.get('ai_verify', True)
@@ -448,10 +742,169 @@ class Finder(object):
         # ---- probe
         if self.s.get('probe', True) and accepted:
             job.update(70, 'probe')
-            accepted = self.probe(accepted, job)
-        result = [self._public(c) for c in accepted[:int(self.s.get('max_results', 25))]]
+            accepted = self.probe(accepted, job, t)
+        result = [self._public(c) for c in self.order_groups(accepted)]
         if result:
             self.cache.set(store_key, result, 1800)
+        job.update(100, 'done')
+        return result
+
+    def _pinned(self):
+        """Pinned chats of the settings: numeric ids, and - 3.3.3 - @names / t.me links of public channels, which
+        are searched without joining them."""
+        from . import tgbots
+        out = []
+        for c in self.s.get('pinned_chats', []):
+            r = tgbots.ref(c)
+            if r != '' and r not in out:
+                out.append(r)
+        return out
+
+    def _collect(self, futs, bot_futs, job, is_good):
+        """Waits for the searches (search_timeout) and the bots (bot_timeout); stops early when enough files really
+        match. -> (raw candidates, finished, total, seconds)"""
+        raw, done_n, total = [], 0, len(futs)
+        t0 = time.time()
+        deadline = t0 + float(self.s.get('search_timeout', 12))
+        bot_deadline = t0 + float(self.s.get('bot_timeout', 14)) + 1.5
+        pending = set(futs)
+        checked, good = 0, 0
+        while pending and not job.cancel:
+            now = time.time()
+            bots_left = any(f in bot_futs for f in pending)
+            if now >= (max(deadline, bot_deadline) if bots_left else deadline):
+                break
+            done, pending = fut_wait(pending, timeout=0.25)
+            for f in done:
+                done_n += 1
+                try:
+                    raw.extend(f.result())
+                except Exception as exc:
+                    self.log('query failed: %s' % exc)
+            job.update(15 + 35 * done_n / max(1, total), 'telegram_search')
+            if not pending or not done:
+                continue
+            for c in raw[checked:]:
+                try:
+                    if is_good(c):
+                        good += 1
+                except Exception:
+                    pass
+            checked = len(raw)
+            elapsed = time.time() - t0
+            bots_left = any(f in bot_futs for f in pending)
+            if bots_left:
+                # a bot is still typing: worth waiting for, unless there is already plenty to choose from
+                if good >= 8 and elapsed > 3:
+                    break
+                if not any(f not in bot_futs for f in pending) and good >= 5 and elapsed > 8:
+                    break
+            elif done_n * 2 >= total and len(raw) >= 30 and elapsed > 3 and good >= 5:
+                # 3.3: "plenty of files" is not enough - 30 wrong files used to cancel the Hebrew / Russian alias
+                # queries that were still running. Stragglers are dropped only when 5 files really match.
+                break
+        for f in pending:
+            f.cancel()
+        return raw, done_n, total, time.time() - t0
+
+    # ------------------------------------------------------------------ free-text search (3.3.3)
+    def find_free(self, req, job):
+        """"Search Telegram files directly": the text is searched in every chat (bot chats and pinned public
+        channels included), the content bots are asked for it, the hits are cleaned (videos only, one row per
+        file), ordered by how well the name fits, and every listed link is tested."""
+        from .parser import find_se, title_part
+        q = (req.get('query') or '').strip()
+        if not q:
+            return []
+        key = 'free:%s' % q.lower()
+        if not req.get('refresh'):
+            hit = self.cache.get(key)
+            if hit:
+                job.update(100, 'cached')
+                return hit
+        job.update(10, 'telegram_search')
+        limit = int(self.s.get('search_limit', 100))
+        logged_in = bool(self.tg and getattr(self.tg, 'me', None))
+        bots = self.content_bots() if logged_in else []
+        futs, bot_futs = [], set()
+        if self.tg and (logged_in or not self.bridge_ok()):
+            if not logged_in and self._tg_authorized() is False:
+                raise RuntimeError('not_authorized')
+            chats = (self._pinned() + [b['ref'] for b in bots])[:8]
+            futs.append(self.tg.submit(self.tg.search(q, limit=limit, chats=chats)))
+        if self.bridge_ok():
+            futs.append(self._pool.submit(self.bridge.search, q, limit))
+        if self.rd and self.rd.enabled and self.s.get('rd_cloud', True):
+            futs.append(self._pool.submit(self.rd.cloud))
+        if not futs:
+            raise RuntimeError('no_backend')
+        s_, e_, _ = find_se(q)
+        name = (title_part(q) or q) if e_ is not None else q
+        want = [name]
+
+        def relevance(c):
+            p = c['parsed']
+            sc, _ = matcher.best_title_score(p.get('titles') or [], want)
+            if matcher.contains_alias((c.get('file') or '') + ' ' + (c.get('caption') or ''), want):
+                sc = max(sc, 0.85)
+            return sc
+
+        def is_good(c):
+            c['parsed'] = parse(c['file'], c['caption'], c.get('chat_title', ''))
+            c['ext'] = c['parsed']['ext']
+            return matcher.is_video_file(c) and relevance(c) >= 0.8
+
+        def rank(text):
+            p = parse(text or '', '', '')
+            if e_ is not None and p.get('episode') is not None and int(p['episode']) != int(e_):
+                return None
+            if s_ is not None and p.get('season') is not None and int(p['season']) != int(s_):
+                return None
+            sc, _ = matcher.best_title_score(p.get('titles') or [text or ''], want)
+            return max(sc, 0.9) if matcher.contains_alias(text or '', want) else sc
+        if bots and self.s.get('bot_request', True):
+            for b in bots:
+                bot_futs.add(self._ask_bot(b, [q], rank, job))
+            futs += list(bot_futs)
+        raw, done_n, total, took = self._collect(futs, bot_futs, job, is_good)
+        bot_rows, bot_join = self._bots_report(job)
+        if job.cancel:
+            return []
+        job.update(52, 'matching')
+        rows, seen = [], set()
+        for c in raw:
+            keyc = c.get('doc_id') or (c.get('chat_id'), c.get('msg_id'), c.get('url'))
+            if keyc in seen:
+                continue
+            seen.add(keyc)
+            if 'parsed' not in c:
+                c['parsed'] = parse(c['file'], c['caption'], c.get('chat_title', ''))
+                c['ext'] = c['parsed']['ext']
+            p = c['parsed']
+            if p.get('is_archive') or not matcher.is_video_file(c) or (c.get('size') or 0) < 5 * 1024 * 1024:
+                continue
+            if e_ is not None and p.get('episode') is not None and int(p['episode']) != int(e_):
+                continue
+            if s_ is not None and p.get('season') is not None and int(p['season']) != int(s_):
+                continue
+            rel = relevance(c)
+            c['why'] = ['title %.2f' % rel]
+            c['score'] = rel * 50.0 + {2160: 12, 1080: 10, 720: 6, 480: 2}.get(p.get('quality') or 0, 3)
+            if p.get('is_trailer'):
+                c['score'] -= 20
+            c['langs'] = p.get('langs')
+            c['loose'] = rel < 0.6
+            rows.append(c)
+        rows.sort(key=lambda c: -c['score'])
+        job.stats = {'raw': len(raw), 'unique': len(rows), 'accepted': len(rows), 'maybe': 0, 'queries': 1,
+                     'bots': bot_rows, 'bot_join': bot_join}
+        self.log('free search %r: %d raw, %d listed in %.1fs' % (q, len(raw), len(rows), took))
+        if self.s.get('probe', True) and rows:
+            job.update(70, 'probe')
+            rows = self.probe(rows, job)
+        result = [self._public(c) for c in self.order_groups(rows, max(40, int(self.s.get('max_results', 25))))]
+        if result:
+            self.cache.set(key, result, 900)
         job.update(100, 'done')
         return result
 
@@ -490,22 +943,41 @@ class Finder(object):
                 'chat': (c.get('chat_title') or '')[:80], 'duration_min': round((c.get('duration') or 0) / 60.0, 1),
                 'size_mb': int((c.get('size') or 0) / 1048576)}
 
-    def probe(self, cands, job):
-        n = int(self.s.get('probe_count', 10))
+    def probe(self, cands, job, target=None):
+        """Link test. 3.3.3:
+         - EVERY link that will be listed is tested (it was the first probe_count only), all at once - a test is
+           one 128 KiB request, the shared pacing gate of the client keeps Telegram's limits;
+         - a dead link whose file also sits in another chat (a mirror) is replaced by that copy and tested again;
+         - the sample is read as a media header (mediainfo): real duration, picture size, audio / subtitle
+           languages. A "movie" that is 4 minutes long is dropped, embedded Hebrew subtitles are marked as
+           certain, and a file whose own title names another episode is moved down and marked."""
+        from . import mediainfo
+        shown = int(self.s.get('max_results', 25))
+        n = min(len(cands), max(shown, 5), 40) if self.s.get('probe_all', True) else int(self.s.get('probe_count', 10))
         timeout = float(self.s.get('probe_timeout', 12))
+        rd = [c for c in cands if c.get('backend') == 'rd']
+        for c in rd:
+            c['probe'] = 'rd'                     # 3.3.4: cached at Real-Debrid; checked when played
+            c['score'] += 5
+        cands = [c for c in cands if c.get('backend') != 'rd']
         head, tail = cands[:n], cands[n:]
         futs = {}
         t0 = time.time()
-        for c in head:
+
+        def submit(c):
             if c.get('url'):
-                fut = self._pool.submit(http_head_bytes, c['url'], timeout, 1048576, True)
-            elif self.tg:
-                fut = self.tg.submit(self.tg.read_head(c['chat_id'], c['msg_id'], PROBE_BYTES, True))
-            else:
-                continue
-            futs[fut] = (c, time.time())
+                return self._pool.submit(http_head_bytes, c['url'], timeout, 1048576, True)
+            if self.tg:
+                return self.tg.submit(self.tg.read_head(c['chat_id'], c['msg_id'], PROBE_BYTES, True))
+            return None
+        for c in head:
+            fut = submit(c)
+            if fut is not None:
+                futs[fut] = (c, time.time())
         ok, pending = [], set(futs)
+        checks = {'tested': 0, 'ok': 0, 'dead': 0, 'wrong': 0, 'mirror': 0, 'untested': 0}
         deadline = t0 + timeout
+        pref = self.s.get('lang_pref', 'any')
         while pending and time.time() < deadline and not job.cancel:
             done, pending = fut_wait(pending, timeout=0.5, return_when=FIRST_COMPLETED)
             for f in done:
@@ -513,25 +985,51 @@ class Finder(object):
                 try:
                     data, took = f.result()
                 except Exception as exc:
+                    mirrors = c.get('mirrors') or []
+                    used = c.setdefault('_mirrors_used', 0)
+                    if not c.get('url') and used < len(mirrors) and used < 2 and time.time() < deadline - 1:
+                        # the same file lives in another chat: the copy is tested instead of giving the file up
+                        c['_mirrors_used'] = used + 1
+                        c['chat_id'], c['msg_id'] = mirrors[used][0], mirrors[used][1]
+                        nf = submit(c)
+                        if nf is not None:
+                            futs[nf] = (c, time.time())
+                            pending.add(nf)
+                            checks['mirror'] += 1
+                            continue
                     c['probe'] = 'error'
+                    checks['tested'] += 1
+                    checks['dead'] += 1
                     self.log('probe failed %s: %s' % (c['file'], exc))
                     continue
+                checks['tested'] += 1
                 # 3.3: the time the download itself took - the clock here also counts the queue and the polling,
                 # which made normal files look slow
                 elapsed = max(0.05, took or (time.time() - start))
                 kind = sniff(data)
                 if not kind:
                     c['probe'] = 'bad-container'
+                    checks['wrong'] += 1
                     continue
-                c['probe'] = 'ok'
                 c['container'] = kind
+                info = mediainfo.inspect(data)
+                if info:
+                    wrong = self._apply_media(c, info, target, pref)
+                    if wrong:
+                        c['probe'] = 'mismatch'
+                        checks['wrong'] += 1
+                        self.log('probe: %s dropped - %s' % (c['file'], wrong))
+                        continue
+                c['probe'] = 'ok'
+                checks['ok'] += 1
                 speed = len(data) / elapsed                              # bytes/s for one request
                 c['speed'] = speed
                 bitrate = (c['size'] / float(c['duration'])) if c.get('duration') else 0
                 c['bitrate'] = bitrate
                 # parallel requests multiply the speed only when the network is the limit; with the
                 # pure-python crypto fallback the CPU is, so no multiplication is assumed there
-                cpu_bound = not c.get('url') and self.s.get('crypto') not in ('openssl', 'cryptg', 'telethon-libssl')
+                cpu_bound = not c.get('url') and self.s.get('crypto') not in ('openssl', 'cryptg', 'telethon-libssl') \
+                    and not str(self.s.get('crypto') or '').startswith('tnige')
                 effective = speed * (1.3 if cpu_bound else min(int(self.s.get('parallel', 4)), 4) * 0.75)
                 c['smooth'] = (not bitrate) or effective >= bitrate * 1.15
                 if len(data) < SPEED_SAMPLE_MIN:
@@ -554,17 +1052,94 @@ class Finder(object):
             # 3.0.1: a slow box / slow moment must never turn real matches into "nothing found":
             # links whose test did not finish in time are listed, marked as untested
             self.log('probe: no link answered in %.0fs - listing %d untested matches' % (timeout, len(late)))
-        # 3.3: tested links first, then the ones whose test did not finish, then the matches beyond probe_count -
-        # they used to be thrown away (the list was cut to probe_count); max_results still limits the list
+        # 3.3: tested links first, then the ones whose test did not finish, then the matches beyond the tested
+        # ones - they used to be thrown away; max_results still limits the list
         ok += sorted(late, key=lambda c: -c['score'])
         for c in tail:
             c['probe'] = 'untested'
         ok += tail
+        ok += sorted(rd, key=lambda c: -c['score'])
+        checks['untested'] = len(late) + len(tail)
+        checks['rd'] = len(rd)
+        checks['seconds'] = round(time.time() - t0, 1)
+        job.stats = dict(job.stats or {}, checks=checks)
+        self.log('probe: %(tested)d tested in %(seconds)ss - %(ok)d ok, %(dead)d dead, %(wrong)d wrong file, '
+                 '%(mirror)d mirror retries, %(untested)d untested' % checks)
         return ok
+
+    def _apply_media(self, c, info, target, pref):
+        """Folds what the file header says into the candidate. Returns a reason when the file is certainly not the
+        wanted one (a sample, a clip), else None."""
+        from . import mediainfo
+        p = c['parsed']
+        c['media'] = {'duration': info.get('duration') or 0, 'width': info.get('width') or 0,
+                      'height': info.get('height') or 0, 'video': info.get('video') or '',
+                      'audio': [x for x in info.get('audio') or [] if x][:6],
+                      'subs': [x for x in info.get('subs') or [] if x][:12]}
+        real = info.get('duration') or 0
+        if real and not c.get('duration'):
+            c['duration'] = real                 # a file sent "as a document" has no duration in Telegram
+        q = mediainfo.quality_of(info.get('width'), info.get('height'))
+        if q and not p.get('quality'):
+            p['quality'] = q
+        if info.get('video') and not p.get('codec'):
+            p['codec'] = info['video']
+        before = set(c.get('langs') or p.get('langs') or [])
+        langs = set(before)
+        if info.get('known'):
+            if 'he' in info.get('subs', []):
+                langs.add('he_sub')
+                c['he_sub_inside'] = True
+            if 'he' in info.get('audio', []):
+                langs.add('he_dub')
+                c['he_audio_inside'] = True
+            if 'ru' in info.get('audio', []):
+                langs.add('ru_audio')
+            if 'ru' in info.get('subs', []):
+                langs.add('ru_sub')
+        if langs != before:
+            c['score'] += matcher.language_bonus(langs, pref) - matcher.language_bonus(before, pref)
+        c['langs'] = sorted(langs)
+        if not target or not real:
+            return None
+        runtime = (target.get('runtime') or 0) * 60
+        if target['kind'] == 'movie':
+            if runtime:
+                if real < 0.6 * runtime or real > 1.7 * runtime:
+                    return 'real length %d min, the film runs %d' % (real // 60, runtime // 60)
+                if abs(real - runtime) > max(600, 0.15 * runtime):
+                    c['score'] -= 8
+                    c.setdefault('why', []).append('length differs')
+            elif real < 40 * 60:
+                return 'real length %d min - too short for a film' % (real // 60)
+        else:
+            if runtime and real < 0.4 * runtime:
+                return 'real length %d min, an episode runs %d' % (real // 60, runtime // 60)
+            title = info.get('title') or ''
+            if title:
+                tp = parse(title + '.mkv', '', '')
+                ep, se = tp.get('episode'), tp.get('season')
+                other_ep = ep is not None and not tp.get('episode_end') and int(ep) != int(target['episode'])
+                other_se = se is not None and int(se) != int(target['season'])
+                if other_ep or other_se:
+                    c['score'] -= 15                 # the name says one episode, the file itself another
+                    c['loose'] = True
+                    c.setdefault('why', []).append('inner title: %s' % title[:60])
+        return None
 
     @staticmethod
     def _public(c):
         p = c['parsed']
+        match = 0
+        for w in c.get('why') or []:
+            if isinstance(w, str) and w.startswith('title '):
+                try:
+                    match = int(round(float(w[6:]) * 100))
+                except ValueError:
+                    pass
+                break
+        if c.get('loose'):
+            match = min(match, 70)
         return {
             'chat_id': c['chat_id'], 'msg_id': c['msg_id'], 'file': c['file'], 'size': c['size'],
             'duration': c.get('duration') or 0, 'caption': (c.get('caption') or '')[:400],
@@ -576,4 +1151,23 @@ class Finder(object):
             'ai': c.get('ai'), 'why': c.get('why'), 'mirrors': c.get('mirrors', [])[:5],
             'url': c.get('url'), 'backend': c.get('backend', 'tg'), 'chiko': c.get('chiko', False),
             'loose': c.get('loose', False),
+            # 3.3.3
+            'chat_kind': c.get('chat_kind') or '', 'via_bot': c.get('via_bot') or '', 'date': c.get('date') or 0,
+            'match': match, 'media': c.get('media'), 'he_sub_inside': bool(c.get('he_sub_inside')),
+            'he_audio_inside': bool(c.get('he_audio_inside')), 'year': p.get('year'),
+            'title': p.get('title') or '',
+            'rd': c.get('rd'), 'rd_cached': c.get('rd_cached'),
         }
+
+    GROUP = {'tg': 0, 'telemedia': 0, 'rd': 1}
+
+    def order_groups(self, cands, limit=None):
+        """3.3.4: Telegram first, then Real-Debrid, then every other source. Inside a group the order of the
+        ranking (tested links first, best score first) is kept. Each group gets its own share of the list, so a
+        long Telegram list never pushes Real-Debrid out."""
+        limit = int(limit or self.s.get('max_results', 25))
+        rd_max = int(self.s.get('rd_max', 15))
+        groups = {0: [], 1: [], 2: []}
+        for c in cands:
+            groups[self.GROUP.get(c.get('backend') or 'tg', 2)].append(c)
+        return groups[0][:limit] + groups[1][:rd_max] + groups[2][:max(5, limit // 2)]

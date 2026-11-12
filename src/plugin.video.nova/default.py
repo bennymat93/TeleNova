@@ -702,6 +702,8 @@ def router(p):
         'bk_do': backup.backup,
         'bk_restore': backup.restore,
         'bk_auto': lambda: backup.auto_backup(every_days=0),
+        'clip_paste': lambda: __import__('resources.lib.clipui', fromlist=['x']).paste_now(),
+        'clip_menu': lambda: __import__('resources.lib.clipui', fromlist=['x']).history_menu(),
     }
     if a == 'list':
         m, path = p.pop('m'), p.pop('path')
@@ -717,7 +719,7 @@ def router(p):
 
 ACTIONS = {'fav_add', 'fav_rm', 'history_clear', 'acc', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
            'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu',
-           'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go'}
+           'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go', 'clip_paste', 'clip_menu'}
 
 
 def system_update():

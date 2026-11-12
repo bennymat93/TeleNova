@@ -567,3 +567,307 @@ msgstr "מילות מפתח לשם הערוץ (מופרדות בפסיק)"
 msgctxt "#32093"
 msgid "Ranking boost"
 msgstr "תוספת דירוג"
+
+msgctxt "#30110"
+msgid "My bots"
+msgstr "הבוטים שלי"
+
+msgctxt "#30111"
+msgid "Ask the bot for a title"
+msgstr "בקשת תוכן מהבוט"
+
+msgctxt "#30112"
+msgid "Similar channels (recommended by Telegram)"
+msgstr "ערוצים דומים (המלצות טלגרם)"
+
+msgctxt "#30113"
+msgid "Find channels, groups and bots by text"
+msgstr "חיפוש ערוצים, קבוצות ובוטים לפי טקסט"
+
+msgctxt "#30114"
+msgid "Always ask this bot when searching"
+msgstr "לבקש תמיד מהבוט הזה בחיפוש"
+
+msgctxt "#30115"
+msgid "Never ask this bot"
+msgstr "לא לבקש מהבוט הזה"
+
+msgctxt "#30116"
+msgid "Decide automatically"
+msgstr "החלטה אוטומטית"
+
+msgctxt "#30117"
+msgid "bot"
+msgstr "בוט"
+
+msgctxt "#30118"
+msgid "channel"
+msgstr "ערוץ"
+
+msgctxt "#30119"
+msgid "group"
+msgstr "קבוצה"
+
+msgctxt "#30120"
+msgid "joined"
+msgstr "מצורף"
+
+msgctxt "#30121"
+msgid "Asking the bot and waiting for its files..."
+msgstr "מבקש מהבוט וממתין לקבצים..."
+
+msgctxt "#30122"
+msgid "The bot did not answer."
+msgstr "הבוט לא ענה."
+
+msgctxt "#30123"
+msgid "The bot answered, but sent no video file for this title."
+msgstr "הבוט ענה, אך לא שלח קובץ וידאו לכותר הזה."
+
+msgctxt "#30124"
+msgid "A bot wants you to join first: %s (press to join)"
+msgstr "בוט דורש הצטרפות תחילה: %s (לחץ להצטרפות)"
+
+msgctxt "#30125"
+msgid "The bot has an answer, but demands joining first: %s. Join now and ask again?"
+msgstr "לבוט יש תשובה, אך הוא דורש הצטרפות תחילה: %s. להצטרף עכשיו ולבקש שוב?"
+
+msgctxt "#30126"
+msgid "Include in every search (without joining)"
+msgstr "לכלול בכל חיפוש (בלי להצטרף)"
+
+msgctxt "#30127"
+msgid "Added - every search now looks into this channel"
+msgstr "נוסף - כל חיפוש יסרוק מעתה גם את הערוץ הזה"
+
+msgctxt "#30129"
+msgid "Join"
+msgstr "הצטרפות"
+
+msgctxt "#30130"
+msgid "always asked"
+msgstr "נשאל תמיד"
+
+msgctxt "#30131"
+msgid "asked automatically"
+msgstr "נשאל אוטומטית"
+
+msgctxt "#30132"
+msgid "not asked"
+msgstr "לא נשאל"
+
+msgctxt "#30133"
+msgid "match"
+msgstr "התאמה"
+
+msgctxt "#30136"
+msgid "%d tested, %d working, %d removed"
+msgstr "%d נבדקו, %d תקינים, %d הוסרו"
+
+msgctxt "#30137"
+msgid "from bot"
+msgstr "מבוט"
+
+msgctxt "#30138"
+msgid "Scan my bots again"
+msgstr "סריקה מחדש של הבוטים שלי"
+
+msgctxt "#30139"
+msgid "No content bots yet - find one here, open it and ask for a title"
+msgstr "אין עדיין בוטים של תוכן - מצא כאן בוט, פתח אותו ובקש כותר"
+
+msgctxt "#30140"
+msgid "Movie & series bots"
+msgstr "בוטים של סרטים וסדרות"
+
+msgctxt "#30141"
+msgid "Hebrew: movies & series channels"
+msgstr "עברית: ערוצי סרטים וסדרות"
+
+msgctxt "#30142"
+msgid "Russian: movies & series channels"
+msgstr "רוסית: ערוצי סרטים וסדרות"
+
+msgctxt "#30143"
+msgid "English: movies & series channels"
+msgstr "אנגלית: ערוצי סרטים וסדרות"
+
+msgctxt "#30144"
+msgid "Kids & dubbed"
+msgstr "ילדים ומדובבים"
+
+msgctxt "#30146"
+msgid "asked %d, files %d"
+msgstr "בקשות %d, קבצים %d"
+
+msgctxt "#30147"
+msgid "Find more bots"
+msgstr "מציאת בוטים נוספים"
+
+msgctxt "#30148"
+msgid "audio"
+msgstr "אודיו"
+
+msgctxt "#30149"
+msgid "subtitles"
+msgstr "כתוביות"
+
+msgctxt "#32100"
+msgid "Bots"
+msgstr "בוטים"
+
+msgctxt "#32101"
+msgid "Ask bots for the title (bots that send files on request)"
+msgstr "לבקש את הכותר מבוטים (בוטים ששולחים קבצים לפי בקשה)"
+
+msgctxt "#32102"
+msgid "Also ask bots that already sent me videos"
+msgstr "לבקש גם מבוטים שכבר שלחו לי סרטונים"
+
+msgctxt "#32103"
+msgid "Bots to always ask (@names, comma separated)"
+msgstr "בוטים לבקש מהם תמיד (@שמות, מופרדים בפסיק)"
+
+msgctxt "#32104"
+msgid "Bots asked per search"
+msgstr "מספר בוטים לבקשה בכל חיפוש"
+
+msgctxt "#32105"
+msgid "Wait for a bot (seconds)"
+msgstr "זמן המתנה לבוט (שניות)"
+
+msgctxt "#32106"
+msgid "Join channels a bot demands, without asking"
+msgstr "להצטרף לערוצים שבוט דורש, בלי לשאול"
+
+msgctxt "#32107"
+msgid "Test every listed link"
+msgstr "לבדוק כל קישור שמוצג"
+
+msgctxt "#30150"
+msgid "Export configuration (settings + Telegram login)"
+msgstr "ייצוא תצורה (הגדרות + חיבור הטלגרם)"
+
+msgctxt "#30151"
+msgid "Import configuration from a file"
+msgstr "ייבוא תצורה מקובץ"
+
+msgctxt "#30152"
+msgid "The file will hold every setting of the add-on and your Telegram login. Whoever has the file can enter your Telegram account. Keep it private."
+msgstr "הקובץ יכלול את כל הגדרות ההרחבה ואת החיבור לחשבון הטלגרם שלך. מי שמחזיק בקובץ יכול להיכנס לחשבון הטלגרם שלך. שמור אותו במקום פרטי."
+
+msgctxt "#30153"
+msgid "Cancel"
+msgstr "ביטול"
+
+msgctxt "#30154"
+msgid "Continue"
+msgstr "המשך"
+
+msgctxt "#30155"
+msgid "Protect the file with a password? (recommended)"
+msgstr "להגן על הקובץ בסיסמה? (מומלץ)"
+
+msgctxt "#30156"
+msgid "Password of the configuration file"
+msgstr "סיסמת קובץ התצורה"
+
+msgctxt "#30157"
+msgid "Type the password again"
+msgstr "הקלד את הסיסמה שוב"
+
+msgctxt "#30158"
+msgid "The passwords are not the same. Nothing was exported."
+msgstr "הסיסמאות אינן זהות. לא בוצע ייצוא."
+
+msgctxt "#30159"
+msgid "Folder for the configuration file"
+msgstr "תיקייה לשמירת קובץ התצורה"
+
+msgctxt "#30160"
+msgid "The export failed. Nothing was changed."
+msgstr "הייצוא נכשל. דבר לא השתנה."
+
+msgctxt "#30161"
+msgid "Configuration exported to:"
+msgstr "התצורה יוצאה אל:"
+
+msgctxt "#30162"
+msgid "Includes the Telegram login."
+msgstr "כולל את החיבור לטלגרם."
+
+msgctxt "#30163"
+msgid "No Telegram login on this device - settings only."
+msgstr "אין חיבור טלגרם במכשיר הזה - הגדרות בלבד."
+
+msgctxt "#30164"
+msgid "This is not a valid TeleNova configuration file, or it is damaged. Nothing was changed."
+msgstr "זה אינו קובץ תצורה תקין של TeleNova, או שהקובץ פגום. דבר לא השתנה."
+
+msgctxt "#30165"
+msgid "Import the configuration saved on %s? The current settings and Telegram login of this device are replaced."
+msgstr "לייבא את התצורה שנשמרה ב-%s? ההגדרות וחיבור הטלגרם הנוכחיים במכשיר הזה יוחלפו."
+
+msgctxt "#30166"
+msgid "Wrong password (or the file is damaged). Nothing was changed."
+msgstr "סיסמה שגויה (או שהקובץ פגום). דבר לא השתנה."
+
+msgctxt "#30167"
+msgid "Configuration imported."
+msgstr "התצורה יובאה."
+
+msgctxt "#30168"
+msgid "Telegram is not logged in yet - open \"Account & Status\" to log in."
+msgstr "הטלגרם עדיין לא מחובר - פתח \"חשבון ומצב\" כדי להתחבר."
+
+msgctxt "#30171"
+msgid "cached"
+msgstr "מוכן להפעלה"
+
+msgctxt "#30172"
+msgid "Real-Debrid link failed, trying the next source"
+msgstr "קישור Real-Debrid נכשל, עובר למקור הבא"
+
+msgctxt "#30173"
+msgid "%s - premium, %d days left"
+msgstr "%s - פרימיום, נותרו %d ימים"
+
+msgctxt "#30174"
+msgid "Log out of Real-Debrid"
+msgstr "התנתקות מ-Real-Debrid"
+
+msgctxt "#30175"
+msgid "not connected - press to connect"
+msgstr "לא מחובר - לחץ לחיבור"
+
+msgctxt "#30176"
+msgid "On a phone or computer open %s and enter the code: [B]%s[/B]"
+msgstr "בטלפון או במחשב פתח את %s והזן את הקוד: [B]%s[/B]"
+
+msgctxt "#32110"
+msgid "Real-Debrid"
+msgstr "Real-Debrid"
+
+msgctxt "#32111"
+msgid "Use Real-Debrid"
+msgstr "שימוש ב-Real-Debrid"
+
+msgctxt "#32112"
+msgid "API token (or connect from "Account & Status")"
+msgstr "מפתח API (או חיבור מ"חשבון ומצב")"
+
+msgctxt "#32113"
+msgid "Find cached torrents (Torrentio index)"
+msgstr "חיפוש טורנטים מוכנים (אינדקס Torrentio)"
+
+msgctxt "#32114"
+msgid "Let the index check the Real-Debrid cache (sends the key to Torrentio)"
+msgstr "בדיקת זמינות ב-Real-Debrid דרך האינדקס (המפתח נשלח ל-Torrentio)"
+
+msgctxt "#32115"
+msgid "Include my Real-Debrid cloud"
+msgstr "לכלול את הענן שלי ב-Real-Debrid"
+
+msgctxt "#32116"
+msgid "Real-Debrid results listed"
+msgstr "מספר תוצאות Real-Debrid"

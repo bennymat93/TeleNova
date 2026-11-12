@@ -30,13 +30,94 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 3.3.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 3.3.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.video.nova` (TeleNova) | 3.3.2 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 3.3.3 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
 | `plugin.program.novawizard` (TeleNova Wizard) | 3.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
 | `repository.telenova` | 3.1.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## Build 3.3.2 - Paste on the keyboard, configuration transfer, iPhone / iPad
+
+- **Real-Debrid** (engine 3.3.4, `realdebrid.py`): sources = torrents RD already holds (Torrentio index by IMDb
+  id; with the key only `[RD+]` cached entries are listed) + the account's own RD cloud (matched by name, the
+  episode file picked at play time). Lighter checks than Telegram: index entries for the IMDb id are accepted
+  unless the name contradicts the title / episode; no download test while searching; at play the link is
+  resolved and a failing one hands over to the next source. Results: **Telegram, then Real-Debrid, then the
+  rest**, each group with its own share of the list. Login: RD device code (open-source client id) or a pasted
+  token; expired tokens are refreshed. Option to not send the key to the index (then the cache is checked at
+  play time through RD itself; a torrent that is not cached is removed from the account again).
+
+- **Paste button** on the build's on-screen keyboard (under voice search): disabled and grey while nothing is
+  copied, enabled as soon as text is copied. A press appends the whole copied text; the field is read back and
+  restored if it does not hold exactly the expected text - never a partial paste; repeated presses do not hang.
+  Kodi itself pastes only on Windows / macOS and only with Ctrl+V; the build reads the device clipboard directly:
+  Windows (user32), Android (ClipboardManager through Kodi's own JNI environment), iOS / tvOS (UIPasteboard
+  through the Objective-C runtime), macOS (pbpaste), Linux (wl-paste / xclip / xsel).
+- **Clipboard history** button: every copied / pasted text, newest first, pin / unpin (pinned stay on top),
+  delete, clear (pinned kept). On Android / iOS the system allows reading only when Paste is pressed, so there the
+  history records pastes.
+- **Telegram configuration export / import** (Account & Status): one `.tncfg` file with every engine setting, the
+  Telegram session (no new login on the other device) and the bot choices; optional password (PBKDF2 200k rounds,
+  sealed with HMAC-SHA256: a wrong password or a damaged file is refused and nothing is changed).
+- **No more offer to install the dedicated BN Stream app** on Android.
+- **iOS**: the download page now serves **Kodi 21.3** (official package, repacked as .ipa, content unchanged) -
+  the build is tuned for Kodi 21 and several of its settings do not exist in 20.5. Kodi 21.3 for iOS carries
+  pvr.iptvsimple and inputstream.adaptive itself (the build's Windows copies are removed on first start) and has
+  `ctypes` built in; its OpenSSL lacks the IGE function, so the Telegram engine now uses Apple's CommonCrypto
+  (estimated several MB/s; was 0.1). On macOS the engine never loads `/usr/lib/libcrypto.dylib` (Apple aborts any
+  process that does).
+- Not verified on a physical iPhone / Mac / Android phone: the Apple and Android clipboard paths and CommonCrypto
+  were written against the system APIs and checked for symbol availability, not run.
+
+## Telegram engine 3.3.3 (build 3.3.2) - bots, discovery, every link tested, new result rows
+
+**Bots**
+- A bot chat is a chat like any other now: it is listed in "My channels & groups" (tagged `bot`), its files can be
+  browsed and searched, and the chats of the content bots are searched by name in every search.
+- **Bots that send files only on request** are asked for the title while the searches run (`tgbots.py`): the engine
+  writes the title (after `/start` when the bot was never opened), reads the answers - including answers the bot
+  edits in place (result pages) - takes the video files, presses only the buttons whose text fits the wanted
+  film / episode, follows `t.me/<bot>?start=<code>` links to file-store bots and `t.me/<channel>/<id>` links, and
+  stops when the bot goes quiet. Inline bots are queried as well; their files play without being sent anywhere.
+- Which bots are asked: bots written in the settings, bots switched on in the new **My bots** screen, and - when
+  "also ask bots that already sent me videos" is on - bots whose chat already holds a video. No other bot is ever
+  written to; Telegram's own service bots are excluded by name. An automatic bot that answered four requests with
+  nothing rests for a day; bots that deliver are asked first.
+- A bot that demands joining a channel first is reported, not obeyed: the user is asked once ("join and ask
+  again?"). Joining without asking is a setting, off by default.
+- New settings category **Bots**: on/off, automatic bots, list of bots, bots per search (3), wait per bot (14 s),
+  auto-join.
+
+**Discovery**
+- "Discover" is a menu: text search, Telegram's **similar channels** for the channels the account already has
+  (`channels.GetChannelRecommendations`), and ready topic searches (movie bots, Hebrew, Russian, English, kids).
+- A search runs several wordings at once and returns channels, groups **and bots**, ranked (found by more
+  wordings, then audience), with "joined" marked; scam / fake / restricted chats are never listed.
+- A public channel opens **without joining**; "include in every search (without joining)" adds its @name to the
+  pinned chats, which now accept @names and t.me links next to numeric ids.
+
+**Every link tested, the file itself checked**
+- The link test covers every source that is listed (it was the first six), all at once - one 128 KiB request per
+  link through the client's pacing gate. In the simulated run 15 links are tested in under 6 seconds.
+- A dead link whose file also sits in another chat is replaced by that copy and tested again; otherwise removed.
+- `mediainfo.py` reads the Matroska / MP4 header from the bytes the test downloads anyway: real duration, picture
+  size, video codec, audio and subtitle languages. A "movie" that really runs 4 minutes is removed; Hebrew
+  subtitles / audio found **inside** the file are marked with a tick; a missing quality is filled from the real
+  picture size; an episode whose inner title names another episode is moved down and marked.
+- "Search Telegram files directly" runs as a job with progress: videos only, one row per file, best fit first,
+  bots asked, links tested.
+
+**Result rows**
+- Source list: line 1 - quality (colour by quality), codec, languages, size, length, test result with the
+  measured speed, match percentage; line 2 - where it comes from (bot / channel / group and its name) and the file
+  name. The heading says how many links were tested, how many work and how many were removed.
+- File lists (chat browsing, free search): clean title with year or SxxEyy, quality tag, size, length, source.
+
+Verified with 23 new unit tests against a scripted fake Telegram (`src/qa/agentC/test_bots.py`: button lists,
+file-store deep links, join walls, edited result pages, silent bots, mirrors, samples) plus the 26 existing ones.
+Not verified against the real Telegram service: no account is connected on the test machine.
 
 ## TeleNova 3.3.1 - defaults tuned against Kodi 21's own source
 

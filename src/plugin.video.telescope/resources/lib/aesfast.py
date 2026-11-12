@@ -56,6 +56,13 @@ def _load_libcrypto():
                     names.append(path)
     except Exception:
         pass
+    if sys.platform == 'darwin':
+        # 3.3.3 (macOS / iOS): Apple's own /usr/lib/libcrypto.dylib ABORTS the whole process when it is loaded
+        # ("loading libcrypto in an unsafe way") - it is never touched. Kodi's own OpenSSL (linked into the app) is
+        # still found through the running process (None) and the _ssl module's folder.
+        names = [n for n in names if n is None or not (os.path.basename(str(n)).startswith('libcrypto.dylib')
+                                                        or str(n).startswith(('/usr/lib/', '/System/')))
+                 and not str(n).endswith('libcrypto.dylib')]
     for name in names:
         try:
             lib = ctypes.CDLL(name)
@@ -230,6 +237,91 @@ def tn_decrypt_ige(cipher, key, iv):
     return _tn_run(cipher, key, iv, 0)
 
 
+# ------------------------------------------------------------------ Apple CommonCrypto (3.3.3)
+# iOS / tvOS / macOS: an add-on cannot load a library of its own there (code signing), and PyCryptodome's compiled
+# parts are not loadable on iOS either - the engine fell back to pure-python pyaes (~0.1 MB/s). CommonCrypto is part
+# of the system on every Apple device: one AES-ECB cryptor per call, the IGE chaining in Python.
+KAT = ('42e66e1a756cccf5b27acc47523ad074ee39bf54e3db37bbdf415df6b400fca9'
+       '77f708327c9e9341cc3dc8efd31e7646')       # IGE(key=0..31, iv=32..63, data=0..47), checked against OpenSSL
+
+
+class _CCECB(object):
+    _lib = None
+
+    @classmethod
+    def lib(cls):
+        if cls._lib is None:
+            cls._lib = False
+            if sys.platform == 'darwin':
+                for name in ('/usr/lib/system/libcommonCrypto.dylib', '/usr/lib/libSystem.B.dylib', None):
+                    try:
+                        lib = ctypes.CDLL(name)
+                        lib.CCCryptorCreate.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32,
+                                                        ctypes.c_char_p, ctypes.c_size_t, ctypes.c_void_p,
+                                                        ctypes.POINTER(ctypes.c_void_p)]
+                        lib.CCCryptorCreate.restype = ctypes.c_int32
+                        lib.CCCryptorUpdate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t,
+                                                        ctypes.c_void_p, ctypes.c_size_t,
+                                                        ctypes.POINTER(ctypes.c_size_t)]
+                        lib.CCCryptorUpdate.restype = ctypes.c_int32
+                        lib.CCCryptorRelease.argtypes = [ctypes.c_void_p]
+                        cls._lib = lib
+                        break
+                    except (OSError, AttributeError):
+                        continue
+        return cls._lib
+
+    def __init__(self, key):
+        lib = self.lib()
+        key = bytes(key)
+        self.refs = []
+        for op in (0, 1):                     # kCCEncrypt, kCCDecrypt; kCCAlgorithmAES = 0, kCCOptionECBMode = 2
+            ref = ctypes.c_void_p()
+            if lib.CCCryptorCreate(op, 0, 2, key, len(key), None, ctypes.byref(ref)) != 0:
+                self.close()
+                raise OSError('CCCryptorCreate failed')
+            self.refs.append(ref)
+        self.buf = ctypes.create_string_buffer(16)
+        self.moved = ctypes.c_size_t()
+        self.update = lib.CCCryptorUpdate
+
+    def _run(self, ref, block):
+        if self.update(ref, block, 16, self.buf, 16, ctypes.byref(self.moved)) != 0:
+            raise OSError('CCCryptorUpdate failed')
+        return self.buf.raw
+
+    def encrypt(self, block):
+        return self._run(self.refs[0], block)
+
+    def decrypt(self, block):
+        return self._run(self.refs[1], block)
+
+    def close(self):
+        for ref in self.refs:
+            try:
+                self.lib().CCCryptorRelease(ref)
+            except Exception:
+                pass
+        self.refs = []
+
+    def __del__(self):
+        self.close()
+
+
+def _commoncrypto_pair():
+    if not _CCECB.lib():
+        return None
+    try:
+        pair = make_ecb_ige(_CCECB)
+        k, iv, sample = bytes(range(32)), bytes(range(32, 64)), bytes(range(48))
+        enc = pair[0](sample, k, iv)
+        if enc.hex() != KAT or pair[1](enc, k, iv) != sample:
+            return None
+        return pair
+    except Exception:
+        return None
+
+
 # ------------------------------------------------------------------ PyCryptodome / generic ECB
 def _xor16(a, b):
     return (int.from_bytes(a, 'little') ^ int.from_bytes(b, 'little')).to_bytes(16, 'little')
@@ -352,6 +444,9 @@ def best_pair():
     pair = _cryptodome_pair()
     if pair:
         return 'pycryptodome', pair[0], pair[1]
+    pair = _commoncrypto_pair()           # 3.3.3: iPhone / iPad / Apple TV / Mac without any of the above
+    if pair:
+        return 'commoncrypto', pair[0], pair[1]
     return None
 
 

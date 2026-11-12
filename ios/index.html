@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kodi 20.5 IPA</title>
+<title>Kodi 21.3 IPA</title>
 <style>
 :root{--bg:#0b0d12;--panel:#151922;--text:#eef1f6;--muted:#9aa3b2;--accent:#e2b13c;--ok:#3fb950;--bad:#f85149}
 @media (prefers-color-scheme:light){:root{--bg:#f6f7f9;--panel:#fff;--text:#151922;--muted:#5d6676;--accent:#a8780a;--ok:#1a7f37;--bad:#cf222e}}
@@ -21,9 +21,9 @@ ol{padding-inline-start:20px}
 <body>
 <main>
 <div class="card">
-<h1>Kodi 20.5 לאייפון ואייפד (IPA)</h1>
-<p class="muted">נבנה מהקובץ הרשמי של Kodi (mirrors.kodi.tv), בלי שום שינוי בתוכן. 150 מ"ב. נדרש iOS 11 ומעלה.</p>
-<button id="go">הורדת Kodi-20.5.ipa</button>
+<h1>Kodi 21.3 לאייפון ואייפד (IPA)</h1>
+<p class="muted">נבנה מהקובץ הרשמי של Kodi (mirrors.kodi.tv), בלי שום שינוי בתוכן. 213 מ"ב. נדרש iOS 11 ומעלה.</p>
+<button id="go">הורדת Kodi-21.3.ipa</button>
 <progress id="pr" max="100" value="0" hidden></progress>
 <div id="st"></div>
 </div>
@@ -33,13 +33,14 @@ ol{padding-inline-start:20px}
 <li>מתקינים Sideloadly (sideloadly.io), מחברים את האייפון בכבל, גוררים את הקובץ, מזינים Apple ID ולוחצים Start.</li>
 <li>באייפון: הגדרות ← כללי ← ניהול VPN ומכשירים ← ה-Apple ID ← אמון.</li>
 <li>עם Apple ID חינמי חותמים מחדש כל 7 ימים.</li>
+<li>פותחים את Kodi ומתקינים את הבילד דרך מנהל הקבצים, כמו בכל מכשיר (המדריך המלא באתר). כל ההרחבות של הבילד פועלות גם באייפון: ערוצים, YouTube, טלגרם, כתוביות, הדבקה מהלוח.</li>
 </ol>
-<p class="muted">הקובץ שמור באתר בשני חלקים (לאתר יש מגבלה של 100 מ"ב לקובץ). הדף מוריד את שניהם, מחבר אותם, בודק את טביעת האצבע (SHA-256) ושומר קובץ אחד שלם.</p>
+<p class="muted">הקובץ שמור באתר ב-3 חלקים (לאתר יש מגבלה של 100 מ"ב לקובץ). הדף מוריד את כולם, מחבר אותם, בודק את טביעת האצבע (SHA-256) ושומר קובץ אחד שלם.</p>
 </main>
 <script>
-const PARTS = ['Kodi-20.5.ipa.part0', 'Kodi-20.5.ipa.part1'];
-const SIZE = 150231634;
-const SHA = '9d8f4666d88a63b36c8bd287e7082772a8223c1e95b06d0a51812bfe17d9b11a';
+const PARTS = ['Kodi-21.3.ipa.part0', 'Kodi-21.3.ipa.part1', 'Kodi-21.3.ipa.part2'];
+const SIZE = 212975625;
+const SHA = 'a17fe0c0e0a18b86728af8ecfad16d1e628f5fb9789a217e8686e3f954cb0d2a';
 const $ = (s) => document.querySelector(s);
 async function fetchPart(url, done, onp) {
   const r = await fetch(url);
@@ -71,9 +72,9 @@ $('#go').onclick = async () => {
       if (h !== SHA) throw new Error('טביעת אצבע לא תואמת');
     }
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(file); a.download = 'Kodi-20.5.ipa';
+    a.href = URL.createObjectURL(file); a.download = 'Kodi-21.3.ipa';
     document.body.append(a); a.click(); a.remove();
-    st.className = 'ok'; st.textContent = '✔ הקובץ נשמר: Kodi-20.5.ipa (נבדק ושלם)';
+    st.className = 'ok'; st.textContent = '✔ הקובץ נשמר: Kodi-21.3.ipa (נבדק ושלם)';
   } catch (e) {
     st.className = 'bad'; st.textContent = 'ההורדה נכשלה: ' + e.message + ' – נסו שוב';
   }

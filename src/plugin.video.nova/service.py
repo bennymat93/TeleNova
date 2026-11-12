@@ -728,6 +728,12 @@ def main():
         import xbmcvfs
         from resources.lib import skinpatch
         skin_xml = xbmcvfs.translatePath('special://home/addons/skin.fentastic/xml')
+        if os.path.isdir(skin_xml) and skinpatch.keyboard_buttons(skin_xml):       # 3.3.3: Paste on the keyboard
+            log('paste buttons added to the keyboard')
+            xbmc.executebuiltin('ReloadSkin()')
+    except Exception as e:
+        log('keyboard buttons: %s' % e, xbmc.LOGWARNING)
+    try:
         if os.path.isdir(skin_xml) and skinpatch.apply(skin_xml):
             log('AI subtitle button added to the skin')
             xbmc.executebuiltin('ReloadSkin()')
@@ -1233,6 +1239,14 @@ def main():
             if m.waitForAbort(3600):
                 return
     later(900, cache_job)
+
+    def clip_job():                 # 3.3.3: "Paste" enabled only while something is copied; the copy history
+        try:
+            from resources.lib import clipui
+            clipui.watch(monitor())
+        except Exception as e:
+            log('clipboard: %s' % e, xbmc.LOGWARNING)
+    later(2, clip_job)
 
     # first refresh 2 minutes after start; 3.3: on a new install (no channel list yet) after 15 s - the TV menu
     # of a fresh build stayed empty for more than two minutes

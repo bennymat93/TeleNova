@@ -59,6 +59,16 @@ def _load_settings():
         'chiko_keywords': g('chiko_keywords', u"\u05e6'\u05d9\u05e7\u05d5,\u05e6\u05d9\u05e7\u05d5,chiko,chico"),
         'chiko_boost': gi('chiko_boost', 15),
         'stremio_servers': [x.strip() for x in g('stremio_servers', '').replace('\n', ',').split(',') if x.strip()],
+        # 3.3.3: bots that hand out files on request + testing every listed link
+        'bot_request': gb('bot_request', True), 'bot_auto': gb('bot_auto', True),
+        'bots': [x.strip().lstrip('@') for x in g('bots', '').replace(' ', ',').split(',') if x.strip()],
+        'bot_max': gi('bot_max', 3), 'bot_timeout': gi('bot_timeout', 14), 'bot_autojoin': gb('bot_autojoin', False),
+        'probe_all': gb('probe_all', True), 'bots_file': os.path.join(common.PROFILE, 'bots.json'),
+        # 3.3.4: Real-Debrid
+        'rd_enabled': gb('rd_enabled', True), 'rd_token': g('rd_token').strip(), 'rd_refresh': g('rd_refresh').strip(),
+        'rd_client_id': g('rd_client_id').strip(), 'rd_client_secret': g('rd_client_secret').strip(),
+        'rd_torrentio_on': gb('rd_torrentio_on', True), 'rd_torrentio_key': gb('rd_torrentio_key', True),
+        'rd_cloud': gb('rd_cloud', True), 'rd_max': gi('rd_max', 15),
     }
 
 
@@ -130,8 +140,18 @@ class Service(xbmc.Monitor):
             self.bridge = TelemediaBridge(common.log)
         self.s['crypto'] = aesfast.impl_name()
         servers = StremioServers(self.s['stremio_servers'], common.log)
+        from .realdebrid import RealDebrid
+        self.rd = RealDebrid(self.s, self._rd_store, common.log)
         self.finder = Finder(self.tg, meta, ai, self.app.store if self.app else None, self.cache, self.s,
-                             common.log, bridge=self.bridge, servers=servers)
+                             common.log, bridge=self.bridge, servers=servers, rd=self.rd)
+
+    def _rd_store(self, key, value):
+        """Real-Debrid writes its login into the settings; that write must not restart Telegram or the finder."""
+        self._importing = True
+        try:
+            common.set_setting(key, value)
+        finally:
+            threading.Timer(2.0, lambda: setattr(self, '_importing', False)).start()
 
     def _fetch(self, chat, msg, idx):
         if not self.tg:
@@ -161,7 +181,130 @@ class Service(xbmc.Monitor):
             self._started.set()
         common.log('service ready on port %d (telegram: %s)' % (port, self.tg_error or 'ok'), xbmc.LOGINFO)
 
+    # ------------------------------------------------------------------ 3.3.4: configuration file
+    SKIP_SETTINGS = ('deps_zip', 'wizard_shown')         # a path on this device / a first-run flag: never carried over
+
+    def _setting_ids(self):
+        import re
+        try:
+            with open(os.path.join(common.ADDON_PATH, 'resources', 'settings.xml'), encoding='utf-8') as fh:
+                return [i for i in re.findall(r'<setting id="([\w.]+)"', fh.read()) if i not in self.SKIP_SETTINGS]
+        except OSError:
+            return []
+
+    def _session_bytes(self):
+        """A consistent copy of the Telethon session (an SQLite file that is open while the client runs)."""
+        import sqlite3
+        path = common.SESSION_FILE + '.session'
+        if not os.path.exists(path):
+            return None
+        if self.tg and self.tg.client:
+            try:
+                async def save():
+                    self.tg.client.session.save()
+                self.tg.run(save(), 15)
+            except Exception as exc:
+                common.log('config export: session save: %s' % exc)
+        tmp = path + '.export'
+        try:
+            src = sqlite3.connect(path, timeout=10)
+            dst = sqlite3.connect(tmp)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+                src.close()
+            with open(tmp, 'rb') as fh:
+                return fh.read()
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+    def config_export(self, password=''):
+        import base64
+        from . import configio
+        settings = dict((i, common.setting(i, '')) for i in self._setting_ids())
+        files = {}
+        sess = self._session_bytes()
+        if sess:
+            files['telegram.session'] = sess
+        bots = self.s.get('bots_file')
+        if bots and os.path.exists(bots):
+            with open(bots, 'rb') as fh:
+                files['bots.json'] = fh.read()
+        extra = {'addon': common.ADDON_VERSION, 'shared': {}}
+        for key in ('tmdb_key', 'gemini_key'):               # keys typed once in the TeleNova hub and used here
+            val = _foreign('plugin.video.nova', key)
+            if val:
+                extra['shared'][key] = val
+        blob = configio.pack(settings, files, password or '', extra)
+        return {'name': configio.file_name(), 'data': base64.b64encode(blob).decode('ascii'),
+                'session': bool(sess), 'settings': len(settings), 'encrypted': bool(password)}
+
+    def config_import(self, data, password=''):
+        """All or nothing: the file is opened and checked completely before the first byte is written."""
+        import base64
+        from . import configio
+        try:
+            settings, files, extra, head = configio.unpack(base64.b64decode(data), password or '')
+        except configio.ConfigError as exc:
+            raise RuntimeError(str(exc))
+        sess = files.get('telegram.session')
+        if sess is not None and not sess.startswith(b'SQLite format 3'):
+            raise RuntimeError('damaged')
+        known = set(self._setting_ids())
+        self._importing = True
+        try:
+            if self.tg:
+                try:
+                    self.tg.stop()
+                except Exception:
+                    pass
+                self.tg = None
+            if sess is not None:
+                path = common.SESSION_FILE + '.session'
+                for junk in (path + '-journal', path + '-wal', path + '-shm'):
+                    try:
+                        os.remove(junk)
+                    except OSError:
+                        pass
+                with open(path + '.new', 'wb') as fh:
+                    fh.write(sess)
+                os.replace(path + '.new', path)
+            if 'bots.json' in files and self.s.get('bots_file'):
+                with open(self.s['bots_file'], 'wb') as fh:
+                    fh.write(files['bots.json'])
+            n = 0
+            for key, val in settings.items():
+                if key in known and isinstance(val, str) and common.setting(key, '') != val:
+                    common.set_setting(key, val)
+                    n += 1
+            for key, val in (extra.get('shared') or {}).items():
+                if key in ('tmdb_key', 'gemini_key') and val and not _foreign('plugin.video.nova', key):
+                    try:
+                        import xbmcaddon
+                        xbmcaddon.Addon('plugin.video.nova').setSetting(key, str(val))
+                    except Exception:
+                        pass
+            self.s = load_settings()
+            self._start_tg()
+            self._build()
+        finally:
+            threading.Timer(4.0, lambda: setattr(self, '_importing', False)).start()
+        st = {}
+        if self.tg:
+            try:
+                st = self.tg.run(self.tg.status(), 30)
+            except Exception as exc:
+                st = {'error': str(exc)}
+        return {'ok': True, 'settings': n, 'session': sess is not None, 'authorized': bool(st.get('authorized')),
+                'me': st.get('me'), 'error': self.tg_error or st.get('error')}
+
     def onSettingsChanged(self):
+        if getattr(self, '_importing', False):       # config_import() restarts everything once, at its end
+            return
         old = self.s
         self.s = load_settings()
         if (old['api_id'], old['api_hash'], old['parallel']) != (self.s['api_id'], self.s['api_hash'],
@@ -248,6 +391,30 @@ class Service(xbmc.Monitor):
             self._start_tg()
             self._build()
             return True
+        if method.startswith('rd_'):                     # 3.3.4: Real-Debrid
+            if not getattr(self, 'rd', None):
+                self._build()
+            rd = self.rd
+            if method == 'rd_status':
+                if not rd.token:
+                    return {'logged_in': False}
+                try:
+                    return dict(rd.user(fresh=bool(p.get('fresh'))), logged_in=True)
+                except Exception as exc:
+                    return {'logged_in': True, 'error': str(exc)}
+            if method == 'rd_device_start':
+                return rd.device_start()
+            if method == 'rd_device_poll':
+                return {'ok': rd.device_poll(p['device_code'])}
+            if method == 'rd_logout':
+                return rd.logout()
+            if method == 'rd_resolve':
+                return {'url': rd.resolve(p['cand'], p.get('want'))}
+            raise RuntimeError('unknown method %s' % method)
+        if method == 'config_export':
+            return self.config_export(p.get('password') or '')
+        if method == 'config_import':
+            return self.config_import(p['data'], p.get('password') or '')
         if method == 'clear_cache':
             self.cache.purge(p.get('prefix'))
             return True
@@ -260,7 +427,8 @@ class Service(xbmc.Monitor):
                 raise RuntimeError('no gemini key')
             return self.ai.smart_search(p['text'])
 
-        if method in ('find_start', 'find_status', 'find_cancel', 'chiko_chats', 'chiko_browse'):
+        if method in ('find_start', 'find_status', 'find_cancel', 'chiko_chats', 'chiko_browse',
+                      'bot_list', 'bot_mark', 'bot_ask', 'similar', 'discover'):
             if not self.finder:
                 self._build()
             if method == 'find_start':
@@ -277,6 +445,27 @@ class Service(xbmc.Monitor):
                 return True
             if method == 'chiko_chats':
                 return self.finder.chiko_chats(refresh=bool(p.get('refresh')))
+            if method == 'bot_mark':             # 3.3.3
+                return self.finder.bot_mark(p.get('bot'), p.get('on'), p.get('title') or '', p.get('username') or '',
+                                            p.get('id'))
+            if method in ('bot_list', 'bot_ask', 'similar', 'discover'):
+                tg = self._need_tg()
+                if self.finder.tg is not tg:
+                    self._build()
+                if method == 'bot_list':
+                    if p.get('refresh'):
+                        self.finder.auto_bots(refresh=True)
+                    return self.finder.bot_list()
+                if method == 'bot_ask':
+                    return self.finder.bot_ask(p['bot'], p['query'], p.get('timeout'))
+                if method == 'discover':
+                    q = p['query']
+                    return tg.run(tg.discover(q if isinstance(q, list) else [q]), 60)
+                chats = p.get('chats')
+                if not chats:                    # "similar to my channels": the account's own broadcast channels
+                    mine = [d for d in tg.run(tg.dialogs(200, False), 60) if d.get('kind') == 'channel']
+                    chats = [d['id'] for d in mine[:8]]
+                return tg.run(tg.similar(chats), 90)
             if method == 'chiko_browse':
                 if p.get('backend') == 'telemedia':
                     items = self.finder.bridge.chat_messages(int(p['chat_id']), p.get('query') or '',
@@ -285,7 +474,7 @@ class Service(xbmc.Monitor):
                     nxt = items[-1]['msg_id'] if len(items) >= 25 else 0
                     return {'items': items, 'next': nxt}
                 tg = self._need_tg()
-                return tg.run(tg.chat_videos(int(p['chat_id']), int(p.get('offset') or 0), 50, p.get('query')), 60)
+                return tg.run(tg.chat_videos(p['chat_id'], int(p.get('offset') or 0), 50, p.get('query')), 60)
 
         if method == 'raw_search' and not (self.tg and getattr(self.tg, 'me', None)) and self.finder and self.finder.bridge_ok():
             return self.finder.bridge.search(p['query'], int(p.get('limit', 60)))
@@ -299,11 +488,10 @@ class Service(xbmc.Monitor):
             'qr_wait': lambda: tg.qr_wait(p.get('timeout', 4)),
             'logout': lambda: tg.logout(),
             'dialogs': lambda: tg.dialogs(p.get('limit', 300)),
-            'chat_videos': lambda: tg.chat_videos(int(p['chat_id']), int(p.get('offset', 0)), int(p.get('limit', 50)),
+            'chat_videos': lambda: tg.chat_videos(p['chat_id'], int(p.get('offset', 0)), int(p.get('limit', 50)),
                                                   p.get('query')),
             'join': lambda: tg.join(p['link']),
             'leave': lambda: tg.leave(int(p['chat_id'])),
-            'discover': lambda: tg.discover(p['query']),
             'raw_search': lambda: tg.search(p['query'], limit=int(p.get('limit', 60))),
             'file_info': lambda: tg.file_info(int(p['chat_id']), int(p['msg_id'])),
         }

@@ -27,12 +27,32 @@
         <setting id="chiko_keywords" type="text" label="32092" default="צ'יקו,ציקו,chiko,chico"/>
         <setting id="chiko_boost" type="slider" label="32093" default="15" range="0,5,50" option="int"/>
     </category>
+    <category label="32110">
+        <setting id="rd_enabled" type="bool" label="32111" default="true"/>
+        <setting id="rd_token" type="text" label="32112" default="" option="hidden" enable="eq(-1,true)"/>
+        <setting id="rd_torrentio_on" type="bool" label="32113" default="true" enable="eq(-2,true)"/>
+        <setting id="rd_torrentio_key" type="bool" label="32114" default="true" enable="eq(-3,true)"/>
+        <setting id="rd_cloud" type="bool" label="32115" default="true" enable="eq(-4,true)"/>
+        <setting id="rd_max" type="slider" label="32116" default="15" range="5,5,60" option="int" enable="eq(-5,true)"/>
+        <setting id="rd_refresh" type="text" default="" visible="false"/>
+        <setting id="rd_client_id" type="text" default="" visible="false"/>
+        <setting id="rd_client_secret" type="text" default="" visible="false"/>
+    </category>
+    <category label="32100">
+        <setting id="bot_request" type="bool" label="32101" default="true"/>
+        <setting id="bot_auto" type="bool" label="32102" default="true" enable="eq(-1,true)"/>
+        <setting id="bots" type="text" label="32103" default="" enable="eq(-2,true)"/>
+        <setting id="bot_max" type="slider" label="32104" default="3" range="1,1,6" option="int" enable="eq(-3,true)"/>
+        <setting id="bot_timeout" type="slider" label="32105" default="14" range="6,1,40" option="int" enable="eq(-4,true)"/>
+        <setting id="bot_autojoin" type="bool" label="32106" default="false" enable="eq(-5,true)"/>
+    </category>
     <category label="32030">
         <setting id="strict" type="bool" label="32031" default="true"/>
         <setting id="lang_pref" type="enum" label="32032" lvalues="32070|32071|32072|32073" default="0"/>
         <setting id="min_quality" type="enum" label="32033" lvalues="32080|32081|32082|32083|32084" default="0"/>
         <setting id="hide_cam" type="bool" label="32034" default="true"/>
         <setting id="probe" type="bool" label="32035" default="true"/>
+        <setting id="probe_all" type="bool" label="32107" default="true" enable="eq(-1,true)"/>
         <setting id="probe_count" type="slider" label="32036" default="6" range="3,1,30" option="int"/>
         <setting id="probe_timeout" type="slider" label="32037" default="6" range="5,1,40" option="int"/>
         <setting id="hide_slow" type="bool" label="32038" default="true"/>

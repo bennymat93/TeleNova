@@ -22,6 +22,55 @@
 6. ידוע ולא טופל: שגיאות קוסמטיות של סקין FENtastic בלוג (`Misplaced ]`, `unmatched parentheses`, `Control 60 ... can't focus`); YouTube 403/429; `EXCEPTION: Kodi is not playing any file` בעצירה מהירה של זרם (מקור לא אותר).
 7. המדריך בעברית בלבד (הקודם היה גם באנגלית) – להוסיף אנגלית/רוסית אם צריך.
 
+## 0.000000 בוטים, גילוי, בדיקת כל קישור, תצוגת תוצאות (2026-11-12 ערב) – הכי עדכני
+
+**גרסאות:** מנוע הטלגרם `plugin.video.telescope` **3.3.3**, `plugin.video.nova` **3.3.2** (רק מספר – כדי שהבילד יקבל מספר חדש), בילד **TeleNova 3.3.2** (`build/TeleNova-3.3.2.zip.part0`). האשף נשאר 3.3.0.
+
+**קבצים חדשים במנוע**
+- `resources/lib/tgbots.py` – שיחה עם בוט: `ask()` (שולח כותר, קורא תשובות כולל עריכות, לוחץ על כפתורים לפי `rank()`, עוקב אחרי `t.me/<bot>?start=`, קישורי הודעה, מזהה דרישת הצטרפות), `ask_many()`, `inline()`, `with_videos()`, `tme()` (פענוח קישורי טלגרם), `ref()`, `SYSTEM_BOTS`.
+- `resources/lib/mediainfo.py` – קריאת כותרת MKV / MP4 מתוך דגימת בדיקת הקישור: משך, רזולוציה, קודק, שפות אודיו וכתוביות. לא זורק חריגות (נבדק ב-fuzz).
+
+**שינויים בקבצים קיימים**
+- `tgclient.py`: `dialogs()` כולל בוטים (`kind`: channel/group/bot); `_to_cand()` מוסיף `chat_kind`; `search()` / `chat_videos()` מקבלים גם @שם של ערוץ ציבורי; `discover()` מקבל רשימת ניסוחים, מחזיר גם בוטים, מסנן scam/fake, מדרג; `similar()` (GetChannelRecommendations); `bot_ask()`, `bot_lock()`, `virtual()` + `_Virtual` (קבצים של בוט inline, מזהי הודעה מ-1,900,000,001).
+- `sources.py`: ניהול בוטים (`content_bots`, `auto_bots`, `bot_mark`, `bot_list`, `_bot_note`, קובץ `bots.json` בתיקיית הפרופיל של התוסף), `bot_queries`, `_button_rank`, `_ask_bot`, `_collect` (לולאת ההמתנה המשותפת, כולל המתנה לבוטים), `find_free` (חיפוש חופשי כ-job: `target={'type':'free','query':...}`), `probe()` חדש (כל הקישורים, מראות, mediainfo) + `_apply_media`, `_public` עם שדות חדשים (`chat_kind`, `via_bot`, `match`, `media`, `he_sub_inside`, `he_audio_inside`, `year`, `title`, `date`).
+- `service.py`: הגדרות `bot_request`, `bot_auto`, `bots`, `bot_max`, `bot_timeout`, `bot_autojoin`, `probe_all`, `bots_file`; RPC חדשים: `bot_list`, `bot_mark`, `bot_ask`, `similar`; `discover` מקבל רשימה.
+- `router.py`: מצבים חדשים `bots`, `bot_ask`, `bot_mark`, `pin`; `discover` הוא תפריט; `tg_search` רץ כ-job; תצוגה חדשה: `_source_label`, `_source_line2`, `_file_label`, `_file_plot`, `_chat_label`, `_checks_text`.
+- `settings.xml`: קטגוריית "בוטים" (32100–32106) + "לבדוק כל קישור שמוצג" (32107). מחרוזות חדשות 30110–30149 בשלוש השפות (185 מזהים בכל שפה).
+
+**כללי בטיחות שנקבעו בקוד (לא לשנות בלי סיבה)**
+- כותבים רק לבוט שהמשתמש בחר (הגדרות / "לבקש תמיד") או לבוט שהצ'אט שלו כבר מכיל וידאו. בוטי מערכת של טלגרם מוחרגים בשם. חשבון שאינו בוט – לא נשלחת אליו הודעה לעולם.
+- הצטרפות לערוץ שבוט דורש: רק אחרי שאלה למשתמש, או אם `bot_autojoin` דלוק (כבוי כברירת מחדל).
+- שיחה אחת בכל רגע עם בוט נתון (`bot_lock`).
+- בחיפוש המהיר של ה-hub (10 שניות) אין בקשות לבוטים ואין בדיקת כל הקישורים (`fast` ב-`router.hub`).
+
+**בדיקות**
+- `src/qa/agentC/test_bots.py` – 23 בדיקות מול טלגרם מדומה (לקוח מזויף עם בוטים מתוסרטים) + Telethon האמיתי לצורך מחלקות הבקשה. דורש את עותק Telethon ש-Kodi התקין בתיקיית `addon_data/plugin.video.telescope/lib`. דגימות וידאו ב-`src/qa/agentC/samples/` (256KB כל אחת).
+- `test_all.py` – 26/26 עוברות.
+- שני באגים שהבדיקות תפסו ותוקנו: לחיצה על כפתור של סדרה אחרת עם אותו מספר פרק; כפתור פרסומת "Our channel" שזוהה כדרישת הצטרפות.
+- תוצאות ה-QA בתוך Kodi על ההתקנה הנקייה של 3.3.2: התקנה נקייה של הבילד הסופי (מנוע 3.3.4): 54 תוספים, 0 שבורים; סריקה 65 מסכים / 2,155 פריטים / 0 שגיאות / 0 איטיים; ניגון 11/11 בארבע הרצות חוזרות (44/44); `t_paste_kodi.py` 11/11 (הדבקה מלאה של 354 תווים תוך שנייה, 5 לחיצות מהירות – רק הדבקות שלמות); `t_bots_kodi.py` 11/11. בהרצה אחת Kodi קרס בתוך נגן האודיו שלו (PAPlayer, `kodi.exe+0x16f704`, החלפת תחנת רדיו) – לא חזר ב-4 הרצות נוספות; קוד Kodi, לא של הבילד.
+
+**מה לא נבדק**
+- שום דבר מזה לא רץ מול טלגרם האמיתי – אין חשבון מחובר במכונת הבדיקה. ההתנהגות של בוטים אמיתיים מגוונת; צפוי שיהיו בוטים שהלוגיקה לא מכסה (בוט שדורש לפתור משהו, או בוט ששולח קישור מקוצר חיצוני – אלה לא נתמכים בכוונה).
+- `channels.GetChannelRecommendations` ו-`contacts.Search` נבדקו רק מול מבנה התשובה, לא מול השרת.
+
+## 0.0000000 תוספות נוספות באותו סבב (2026-11-12 לילה) – מנוע 3.3.4, בילד 3.3.2
+
+**Real-Debrid** (`plugin.video.telescope/resources/lib/realdebrid.py`, מנוע 3.3.4)
+- מקורות: אינדקס Torrentio לפי IMDb (עם המפתח – רק `[RD+]`, כלומר שמורים ב-RD) + הענן של החשבון (`/torrents`).
+- בדיקות קלות: אין בדיקת הורדה בחיפוש (`probe='rd'`), קבלה לפי IMDb אם השם לא סותר; בהפעלה `rd_resolve` ואם נכשל – `router.play` עובר למקור הבא (עד 4).
+- סדר: `Finder.order_groups` – טלגרם (tg/telemedia), אחר כך RD (`rd_max`), אחר כך השאר.
+- התחברות: device code עם client id `X245A4XAIBGVM` (`rd_login` ב-router), או מפתח בהגדרות; רענון אוטומטי ב-401. ההגדרות נשמרות דרך `_rd_store` בלי להפעיל מחדש את הטלגרם.
+- אפשרות לא לשלוח את המפתח ל-Torrentio (`rd_torrentio_key`): אז בדיקת cache בזמן הפעלה (addMagnet/selectFiles/info), וטורנט שלא שמור נמחק מהחשבון.
+- בדיקות: `src/qa/agentC/test_rd.py` (9, כולל קריאה אמיתית לאינדקס הציבורי). לא נבדק מול חשבון RD אמיתי.
+
+**ייצוא/ייבוא תצורה** (`configio.py`, `service.config_export/config_import`, מסכים ב"חשבון ומצב"): קובץ `.tncfg` עם כל ההגדרות + session של Telethon + bots.json; סיסמה אופציונלית (PBKDF2 200k + HMAC). ייבוא הכל-או-כלום. בדיקות: `src/qa/t_config.py`.
+
+**הדבקה במקלדת + היסטוריה** (`plugin.video.nova/resources/lib/clip.py`, `clipui.py`, `skinpatch.keyboard_buttons`): לחצנים 3011 (הדבק, פעיל רק כש-`Window(home).Property(bn.clip.has)`) ו-3012 (היסטוריה) ב-`DialogKeyboard.xml`. קריאת הלוח: Windows user32, Android JNI דרך `xbmc_jnienv` של libkodi, iOS UIPasteboard (objc), macOS pbpaste, Linux. הדבקה נבדקת חזרה ומבוטלת אם לא מלאה. היסטוריה ב-`addon_data/plugin.video.nova/clipboard.json` עם pin. בדיקות: `src/qa/t_clip.py`, בתוך Kodi: `src/qa/t_paste_kodi.py`. נבדק רק ב-Windows.
+
+**הוסרה** ההצעה להתקנת אפליקציית BN Stream באנדרואיד (`branding.py`).
+
+**iOS**: דף ההורדה עבר ל-Kodi 21.3 (מה-deb הרשמי, sha256 נבדק, `ios/Kodi-21.3.ipa.part0-2`). ב-Kodi 21.3 לאייפון יש ctypes מובנה, pvr.iptvsimple ו-inputstream.adaptive מובנים; ל-OpenSSL שלו אין `AES_ige_encrypt`, לכן נוסף נתיב CommonCrypto ב-`aesfast.py` (KAT מאומת; הקריאות עצמן לא הורצו על מכשיר Apple). ב-macOS לא נטען לעולם `/usr/lib/libcrypto.dylib` (מפיל את התהליך).
+
 ## 0.00000 מיטוב לפי קוד המקור של Kodi 21 (2026-11-12 14:15) – הכי עדכני
 
 מחקר מאומת מול ענף Omega של xbmc/xbmc (`system/settings/settings.xml`, `android.xml`, `AdvancedSettings.cpp`, `FileCache.cpp`), pvr.iptvsimple ו-inputstream.adaptive. הקבצים שהורדו: `scratchpad\kodi\`. kodi.wiki והפורום חסמו גישה (403), אז הכול מהקוד.

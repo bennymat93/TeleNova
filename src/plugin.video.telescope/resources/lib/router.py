@@ -310,40 +310,208 @@ def ai_search(p):
 
 
 def tg_search(p):
+    """3.3.3: runs as a job in the service - every chat (bot chats and pinned public channels too) is searched,
+    the content bots are asked, one row per file, best fit first, every listed link tested."""
     q = p.get('q') or _ask(30033)
     if not q:
         return end()
     try:
-        files = rpc.call('raw_search', query=q, limit=80)
+        job = rpc.call('find_start', target={'type': 'free', 'query': q, 'refresh': bool(p.get('refresh'))})
+        files = _wait_job(job, q)
     except rpc.RPCError as exc:
         return _rpc_fail(exc)
+    if files is None:
+        return end()
+    _bot_join_row(LAST_STATS)
     show_files(files)
+    if not files:
+        common.notify(L(30078))
     end('videos', cache=False)
+
+
+# ------------------------------------------------------------------ result rows (3.3.3)
+QCOL = {2160: 'FFFFC107', 1080: 'FF4FC3F7', 720: 'FF81C784'}
+TICK = u'✓'
+DOT = u' · '
+
+
+def _q_tag(q):
+    q = int(q or 0)
+    if not q:
+        return '[COLOR FF9E9E9E][B]SD?[/B][/COLOR]'
+    name = '4K' if q >= 2160 else '%dp' % q
+    return '[COLOR %s][B]%s[/B][/COLOR]' % (QCOL.get(q, 'FFBDBDBD'), name)
+
+
+def _lang_tags(s):
+    langs = set(s.get('langs') or [])
+    tags = []
+    if 'he_dub' in langs:
+        tags.append(L(30094) + (' ' + TICK if s.get('he_audio_inside') else ''))
+    if 'he_sub' in langs:
+        tags.append(L(30093) + (' ' + TICK if s.get('he_sub_inside') else ''))
+    if 'ru_audio' in langs:
+        tags.append(L(30095))
+    if 'ru_sub' in langs:
+        tags.append(L(30096))
+    return tags
+
+
+def _kind_tag(s):
+    if s.get('backend') == 'telemedia':
+        return 'TM'
+    if s.get('backend') == 'stremio':
+        return 'SRV'
+    if s.get('backend') == 'rd':
+        return '[COLOR gold]RD[/COLOR]'
+    return {'bot': L(30117), 'channel': L(30118), 'group': L(30119)}.get(s.get('chat_kind') or '', '')
+
+
+def _status_tag(s):
+    if s.get('backend') == 'rd':              # 3.3.4: cached at Real-Debrid - checked when played
+        return '[COLOR gold]%s %s[/COLOR]' % (TICK, L(30171))
+    if s.get('probe') == 'ok':
+        col = 'lime' if s.get('smooth', True) else 'orange'
+        sp = (s.get('speed') or 0) / 1048576.0
+        return '[COLOR %s]%s %s%s[/COLOR]' % (col, TICK, L(30091), (' %.1f MB/s' % sp) if sp >= 0.05 else '')
+    return '[COLOR gray]%s[/COLOR]' % L(30092)
+
+
+def _where(s):
+    kind = _kind_tag(s)
+    chat = s.get('chat_title') or ''
+    if kind and chat:
+        return '%s: %s' % (kind, chat)
+    return chat or kind
+
+
+def _enrich(c):
+    """A raw file row (chat browsing) gets the fields a tested search row has - read from its name."""
+    if 'quality' in c and 'probe' in c:
+        return c
+    from .parser import parse as parse_name
+    pr = parse_name(c.get('file') or '', c.get('caption') or '', c.get('chat_title') or '')
+    c = dict(c)
+    c.setdefault('quality', pr.get('quality') or 0)
+    c.setdefault('codec', pr.get('codec'))
+    c.setdefault('hdr', pr.get('hdr'))
+    c.setdefault('langs', pr.get('langs'))
+    c.setdefault('season', pr.get('season'))
+    c.setdefault('episode', pr.get('episode'))
+    c.setdefault('year', pr.get('year'))
+    c.setdefault('title', pr.get('title') or '')
+    c['_raw'] = True
+    return c
+
+
+def _file_plot(c):
+    lines = [c.get('file') or '']
+    where = _where(c)
+    if where:
+        lines.append(where)
+    if c.get('date'):
+        lines.append(time.strftime('%d/%m/%Y', time.localtime(int(c['date']))))
+    m = c.get('media') or {}
+    tech = []
+    if m.get('width') and m.get('height'):
+        tech.append('%dx%d' % (m['width'], m['height']))
+    if m.get('video') or c.get('codec'):
+        tech.append(str(m.get('video') or c.get('codec')))
+    if m.get('audio'):
+        tech.append('%s: %s' % (L(30148), ', '.join(m['audio'])))
+    if m.get('subs'):
+        tech.append('%s: %s' % (L(30149), ', '.join(m['subs'])))
+    if tech:
+        lines.append(DOT.join(tech))
+    if c.get('match'):
+        lines.append('%s %d%%' % (L(30133), c['match']))
+    if c.get('caption'):
+        lines.append('')
+        lines.append(c['caption'])
+    return '\n'.join(lines)
+
+
+def _file_label(c):
+    name = c.get('title') or ''
+    if name and c.get('episode') is not None and c.get('season') is not None:
+        name = '%s S%02dE%02d' % (name, int(c['season']), int(c['episode']))
+    elif name and c.get('year'):
+        name = '%s (%s)' % (name, c['year'])
+    if not name:
+        name = c.get('file') or (c.get('caption') or '')[:60]
+    bits = [common.human_size(c.get('size'))]
+    if c.get('duration'):
+        bits.append(common.human_duration(c['duration']))
+    if c.get('codec'):
+        bits.append(str(c['codec']))
+    if c.get('hdr'):
+        bits.append('HDR')
+    label = '%s  %s  [COLOR gray]%s[/COLOR]' % (_q_tag(c.get('quality')), name, DOT.join(b for b in bits if b))
+    tags = _lang_tags(c)
+    if tags:
+        label += '  [COLOR cyan]%s[/COLOR]' % ' / '.join(tags)
+    if not c.get('_raw'):
+        label += '  ' + _status_tag(c)
+    where = _where(c)
+    if where:
+        label += '  [COLOR FF8D99AE]%s[/COLOR]' % where
+    return label
 
 
 # ------------------------------------------------------------------ telegram browsing
 def show_files(files):
     seen = set()
     for c in files:
-        key = (c['chat_id'], c['msg_id'])
+        key = (c.get('chat_id'), c.get('msg_id'), c.get('url'))
         if key in seen:
             continue
         seen.add(key)
+        c = _enrich(c)
         name = c.get('file') or c.get('caption', '')[:60]
-        label = '%s  [COLOR gray]%s | %s[/COLOR]' % (name, common.human_size(c.get('size')), c.get('chat_title', ''))
         q = ({'mode': 'playurl', 'u': c['url'], 'name': c.get('file', '')} if c.get('url') else
              {'mode': 'playtg', 'chat': c['chat_id'], 'msg': c['msg_id'], 'name': c.get('file', '')})
-        add_dir(label, q, folder=False, playable=True,
-                info={'title': name, 'plot': c.get('caption', ''), 'duration': c.get('duration') or 0,
+        add_dir(_file_label(c), q, folder=False, playable=True,
+                info={'title': name, 'plot': _file_plot(c), 'duration': c.get('duration') or 0,
                       'mediatype': 'video'})
 
 
 def telegram(_):
     add_dir(L(30040), {'mode': 'dialogs'})
+    add_dir(L(30110), {'mode': 'bots'})
     add_dir(L(30041), {'mode': 'discover'})
     add_dir(L(30042), {'mode': 'join'}, folder=False)
     add_dir(L(30033), {'mode': 'tg_search'})
     end(cache=False)
+
+
+def _chat_label(c, state=''):
+    kind = c.get('kind') or ('channel' if c.get('channel') else 'group')
+    col = {'bot': 'FFFFB74D', 'channel': 'FF4FC3F7', 'group': 'FF81C784'}.get(kind, 'gray')
+    tag = {'bot': L(30117), 'channel': L(30118), 'group': L(30119)}.get(kind, '')
+    label = '[COLOR %s]%s[/COLOR]  %s' % (col, tag, c.get('title') or c.get('username') or '')
+    if c.get('verified'):
+        label += ' ' + TICK
+    extra = []
+    if c.get('username'):
+        extra.append('@%s' % c['username'])
+    if c.get('members'):
+        n = int(c['members'])
+        extra.append('%.1fM' % (n / 1e6) if n >= 1000000 else ('%dK' % (n // 1000) if n >= 1000 else str(n)))
+    if extra:
+        label += '  [COLOR gray]%s[/COLOR]' % DOT.join(extra)
+    if c.get('joined'):
+        label += '  [COLOR lime]%s[/COLOR]' % L(30120)
+    if state:
+        label += '  ' + state
+    return label
+
+
+def _bot_ctx(ref, title='', username='', bot_id=None):
+    q = dict(bot=ref, title=title, username=username or '', id=bot_id)
+    return [(L(30111), 'Container.Update(%s)' % url(mode='bot_ask', bot=ref)),
+            (L(30114), 'RunPlugin(%s)' % url(mode='bot_mark', on=1, **q)),
+            (L(30115), 'RunPlugin(%s)' % url(mode='bot_mark', on=0, **q)),
+            (L(30116), 'RunPlugin(%s)' % url(mode='bot_mark', **q))]
 
 
 def dialogs(_):
@@ -352,10 +520,13 @@ def dialogs(_):
     except rpc.RPCError as exc:
         return _rpc_fail(exc)
     for c in chats:
-        label = c['title'] + (' [COLOR gray]@%s[/COLOR]' % c['username'] if c.get('username') else '')
-        ctx = [(L(30043), 'Container.Update(%s)' % url(mode='chat', chat=c['id'], search=1)),
-               (L(30044), 'RunPlugin(%s)' % url(mode='leave', chat=c['id']))]
-        add_dir(label, {'mode': 'chat', 'chat': c['id']}, context=ctx)
+        ctx = [(L(30043), 'Container.Update(%s)' % url(mode='chat', chat=c['id'], search=1))]
+        q = {'mode': 'chat', 'chat': c['id']}
+        if c.get('kind') == 'bot':
+            q['bot'] = c.get('username') or c['id']
+            ctx += _bot_ctx(c.get('username') or c['id'], c.get('title'), c.get('username'), c['id'])
+        ctx.append((L(30044), 'RunPlugin(%s)' % url(mode='leave', chat=c['id'])))
+        add_dir(_chat_label(c), q, context=ctx)
     end(cache=False)
 
 
@@ -365,39 +536,179 @@ def chat(p):
         query = _ask()
         if not query:
             return end()
+    ref = p['chat']
     try:
-        res = rpc.call('chat_videos', chat_id=int(p['chat']), offset=int(p.get('offset', 0)), query=query)
+        res = rpc.call('chat_videos', chat_id=ref, offset=int(p.get('offset', 0)), query=query)
     except rpc.RPCError as exc:
         return _rpc_fail(exc)
+    if not p.get('offset') and not query:
+        if p.get('bot'):
+            add_dir('[COLOR FFFFB74D]%s[/COLOR]' % L(30111), {'mode': 'bot_ask', 'bot': p['bot']})
+        add_dir(L(30043), {'mode': 'chat', 'chat': ref, 'search': 1})
     show_files(res['items'])
     if res.get('next'):
-        add_dir(L(30047), {'mode': 'chat', 'chat': p['chat'], 'offset': res['next']})
+        add_dir(L(30047), {'mode': 'chat', 'chat': ref, 'offset': res['next'], 'bot': p.get('bot')})
     end('videos', cache=False)
 
 
-def discover(p):
-    q = p.get('q') or _ask(30041)
-    if not q:
-        return end()
+# ------------------------------------------------------------------ bots (3.3.3)
+def bots(p):
     try:
-        chans = rpc.call('discover', query=q)
+        rows = rpc.call('bot_list', refresh=bool(p.get('refresh')), timeout=150)
     except rpc.RPCError as exc:
         return _rpc_fail(exc)
-    for c in chans:
-        members = (' (%s)' % c['members']) if c.get('members') else ''
-        add_dir(c['title'] + members, {'mode': 'join', 'link': c.get('username') or ''}, folder=False)
+    states = {'on': '[COLOR lime]%s[/COLOR]' % L(30130), 'auto': '[COLOR FF4FC3F7]%s[/COLOR]' % L(30131),
+              'off': '[COLOR gray]%s[/COLOR]' % L(30132)}
+    for b in rows:
+        ref = b.get('username') or b.get('id')
+        st = b.get('stats') or {}
+        state = states.get(b.get('state') or '', '')
+        if st.get('asked'):
+            state += '  [COLOR gray]%s[/COLOR]' % Lf(30146, st.get('asked', 0), st.get('files', 0))
+        row = dict(b, kind='bot')
+        ctx = _bot_ctx(ref, b.get('title'), b.get('username'), b.get('id'))
+        if b.get('id'):
+            add_dir(_chat_label(row, state), {'mode': 'chat', 'chat': b['id'], 'bot': ref}, context=ctx)
+        else:
+            add_dir(_chat_label(row, state), {'mode': 'bot_ask', 'bot': ref}, context=ctx)
+    if not rows:
+        add_dir('[COLOR orange]%s[/COLOR]' % L(30139), {'mode': 'discover', 'preset': 0})
+    add_dir(L(30147), {'mode': 'discover', 'preset': 0})
+    add_dir(L(30138), {'mode': 'bots', 'refresh': 1})
     end(cache=False)
+
+
+def bot_mark(p):
+    on = None if p.get('on') in (None, '') else p.get('on') == '1'
+    try:
+        rpc.call('bot_mark', bot=p.get('bot'), on=on, title=p.get('title') or '', username=p.get('username') or '',
+                 id=int(p['id']) if (p.get('id') or '').lstrip('-').isdigit() else None)
+        common.notify(L(30130 if on else (30132 if on is False else 30131)))
+        xbmc.executebuiltin('Container.Refresh')
+    except rpc.RPCError as exc:
+        common.notify(str(exc)[:150])
+
+
+def _bot_join_row(stats):
+    links = (stats or {}).get('bot_join') or []
+    if links:
+        add_dir('[COLOR orange]%s[/COLOR]' % Lf(30124, ', '.join(x.split('/')[-1] for x in links[:3])),
+                {'mode': 'join', 'link': ','.join(links[:3])}, folder=False)
+
+
+def bot_ask(p, _again=False):
+    bot = p.get('bot') or _ask(30045)
+    if not bot:
+        return end()
+    q = p.get('q') or _ask(30111)
+    if not q:
+        return end()
+    dlg = xbmcgui.DialogProgress()
+    dlg.create(common.ADDON_NAME, '%s\n%s' % (L(30121), q))
+    try:
+        res = rpc.call('bot_ask', bot=bot, query=q, timeout=75)
+    except rpc.RPCError as exc:
+        dlg.close()
+        return _rpc_fail(exc)
+    dlg.close()
+    files = res.get('files') or []
+    if not files and res.get('join') and not _again:
+        names = ', '.join(x.split('/')[-1] for x in res['join'][:3])
+        if xbmcgui.Dialog().yesno(common.ADDON_NAME, Lf(30125, names)):
+            for link in res['join'][:3]:
+                try:
+                    rpc.call('join', link=link)
+                except rpc.RPCError as exc:
+                    common.notify(str(exc)[:150])
+            return bot_ask(dict(p, bot=bot, q=q), True)
+    if not files:
+        why = L(30123) if res.get('answered') else L(30122)
+        note = (res.get('notes') or [''])[0]
+        xbmcgui.Dialog().ok(common.ADDON_NAME, '%s\n%s' % (why, note or res.get('error') or ''))
+    show_files(files)
+    end('videos', cache=False)
+
+
+DISCOVER_PRESETS = (
+    (30140, ['movies bot', 'filter bot', u'סרטים בוט', 'series bot',
+             u'фильмы бот']),
+    (30141, [u'סרטים', u'סדרות',
+             u'סרטים וסדרות',
+             u'תרגום מובנה', u'מדובב']),
+    (30142, [u'фильмы', u'сериалы',
+             u'кино', u'новинки кино']),
+    (30143, ['movies', 'series', 'tv shows', 'movies hd', 'cinema']),
+    (30144, [u'סרטי ילדים', u'מדובבים',
+             u'мультфильмы', 'cartoons', 'kids movies']),
+)
+
+
+def discover(p):
+    """3.3.3: a menu (text search, Telegram's "similar channels", ready topic searches); results hold channels,
+    groups AND bots, ranked, with what the account already has marked. A public channel opens without joining."""
+    if not (p.get('q') or p.get('ask') or p.get('similar') or p.get('preset') is not None):
+        add_dir(L(30113), {'mode': 'discover', 'ask': 1})
+        add_dir(L(30112), {'mode': 'discover', 'similar': 1})
+        for i, (sid, _) in enumerate(DISCOVER_PRESETS):
+            add_dir(L(sid), {'mode': 'discover', 'preset': i})
+        return end(cache=False)
+    try:
+        if p.get('similar'):
+            rows = rpc.call('similar', chats=[p['chats']] if p.get('chats') else None, timeout=120)
+        else:
+            if p.get('preset') is not None:
+                queries = DISCOVER_PRESETS[max(0, min(len(DISCOVER_PRESETS) - 1, int(p['preset'])))][1]
+            else:
+                q = p.get('q') or _ask(30041)
+                if not q:
+                    return end()
+                queries = [q] + ([q + ' bot'] if 'bot' not in q.lower() else [])
+            rows = rpc.call('discover', query=queries, timeout=90)
+    except (rpc.RPCError, ValueError) as exc:
+        return _rpc_fail(exc)
+    for c in rows:
+        ref = c.get('username') or (c['id'] if c.get('joined') else None)
+        if not ref:
+            continue                             # a private chat that was not joined cannot be opened
+        if c.get('kind') == 'bot':
+            ctx = _bot_ctx(ref, c.get('title'), c.get('username'), None)
+            add_dir(_chat_label(c), {'mode': 'bot_ask', 'bot': ref}, context=ctx)
+        else:
+            ctx = [(L(30129), 'RunPlugin(%s)' % url(mode='join', link=ref)),
+                   (L(30126), 'RunPlugin(%s)' % url(mode='pin', chat=ref)),
+                   (L(30043), 'Container.Update(%s)' % url(mode='chat', chat=ref, search=1)),
+                   (L(30112), 'Container.Update(%s)' % url(mode='discover', similar=1, chats=ref))]
+            add_dir(_chat_label(c), {'mode': 'chat', 'chat': ref}, context=ctx)
+    if not rows:
+        common.notify(L(30078))
+    end(cache=False)
+
+
+def pin(p):
+    """Adds a public channel to the chats that every search looks into - without joining it."""
+    ref = (p.get('chat') or '').strip()
+    if not ref:
+        return
+    cur = [x.strip() for x in common.setting('pinned_chats', '').split(',') if x.strip()]
+    if ref.lstrip('@').lower() not in [x.lstrip('@').lower() for x in cur]:
+        cur.append(ref if ref.lstrip('-').isdigit() else '@' + ref.lstrip('@'))
+        common.set_setting('pinned_chats', ','.join(cur))
+    common.notify(L(30127))
 
 
 def join(p):
     link = p.get('link') or _ask(30045)
     if not link:
         return
-    try:
-        rpc.call('join', link=link)
+    ok = 0
+    for one in [x for x in link.split(',') if x.strip()]:
+        try:
+            rpc.call('join', link=one.strip())
+            ok += 1
+        except rpc.RPCError as exc:
+            common.notify(str(exc))
+    if ok:
         common.notify(L(30046))
-    except rpc.RPCError as exc:
-        common.notify(str(exc))
 
 
 def leave(p):
@@ -468,7 +779,154 @@ def account(_):
     add_dir(L(30054), {'mode': 'ai_test'}, folder=False)
     add_dir(L(30055), {'mode': 'clear_cache'}, folder=False)
     add_dir(L(30056), {'mode': 'reinstall'}, folder=False)
+    try:
+        rd = rpc.call('rd_status', timeout=20)
+    except rpc.RPCError:
+        rd = {}
+    if rd.get('logged_in') and rd.get('username'):
+        add_dir('[COLOR gold]Real-Debrid[/COLOR]  %s' % Lf(30173, rd['username'], rd.get('days', 0)),
+                {'mode': 'rd_status'}, folder=False)
+        add_dir(L(30174), {'mode': 'rd_logout'}, folder=False)
+    elif rd.get('logged_in'):
+        add_dir('[COLOR orange]Real-Debrid: %s[/COLOR]' % common.scrub(rd.get('error') or '')[:60],
+                {'mode': 'rd_login'}, folder=False)
+    else:
+        add_dir('[COLOR gold]Real-Debrid[/COLOR]  ' + L(30175), {'mode': 'rd_login'}, folder=False)
+    add_dir(L(30150), {'mode': 'config_export'}, folder=False)       # 3.3.4
+    add_dir(L(30151), {'mode': 'config_import'}, folder=False)
     end(cache=False)
+
+
+# ------------------------------------------------------------------ Real-Debrid login (3.3.4)
+def rd_login(_):
+    """RD's device login: the viewer opens real-debrid.com/device on any phone / computer and types the code."""
+    try:
+        d = rpc.call('rd_device_start', timeout=30)
+    except rpc.RPCError as exc:
+        xbmcgui.Dialog().ok('Real-Debrid', common.scrub(exc)[:200])
+        return
+    dlg = xbmcgui.DialogProgress()
+    dlg.create('Real-Debrid', Lf(30176, d['url'], d['user_code']))
+    end = time.time() + min(int(d.get('expires_in') or 600), 900)
+    ok = False
+    try:
+        while time.time() < end and not dlg.iscanceled():
+            left = int(end - time.time())
+            dlg.update(int(100 - 100.0 * left / max(1, d.get('expires_in') or 600)), Lf(30176, d['url'], d['user_code']))
+            xbmc.sleep(max(2, int(d.get('interval') or 5)) * 1000)
+            try:
+                if rpc.call('rd_device_poll', device_code=d['device_code'], timeout=30).get('ok'):
+                    ok = True
+                    break
+            except rpc.RPCError as exc:
+                common.log('rd login poll: %s' % exc)
+    finally:
+        dlg.close()
+    if ok:
+        st = rpc.call('rd_status', fresh=1, timeout=20)
+        xbmcgui.Dialog().ok('Real-Debrid', Lf(30173, st.get('username', ''), st.get('days', 0)))
+        xbmc.executebuiltin('Container.Refresh')
+
+
+def rd_logout(_):
+    if xbmcgui.Dialog().yesno('Real-Debrid', L(30174) + '?'):
+        rpc.call('rd_logout')
+        xbmc.executebuiltin('Container.Refresh')
+
+
+def rd_status(_):
+    st = rpc.call('rd_status', fresh=1, timeout=20)
+    if st.get('error'):
+        xbmcgui.Dialog().ok('Real-Debrid', common.scrub(st['error'])[:200])
+    else:
+        xbmcgui.Dialog().ok('Real-Debrid', Lf(30173, st.get('username', ''), st.get('days', 0)))
+
+
+# ------------------------------------------------------------------ configuration file (3.3.4)
+def _vfs_write(path, data):
+    import xbmcvfs
+    fh = xbmcvfs.File(path, 'w')
+    try:
+        ok = fh.write(bytearray(data))
+    finally:
+        fh.close()
+    if not ok or not xbmcvfs.exists(path):
+        raise IOError('write failed')
+    st = xbmcvfs.Stat(path)
+    if st.st_size() != len(data):
+        raise IOError('written %d of %d bytes' % (st.st_size(), len(data)))
+
+
+def _vfs_read(path):
+    import xbmcvfs
+    fh = xbmcvfs.File(path)
+    try:
+        return bytes(fh.readBytes())
+    finally:
+        fh.close()
+
+
+def config_export(_):
+    import base64
+    dlg = xbmcgui.Dialog()
+    # the file holds the Telegram login: the owner is told so, and offered a password, before anything is written
+    if not dlg.yesno(common.ADDON_NAME, L(30152), nolabel=L(30153), yeslabel=L(30154)):
+        return
+    password = ''
+    if dlg.yesno(common.ADDON_NAME, L(30155)):
+        password = dlg.input(L(30156), option=xbmcgui.ALPHANUM_HIDE_INPUT)
+        if not password:
+            return
+        if dlg.input(L(30157), option=xbmcgui.ALPHANUM_HIDE_INPUT) != password:
+            dlg.ok(common.ADDON_NAME, L(30158))
+            return
+    folder = dlg.browse(3, L(30159), 'files')
+    if not folder:
+        return
+    try:
+        res = rpc.call('config_export', password=password, timeout=60)
+        path = folder.rstrip('/\\') + ('\\' if '\\' in folder and '/' not in folder else '/') + res['name']
+        _vfs_write(path, base64.b64decode(res['data']))
+    except (rpc.RPCError, IOError, OSError) as exc:
+        dlg.ok(common.ADDON_NAME, '%s\n%s' % (L(30160), common.scrub(exc)[:200]))
+        return
+    dlg.ok(common.ADDON_NAME, '%s\n%s\n%s' % (L(30161), path, L(30162) if res.get('session') else L(30163)))
+
+
+def config_import(_):
+    import base64
+    from . import configio
+    dlg = xbmcgui.Dialog()
+    path = dlg.browse(1, L(30151), 'files', configio.EXT)
+    if not path:
+        return
+    try:
+        blob = _vfs_read(path)
+        head = configio.header(blob)[0]
+    except Exception:
+        dlg.ok(common.ADDON_NAME, L(30164))
+        return
+    password = ''
+    if head.get('encrypted'):
+        password = dlg.input(L(30156), option=xbmcgui.ALPHANUM_HIDE_INPUT)
+        if not password:
+            return
+    when = time.strftime('%d/%m/%Y %H:%M', time.localtime(int(head.get('created') or 0)))
+    if not dlg.yesno(common.ADDON_NAME, Lf(30165, when)):
+        return
+    try:
+        res = rpc.call('config_import', data=base64.b64encode(blob).decode('ascii'), password=password, timeout=120)
+    except rpc.RPCError as exc:
+        msg = str(exc)
+        text = L(30166) if 'wrong_password' in msg else (L(30164) if ('damaged' in msg or 'not_a_config' in msg
+                                                                      or 'unsupported' in msg) else msg[:200])
+        dlg.ok(common.ADDON_NAME, text)
+        return
+    if res.get('authorized') and res.get('me'):
+        dlg.ok(common.ADDON_NAME, '%s\n%s' % (L(30167), Lf(30060, res['me'].get('name') or '')))
+    else:
+        dlg.ok(common.ADDON_NAME, '%s\n%s' % (L(30167), L(30168)))
+    xbmc.executebuiltin('Container.Refresh')
 
 
 def _rpc_fail(exc):
@@ -602,43 +1060,46 @@ def reinstall(_):
 
 # ------------------------------------------------------------------ playback
 def _source_label(s):
+    """First line of a source row: what you get (quality, picture, languages), how big, and whether the link was
+    tested. 3.3.3: colour by quality, real data read from the file marked with a tick."""
     parts = []
-    q = s.get('quality') or 0
-    parts.append('[B]%s[/B]' % ('%dp' % q if q else 'SD?'))
-    if s.get('hdr'):
-        parts.append('HDR')
-    tags = []
-    langs = set(s.get('langs') or [])
-    if 'he_dub' in langs:
-        tags.append(L(30094))
-    if 'he_sub' in langs:
-        tags.append(L(30093))
-    if 'ru_audio' in langs:
-        tags.append(L(30095))
-    if 'ru_sub' in langs:
-        tags.append(L(30096))
+    if s.get('chiko'):
+        parts.append('[COLOR gold]%s[/COLOR]' % L(30009))
+    parts.append(_q_tag(s.get('quality')))
+    tech = [str(x) for x in [s.get('codec'), 'HDR' if s.get('hdr') else '', (s.get('source') or '').upper()] if x]
+    if tech:
+        parts.append(' '.join(tech))
+    tags = _lang_tags(s)
     if tags:
         parts.append('[COLOR cyan]%s[/COLOR]' % ' / '.join(tags))
-    if s.get('loose'):
-        parts.append('[COLOR orange]?[/COLOR]')
-    if s.get('chiko'):
-        parts.insert(0, '[COLOR gold]%s[/COLOR]' % L(30009))
-    if s.get('backend') == 'telemedia':
-        parts.append('[COLOR gray]TM[/COLOR]')
-    elif s.get('backend') == 'stremio':
-        parts.append('[COLOR gray]SRV[/COLOR]')
     parts.append(common.human_size(s.get('size')))
     if s.get('duration'):
         parts.append(common.human_duration(s['duration']))
-    if s.get('probe') == 'ok':
-        sp = s.get('speed') or 0
-        col = 'lime' if s.get('smooth', True) else 'orange'
-        parts.append('[COLOR %s]%s %.1f MB/s[/COLOR]' % (col, L(30091), sp / 1048576.0))
-    else:
-        parts.append('[COLOR gray]%s[/COLOR]' % L(30092))
+    parts.append(_status_tag(s))
+    if s.get('loose'):
+        parts.append('[COLOR orange]%s ?[/COLOR]' % L(30133))
+    elif s.get('match'):
+        parts.append('[COLOR FF8D99AE]%s %d%%[/COLOR]' % (L(30133), s['match']))
     if s.get('ai') and s['ai'].get('match'):
         parts.append('[COLOR violet]%s %d%%[/COLOR]' % (L(30097), int(s['ai'].get('confidence', 0) * 100)))
-    return ' | '.join(parts)
+    return DOT.join(parts)
+
+
+def _source_line2(s):
+    """Second line: where it comes from (bot / channel / group and its name), then the file name."""
+    where = _where(s)
+    if s.get('via_bot') and s.get('chat_kind') != 'bot':
+        where = '%s @%s' % (L(30137), s['via_bot'])
+    if s.get('backend') == 'rd':
+        where = s.get('chat_title') or 'Real-Debrid'
+    return DOT.join(x for x in [where, s.get('file') or ''] if x)
+
+
+def _checks_text(stats):
+    ch = (stats or {}).get('checks') or {}
+    if not ch.get('tested'):
+        return ''
+    return Lf(30136, ch.get('tested', 0), ch.get('ok', 0), ch.get('dead', 0) + ch.get('wrong', 0))
 
 
 def _wait_job(job_id, title):
@@ -679,7 +1140,21 @@ def play(p):
         return _resolve_fail()
     if not sources:
         st = LAST_STATS
+        links = st.get('bot_join') or []
+        if links and not p.get('_joined'):
+            # 3.3.3: a bot has the title but wants a channel joined first - one question instead of a dead end
+            names = ', '.join(x.split('/')[-1] for x in links[:3])
+            if xbmcgui.Dialog().yesno(common.ADDON_NAME, Lf(30125, names)):
+                for link in links[:3]:
+                    try:
+                        rpc.call('join', link=link)
+                    except rpc.RPCError as exc:
+                        common.notify(str(exc)[:150])
+                return play(dict(p, refresh='1', _joined='1'))
         why = L(30100) if not st.get('raw') else Lf(30101, st.get('raw', 0))
+        asked = ', '.join(b['bot'] for b in st.get('bots') or [])
+        if asked:
+            why += '\n%s: %s' % (L(30110), asked)
         xbmcgui.Dialog().ok(common.ADDON_NAME, '%s\n%s\n%s' % (L(30078), title, why))
         return _resolve_fail()
     autoplay = common.setting_bool('autoplay', False) and not p.get('select')
@@ -687,19 +1162,63 @@ def play(p):
     if not autoplay or sources[0].get('probe') != 'ok':
         items = []
         for s in sources:
-            li = common.make_listitem(_source_label(s), '%s  -  %s' % (s.get('file'), s.get('chat_title', '')))
+            li = common.make_listitem(_source_label(s), _source_line2(s))
             li.setArt({'icon': common.ICON, 'thumb': common.ICON})
             items.append(li)
-        choice = xbmcgui.Dialog().select('%s - %d %s' % (L(30079), len(sources), L(30083)), items, useDetails=True)
+        head = '%s - %d %s' % (L(30079), len(sources), L(30083))
+        checks = _checks_text(LAST_STATS)
+        if checks:
+            head += DOT + checks
+        choice = xbmcgui.Dialog().select(head, items, useDetails=True)
         if choice < 0:
             return _resolve_fail()
-    s = sources[choice]
-    path = s.get('url') or rpc.stream_url(s['chat_id'], s['msg_id'], s.get('file'))
+    want = {'season': target.get('season'), 'episode': target.get('episode')}
+    path = None
+    for k in range(choice, min(len(sources), choice + 4)):
+        s = sources[k]
+        if s.get('backend') != 'rd':
+            path = s.get('url') or rpc.stream_url(s['chat_id'], s['msg_id'], s.get('file'))
+            break
+        try:
+            path = _rd_resolve(s, want)
+            break
+        except rpc.RPCError as exc:           # 3.3.4: the next source is tried, the viewer only sees a notice
+            common.log('rd: %s failed: %s' % (s.get('file'), exc))
+            common.notify('%s - %s' % (L(30172), common.scrub(exc)[:80]))
+            if k + 1 >= len(sources):
+                return _resolve_fail()
+    if not path:
+        return _resolve_fail()
     li = common.make_listitem(title, path=path)
     info = {'title': p.get('title'), 'year': target.get('year'), 'mediatype': 'movie' if p.get('type') == 'movie' else 'episode'}
     if p.get('type') == 'tv':
         info.update(tvshowtitle=p.get('title'), season=target['season'], episode=target['episode'])
     common.set_video_info(li, info)
+    li.setContentLookup(False)
+    xbmcplugin.setResolvedUrl(HANDLE, True, li)
+
+
+def _rd_resolve(s, want=None):
+    cand = {'url': s.get('url'), 'rd': s.get('rd'), 'file': s.get('file')}
+    dlg = xbmcgui.DialogProgressBG()
+    dlg.create('Real-Debrid', s.get('file') or '')
+    try:
+        return rpc.call('rd_resolve', cand=cand, want=want or {}, timeout=40)['url']
+    finally:
+        dlg.close()
+
+
+def playrd(p):
+    """Real-Debrid item of the embedding listing: resolved when it is played."""
+    try:
+        s = json.loads(p.get('s') or '{}')
+        want = {'season': int(p['season']) if p.get('season') else None,
+                'episode': int(p['episode']) if p.get('episode') else None}
+        path = _rd_resolve(s, want)
+    except (rpc.RPCError, ValueError, KeyError) as exc:
+        common.notify('%s - %s' % (L(30172), common.scrub(exc)[:80]))
+        return _resolve_fail()
+    li = common.make_listitem(p.get('name') or 'Real-Debrid', path=path)
     li.setContentLookup(False)
     xbmcplugin.setResolvedUrl(HANDLE, True, li)
 
@@ -749,6 +1268,8 @@ def _plain_label(s, title):
         bits.append(L(30095))
     if s.get('chiko'):
         bits.append(L(30009))
+    if s.get('chat_kind') == 'bot':
+        bits.append(L(30117))
     if s.get('loose'):
         bits.append('?')
     elif s.get('probe') == 'ok':
@@ -763,7 +1284,8 @@ def hub(p):
     No dialogs are opened; an unavailable service simply yields an empty folder."""
     from .parser import parse as parse_name, find_se, title_part
     from . import matcher
-    fast = {'search_timeout': 5, 'probe_timeout': 4, 'probe_count': 6, 'ai_verify': False, 'ai_aliases': False}
+    fast = {'search_timeout': 5, 'probe_timeout': 4, 'probe_count': 6, 'ai_verify': False, 'ai_aliases': False,
+            'bot_request': False, 'probe_all': False}     # 3.3.3: a 10-second listing cannot wait for a bot
     target, title = None, ''
     if p.get('tmdb') or p.get('imdb'):
         target = {'type': p.get('type') or 'movie', 'tmdb': p.get('tmdb'), 'imdb': p.get('imdb'),
@@ -797,7 +1319,11 @@ def hub(p):
             else:
                 rpc.call('find_cancel', job=job, timeout=10)
             for s in res:
-                path = s.get('url') or rpc.stream_url(s['chat_id'], s['msg_id'], s.get('file'))
+                if s.get('backend') == 'rd':
+                    path = url(mode='playrd', s={'url': s.get('url'), 'rd': s.get('rd'), 'file': s.get('file')},
+                               name=s.get('file') or '', season=target.get('season'), episode=target.get('episode'))
+                else:
+                    path = s.get('url') or rpc.stream_url(s['chat_id'], s['msg_id'], s.get('file'))
                 label = _plain_label(s, title or s.get('file') or '')
                 li = common.make_listitem(label, path=path)
                 li.setProperty('IsPlayable', 'true')
@@ -861,6 +1387,9 @@ MODES = {
     'account': account, 'login': login, 'logout': logout, 'status': status, 'ai_test': ai_test,
     'clear_cache': clear_cache, 'reinstall': reinstall, 'play': play, 'playtg': playtg, 'settings': settings,
     'chiko': chiko, 'chiko_chat': chiko_chat, 'playurl': playurl, 'hub': hub,
+    'bots': bots, 'bot_ask': bot_ask, 'bot_mark': bot_mark, 'pin': pin,
+    'config_export': config_export, 'config_import': config_import,
+    'rd_login': rd_login, 'rd_logout': rd_logout, 'rd_status': rd_status, 'playrd': playrd,
 }
 
 
@@ -881,7 +1410,7 @@ def run(argv=None):
         common.notify('%s: %s' % (type(exc).__name__, common.scrub(exc)[:150]))
         # 3.3: Kodi waits (busy spinner until its timeout) for a directory / a resolved item that never comes
         try:
-            if mode in ('play', 'playtg', 'playurl'):
+            if mode in ('play', 'playtg', 'playurl', 'playrd'):
                 _resolve_fail()
             elif HANDLE >= 0:
                 xbmcplugin.endOfDirectory(HANDLE, succeeded=False)

@@ -147,3 +147,51 @@ def bn_player(xml):
         open(p, 'w', encoding='utf-8', newline='').write(t)
         n += 1
     return n
+
+
+# ------------------------------------------------------------------ 3.3.3: Paste + clipboard history on the keyboard
+KB_MARK = '<!-- BN paste v1 -->'
+KB_PASTE = 'RunPlugin(plugin://plugin.video.nova/?a=clip_paste)'
+KB_HIST = 'RunPlugin(plugin://plugin.video.nova/?a=clip_menu)'
+KB_PASTE_LABEL = 'הדבק'
+KB_HIST_LABEL = 'היסטוריית העתקות'
+
+
+def _kb_button(cid, label, run, prop):
+    lines = [
+        '<control type="button" id="%d">' % cid,
+        '\t<width>300</width>',
+        '\t<height>67</height>',
+        '\t<label>%s</label>' % label,
+        '\t<font>font25_title</font>',
+        '\t<align>center</align>',
+        '\t<wrapmultiline>false</wrapmultiline>',
+        '\t<onclick>%s</onclick>' % run,
+        # nothing copied -> the button is disabled: grey, not focusable, a click does nothing
+        '\t<enable>!String.IsEmpty(Window(home).Property(%s))</enable>' % prop,
+        '\t<disabledcolor>FF6E6E6E</disabledcolor>',
+        '\t<texturefocus colordiffuse="button_focus">buttons/dfo.png</texturefocus>',
+        '\t<texturenofocus colordiffuse="button_focus2">buttons/dnfo.png</texturenofocus>',
+        '\t<animation effect="fade" start="100" end="35" time="0" condition="!Control.IsEnabled(%d)">Conditional</animation>' % cid,
+        '</control>',
+    ]
+    pad = '\n' + '\t' * 4
+    return pad + pad.join(lines)
+
+
+def keyboard_buttons(xml):
+    """"Paste" (grey and not clickable while nothing is copied) and "Clipboard history" in the button column of the
+    on-screen keyboard, right under the voice-search button. -> 1 when the file was changed, 0 when already there."""
+    p = os.path.join(xml, 'DialogKeyboard.xml')
+    t = open(p, encoding='utf-8', newline='').read()
+    if KB_MARK in t:
+        return 0
+    m = re.search(r'<control type="button" id="3010">.*?</control>', t, re.S)
+    if not m:
+        m = re.search(r'<include content="DefaultDialogButton">\s*<param name="id" value="301" />.*?</include>', t, re.S)
+    assert m, 'keyboard button column not found'
+    add = ('\n' + '\t' * 4 + KB_MARK + _kb_button(3011, KB_PASTE_LABEL, KB_PASTE, 'bn.clip.has')
+           + _kb_button(3012, KB_HIST_LABEL, KB_HIST, 'bn.clip.hist'))
+    t = t[:m.end()] + add + t[m.end():]
+    open(p, 'w', encoding='utf-8', newline='').write(t)
+    return 1
