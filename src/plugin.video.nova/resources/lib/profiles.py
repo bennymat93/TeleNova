@@ -79,17 +79,43 @@ def plan(profile, total_ram_mb, platform):
         'screensaver.disableforaudio': True,
         'filecache.buffermode': 4,                  # buffer every network file system (streams included)
         'filecache.memorysize': cache_mb(total_ram_mb, profile),
-        'filecache.readfactor': p['readfactor'],
+        # 3.3.1: 0 = Kodi 21's adaptive read-ahead (4x while the buffer is empty, down to 1.5x when it is full) -
+        # it fills fast after a start or a seek and then stops competing with the picture for the connection.
+        # apply() falls back to the profile's fixed factor on a Kodi that does not know the value.
+        'filecache.readfactor': 0,
         'videoplayer.adjustrefreshrate': 2 if p['refresh'] else 0,   # 2 = on start/stop, 0 = off
+        # ---- 3.3.1, the same on every device (ids and values checked against Kodi 21's settings.xml)
+        # Kodi announces itself on the local network; on Android that code aborts the whole app when the
+        # network is down at that moment (seen: SIGABRT in NsdServiceInfo.setHost). Nothing in the build uses it.
+        'services.zeroconf': False,
+        'services.wsdiscovery': False,              # looks for Windows shares on the network - not used here
+        'pvrplayback.signalquality': False,         # an aerial's signal meter: meaningless for internet channels
+        'epg.pastdaystodisplay': 0,                 # yesterday's guide is only useful with catch-up
+        'epg.futuredaystodisplay': 1 if profile in LIGHT else 2,   # the guide database and its import shrink with it
+        'general.addonnotifications': False,        # no pop-up for every add-on that updated itself
     }
     if p['saver']:
         s['screensaver.time'] = p['saver']
+    if profile in ('tv32', 'car'):
+        s['audiooutput.guisoundmode'] = 0           # menu clicks reopen the audio device on every key press
     if platform == 'windows':
         s['videoplayer.usedxva2'] = True            # hardware decoding
     elif platform == 'android':
         s['videoplayer.usemediacodec'] = True
         s['videoplayer.usemediacodecsurface'] = True
+        if profile == 'tv32':
+            s['videoscreen.limitgui'] = 720         # menus drawn at 720p: far less texture memory (after a restart)
     return s, p['touch']
+
+
+# profiles of the devices with the least memory or the least stable connection
+LIGHT = ('tv32', 'phone', 'car')
+
+# inputstream.adaptive (HLS / DASH: YouTube, some channels) keeps its own buffer, apart from Kodi's file cache
+ISA = {
+    'tv32': {'adaptivestream.res.max': '1080p', 'ASSUREDBUFFERDURATION': '30', 'MAXBUFFERDURATION': '60'},
+    'car': {'adaptivestream.res.max': '720p'},
+}
 
 
 # ------------------------------------------------------------ recognising the device (pure Python)
@@ -326,8 +352,19 @@ def apply(profile):
     bad = []
     for k, v in settings.items():
         r = _rpc('Settings.SetSettingValue', setting=k, value=v)
+        if 'error' in r and k == 'filecache.readfactor':         # a Kodi without the adaptive value
+            r = _rpc('Settings.SetSettingValue', setting=k, value=PROFILES[profile]['readfactor'])
         if 'error' in r:
             bad.append(k)
+    try:        # the adaptive-stream add-on's own limits for the weak devices (only when it is installed)
+        if profile in ISA and xbmc.getCondVisibility('System.HasAddon(inputstream.adaptive)'):
+            import xbmcaddon
+            isa = xbmcaddon.Addon('inputstream.adaptive')
+            for k, v in ISA[profile].items():
+                if isa.getSetting(k) != v:
+                    isa.setSetting(k, v)
+    except Exception as e:
+        log('adaptive stream limits: %s' % e)
     xbmc.executebuiltin('Skin.%s(touchmode)' % ('SetBool' if touch else 'Reset'))
     from .common import flag
     flag('device_profile', profile)

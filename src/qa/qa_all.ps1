@@ -87,7 +87,7 @@ Select-String -Path $log -Pattern '^\s+(\w+Error|\w+Exception): |EXCEPTION:| (er
     Select-Object -First 40 | ForEach-Object { "{0,3}x {1}" -f $_.Count, $_.Name }
 Section 'idle 11.5 min + clean exit'
 Stop-KodiFully
-Remove-Item $log -ErrorAction SilentlyContinue
+if (Test-Path $log) { Move-Item -LiteralPath $log -Destination (Join-Path $s 'kodi_stress.log') -Force }   # kept: the stress session's log
 Start-Process 'C:\Program Files\Kodi\kodi.exe'
 Start-Sleep 690
 $p = Get-Process kodi -ErrorAction SilentlyContinue

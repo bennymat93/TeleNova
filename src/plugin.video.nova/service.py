@@ -988,6 +988,13 @@ def main():
             from resources.lib import profiles
             if not profiles.current() and 'testkodi' not in xbmcvfs.translatePath('special://xbmc').lower():
                 profiles.auto()     # 3.3: recognised and checked three times; asks only when it is not certain
+                ADDON.setSetting('tune_done', '3.3.1')
+            elif profiles.current() and ADDON.getSetting('tune_done') != '3.3.1':
+                # 3.3.1, once per box that updates from the repository: the profile it already has is applied
+                # again, so that it gets the new values (adaptive read-ahead, no network announcements, a
+                # shorter guide ...). A viewer's own later changes in Kodi's settings are not touched again.
+                profiles.apply(profiles.current())
+                ADDON.setSetting('tune_done', '3.3.1')
             elif profiles.current():
                 # 1.4.0/1.4.1 touch / car / phone profiles zoomed the skin: Kodi then cut off the clock and logo
                 r = profiles._rpc('Settings.GetSettingValue', setting='lookandfeel.skinzoom')

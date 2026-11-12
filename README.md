@@ -38,6 +38,36 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
 
+## TeleNova 3.3.1 - defaults tuned against Kodi 21's own source
+
+Every id, value and default below was checked in the Omega branch of Kodi (`system/settings/settings.xml`,
+`AdvancedSettings.cpp`, `FileCache.cpp`), not taken from tuning guides - most of those still describe the
+`<cache>` section of advancedsettings.xml, which Kodi 21 no longer reads.
+
+- **Adaptive read-ahead** (`filecache.readfactor` 0): 4x while the buffer is empty after a start or a seek, down to
+  1.5x when it is full. The cache size still follows the device profile (32-256 MB, at most 64 MB for a 32-bit box).
+- **A crash on Android removed.** Kodi announces itself on the local network (`services.zeroconf`, on by default on
+  Android); with the network down at that moment the whole app aborted (seen on an Android 15 emulator: SIGABRT in
+  `NsdServiceInfo.setHost`). It is off now, together with the search for Windows shares (`services.wsdiscovery`).
+  The shipped settings file marked both as "default", so each platform used its own default.
+- **Shorter TV guide**: no past day, 2 days ahead (1 on 32-bit boxes, phones and cars) - the guide database and
+  every import shrink with it; no pop-up at every guide import; the aerial signal meter is off.
+- **32-bit streaming boxes**: menus drawn at 720p (`videoscreen.limitgui`, far less texture memory), menu sounds off
+  (they reopened the audio device at every key press), adaptive streams capped at 1080p with a smaller buffer.
+- **Cars**: adaptive streams capped at 720p, menu sounds off.
+- Audio output mode back to Kodi's default ("optimized"), adaptive streams start at the measured speed instead of
+  a fixed 1.5 Mbit/s, the web interface asks for a password when somebody switches it on, no pop-up for every
+  add-on update, the build no longer carries the display resolution of the machine it was made on.
+- `curlclienttimeout` 15 -> 20 s: Kodi's default is 30 s (not 10, as the old comment said); 15 s cut slow links off.
+- A box that updates from the repository gets the new values once: its device profile is applied again.
+- All_Subs guard v14 (no subtitle search on a live stream opened by its address) is withdrawn (v16): TV channels
+  are already skipped by guard v11, and it was one question less to a player in the middle of a channel change.
+- **Known Kodi limit, not fixed:** a play / stop command that arrives while Kodi shows its "busy" dialog for a
+  channel that is still opening can freeze Kodi (about one run in three of the zapping test when commands are
+  fired into the dialog; 0 of 5 when the test waits for the dialog like a viewer has to). The original 3.2.0
+  build freezes the same way. The on-screen menus and a remote cannot send a command at that moment; remote-control
+  apps that talk to Kodi directly can.
+
 ## Telegram engine 3.3.2 - fast decryption on Android (the real cause of the freezing)
 
 - On Android the engine found no reachable OpenSSL and decrypted block by block in Python: the status line said

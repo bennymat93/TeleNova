@@ -63,17 +63,9 @@ def play_secs():
 def is_live():
     """the playing video is a live stream (a TV channel, a live HLS address): it has no length, so there is no
     subtitle file to look for and nothing to prepare ahead"""
-    if xbmc.getCondVisibility('PVR.IsPlayingTV | PVR.IsPlayingRadio | VideoPlayer.Content(livetv)'):
-        return True
-    try:
-        r = json.loads(xbmc.executeJSONRPC(json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'Player.GetProperties',
-                                                        'params': {'playerid': 1, 'properties': ['live']}})))
-        if (r.get('result') or {}).get('live'):
-            return True
-    except Exception:
-        pass
-    # a few seconds in and still no length at all
-    return play_secs() >= 3 and _hms(xbmc.getInfoLabel('Player.Duration(hh:mm:ss)')) == 0
+    # 3.3.1: only the TV service's own conditions are read; the player itself is not asked (its "live" property,
+    # its length) - one question less to a player that may be in the middle of a channel change.
+    return bool(xbmc.getCondVisibility('PVR.IsPlayingTV | PVR.IsPlayingRadio | VideoPlayer.Content(livetv)'))
 
 
 def hebrew_index(subs=None):

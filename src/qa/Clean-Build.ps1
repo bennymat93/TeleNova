@@ -41,7 +41,7 @@ foreach ($a in 'plugin.video.nova', 'plugin.video.telescope', 'plugin.program.no
     Get-ChildItem $dst -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
     "updated $a"
 }
-[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 3.3.0`n", $enc)
+[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 3.3.1`n", $enc)
 
 # 5. the build ships with the skin and All_Subs already patched (the service does the same on boxes that update)
 $env:TN_ROOT = $Root; $env:TN_SRC = $Src

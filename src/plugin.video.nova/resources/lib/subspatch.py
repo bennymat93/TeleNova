@@ -312,6 +312,16 @@ AUTOSUB15 = [('vidtime = _BN_PLAYER.getTime()',
               'vidtime = _BN_PLAYER.getTime() if _BN_PLAYER.isPlayingVideo() else 0   %s' % MARK15)]
 
 
+MARK16 = '# BN guard v16'
+# 3.3.1: the v14 check is withdrawn. While a freeze of Kodi during very fast channel changes was hunted, v14 was
+# the first suspect (it asks the player about a stream that may just be closing). The freeze later turned out to
+# exist in the 3.2.0 build as well, so v14 was not its cause - but the check bought little (TV channels are
+# already skipped by guard v11) and it is one question less to a player in the middle of a channel change.
+CALL14 = "            if _bn_file and _bn_live():   %s\n" % MARK14
+OFF16 = "            if False:   %s (withdrawn in 3.3.1: guard v11 already covers TV channels)   %s\n" % (MARK14, MARK16)
+AUTOSUB16 = [(CALL14, OFF16)]
+
+
 def apply(addon_dir):
     """All_Subs: 1 when a file was changed, 0 when the guards were already there; raises if it changed shape"""
     path = os.path.join(addon_dir, 'autosub.py')
@@ -352,6 +362,7 @@ def apply(addon_dir):
     n |= _patch(path, MARK13, AUTOSUB13)
     n |= _patch(path, MARK14, AUTOSUB14)
     n |= _patch(path, MARK15, AUTOSUB15)
+    n |= _patch(path, MARK16, AUTOSUB16)
     return n
 
 

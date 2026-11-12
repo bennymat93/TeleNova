@@ -42,13 +42,31 @@ GUI = {
     'videoplayer.autoplaynextitem': '1,2',
     # the original sound track of a film, not always the English one (Israeli and dubbed content)
     'locale.audiolanguage': 'mediadefault',
+    # ---- 3.3.1 (ids, values and defaults checked against Kodi 21's system/settings/settings.xml)
+    # the file was written on Windows, where these are off by default; marked "default" they followed each
+    # platform's own default - and on Android Kodi announces itself on the network, code that aborts the whole
+    # app when the network is down at that moment
+    'services.zeroconf': 'false',
+    'services.wsdiscovery': 'false',
+    'services.webserverauthentication': 'true',     # whoever switches the web interface on gets it with a password
+    'pvrplayback.signalquality': 'false',
+    'epg.pastdaystodisplay': '0',
+    'epg.futuredaystodisplay': '2',
+    'general.addonnotifications': 'false',
+    'audiooutput.config': '2',                       # "optimized" (Kodi's default): fewer re-opens of the audio device
+    'videoplayer.convertdovi': 'false',              # Kodi's default; conversion only where a viewer needs it
+    'filecache.readfactor': '0',                     # adaptive read-ahead (the device profile sets it as well)
 }
+# values that describe the machine the build was made on: without them Kodi uses the device's own desktop mode
+DROP = ('videoscreen.resolution', 'pictures.displayresolution')
 
 
 def gui(src):
     for sid, val in GUI.items():
         src = re.sub(r'<setting id="%s"(?: default="\w+")?>[^<]*</setting>' % re.escape(sid),
                      '<setting id="%s">%s</setting>' % (sid, val), src)
+    for sid in DROP:
+        src = re.sub(r'[ \t]*<setting id="%s"[^>]*>[^<]*</setting>\r?\n' % re.escape(sid), '', src)
     # the same UUID was cloned to every install: Kodi makes a new one when the line is missing
     return re.sub(r'[ \t]*<setting id="services\.deviceuuid"[^>]*>[^<]*</setting>\r?\n', '', src)
 
@@ -56,9 +74,27 @@ def gui(src):
 if edit(os.path.join(U, 'guisettings.xml'), gui):
     done.append('Kodi settings')
 
-if edit(os.path.join(U, 'advancedsettings.xml'),
-        lambda s: re.sub(r'[ \t]*<scanirserver>false</scanirserver>\r?\n', '', s)):
-    done.append('advancedsettings: obsolete tag removed')
+
+def adv(s):
+    s = re.sub(r'[ \t]*<scanirserver>false</scanirserver>\r?\n', '', s)
+    # Kodi's own default is 30 s (not 10, as the old comment said): 15 s cut slow mobile links off
+    s = re.sub(r'<curlclienttimeout>15</curlclienttimeout>[^\n]*',
+               '<curlclienttimeout>20</curlclienttimeout>  <!-- Kodi waits 30 s by default; 20 s gives up on a dead '
+               'server sooner without cutting slow mobile links -->', s)
+    if '<displayupdatepopup>' not in s:
+        s = s.replace('</advancedsettings>', '\t<epg>\n\t\t<displayupdatepopup>false</displayupdatepopup>   '
+                      '<!-- no pop-up every time the TV guide is imported -->\n\t</epg>\n</advancedsettings>')
+    return s
+
+
+if edit(os.path.join(U, 'advancedsettings.xml'), adv):
+    done.append('advancedsettings')
+
+# the adaptive-stream add-on started every stream at 1.5 Mbit/s by hand; its own default measures the connection
+if edit(os.path.join(U, 'addon_data', 'inputstream.adaptive', 'settings.xml'),
+        lambda s: re.sub(r'(<setting id="adaptivestream\.bandwidth\.init\.auto")[^>]*>false</setting>',
+                         r'\1 default="true">true</setting>', s)):
+    done.append('adaptive streams: automatic start quality')
 
 # ------------------------------------------------------------------ 2. skin settings
 # 'use_my_custom_list' made the skin's helper pick one of ten third-party MDbList keys and ask that service

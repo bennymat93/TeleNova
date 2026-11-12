@@ -22,7 +22,31 @@
 6. ידוע ולא טופל: שגיאות קוסמטיות של סקין FENtastic בלוג (`Misplaced ]`, `unmatched parentheses`, `Control 60 ... can't focus`); YouTube 403/429; `EXCEPTION: Kodi is not playing any file` בעצירה מהירה של זרם (מקור לא אותר).
 7. המדריך בעברית בלבד (הקודם היה גם באנגלית) – להוסיף אנגלית/רוסית אם צריך.
 
-## 0.0000 הסיבה לתקיעות נמצאה ותוקנה: פענוח 0.1MB/s ב-Android (2026-11-12 06:35) – הכי עדכני
+## 0.00000 מיטוב לפי קוד המקור של Kodi 21 (2026-11-12 14:15) – הכי עדכני
+
+מחקר מאומת מול ענף Omega של xbmc/xbmc (`system/settings/settings.xml`, `android.xml`, `AdvancedSettings.cpp`, `FileCache.cpp`), pvr.iptvsimple ו-inputstream.adaptive. הקבצים שהורדו: `scratchpad\kodi\`. kodi.wiki והפורום חסמו גישה (403), אז הכול מהקוד.
+
+**יושם (TeleNova 3.3.1)**
+- `profiles.py` `plan()`: `filecache.readfactor=0` (אדפטיבי; `apply()` נופל לערך קבוע אם Kodi לא מכיר), `services.zeroconf=False`, `services.wsdiscovery=False`, `pvrplayback.signalquality=False`, `epg.pastdaystodisplay=0`, `epg.futuredaystodisplay` 2 (1 ל-`LIGHT` = tv32/phone/car), `general.addonnotifications=False`; ל-tv32: `videoscreen.limitgui=720` ו-`audiooutput.guisoundmode=0`; לרכב: `guisoundmode=0`. `ISA` – מגבלות inputstream.adaptive ל-tv32 ולרכב.
+- `service.py`: `tune_done='3.3.1'` – מחיל מחדש את הפרופיל פעם אחת בקופסה שמתעדכנת מהמאגר.
+- `tools\build_config.py`: אותם ערכים ב-guisettings של הבילד + `audiooutput.config=2`, `videoplayer.convertdovi=false`, `services.webserverauthentication=true`, הסרת `videoscreen.resolution` / `pictures.displayresolution`; advancedsettings: `curlclienttimeout` 20, `<epg><displayupdatepopup>false`; inputstream.adaptive: `bandwidth.init.auto=true`.
+- גרסת הבילד עכשיו 3.3.1 (`build/TeleNova-3.3.1.zip.part0`).
+
+**ממצא מבדיקת Android (אמולטור טאבלט, Kodi arm64)**: Kodi קרס אחרי ~5 דקות ב-SIGABRT בתוך `NsdServiceInfo.setHost` (Zeroconf) כשהרשת באמולטור הייתה לא זמינה. `services.zeroconf` היה מסומן `default="true"` בקובץ שנכתב ב-Windows, ולכן ב-Android קיבל את ברירת המחדל שם (דלוק). זה מה שהניע את כיבויו המפורש.
+
+**לא יושם בכוונה** (ראה דוח המחקר בסעיף הזה בהיסטוריית השיחה / README): שינוי הגדרות pvr.iptvsimple (`m3uRefreshMode`, `catchupEnabled`, `logoFromEpg`) – TeleNova כותב קובץ M3U מקומי ומנהל את הרענון בעצמו, ושינוי בלי בדיקה על רשימות אמיתיות עלול לשבור עדכון ערוצים; `adjustrefreshrate` במחשב (מהבהב במסכי מחשב); `<splash>false`.
+
+**תקיעת Kodi בדפדוף מהיר – נחקרה (שעתיים), מסקנות**
+- תסמין: Kodi לא מגיב, ליבה אחת ב-100%, הלוג נעצר; ערוץ ה-JSON-RPC מת. קרה ב-`stress.py` בשלב הדפדוף.
+- **קיים גם בבילד המקורי 3.2.0** (`churn_build.ps1 -Zip TeleNova-3.2.0.zip`: 1 מ-3) – לא רגרסיה.
+- טעות שלי בדרך: ניסויים בודדים "הוכיחו" ש-guard v14 אשם; התקיעה אקראית (~1 מ-3) והמדגם היה קטן מדי. v14 בוטל בכל זאת (v16) כי v11 כבר מכסה ערוצי PVR. **לקח: תקלה אקראית מבודדים רק עם 4–5 ריצות לכל מצב.**
+- הטריגר: פקודת `Player.Open` / `Player.Stop` שמגיעה בזמן שחלון ה-busy של Kodi פתוח על ערוץ שעוד נפתח. כשהבדיקה מחכה לחלון לפני פתיחה **וגם** לפני עצירה, ופותחת ערוצים ב-`channelid` (כמו הממשק) ולא כקובץ `plugin://...tv_play`: **0 מ-5**. בלי ההמתנה לפני עצירה: 1 מ-4.
+- לכן: מגבלה של ליבת Kodi שנגישה רק לאפליקציות שלט-רחוק שמדברות ישירות עם Kodi, לא לתפריטים. לא תוקן. כלים: `src\qa\churn.py` (ברירת מחדל viewer-like; `raw` = בלי המתנות; `asfile` = פתיחה כקובץ), `churn_n.ps1`, `churn_build.ps1`, `churn_current.ps1`. `stress.py` קורא עכשיו ל-`churn.py`.
+- `Process.Responding` של Kodi לא אמין (False גם כשהוא עובד) – להסתמך על RPC ועל זמן הכתיבה האחרון ללוג.
+
+**כלי בדיקה חדש**: `src\qa\android_qa.ps1 -Avd Medium_Tablet -Apk <kodi apk>` – אתחול קר של האמולטור, התקנת Kodi + הבילד, הפעלה ראשונה, משיכת הלוג וסיכום.
+
+## 0.0000 הסיבה לתקיעות נמצאה ותוקנה: פענוח 0.1MB/s ב-Android (2026-11-12 06:35)
 
 המשתמש דיווח שקפצה הודעת "פענוח איטי 0.1MB/s" – כלומר במכשיר שלו (לא המחשב הזה) המנוע נפל ל-PyCryptodome בלוק-בלוק. **שוחזר**: Kodi 21.3 רשמי ל-Android (arm64) על אמולטור הטאבלט (`Medium_Tablet`, Android 15, x86_64 עם תרגום ARM) + הבילד → `crypto backend: pycryptodome, 0.1 MB/s`.
 
