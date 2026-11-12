@@ -347,13 +347,23 @@ class StoreTests(unittest.TestCase):
     def test_c4b_seek_cancels_old_readahead(self):
         fake, st = self.make(hold=list(range(0, 60)))
         last = 59
+        old, new = object(), object()
+        st.set_pos(old, CHAT, MSG, 10)
         st.prefetch(CHAT, MSG, 58, 2, last)                 # tail
         st.prefetch(CHAT, MSG, 10, 5, last)                 # read-ahead of the old position: 10..14
         st.prefetch(CHAT + 1, MSG, 10, 2, last)             # another file
         waiter = threading.Thread(target=lambda: self._quiet(st, 10))
         waiter.start()                                      # a request is blocked on chunk 10
         time.sleep(0.2)
-        n = st.cancel_stale(CHAT, MSG, 40, 3, last)         # seek to chunk 40
+        # 3.3.1: a second connection of the same file opens at chunk 40 while the first still reads at 10 -
+        # nothing of the first one's read-ahead may be cancelled (this thrash made the stream stall)
+        st.set_pos(new, CHAT, MSG, 40)
+        self.assertEqual(st.cancel_stale(CHAT, MSG, 3, last), 0)
+        for i in (10, 11, 12, 13, 14):
+            self.assertIn((CHAT, MSG, i), st.inflight)
+        # the first connection closes (a real seek): now its read-ahead is dropped, except what is waited for
+        st.drop_pos(old)
+        n = st.cancel_stale(CHAT, MSG, 3, last)
         self.assertEqual(n, 4)                              # 11, 12, 13, 14
         for i in (11, 12, 13, 14):
             self.assertTrue(fake.hold[i][0].cancelled(), i)
@@ -364,10 +374,44 @@ class StoreTests(unittest.TestCase):
         fake.hold[10][0].set_result(b'z')
         waiter.join(5)
         self.assertEqual(self.got, b'z')
-        self.assertEqual(st.cancel_stale(CHAT, MSG, 40, 3, last), 0)
+        self.assertEqual(st.cancel_stale(CHAT, MSG, 3, last), 0)
         st.prefetch(CHAT, MSG, 11, 1, last)                 # a cancelled chunk can be fetched again
         # 3 = the first read-ahead, chunk 11 of the OTHER file (the fake records the index only), the new fetch
         self.assertEqual(fake.calls.count(11), 3)
+
+    def test_pacing_flood_gate(self):
+        """3.3.1: a flood wait closes one gate for every request and halves the parallel requests"""
+        import asyncio
+        from resources.lib import tgclient
+        tg = tgclient.TG.__new__(tgclient.TG)
+        tg.parallel = 4
+        tg.log = lambda m: None
+        said = []
+        tg.info = said.append
+        tg._pace_init()
+        self.assertEqual(tg._cap, 8)
+        tg._flood(7)
+        self.assertEqual(tg._cap, 4)
+        self.assertGreater(tg._gate, time.time() + 6)
+        self.assertTrue(said and 'flood' in said[0])
+        tg._flood(2); tg._flood(2); tg._flood(2)
+        self.assertEqual(tg._cap, 2)                        # never below 2
+
+        async def run():
+            tg._gate = time.time() + 0.4
+            order = []
+
+            async def fake_now(msg, offset, size, took=None):
+                order.append(time.time())
+                await asyncio.sleep(0.05)
+                return b'x'
+            tg._read_part_now = fake_now
+            t0 = time.time()
+            await asyncio.gather(*[tg._read_part(None, i, 1) for i in range(6)])
+            return t0, order
+        t0, order = asyncio.new_event_loop().run_until_complete(run())
+        self.assertGreaterEqual(min(order) - t0, 0.35)      # nobody asked before the gate opened
+        self.assertEqual(tg._running, 0)
 
     def _quiet(self, st, idx):
         self.got = st.get(CHAT, MSG, idx, timeout=5, retries=0)

@@ -110,6 +110,7 @@ class Service(xbmc.Monitor):
         try:
             self.tg = TG(self.s['api_id'], self.s['api_hash'], common.SESSION_FILE, common.log,
                          parallel=self.s['parallel'])
+            self.tg.info = lambda m: common.log(m, xbmc.LOGINFO)     # 3.3.1: flood waits are always logged
             self.tg.start(timeout)
             self.tg_error = None
         except Exception as exc:
@@ -147,6 +148,7 @@ class Service(xbmc.Monitor):
         self.app = App(self._fetch, self._file_info, self.rpc, common.log, self.secret,
                        cache_mb=self.s['cache_mb'], parallel=self.s['parallel'], readahead=self.s['readahead'],
                        debug=self.s['debug'])
+        self.app.info = lambda m: common.log(m, xbmc.LOGINFO)       # 3.3.1: stalls are always logged
         port = self.app.serve(self.s['port'])
         common.write_json(common.PORT_FILE, {'port': port, 'secret': self.secret, 'pid': os.getpid(),
                                              'started': time.time()})

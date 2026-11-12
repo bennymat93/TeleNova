@@ -38,6 +38,18 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
 
+## Telegram engine 3.3.1 - playback that froze every few seconds
+
+- The player often keeps two connections to one file (the picture, and the index at the end of the file). Since
+  3.3.0 every new request cancelled the read-ahead of the other connection: data already being downloaded was
+  thrown away and asked for again. Read-ahead is now cancelled only when no open connection needs it.
+- Telegram answers too many file requests at once with a flood wait. Each request used to sleep by itself while
+  the others kept asking, which kept the limit alive. One shared gate now holds every request for the time
+  Telegram asks, the number of requests sent side by side is halved (never below 2) and grows back slowly.
+- Every stall longer than 4 s and every flood wait is written to Kodi's log with its reason
+  (`slow chunk ...`, `Telegram asked to wait ...`), without switching debug logging on.
+- Not verified against a real Telegram account (unit tests with a simulated client only).
+
 ## 3.3.0 - fast Telegram decryption on Windows, cleaner build
 
 - **Telegram engine on Windows:** Kodi for Windows has no reachable OpenSSL, so chunks were decrypted block by block

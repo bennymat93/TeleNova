@@ -60,7 +60,7 @@ class TG(object):
         self.client = TelegramClient(self.session_path, self.api_id, self.api_hash,
                                      device_model='Kodi', system_version='TeleScope', app_version='1.0',
                                      connection_retries=None, retry_delay=2, auto_reconnect=True,
-                                     request_retries=2, flood_sleep_threshold=3)
+                                     request_retries=2, flood_sleep_threshold=0)   # 3.3.1: every flood wait reaches our own gate (_flood)
         await self.client.connect()
         if await self.client.is_user_authorized():
             self.me = await self.client.get_me()
@@ -284,13 +284,56 @@ class TG(object):
         msg = await self.get_message(chat_id, msg_id)
         return self._to_cand(msg)
 
+    # ---- 3.3.1: pacing. Telegram answers too many file requests at once with FLOOD_WAIT (seconds to tens of
+    # seconds). Eight requests were always sent side by side; every one that hit the limit slept by itself while
+    # the others kept asking - and kept the limit alive, so the picture froze again every few seconds. Now a
+    # flood wait closes one shared gate for everybody, and the number of requests sent side by side is halved
+    # (never below 2) and grows back by one for every 40 parts that came through cleanly.
+    def _pace_init(self):
+        if not hasattr(self, '_cap'):
+            self._cap_max = self.parallel * 2
+            self._cap = self._cap_max
+            self._running = 0
+            self._gate = 0.0
+            self._clean = 0
+            self.floods = 0
+
+    def _flood(self, seconds):
+        self._pace_init()
+        self.floods += 1
+        self._gate = max(self._gate, time.time() + seconds + 0.5)
+        self._clean = 0
+        new = max(2, self._cap // 2)
+        if new != self._cap or seconds >= 3:
+            getattr(self, 'info', self.log)('Telegram asked to wait %ss (flood limit): %d -> %d requests side by side' % (
+                seconds, self._cap, new))
+        self._cap = new
+
     async def _read_part(self, msg, offset, size, took=None):
+        self._pace_init()
+        while self._running >= self._cap or time.time() < self._gate:
+            await asyncio.sleep(0.05)
+        self._running += 1
+        try:
+            return await self._read_part_now(msg, offset, size, took)
+        finally:
+            self._running -= 1
+
+    async def _read_part_now(self, msg, offset, size, took=None):
+        from telethon import errors
         async with self._dl_sem:
             t0 = time.time()
             try:
                 async for data in self.client.iter_download(msg.media, offset=offset, request_size=size,
                                                             chunk_size=size, limit=1):
+                    self._clean += 1
+                    if self._clean >= 40 and self._cap < self._cap_max:
+                        self._cap += 1
+                        self._clean = 0
                     return bytes(data)
+            except errors.FloodWaitError as exc:
+                self._flood(int(getattr(exc, 'seconds', 5) or 5))
+                raise
             finally:
                 if took is not None:      # 3.3: seconds of the download itself (no queueing for the semaphore)
                     took.append(time.time() - t0)
@@ -336,7 +379,9 @@ class TG(object):
             except errors.FloodWaitError as exc:
                 if exc.seconds > 60 or attempt > 3:
                     raise
-                await asyncio.sleep(exc.seconds + 1)
+                # 3.3.1: the shared gate (see _flood) already holds every request back for exc.seconds - no
+                # extra sleep here, the retry simply queues at the gate with the others
+                pass
             except (ConnectionError, asyncio.TimeoutError, OSError) as exc:
                 if attempt > 3:
                     raise

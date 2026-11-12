@@ -52,6 +52,7 @@ class ChunkStore(object):
         self.size = 0
         self.inflight = {}
         self.waiters = {}             # 3.3: key -> number of requests blocked on that chunk right now
+        self.positions = {}           # 3.3.1: connection token -> (chat, msg, chunk it reads now)
         self.sizes = {}               # 3.3: (chat, msg) -> file size, told by the HTTP handler
         self.lock = threading.Lock()
         self.stats = {'hits': 0, 'miss': 0, 'bytes': 0, 'fetch_time': 0.0}
@@ -184,16 +185,30 @@ class ChunkStore(object):
         except Exception:
             pass
 
-    def cancel_stale(self, chat, msg, idx, readahead, last_idx):
-        """3.3: after a seek the read-ahead of the old position kept downloading and delayed the new position.
-        In-flight chunks of this file outside [idx, idx + readahead] are cancelled - except the file's tail
-        (prefetched for the player's index probe) and chunks a request is blocked on."""
+    def set_pos(self, token, chat, msg, idx):
+        """3.3.1: where each open player connection currently reads (token = that connection)"""
+        with self.lock:
+            self.positions[token] = (chat, msg, idx)
+
+    def drop_pos(self, token):
+        with self.lock:
+            self.positions.pop(token, None)
+
+    def cancel_stale(self, chat, msg, readahead, last_idx):
+        """After a seek the read-ahead of the old position kept downloading and delayed the new position.
+        3.3.1: in-flight chunks of this file are cancelled only when they are outside the read-ahead window of
+        EVERY open connection of that file (the player often holds two - the picture and the index at the end of
+        the file - and each new request used to cancel the other one's read-ahead: downloaded data was thrown
+        away and asked for again, the stream stalled every few seconds). The file's tail and chunks a request
+        is blocked on are never cancelled."""
         drop = []
         with self.lock:
+            spots = [p[2] for p in self.positions.values() if p[0] == chat and p[1] == msg]
             for key, fut in list(self.inflight.items()):
                 if key[0] != chat or key[1] != msg:
                     continue
-                if idx <= key[2] <= idx + readahead or key[2] >= last_idx - 1 or self.waiters.get(key):
+                if any(p <= key[2] <= p + readahead + 1 for p in spots) or key[2] >= last_idx - 1 or \
+                        self.waiters.get(key):
                     continue
                 self.inflight.pop(key, None)
                 drop.append(fut)
@@ -353,15 +368,25 @@ def make_handler(app):
             idx = start // CHUNK
             pos = start
             readahead = app.readahead
+            token = object()
+            say = getattr(app, 'info', app.log)
+            store.set_pos(token, chat, msg, idx)
             try:
-                store.cancel_stale(chat, msg, idx, readahead, last_idx)   # 3.3: a seek drops the old read-ahead
+                store.cancel_stale(chat, msg, readahead, last_idx)   # a seek drops read-ahead nobody reads any more
             except Exception as exc:
                 app.log('cancel_stale: %r' % exc)
             try:
                 while pos <= end:
+                    store.set_pos(token, chat, msg, idx)
                     # keep the pipeline full before blocking on the current chunk
                     store.prefetch(chat, msg, idx, readahead + 1, last_idx)
+                    t_wait = time.time()
                     data = store.get(chat, msg, idx, timeout=app.chunk_timeout)
+                    waited = time.time() - t_wait
+                    if waited > 4:
+                        # 3.3.1: always written to the log - a stall the viewer sees has a line that says why
+                        say('slow chunk %d of %d: waited %.1fs (download speed %.2f MB/s, %d in flight)' % (
+                            idx, last_idx, waited, store.speed() / 1048576.0, len(store.inflight)))
                     off = pos - idx * CHUNK
                     piece = data[off:off + (end - pos + 1)]
                     if not piece:
@@ -375,8 +400,14 @@ def make_handler(app):
             except (BrokenPipeError, ConnectionResetError, socket.timeout, ConnectionAbortedError):
                 pass  # player seeked / stopped
             except Exception as exc:
-                app.log('stream error at %d: %r' % (pos, exc))
+                say('stream error at %d: %r' % (pos, exc))
                 self.close_connection = True
+            finally:
+                store.drop_pos(token)
+                try:        # this connection is gone: what only it was waiting for is not needed any more
+                    store.cancel_stale(chat, msg, readahead, last_idx)
+                except Exception:
+                    pass
     return Handler
 
 
