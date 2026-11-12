@@ -30,7 +30,11 @@ def load_settings():
     s = _load_settings()
     # embedded in the NovaTV build: keys entered once in NovaTV / POV are used here as well
     if not s['tmdb_key']:
-        s['tmdb_key'] = _foreign('plugin.video.nova', 'tmdb_key') or _foreign('plugin.video.pov', 'tmdb_read_token')
+        # 3.3.5: the token the build ships with is TeleNova's `tmdb_token` (its `tmdb_key` is the user's own, usually
+        # empty). It was never read here, so the engine had no TMDb at all: no Hebrew / Russian names of a title,
+        # and every title was searched by its English name only
+        s['tmdb_key'] = (_foreign('plugin.video.nova', 'tmdb_key') or _foreign('plugin.video.nova', 'tmdb_token')
+                         or _foreign('plugin.video.pov', 'tmdb_read_token'))
     if not s['gemini_key']:
         s['gemini_key'] = _foreign('plugin.video.nova', 'gemini_key')
     return s
@@ -123,6 +127,10 @@ class Service(xbmc.Monitor):
                          parallel=self.s['parallel'])
             self.tg.info = lambda m: common.log(m, xbmc.LOGINFO)     # 3.3.1: flood waits are always logged
             self.tg.start(timeout)
+            if self.app:                 # 3.3.5: the chunk a player waits for is requested before the read-ahead
+                self.app.store.on_wait = self.tg.bump
+                self.app.store.on_drop = self.tg.drop
+                self.app.store.on_low = self.tg.lower
             self.tg_error = None
         except Exception as exc:
             self.tg_error = '%s: %s' % (type(exc).__name__, exc)
@@ -346,10 +354,16 @@ class Service(xbmc.Monitor):
                     self.cache.purge_expired()
                 except Exception as exc:
                     common.log('cache purge failed: %r' % exc)
-        if self.tg:
-            self.tg.stop()
+        # 3.3.5: Kodi gives a service 5 s to end and then waits for its threads all the same. The connections of
+        # the players are closed first (a background reader - the subtitle server's ffmpeg - went on pulling the
+        # film for minutes after "quit", and Kodi's process never ended), then Telegram gets 3 s to say goodbye.
         if self.app:
-            self.app.shutdown()
+            try:
+                self.app.shutdown()
+            except Exception as exc:
+                common.log('shutdown: %r' % exc)
+        if self.tg:
+            self.tg.stop(3)
 
     # ------------------------------------------------------------------ RPC
     def _need_tg(self):
@@ -383,7 +397,13 @@ class Service(xbmc.Monitor):
                 st['telemedia_bridge'] = self.finder.bridge_ok()
                 st['stremio_servers'] = len(self.finder.servers.bases) if self.finder.servers else 0
             st['stream'] = {'speed': int(self.app.store.speed()), 'cached_mb': self.app.store.size // 1048576,
-                            'hits': self.app.store.stats['hits'], 'miss': self.app.store.stats['miss']}
+                            'hits': self.app.store.stats['hits'], 'miss': self.app.store.stats['miss'],
+                            'inflight': len(self.app.store.inflight), 'readers': len(self.app.store.positions)}
+            if self.tg:
+                try:
+                    st['pace'] = self.tg.pace_info()        # 3.3.5: what is on the wire / waiting right now
+                except Exception:
+                    pass
             return st
         if method == 'reinstall_deps':
             deps.ensure(force=True)

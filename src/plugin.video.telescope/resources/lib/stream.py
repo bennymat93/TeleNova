@@ -122,10 +122,44 @@ class ChunkStore(object):
             self.sizes.clear()
         self.sizes[(chat, msg)] = size
 
-    def get(self, chat, msg, idx, timeout=30, retries=3):
+    ACTIVE = 4.0      # s: a connection that asked for a chunk this recently is being read
+
+    def has_player(self, chat, msg, token=None):
+        """3.3.5: True while a connection that is not a background reader has this file open"""
+        with self.lock:
+            return any(p[0] == chat and p[1] == msg and len(p) > 5 and not p[5] and t is not token
+                       for t, p in self.positions.items())
+
+    def is_live(self, token, last_idx):
+        """3.3.5: False for a connection the player left behind - a newer one reads the picture of the same file.
+        The connection at the end of the file (the index) is always live."""
+        with self.lock:
+            p = self.positions.get(token)
+            if p is None or len(p) < 6 or p[2] >= last_idx - 1:
+                return True
+            if p[5]:
+                return False          # a background reader never counts as the picture
+            now = time.time()
+            # ... a newer one that asked for data in the last seconds. A newer connection that sits idle (Kodi
+            # opens one at the start of a film and leaves it) does not push the picture aside.
+            return not any(q[0] == p[0] and q[1] == p[1] and len(q) > 5 and not q[5] and q[2] < last_idx - 1
+                           and q[3] > p[3] and now - q[4] < self.ACTIVE for q in self.positions.values())
+
+    def get(self, chat, msg, idx, timeout=30, retries=3, low=False):
         key = (chat, msg, idx)
         with self.lock:               # 3.3: a chunk somebody waits for is never cancelled by a seek elsewhere
             self.waiters[key] = self.waiters.get(key, 0) + 1
+            cached = key in self.cache
+        if low and not cached:
+            cached = True             # (no urgency for it, below)
+            hook = getattr(self, 'on_low', None)
+            if hook:
+                try:
+                    hook(key)
+                except Exception:
+                    pass
+        if not cached:
+            self._urge(key, True)     # 3.3.5: the chunk the player is blocked on goes out before the read-ahead
         try:
             return self._get(key, timeout, retries)
         finally:
@@ -135,11 +169,23 @@ class ChunkStore(object):
                     self.waiters[key] = left
                 else:
                     self.waiters.pop(key, None)
+            if left <= 0 and not cached:
+                self._urge(key, False)
+
+    def _urge(self, key, on):
+        hook = getattr(self, 'on_wait', None)
+        if hook:
+            try:
+                hook(key, on)
+            except Exception:
+                pass
 
     def _get(self, key, timeout, retries):
         idx = key[2]
         fut = None
         for attempt in range(retries + 1):
+            if getattr(self, 'closing', False):
+                raise IOError('shutting down')
             with self.lock:
                 data = self.cache.get(key)
                 if data is not None:
@@ -185,10 +231,17 @@ class ChunkStore(object):
         except Exception:
             pass
 
-    def set_pos(self, token, chat, msg, idx):
+    def set_pos(self, token, chat, msg, idx, bg=False):
         """3.3.1: where each open player connection currently reads (token = that connection)"""
         with self.lock:
-            self.positions[token] = (chat, msg, idx)
+            old = self.positions.get(token)
+            if old is not None and len(old) > 3:
+                born = old[3]
+            else:
+                self._born = getattr(self, '_born', 0) + 1       # order in which the connections were opened
+                born = self._born
+            # ..., when it last asked for a chunk, and whether it is a background reader (not the player)
+            self.positions[token] = (chat, msg, idx, born, time.time(), bool(bg))
 
     def drop_pos(self, token):
         with self.lock:
@@ -202,24 +255,54 @@ class ChunkStore(object):
         away and asked for again, the stream stalled every few seconds). The file's tail and chunks a request
         is blocked on are never cancelled."""
         drop = []
+        soft = getattr(self, 'on_drop', None)
         with self.lock:
-            spots = [p[2] for p in self.positions.values() if p[0] == chat and p[1] == msg]
+            mine = [p for p in self.positions.values() if p[0] == chat and p[1] == msg]
+            spots = [p[2] for p in mine]
+            # 3.3.5: after a jump the player leaves its old connection open but stops reading it (seen: three
+            # connections of one film at once). Only the read-ahead of the NEWEST connection that reads the picture
+            # is kept, plus whatever sits at the end of the file (the index); a chunk somebody is blocked on is
+            # never dropped anyway (waiters).
+            now = time.time()
+            body = [p for p in mine if p[2] < last_idx - 1 and len(p) > 5 and not p[5]]
+            pulling = [p for p in body if now - p[4] < self.ACTIVE]
+            newest = max(pulling or body, key=lambda p: p[3]) if body else None
+            # (position, how far ahead of it is kept): the newest connection that is being read keeps its whole
+            # read-ahead, an older one - and a background reader - the chunk it is at and the next
+
+            def width(p):
+                if len(p) <= 5:
+                    return readahead + 1
+                if p[5]:
+                    return 1
+                return readahead + 1 if (newest is None or p is newest or p[3] > newest[3]) else 1
+            spots = [(p[2], width(p)) for p in mine]
             for key, fut in list(self.inflight.items()):
                 if key[0] != chat or key[1] != msg:
                     continue
-                if any(p <= key[2] <= p + readahead + 1 for p in spots) or key[2] >= last_idx - 1 or \
+                if any(p <= key[2] <= p + w for p, w in spots) or key[2] >= last_idx - 1 or \
                         self.waiters.get(key):
                     continue
-                self.inflight.pop(key, None)
-                drop.append(fut)
-        for fut in drop:
-            self._cancel(fut)
+                if not soft:
+                    self.inflight.pop(key, None)
+                drop.append((key, fut))
+        for key, fut in drop:
+            if soft:
+                # 3.3.5: only what has not been sent yet is given up (the client decides). A chunk that is already
+                # on its way is finished and cached; its entry stays so that nobody asks for it a second time.
+                try:
+                    soft(key)
+                except Exception:
+                    self._cancel(fut)
+            else:
+                self._cancel(fut)
         return len(drop)
 
-    def prefetch(self, chat, msg, first, count, last_idx):
+    def prefetch(self, chat, msg, first, count, last_idx, low=False):
         with self.lock:
             busy = len(self.inflight)
         budget = max(0, self.parallel * 2 - busy)
+        hook = getattr(self, 'on_low', None) if low else None
         for idx in range(first, min(first + count, last_idx + 1)):
             if budget <= 0:
                 break
@@ -227,6 +310,11 @@ class ChunkStore(object):
             with self.lock:
                 if key in self.cache or key in self.inflight:
                     continue
+            if hook:
+                try:
+                    hook(key)             # fetched after everything the player needs
+                except Exception:
+                    pass
             self._start(key)
             budget -= 1
 
@@ -370,20 +458,65 @@ def make_handler(app):
             readahead = app.readahead
             token = object()
             say = getattr(app, 'info', app.log)
-            store.set_pos(token, chat, msg, idx)
+            # 3.3.5: who is asking? Everything that is not the player itself is a background reader - seen: the AI
+            # subtitle server starts an ffmpeg ("Lavf/..") on the same address a few seconds into every film and
+            # downloads the WHOLE film next to the picture. Telegram gives the account one stream of ~4.5 MB/s, so
+            # the picture got half of it. A background reader now gets what the player leaves over: it never
+            # counts as "the picture", its chunks come after the player's and it reads two chunks ahead at most.
+            agent = self.headers.get('User-Agent') or ''
+            other = not agent.startswith('Kodi/')
+            # ... as long as Kodi's own player has the film open: another player (VLC, MX Player) is served in full
+            bg = other and store.has_player(chat, msg, token)
+            store.set_pos(token, chat, msg, idx, bg)
             try:
                 store.cancel_stale(chat, msg, readahead, last_idx)   # a seek drops read-ahead nobody reads any more
             except Exception as exc:
                 app.log('cancel_stale: %r' % exc)
+            t_open, first_idx, sent, first_byte, waits, wait_sum, wait_max, blocked = time.time(), idx, 0, None, 0, 0.0, 0.0, 0.0
+            behind = lows = 0
+            conns = getattr(app, 'conns', None)
+            if conns is None:
+                conns = app.conns = set()
+            conns.add(self.connection)
+            if app.debug:
+                app.log('connection opened at chunk %d (range %s) by %s' % (idx, self.headers.get('Range'), self.headers.get('User-Agent')))
             try:
-                while pos <= end:
-                    store.set_pos(token, chat, msg, idx)
-                    # keep the pipeline full before blocking on the current chunk
-                    store.prefetch(chat, msg, idx, readahead + 1, last_idx)
+                while pos <= end and not getattr(app, 'closing', False):
+                    bg = other and store.has_player(chat, msg, token)
+                    store.set_pos(token, chat, msg, idx, bg)
+                    # Kodi holds several connections of one film: the picture, the index at the end, one more it
+                    # opens at the start and leaves idle, and after a jump the old one, which it goes on reading
+                    # slowly. Which of them is "the picture" cannot be told for sure (the newest one is not always),
+                    # so every connection gets the chunk it waits for at once - but only the newest one gets the
+                    # full read-ahead; the others get two chunks. That is what stops three connections from sharing
+                    # the stream three ways.
+                    # While a NEWER connection is pulling data (the player jumped; it goes on reading the old
+                    # connection slowly) this one gets no read-ahead and its chunks come after everything the newer
+                    # one needs - except the first: the player finishes the read it was in before it switches, so
+                    # that chunk is still served at once.
+                    live = store.is_live(token, last_idx)
+                    if live:
+                        behind = 0
+                        # keep the pipeline full before blocking on the current chunk
+                        store.prefetch(chat, msg, idx, readahead + 1, last_idx)
+                    else:
+                        behind += 1
+                        if bg:
+                            behind = 2
+                            store.prefetch(chat, msg, idx, 3, last_idx, low=True)
+                    low = behind > 1
+                    lows += 1 if low else 0
                     t_wait = time.time()
-                    data = store.get(chat, msg, idx, timeout=app.chunk_timeout)
+                    data = store.get(chat, msg, idx, timeout=max(app.chunk_timeout, 60) if low else app.chunk_timeout,
+                                     low=low)
                     waited = time.time() - t_wait
-                    if waited > 4:
+                    if first_byte is None:
+                        first_byte = time.time() - t_open
+                    elif waited > 0.4 and not low:
+                        waits += 1
+                        wait_sum += waited
+                        wait_max = max(wait_max, waited)
+                    if waited > 4 and not low:
                         # 3.3.1: always written to the log - a stall the viewer sees has a line that says why
                         say('slow chunk %d of %d: waited %.1fs (download speed %.2f MB/s, %d in flight)' % (
                             idx, last_idx, waited, store.speed() / 1048576.0, len(store.inflight)))
@@ -394,7 +527,10 @@ def make_handler(app):
                         # (keep-alive) with the player waiting for the rest
                         self.close_connection = True
                         break
+                    t_write = time.time()
                     self.wfile.write(piece)
+                    blocked += time.time() - t_write          # the player was not taking the data: its buffer is full
+                    sent += len(piece)
                     pos += len(piece)
                     idx += 1
             except (BrokenPipeError, ConnectionResetError, socket.timeout, ConnectionAbortedError):
@@ -403,6 +539,24 @@ def make_handler(app):
                 say('stream error at %d: %r' % (pos, exc))
                 self.close_connection = True
             finally:
+                conns.discard(self.connection)
+                if getattr(app, 'closing', False):
+                    self.close_connection = True
+                took = time.time() - t_open
+                if app.debug:
+                    app.log('connection closed: chunks %d-%d, %.1f MB in %.1fs, not the newest for %d chunks' % (
+                        first_idx, idx, sent / 1048576.0, took, lows))
+                if (sent >= 4 * CHUNK or took > 5) and bg:
+                    say('background reader (%s) took %.0f MB from chunk %d in %.0fs - behind the player' % (
+                        agent.split(' ')[0][:24] or 'no name', sent / 1048576.0, first_idx, took))
+                elif sent >= 4 * CHUNK or took > 5:
+                    # 3.3.5: one line per connection of the player - what the engine delivered and how evenly. A
+                    # picture that stutters although this line shows no waits is not waiting for Telegram.
+                    busy = max(0.1, took - blocked)
+                    say('served %.0f MB from chunk %d in %.0fs: first byte %.1fs, %.1f MB/s while the player took data, '
+                        '%d waits over 0.4s (%.1fs in all, longest %.1fs), player full for %.0fs' % (
+                            sent / 1048576.0, first_idx, took, first_byte or 0.0, sent / 1048576.0 / busy,
+                            waits, wait_sum, wait_max, blocked))
                 store.drop_pos(token)
                 try:        # this connection is gone: what only it was waiting for is not needed any more
                     store.cancel_stale(chat, msg, readahead, last_idx)
@@ -457,6 +611,25 @@ class App(object):
         return self.server.server_address[1]
 
     def shutdown(self):
+        """3.3.5: everything that could keep a thread alive is ended - the waiting readers are woken, the open
+        connections are closed under the handlers' feet, the listener goes last."""
+        self.closing = True
+        store = self.store
+        store.closing = True
+        with store.lock:
+            futs = list(store.inflight.values())
+            store.inflight.clear()
+        for fut in futs:
+            store._cancel(fut)
+        for sock in list(getattr(self, 'conns', ())):
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except Exception:
+                pass
+            try:
+                sock.close()
+            except Exception:
+                pass
         if self.server:
             self.server.shutdown()
             self.server.server_close()

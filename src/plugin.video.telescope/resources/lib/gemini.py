@@ -12,7 +12,11 @@ import time
 import requests
 
 BASE = 'https://generativelanguage.googleapis.com/v1beta'
-FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3.5-flash', 'gemini-2.5-flash']
+# 3.3.5: the light model first. Measured with a free key: gemini-flash-latest and the numbered full Flash models
+# did not answer within 40 s or said 503 "high demand", the Flash-Lite models answered in 1-4 s - and the questions
+# asked here (names of a title, "is this file that episode") do not need the big model.
+FALLBACK_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest']
+_BAD = {}                     # model -> time until which it is not asked again (shared by every Gemini object)
 
 
 class GeminiError(Exception):
@@ -53,7 +57,7 @@ class Gemini(object):
 
             def rank(n):
                 nums = [float(x) for x in re.findall(r'(\d+(?:\.\d+)?)', n)[:1]] or [0]
-                return (n.endswith('latest'), 'preview' not in n, 'lite' not in n, nums[0])
+                return ('preview' not in n, 'lite' in n, n.endswith('latest'), nums[0])   # 3.3.5: the light ones first
             names.sort(key=rank, reverse=True)
             return names[0] if names else None
         except Exception as exc:
@@ -69,31 +73,54 @@ class Gemini(object):
         }
         if system:
             body['systemInstruction'] = {'parts': [{'text': system}]}
-        tried = []
-        model = self.model
-        for _ in range(3):
+        # 3.3.5: one time budget for the whole call. A model that does not answer (time-out, 429, 5xx) is left alone
+        # for ten minutes and the next one is asked with the time that is left; the model that answered is kept.
+        deadline = time.time() + (timeout or self.timeout)
+        tried, last = [], None
+        queue = self._order()
+        while queue and len(tried) < 4:
+            model = queue.pop(0)
+            left = deadline - time.time()
+            if left < 0.8:
+                break
             tried.append(model)
             url = '%s/models/%s:generateContent' % (BASE, model)
             try:
-                r = self.session.post(url, json=body, timeout=timeout or self.timeout)
+                r = self.session.post(url, json=body, timeout=(min(5, left), left))
             except requests.RequestException as exc:
-                raise GeminiError(_scrub(exc))
-            if r.status_code in (404, 400) and ('not found' in r.text.lower() or 'not supported' in r.text.lower()):
-                nxt = self._discover()
-                if not nxt or nxt in tried:
-                    nxt = next((m for m in FALLBACK_MODELS if m not in tried), None)
-                if not nxt:
-                    break
-                self.log('Gemini model %s unavailable, switching to %s' % (model, nxt))
-                model = self.model = nxt
+                last = _scrub(exc)
+                _BAD[model] = time.time() + 600
                 continue
-            if r.status_code == 429:
-                time.sleep(1.5)
+            if r.status_code in (404, 400) and ('not found' in r.text.lower() or 'not supported' in r.text.lower()
+                                                or 'no longer available' in r.text.lower()):
+                _BAD[model] = time.time() + 86400
+                nxt = self._discover()
+                if nxt and nxt not in tried and nxt not in queue:
+                    queue.insert(0, nxt)
+                last = 'model %s unavailable' % model
+                continue
+            if r.status_code == 429 or r.status_code >= 500:
+                last = 'HTTP %s' % r.status_code
+                _BAD[model] = time.time() + (120 if r.status_code == 429 else 600)
                 continue
             if r.status_code != 200:
                 raise GeminiError('HTTP %s: %s' % (r.status_code, r.text[:200]))
+            if model != self.model:
+                self.log('Gemini: %s answers, used from now on' % model)
+                self.model = model
             return self._extract_json(r.json())
-        raise GeminiError('no usable model (%s)' % ', '.join(tried))
+        raise GeminiError('no model answered (%s): %s' % (', '.join(tried) or 'none tried', last or 'out of time'))
+
+    def _order(self):
+        """the models to ask, best first: the working one, then the fall-backs; resting ones only if nothing else"""
+        names = [self.model] + [m for m in FALLBACK_MODELS if m != self.model]
+        now = time.time()
+        ok = [m for m in names if _BAD.get(m, 0) <= now]
+        return ok or names[:1]
+
+    def healthy(self):
+        now = time.time()
+        return any(_BAD.get(m, 0) <= now for m in [self.model] + FALLBACK_MODELS)
 
     @staticmethod
     def _extract_json(resp):

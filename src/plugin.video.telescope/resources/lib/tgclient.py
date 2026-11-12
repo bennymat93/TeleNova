@@ -82,6 +82,8 @@ class TG(object):
         await self.client.connect()
         if await self.client.is_user_authorized():
             self.me = await self.client.get_me()
+        if not getattr(self, '_lag_task', None):
+            self._lag_task = asyncio.ensure_future(self._lag_watch())
         return True
 
     async def reconnect(self):
@@ -92,10 +94,10 @@ class TG(object):
             self.me = await self.client.get_me()
         return True
 
-    def stop(self):
+    def stop(self, timeout=10):
         if self.loop and self.client:
             try:
-                self.run(self.client.disconnect(), 10)
+                self.run(self.client.disconnect(), timeout)
             except Exception:
                 pass
         if self.loop:
@@ -243,6 +245,19 @@ class TG(object):
         for chat in chats or []:
             jobs.append(one(self.ref(chat), max(20, limit // 3)))
         await asyncio.gather(*jobs)
+        return out
+
+    async def search_in(self, chat, query, limit=100):
+        """3.3.5: the files of ONE chat that match the text. Inside a chat Telegram's search is complete; the search
+        over all chats returns the newest hits only."""
+        out = []
+        async with self._search_sem:
+            async for msg in self.client.iter_messages(self.ref(chat), search=query, limit=limit):
+                if msg.file is None:
+                    continue
+                c = self._to_cand(msg)
+                if c:
+                    out.append(c)
         return out
 
     async def dialogs(self, limit=300, bots=True):
@@ -463,54 +478,328 @@ class TG(object):
     # the others kept asking - and kept the limit alive, so the picture froze again every few seconds. Now a
     # flood wait closes one shared gate for everybody, and the number of requests sent side by side is halved
     # (never below 2) and grows back by one for every 40 parts that came through cleanly.
+    #
+    # 3.3.5, measured against a real (non-Premium) account:
+    #   * a part of a file that nobody read lately arrives at about 4.3 MB/s, however it is asked for: 2.2 MB/s with
+    #     one request at a time, 3.8 with two, 4.2 with four, 4.3 with eight or twelve - on ONE connection. More
+    #     connections add nothing.
+    #   * parts that were read a moment ago (the player opening a file reads its start, its end and its start again;
+    #     a jump back) arrive at 7-9 MB/s - and THAT is what Telegram answers with FLOOD_WAIT: the account is held to
+    #     an average rate, and every wait is 1-3 s without a single byte.
+    #   * requests that were cancelled after a seek are still answered by the server. They were not counted, so the
+    #     real load right after the player opened a file or jumped was twice the counted one.
+    # So: (1) one counter of what is really on the wire - a cancelled request keeps its slot until its answer came,
+    # and in the queue in front of it a cancelled request costs nothing; (2) the part a player is blocked on jumps
+    # that queue; (3) after a flood wait the engine paces itself: it keeps to three quarters of the rate that was
+    # refused and feels its way up again slowly, so the stream runs evenly instead of fast - stop - fast.
     def _pace_init(self):
         if not hasattr(self, '_cap'):
-            self._cap_max = self.parallel * 2
+            # 4 on the wire reach the full speed; more only makes every single answer slower (they share the same
+            # stream), which is felt as a longer wait after a jump
+            self._cap_max = max(3, min(8, self.parallel))
             self._cap = self._cap_max
+            self._ceiling = self._cap_max
+            self._ceiling_at = 0.0
             self._running = 0
             self._gate = 0.0
+            self._gate_timer = None
             self._clean = 0
+            self._seq = 0
+            self._waitq = []              # [priority, sequence, future, chunk key, bytes]
+            self._urgent = set()          # chunk keys a player is blocked on right now
+            # bytes/s we allow ourselves (0 = no limit). A non-Premium account starts at the rate such accounts are
+            # allowed over time: without it the very first seconds of a film (data Telegram has "warm" comes at
+            # 7-9 MB/s) ran into a flood wait - a 2-3 s freeze right after the picture appeared.
+            premium = bool(getattr(getattr(self, 'me', None), 'premium', False))
+            self._rate = float(getattr(self, 'rate_hint', 0) or (0 if premium else self.RATE_FIRST))
+            self._dropped = set()         # chunk keys given up after a seek before their parts were queued
+            self._low = set()             # chunk keys of connections the player left behind: served last
+            self._rate_at = time.time()
+            self._tokens = 0.0
+            self._tok_at = time.time()
+            self._rate_timer = None
+            self._recent = collections.deque(maxlen=96)                # (time, bytes) of the answers
             self.floods = 0
+
+    RATE_MIN = 3.0 * 1048576             # a 1080p film needs 1-2 MB/s; slower than this helps nobody
+    RATE_FIRST = 4.5 * 1048576            # measured: what a non-Premium account gets over time
+    HEDGE_AFTER = 3.0                     # s without an answer for the chunk a player waits for -> asked twice
+    RATE_FREE = 12 * 1048576              # paced above this = no pacing
+
+    def pace_info(self):
+        self._pace_init()
+        return {'on_wire': self._running, 'waiting': len(self._waitq), 'urgent': len(self._urgent),
+                'limit': self._cap, 'rate_mb': round(self._rate / 1048576.0, 2), 'floods': self.floods,
+                'asked_twice': getattr(self, 'hedges', 0)}
+
+    def _recent_rate(self, window=4.0):
+        if not self._recent:
+            return 0.0
+        end = self._recent[-1][0]                 # up to the last answer: a closed gate is not "slow"
+        rows = [r for r in self._recent if end - r[0] <= window]
+        if len(rows) < 3:
+            return 0.0
+        return sum(r[1] for r in rows[1:]) / max(0.3, end - rows[0][0])
 
     def _flood(self, seconds):
         self._pace_init()
         self.floods += 1
-        self._gate = max(self._gate, time.time() + seconds + 0.5)
+        now = time.time()
+        burst = now < self._gate                  # the gate is already closed: the same burst answers again
+        self._gate = max(self._gate, now + seconds + 0.5)
         self._clean = 0
-        new = max(2, self._cap // 2)
-        if new != self._cap or seconds >= 3:
-            getattr(self, 'info', self.log)('Telegram asked to wait %ss (flood limit): %d -> %d requests side by side' % (
-                seconds, self._cap, new))
-        self._cap = new
+        old = self._cap
+        if not burst:
+            seen = self._recent_rate()
+            at_floor = bool(self._rate) and self._rate <= self.RATE_MIN + 1
+            new = 0.75 * seen if seen else (0.75 * self._rate if self._rate else 3.0 * 1048576)
+            if self._rate:
+                new = min(new, 0.85 * self._rate)
+            else:
+                new = min(new, self.RATE_FIRST)   # the first refusal: straight to what such accounts are allowed
+            self._rate = max(self.RATE_MIN, new)
+            self._rate_at = now
+            self._tokens = 0.0
+            self._tok_at = self._gate
+            if at_floor:
+                # the pace is what answers a flood wait; fewer requests side by side only make every answer
+                # slower. They are cut only when even a slow pace is refused.
+                self._ceiling = max(3, self._cap - 1)
+                self._cap = self._ceiling
+            getattr(self, 'info', self.log)(
+                'Telegram asked to wait %ss (flood limit) at %.1f MB/s: paced to %.1f MB/s, %d -> %d requests side by side' % (
+                    seconds, seen / 1048576.0, self._rate / 1048576.0, old, self._cap))
+            hook = getattr(self, 'on_rate', None)
+            if hook:
+                try:
+                    hook(self._rate)
+                except Exception:
+                    pass
+        self._ceiling_at = now
 
-    async def _read_part(self, msg, offset, size, took=None):
-        self._pace_init()
-        while self._running >= self._cap or time.time() < self._gate:
-            await asyncio.sleep(0.05)
-        self._running += 1
+    def _pump(self):
+        """hands free slots to the waiting requests: a part somebody is blocked on first, then by arrival"""
+        now = time.time()
+        loop = getattr(self, 'loop', None) or asyncio.get_event_loop()
+        if now < self._gate:
+            if self._gate_timer is None:
+                self._gate_timer = loop.call_later(self._gate - now + 0.02, self._gate_open)
+            return
+        if self._rate:
+            self._tokens = min(2 * 1048576.0, self._tokens + max(0.0, now - self._tok_at) * self._rate)
+            self._tok_at = now
+        while self._waitq:
+            item = min(self._waitq, key=lambda it: (0 if it[3] in self._urgent else (3 if it[3] in self._low else it[0]),
+                                                    it[1]))
+            urgent = item[3] in self._urgent
+            # the chunk a player is blocked on may go out next to a full wire (two extra requests are far below
+            # what Telegram refuses): it must not wait for read-ahead of a position the player has left
+            # ... and a link test is a 128 KB sample: a dozen of them next to each other is nothing (they used to
+            # queue four at a time - 6 s for 13 links)
+            small = item[0] >= 2 and 0 < item[4] <= 131072
+            if self._running >= self._cap + (2 if urgent else (6 if small else 0)):
+                break
+            if self._rate and self._tokens <= 0.0:
+                # the budget of this moment is spent: continue when it is back. (No borrowing for the waited-for
+                # chunk: a player that reads without a pause always waits for one, the debt never ended and the
+                # read-ahead got nothing - one chunk at a time, 1.5 MB/s. The budget holds 2 MB, enough for the
+                # chunk after a jump to leave at once; being first in the queue is its whole privilege.)
+                if self._rate_timer is None:
+                    self._rate_timer = loop.call_later(max(0.02, -self._tokens / self._rate + 0.01), self._rate_open)
+                break
+            self._waitq.remove(item)
+            if item[2].done():
+                continue
+            self._running += 1
+            if self._rate:
+                self._tokens -= item[4]
+            item[2].set_result(True)
+
+    def _gate_open(self):
+        self._gate_timer = None
+        self._pump()
+
+    def _rate_open(self):
+        self._rate_timer = None
+        self._pump()
+
+    def bump(self, key, on=True):
+        """called from the HTTP threads: a player waits for this chunk (on) / no longer does (off)"""
+        if not self.loop:
+            return
+
+        def apply():
+            self._pace_init()
+            if on:
+                self._urgent.add(key)
+                self._low.discard(key)
+                self._pump()
+            else:
+                self._urgent.discard(key)
         try:
-            return await self._read_part_now(msg, offset, size, took)
+            self.loop.call_soon_threadsafe(apply)
+        except RuntimeError:
+            pass
+
+    def lower(self, key):
+        """called from the HTTP threads: this chunk is for a connection the player has left behind (after a jump it
+        keeps the old one open and goes on reading it slowly). It is fetched after everything the live picture
+        needs - three connections used to share the stream equally and the picture got a third of it."""
+        if not self.loop:
+            return
+
+        def apply():
+            self._pace_init()
+            if len(self._low) > 400:
+                self._low.clear()
+            self._low.add(key)
+        try:
+            self.loop.call_soon_threadsafe(apply)
+        except RuntimeError:
+            pass
+
+    def drop(self, key):
+        """called from the HTTP threads after a seek: the parts of this chunk that still WAIT are given up. What is
+        already on the wire is left to finish - Telegram sends it anyway, and the chunk then lands in the cache
+        (a player that opens a file reads the start, the end and the start again)."""
+        if not self.loop:
+            return
+
+        def apply():
+            self._pace_init()
+            self._dropped.add(key)        # ... and parts of it that are queued a moment later are refused as well
+            if len(self._dropped) > 400:
+                self._dropped.clear()
+            for item in [it for it in self._waitq if it[3] == key]:
+                item[2].cancel()
+        try:
+            self.loop.call_soon_threadsafe(apply)
+        except RuntimeError:
+            pass
+
+    async def _slot(self, prio, key, size=0):
+        self._pace_init()
+        if key is not None and key in self._dropped and key not in self._urgent:
+            raise asyncio.CancelledError()
+        self._seq += 1
+        fut = asyncio.get_event_loop().create_future()
+        item = [prio, self._seq, fut, key, size]
+        self._waitq.append(item)
+        self._pump()
+        try:
+            await fut
+        except asyncio.CancelledError:
+            if item in self._waitq:
+                self._waitq.remove(item)          # never sent: costs nothing
+            elif fut.done() and not fut.cancelled():
+                self._running -= 1                # the slot had just been granted
+                self._tokens += size
+                self._pump()
+            raise
+
+    async def _read_part(self, msg, offset, size, took=None, prio=1, key=None):
+        await self._slot(prio, key, size)
+        # from here on the request is on the wire: if the caller is cancelled (a seek) the request still runs to its
+        # end in the background and keeps its slot until then - that is what Telegram counts
+        task = self._spawn(self._on_wire(msg, offset, size, took))
+        if key is None:
+            return await asyncio.shield(task)
+        # the chunk of a player: now and then Telegram takes many seconds for one answer (measured: 7 s and 15 s
+        # for a single part while the neighbours took 0.4 s). If a player is blocked on it, the same part is asked
+        # for a second time and whichever answer comes first is used.
+        done, _ = await asyncio.wait({task}, timeout=self.HEDGE_AFTER)
+        if done:
+            return task.result()
+        if key not in self._urgent:
+            return await asyncio.shield(task)
+        self.hedges = getattr(self, 'hedges', 0) + 1
+        getattr(self, 'info', self.log)('no answer for %.0fs for the part the player waits for (chunk %s): asked again' % (
+            self.HEDGE_AFTER, key[2]))
+        self._running += 1
+        second = self._spawn(self._on_wire(msg, offset, size, None))
+        pending = {task, second}
+        last_exc = None
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            for d in done:
+                if d.cancelled():
+                    continue
+                if d.exception() is None:
+                    return d.result()
+                last_exc = d.exception()
+        if last_exc is not None:
+            raise last_exc
+        raise asyncio.CancelledError()
+
+    def _spawn(self, coro):
+        """A request on the wire runs as its own task. The loop keeps only a weak reference to a task: once the
+        caller was cancelled (a seek, a link test that ran out of time) nothing held it any more, Python could
+        throw it away half-way ("Task was destroyed but it is pending") and its slot was given back from whatever
+        thread did the cleaning. The engine holds it until it is done."""
+        if not hasattr(self, '_tasks'):
+            self._tasks = set()
+        task = asyncio.ensure_future(coro)
+        self._tasks.add(task)
+
+        def done(t):
+            self._tasks.discard(t)
+            t.cancelled() or t.exception()
+        task.add_done_callback(done)
+        return task
+
+    async def _lag_watch(self):
+        """3.3.5: this loop shares Kodi's Python lock with every other add-on. When one of them keeps it for seconds
+        the stream stands still although Telegram answers - the log then says so, instead of leaving a mystery."""
+        told = 0.0
+        while True:
+            t = time.time()
+            await asyncio.sleep(0.5)
+            lag = time.time() - t - 0.5
+            if lag > 1.5 and time.time() - told > 10:
+                told = time.time()
+                getattr(self, 'info', self.log)('the engine was held up for %.1fs (Kodi or another add-on kept Python busy)' % lag)
+
+    async def _on_wire(self, msg, offset, size, took):
+        t0 = time.time()
+        try:
+            data = await self._read_part_now(msg, offset, size, took)
+            now = time.time()
+            if now - t0 > 4 and size > 131072:        # (a link test of a file nobody opened lately is often slow)
+                getattr(self, 'info', self.log)('slow answer from Telegram: %.1fs for one part at %d MB (%d on the wire, %d waiting)' % (
+                    now - t0, offset // 1048576, self._running, len(self._waitq)))
+            self._recent.append((now, len(data or b'')))
+            if self._rate and now - self._rate_at > 10:
+                # 10 s without a flood wait: a little faster is tried; far above anything Telegram refused the
+                # pacing is switched off again
+                self._rate += 262144
+                self._rate_at = now
+                if self._rate >= self.RATE_FREE:
+                    self._rate = 0.0
+            return data
         finally:
             self._running -= 1
-
+            self._pump()
     async def _read_part_now(self, msg, offset, size, took=None):
         from telethon import errors
-        async with self._dl_sem:
-            t0 = time.time()
-            try:
-                async for data in self.client.iter_download(msg.media, offset=offset, request_size=size,
-                                                            chunk_size=size, limit=1):
-                    self._clean += 1
-                    if self._clean >= 40 and self._cap < self._cap_max:
+        t0 = time.time()
+        try:
+            async for data in self.client.iter_download(msg.media, offset=offset, request_size=size,
+                                                        chunk_size=size, limit=1):
+                self._clean += 1
+                if self._clean >= 60:
+                    self._clean = 0
+                    if self._ceiling < self._cap_max and time.time() - self._ceiling_at > 900:
+                        self._ceiling += 1        # a quarter of an hour without a flood wait: one more is tried
+                        self._ceiling_at = time.time()
+                    if self._cap < self._ceiling:
                         self._cap += 1
-                        self._clean = 0
-                    return bytes(data)
-            except errors.FloodWaitError as exc:
-                self._flood(int(getattr(exc, 'seconds', 5) or 5))
-                raise
-            finally:
-                if took is not None:      # 3.3: seconds of the download itself (no queueing for the semaphore)
-                    took.append(time.time() - t0)
+                return bytes(data)
+        except errors.FloodWaitError as exc:
+            self._flood(int(getattr(exc, 'seconds', 5) or 5))
+            raise
+        finally:
+            if took is not None:      # 3.3: seconds of the download itself (no queueing)
+                took.append(time.time() - t0)
         return b''
 
     async def read_head(self, chat_id, msg_id, size=131072, timed=False):
@@ -520,11 +809,16 @@ class TG(object):
         took = []
         msg = await self.get_message(chat_id, msg_id)
         try:
-            data = await self._read_part(msg, 0, size, took)
+            data = await self._read_part(msg, 0, size, took, prio=2)
         except errors.FileReferenceExpiredError:
             msg = await self.get_message(chat_id, msg_id, refresh=True)
             del took[:]
-            data = await self._read_part(msg, 0, size, took)
+            data = await self._read_part(msg, 0, size, took, prio=2)
+        except errors.FloodWaitError as exc:
+            if exc.seconds > 8:
+                raise
+            del took[:]                    # 3.3.5: a short flood wait is not a dead link - once more behind the gate
+            data = await self._read_part(msg, 0, size, took, prio=2)
         return (data, took[-1] if took else 0.0) if timed else data
 
     async def read_chunk(self, chat_id, msg_id, index, chunk=CHUNK):
@@ -541,10 +835,14 @@ class TG(object):
                 size = (msg.file.size if msg.file else 0) or 0
                 if size and base >= size:
                     return b''
+                key = (int(chat_id), int(msg_id), int(index))
+                if attempt == 1:
+                    self._pace_init()
+                    self._dropped.discard(key)     # a new request for this chunk: an older "given up" is void
                 if size and base + PART >= size:
-                    return await self._read_part(msg, base, PART)
-                parts = await asyncio.gather(self._read_part(msg, base, PART),
-                                             self._read_part(msg, base + PART, PART))
+                    return await self._read_part(msg, base, PART, key=key)
+                parts = await asyncio.gather(self._read_part(msg, base, PART, key=key),
+                                             self._read_part(msg, base + PART, PART, key=key))
                 if len(parts[0]) < PART:   # end of file reached inside the first half
                     return parts[0]
                 return parts[0] + parts[1]

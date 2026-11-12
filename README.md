@@ -30,14 +30,70 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 3.3.3 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 3.3.4 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.video.nova` (TeleNova) | 4.0.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.0.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
 | `plugin.program.novawizard` (TeleNova Wizard) | 3.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
 | `repository.telenova` | 3.1.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
 
+## TeleNova 4.0.0 - Telegram playback and search, measured against a real account
+
+Everything below was measured with a logged-in (non-Premium) Telegram account, outside Kodi (`src/qa/tg_bench.py`)
+and inside it (`src/qa/tg_play_test.py`: plays a file, jumps three times, counts the time the picture stands still).
+
+**What limits a Telegram stream (findings)**
+
+- A part of a file nobody read lately arrives at about 4.3 MB/s whatever is done: 2.2 MB/s with one request at a
+  time, 3.8 with two, 4.2 with four, 4.3-4.5 with eight or twelve, on one connection. More connections add nothing.
+- Parts that were read a moment ago arrive at 7-9 MB/s, and that is what Telegram answers with `FLOOD_WAIT`
+  (1-3 s without a byte): the account is held to an average rate.
+- A request that was cancelled after a seek is still answered by the server; the engine did not count it.
+- Kodi keeps several connections of one film open (the picture, the index at the end, and after a jump the old
+  position, which it goes on reading slowly). They shared the stream equally.
+- On a PC that also runs the AI subtitle server, its ffmpeg opens the same film a few seconds into playback and
+  downloads all of it next to the picture.
+
+**Engine (`plugin.video.telescope` 4.0.0)**
+
+- `tgclient.py`: one counter of what is really on the wire (a cancelled request keeps its slot until its answer
+  came; one that only waited costs nothing), a queue in which the part a player is blocked on goes first, a
+  self-imposed rate (a non-Premium account starts at 4.5 MB/s, a flood wait lowers it, 10 clean seconds raise it),
+  a second request when the player's part is not answered in 3 s, four requests side by side instead of eight.
+- `stream.py`: after a seek only what was not sent yet is given up - what is on its way is finished and cached;
+  an older connection stands back only while a newer one is really pulling data; a reader that is not Kodi's
+  player (ffmpeg of the subtitle server) gets what the player leaves over; connections are closed when Kodi
+  exits. One log line per connection says what was delivered and how evenly (`served N MB ...`), plus
+  `slow answer from Telegram`, `the engine was held up`, `Telegram asked to wait ... paced to ...`.
+- Heavy file (3.6 GB, 1080p H.264) in Kodi, same test before / after: picture back after a jump in 4.8-9.9 s /
+  1.8-3.9 s; picture standing still in the 15 s after a jump 3.4-7.5 s / 0.0-0.5 s; start 4.3 s / 2.9-3.4 s.
+
+**Search**
+
+- The engine never read the TMDb token the build ships with (`tmdb_token` of TeleNova), so it had no Hebrew or
+  Russian names of a title and searched by the English name only. Fixed (`service.py`, `router.py`).
+- Telegram's search over all chats returns the newest hits only (measured: a group gave 3 files of a series in the
+  global search and 66 from the inside). The chats that showed files of the title, and chats that proved
+  themselves in earlier searches (`lib:chats` in the cache), are now searched from the inside (`sources._deep`,
+  `tgclient.search_in`).
+- More ways of naming an episode are asked for: Hebrew name + `S01E03`, `ע1 פ3`, Latin name + `1x03`.
+- The AI no longer holds a search up: names are asked for in the background and waited for 3 s at most, a model
+  that does not answer is left alone for ten minutes (`gemini.py`; with a free key `gemini-flash-latest` did not
+  answer in 40 s, the Flash-Lite models did in 1-4 s - the light model is now the default).
+- A source list made while Telegram was not connected is no longer served after the login (cache key).
+- Same four titles before / after (Telegram sources, seconds): 9 in 9.9 s / 14 in 9.6 s; 19 in 19.1 s / 25 in
+  8.3 s; 4 in 7.4 s / 25 in 5.4 s; 6 in 7.4 s / 11 in 2.3 s.
+
+**Known and open**
+
+- A 4K remux of tens of GB needs more than the ~36 Mbit/s a non-Premium account gets from Telegram.
+- Kodi can still take long to exit right after a Telegram film was played while the AI subtitle server was
+  reading it (the server has no way to cancel a job; it keeps downloading the film after playback stopped).
+- The first request into a far, never-read region of a very large file sometimes takes 7-15 s on Telegram's side.
+- Bots were not exercised against real bots in this round (no bot is written to by the QA tools).
+- Guide: new chapter "adding bots, channels and groups to the search" (`guide.html#sources`,
+  `TeleNova-sources-guide.pdf`). Research notes on other builds and tools: `src/RESEARCH-kodi-groups.md`.
 ## Build 3.3.3 - slim notification, home screen on one axis
 
 Skin changes only (`skinpatch.py` in `plugin.video.nova`; applied to the build, and once by the service on boxes

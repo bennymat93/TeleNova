@@ -355,29 +355,56 @@ class StoreTests(unittest.TestCase):
         waiter = threading.Thread(target=lambda: self._quiet(st, 10))
         waiter.start()                                      # a request is blocked on chunk 10
         time.sleep(0.2)
-        # 3.3.1: a second connection of the same file opens at chunk 40 while the first still reads at 10 -
-        # nothing of the first one's read-ahead may be cancelled (this thrash made the stream stall)
-        st.set_pos(new, CHAT, MSG, 40)
+        # 3.3.1: the player's second connection (the index at the end of the file) opens while the first still
+        # reads at 10 - nothing of the first one's read-ahead may be cancelled (this thrash made the stream stall)
+        st.set_pos(new, CHAT, MSG, last - 1)
         self.assertEqual(st.cancel_stale(CHAT, MSG, 3, last), 0)
         for i in (10, 11, 12, 13, 14):
             self.assertIn((CHAT, MSG, i), st.inflight)
-        # the first connection closes (a real seek): now its read-ahead is dropped, except what is waited for
-        st.drop_pos(old)
+        # 3.3.5: a jump - a new connection reads the picture at 40. The player leaves the old one open and may go
+        # on reading it: it keeps the chunk it is at and the next one, the rest of its read-ahead is dropped
+        st.set_pos(object(), CHAT, MSG, 40)
         n = st.cancel_stale(CHAT, MSG, 3, last)
-        self.assertEqual(n, 4)                              # 11, 12, 13, 14
-        for i in (11, 12, 13, 14):
+        self.assertEqual(n, 3)                              # 12, 13, 14
+        for i in (12, 13, 14):
             self.assertTrue(fake.hold[i][0].cancelled(), i)
             self.assertNotIn((CHAT, MSG, i), st.inflight)
-        for key in ((CHAT, MSG, 10), (CHAT, MSG, 58), (CHAT, MSG, 59), (CHAT + 1, MSG, 10), (CHAT + 1, MSG, 11)):
+        for key in ((CHAT, MSG, 10), (CHAT, MSG, 11), (CHAT, MSG, 58), (CHAT, MSG, 59),
+                    (CHAT + 1, MSG, 10), (CHAT + 1, MSG, 11)):
             self.assertIn(key, st.inflight)
         self.assertFalse(fake.hold[10][0].cancelled())
         fake.hold[10][0].set_result(b'z')
         waiter.join(5)
         self.assertEqual(self.got, b'z')
         self.assertEqual(st.cancel_stale(CHAT, MSG, 3, last), 0)
-        st.prefetch(CHAT, MSG, 11, 1, last)                 # a cancelled chunk can be fetched again
-        # 3 = the first read-ahead, chunk 11 of the OTHER file (the fake records the index only), the new fetch
-        self.assertEqual(fake.calls.count(11), 3)
+        st.prefetch(CHAT, MSG, 14, 1, last)                 # a cancelled chunk can be fetched again
+        self.assertEqual(fake.calls.count(14), 2)           # the first read-ahead and the new fetch
+
+    def test_background_reader_never_pushes_the_player_aside(self):
+        """3.3.5: the AI subtitle server's ffmpeg opens the same film a few seconds after the player and reads all
+        of it. It is newer than the player's connection - and must still never count as the picture."""
+        st = stream.ChunkStore(lambda *k: Future())
+        last = 3000
+        player, ffmpeg, vlc = object(), object(), object()
+        self.assertFalse(st.has_player(CHAT, MSG, vlc))     # nobody else: another player is served in full
+        st.set_pos(player, CHAT, MSG, 20)
+        self.assertTrue(st.has_player(CHAT, MSG, ffmpeg))
+        self.assertFalse(st.has_player(CHAT, MSG, player))  # the player itself is not "somebody else"
+        st.set_pos(ffmpeg, CHAT, MSG, 0, True)              # newer, reads as fast as it can
+        self.assertTrue(st.is_live(player, last))
+        self.assertFalse(st.is_live(ffmpeg, last))
+        # a jump: a newer connection of the player that is pulling data - now the old one stands back
+        jump = object()
+        st.set_pos(jump, CHAT, MSG, 1200)
+        self.assertFalse(st.is_live(player, last))
+        self.assertTrue(st.is_live(jump, last))
+        # ... but only while it pulls: a newer connection that sits idle does not push the picture aside
+        st.positions[jump] = st.positions[jump][:4] + (time.time() - 10,) + st.positions[jump][5:]
+        self.assertTrue(st.is_live(player, last))
+        # the index at the end of the file is always served like the picture
+        tail = object()
+        st.set_pos(tail, CHAT, MSG, last)
+        self.assertTrue(st.is_live(tail, last))
 
     def test_pacing_flood_gate(self):
         """3.3.1: a flood wait closes one gate for every request and halves the parallel requests"""
@@ -389,13 +416,35 @@ class StoreTests(unittest.TestCase):
         said = []
         tg.info = said.append
         tg._pace_init()
-        self.assertEqual(tg._cap, 8)
+        self.assertEqual(tg._cap, 4)                        # 3.3.5: 4 on the wire reach the full speed
+        tg.parallel = 6; del tg._cap; tg._pace_init()
+        self.assertEqual(tg._cap, 6)
+        self.assertEqual(tg._rate, tg.RATE_FIRST)           # 3.3.5: a non-Premium account is paced from the start
+        prem = tgclient.TG.__new__(tgclient.TG)
+        prem.parallel = 4
+        prem.me = type('Me', (), {'premium': True})()
+        prem._pace_init()
+        self.assertEqual(prem._rate, 0)                     # ... a Premium one is not, until Telegram refuses
+        tg._recent.extend([(time.time() - 1.5, 2 * 1048576), (time.time() - 1.0, 2 * 1048576),
+                           (time.time() - 0.5, 2 * 1048576), (time.time(), 2 * 1048576)])      # ~4-5 MB/s lately
         tg._flood(7)
-        self.assertEqual(tg._cap, 4)
+        self.assertEqual(tg._cap, 6)                        # the pace answers a flood wait, not fewer requests
         self.assertGreater(tg._gate, time.time() + 6)
         self.assertTrue(said and 'flood' in said[0])
-        tg._flood(2); tg._flood(2); tg._flood(2)
-        self.assertEqual(tg._cap, 2)                        # never below 2
+        first = tg._rate
+        self.assertTrue(tg.RATE_MIN <= first < tg.RATE_FIRST, first)        # slower than what was refused
+        tg._flood(2); tg._flood(2)                          # the same burst answering again: no further cut
+        self.assertEqual(tg._rate, first)
+        tg._gate = 0
+        tg._flood(1)
+        self.assertLessEqual(tg._rate, first)               # refused again: slower still (down to the floor)
+        for _ in range(8):
+            tg._gate = 0
+            tg._flood(1)
+        self.assertEqual(tg._cap, 3)                        # refused even at a slow pace: fewer side by side,
+        self.assertEqual(tg._ceiling, 3)                    # ... never below 3
+        self.assertGreaterEqual(tg._rate, tg.RATE_MIN)      # never slower than 3 MB/s
+        tg._rate = 0                                        # the gate itself is what the rest of the test is about
 
         async def run():
             tg._gate = time.time() + 0.4
@@ -409,8 +458,155 @@ class StoreTests(unittest.TestCase):
             t0 = time.time()
             await asyncio.gather(*[tg._read_part(None, i, 1) for i in range(6)])
             return t0, order
-        t0, order = asyncio.new_event_loop().run_until_complete(run())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        t0, order = loop.run_until_complete(run())
         self.assertGreaterEqual(min(order) - t0, 0.35)      # nobody asked before the gate opened
+        self.assertEqual(tg._running, 0)
+
+    def _pacer(self, parallel=2):
+        from resources.lib import tgclient
+        tg = tgclient.TG.__new__(tgclient.TG)
+        tg.parallel = parallel
+        tg.log = lambda m: None
+        tg.info = lambda m: None
+        tg._pace_init()
+        return tg
+
+    def test_pacing_wire_limit_and_priority(self):
+        """3.3.5: never more requests on the wire than the limit; the chunk a player waits for goes first"""
+        import asyncio
+        tg = self._pacer(4)                                 # limit 4
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def run():
+            live, peak, order = [0], [0], []
+
+            async def fake_now(msg, offset, size, took=None):
+                live[0] += 1
+                peak[0] = max(peak[0], live[0])
+                order.append(offset)
+                await asyncio.sleep(0.05)
+                live[0] -= 1
+                return b'x'
+            tg._read_part_now = fake_now
+            jobs = [asyncio.ensure_future(tg._read_part(None, i, 1, key=('c', 'm', i))) for i in range(12)]
+            await asyncio.sleep(0.01)                       # 0..3 are on the wire, 4..11 wait
+            tg._urgent.add(('c', 'm', 9))                   # a player is blocked on chunk 9
+            tg._pump()
+            await asyncio.gather(*jobs)
+            return peak[0], order
+        peak, order = loop.run_until_complete(run())
+        self.assertEqual(peak, 5)                           # 4 + the urgent one next to a full wire
+        self.assertEqual(order[:4], [0, 1, 2, 3])
+        self.assertEqual(order[4], 9)                       # jumped the queue
+        self.assertEqual(tg._running, 0)
+
+    def test_pacing_keeps_to_the_learned_rate(self):
+        """3.3.5: after a flood wait the requests are spread over time (no burst - stop - burst); the chunk a player
+        waits for may still go at once"""
+        import asyncio
+        tg = self._pacer(4)
+        tg._rate = 4.0 * 1048576
+        tg._tok_at = time.time()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def run():
+            sent = {}
+
+            async def fake_now(msg, offset, size, took=None):
+                sent[offset] = time.time()
+                return b'x' * 16
+            tg._read_part_now = fake_now
+            t0 = time.time()
+            jobs = [asyncio.ensure_future(tg._read_part(None, i, 524288, key=('c', 'm', i))) for i in range(12)]
+            await asyncio.sleep(0.3)
+            early = len(sent)
+            tg._urgent.add(('c', 'm', 11))
+            tg._pump()
+            await asyncio.sleep(0.3)
+            nxt = sorted((v, k) for k, v in sent.items())[early:early + 1]
+            jumped = bool(nxt) and nxt[0][1] == 11
+            await asyncio.gather(*jobs)
+            return early, jumped, time.time() - t0
+        early, jumped, took = loop.run_until_complete(run())
+        self.assertLessEqual(early, 5)                      # 12 x 0.5 MB did not leave in one burst
+        self.assertTrue(jumped)                             # the waited-for chunk is the next one to leave
+        self.assertGreater(took, 0.9)                       # 6 MB at 4 MB/s
+        self.assertLess(took, 2.5)
+        self.assertEqual(tg._running, 0)
+
+    def test_pacing_asks_twice_when_the_players_part_hangs(self):
+        """3.3.5: one answer that does not come (seen: 7 s and 15 s for a single part) no longer freezes the picture"""
+        import asyncio
+        tg = self._pacer(4)
+        tg.HEDGE_AFTER = 0.2
+        said = []
+        tg.info = said.append
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def run():
+            calls = []
+
+            async def fake_now(msg, offset, size, took=None):
+                calls.append(time.time())
+                if len(calls) == 1:
+                    await asyncio.sleep(3)              # the first request hangs
+                    return b'late'
+                await asyncio.sleep(0.05)
+                return b'fast'
+            tg._read_part_now = fake_now
+            key = ('c', 'm', 7)
+            tg._urgent.add(key)
+            t0 = time.time()
+            data = await tg._read_part(None, 0, 1, key=key)
+            first = time.time() - t0
+            other = await tg._read_part(None, 1, 1, key=('c', 'm', 8))      # not waited for: never asked twice
+            return data, first, len(calls), other
+        data, first, calls, other = loop.run_until_complete(run())
+        self.assertEqual(data, b'fast')
+        self.assertLess(first, 1.0)
+        self.assertEqual(calls, 3)
+        self.assertEqual(other, b'fast')
+        self.assertTrue(any('asked again' in s for s in said))
+        loop.run_until_complete(asyncio.sleep(3.2))        # the hanging request ends: its slot comes back
+        self.assertEqual(tg._running, 0)
+
+    def test_pacing_cancel_keeps_the_count_honest(self):
+        """3.3.5: a cancelled request that was already sent keeps its slot until the answer came (Telegram still
+        serves it - that hidden load caused the flood waits after every seek); one that only waited costs nothing"""
+        import asyncio
+        tg = self._pacer(1)                                 # limit 3
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def run():
+            sent, finished = [], []
+
+            async def fake_now(msg, offset, size, took=None):
+                sent.append(offset)
+                await asyncio.sleep(0.2)
+                finished.append(offset)
+                return b'x'
+            tg._read_part_now = fake_now
+            jobs = [asyncio.ensure_future(tg._read_part(None, i, 1)) for i in range(6)]
+            await asyncio.sleep(0.02)
+            self.assertEqual(sorted(sent), [0, 1, 2])
+            for j in jobs:                                  # a seek: everything is dropped
+                j.cancel()
+            await asyncio.sleep(0.02)
+            self.assertEqual(tg._running, 3)                # the three on the wire still count
+            self.assertEqual(len(tg._waitq), 0)             # the three that waited are simply gone
+            new = asyncio.ensure_future(tg._read_part(None, 50, 1))
+            await asyncio.sleep(0.05)
+            self.assertNotIn(50, sent)                      # the new position waits for a real free slot
+            await new
+            self.assertEqual(sorted(finished), [0, 1, 2, 50])
+            self.assertEqual(sorted(sent), [0, 1, 2, 50])   # 3, 4, 5 were never sent
+        loop.run_until_complete(run())
         self.assertEqual(tg._running, 0)
 
     def _quiet(self, st, idx):

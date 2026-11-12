@@ -491,7 +491,13 @@ class Finder(object):
         kind = 'episode' if req.get('type') == 'tv' else 'movie'
         mkind = 'tv' if kind == 'episode' else 'movie'
         ident = req.get('tmdb') or ('imdb:%s' % req['imdb'] if req.get('imdb') else None)
-        details = self.meta.details(mkind, ident) if ident else None
+        if req.get('imdb') and not getattr(self.meta, 'has_tmdb', True):
+            ident = 'imdb:%s' % req['imdb']          # 3.3.5: without a TMDb key a TMDb number means nothing
+        try:
+            details = self.meta.details(mkind, ident) if ident else None
+        except Exception as exc:                     # 3.3.5: a metadata outage must not end the search
+            self.log('metadata failed: %s' % exc)
+            details = None
         aliases = list(req.get('aliases') or [])
         title = req.get('title') or ''
         year = req.get('year')
@@ -507,20 +513,18 @@ class Finder(object):
             aliases = [title]
         if kind == 'episode' and req.get('episode_runtime'):
             runtime = req['episode_runtime']
+        ai_fut = None
         if self.ai and self.ai.enabled and self.s.get('ai_aliases', True):
-            job.update(8, 'ai_aliases')
             ck = 'ai_alias:%s:%s' % (mkind, ident or title)
             extra = self.cache.get(ck)
             if extra is None:
-                try:
-                    # 3.3: the timeout goes with the call (it used to be written into the shared Gemini object)
-                    extra = self.ai.aliases(title, details.get('original_title') if details else title, year,
-                                            'TV series' if kind == 'episode' else 'movie', aliases, timeout=6)
-                    self.cache.set(ck, extra, 30 * 86400)
-                except Exception as exc:
-                    self.log('AI aliases failed: %s' % exc)
-                    extra = []
-            aliases += extra
+                # 3.3.5: the question is asked in the background while Telegram is already being searched (every
+                # search used to stand still for up to 6 s here - and for all of them when the model did not answer)
+                ai_fut = self._pool.submit(self._ai_aliases, ck, title,
+                                           details.get('original_title') if details else title, year,
+                                           'TV series' if kind == 'episode' else 'movie', list(aliases))
+            else:
+                aliases += extra
         seen, uniq = set(), []
         for a in aliases:
             n = normalize(a)
@@ -530,7 +534,87 @@ class Finder(object):
         imdb = req.get('imdb') or (details.get('imdb') if details else None)
         return {'kind': kind, 'title': title, 'aliases': uniq, 'year': year, 'runtime': runtime, 'imdb': imdb,
                 'season': req.get('season'), 'episode': req.get('episode'), 'total_seasons': total_seasons,
-                'ident': ident}
+                'ident': ident, '_ai': ai_fut}
+
+    def _ai_aliases(self, ck, title, original, year, kind, known):
+        """Runs in the pool. The answer is kept for 30 days even when the search that asked did not wait for it."""
+        try:
+            extra = self.ai.aliases(title, original, year, kind, known, timeout=8)
+            self.cache.set(ck, extra, 30 * 86400)
+            return extra
+        except Exception as exc:
+            self.log('AI aliases failed: %s' % exc)
+            return []
+
+    # ------------------------------------------------------------------ 3.3.5: the chats that hold the files
+    def library_chats(self, n=6):
+        """Chats that gave accepted files in earlier searches, best first."""
+        try:
+            data = self.cache.get('lib:chats') or {}
+            rows = sorted(data.items(), key=lambda kv: -kv[1])
+            return [int(k) for k, v in rows[:n] if v >= 1]
+        except Exception:
+            return []
+
+    def _learn_chats(self, accepted):
+        try:
+            data = dict(self.cache.get('lib:chats') or {})
+            data = {k: v * 0.97 for k, v in data.items()}
+            seen = {}
+            for c in accepted:
+                if (c.get('backend') or 'tg') == 'tg' and c.get('chat_id') and c.get('chat_kind') in ('channel', 'group', 'bot'):
+                    seen[str(c['chat_id'])] = seen.get(str(c['chat_id']), 0) + 1
+            for k, v in seen.items():
+                data[k] = data.get(k, 0) + min(v, 20)
+            data = dict(sorted(data.items(), key=lambda kv: -kv[1])[:60])
+            self.cache.set('lib:chats', data, 180 * 86400)
+        except Exception as exc:
+            self.log('library chats: %s' % exc)
+
+    def deep_queries(self, t, queries):
+        """What is asked INSIDE a chat: for an episode the wordings that name the episode, for a movie its names."""
+        if t['kind'] == 'movie':
+            return queries[:3]
+        marked = [q for q in queries if re.search(r'S\d+E\d+|פרק \d+|\d+ серия|ע\d+ פ\d+|\b\d+x\d+\b', q)]
+        return (marked or queries)[:4]
+
+    def _deep(self, raw, t, queries, searched, job, is_good):
+        """Telegram's search over all chats returns the newest hits only: a chat that holds 200 files of a series
+        gives 3 of them. The chats that showed files for this very title (and the ones that proved themselves in
+        earlier searches) are therefore searched once more from the inside, where the search is complete."""
+        hits = {}
+        for c in raw:
+            if (c.get('backend') or 'tg') != 'tg' or not c.get('chat_id') or c.get('chat_kind') not in ('channel', 'group', 'bot'):
+                continue
+            hits[c['chat_id']] = hits.get(c['chat_id'], 0) + 1
+        ranked = [k for k, _ in sorted(hits.items(), key=lambda kv: -kv[1])]
+        for k in self.library_chats():
+            if k not in ranked:
+                ranked.append(k)
+        chats = [k for k in ranked if k not in searched][:int(self.s.get('deep_chats', 6))]
+        dq = self.deep_queries(t, queries)
+        if not chats or not dq:
+            return []
+        limit = int(self.s.get('search_limit', 100))
+        futs = [self.tg.submit(self.tg.search_in(chat, q, limit)) for chat in chats for q in dq]
+        t0 = time.time()
+        deadline = t0 + float(self.s.get('deep_timeout', 5))
+        out, pending, n = [], set(futs), 0
+        while pending and time.time() < deadline and not job.cancel:
+            done, pending = fut_wait(pending, timeout=0.25)
+            for f in done:
+                n += 1
+                try:
+                    out.extend(f.result())
+                except Exception as exc:
+                    self.log('deep search failed: %s' % exc)
+            job.update(50, 'telegram_search')
+        for f in pending:
+            f.cancel()
+        self.log('deep search: %d chats x %d queries, %d/%d answered, %d files in %.1fs' % (
+            len(chats), len(dq), n, len(futs), len(out), time.time() - t0))
+        job.deep = {'chats': len(chats), 'files': len(out), 'seconds': round(time.time() - t0, 1)}
+        return out
 
     def plan_queries(self, t):
         names = []
@@ -544,23 +628,32 @@ class Finder(object):
             queries = list(names)
         else:
             s, e = int(t['season']), int(t['episode'])
+            later = []
             for n in names:
                 queries.append(n)
                 heb = any(u'֐' <= ch <= u'׿' for ch in n)
                 cyr = any(u'Ѐ' <= ch <= u'ӿ' for ch in n)
                 if heb:
                     queries.append(u'%s פרק %d' % (n, e))              # <name> פרק e
+                    # 3.3.5: the other ways Hebrew uploads name an episode - the Latin marker after the Hebrew
+                    # name, and the short "ע1 פ3". (Telegram matches whole words by their beginning, so "פרק 3"
+                    # never finds a file that says "פ3" or "S01E03".)
+                    later.append(u'%s S%02dE%02d' % (n, s, e))
+                    later.append(u'%s ע%d פ%d' % (n, s, e))
                 elif cyr:
                     queries.append(u'%s %d серия' % (n, e))  # <name> e серия
+                    later.append(u'%s S%02dE%02d' % (n, s, e))
                 else:
                     queries.append('%s S%02dE%02d' % (n, s, e))
+                    later.append('%s %dx%02d' % (n, s, e))
+            queries += later
         out, seen = [], set()
         for q in queries:
             k = q.lower()
             if k not in seen:
                 seen.add(k)
                 out.append(q)
-        return out[:int(self.s.get('max_queries', 6))]
+        return out[:max(int(self.s.get('max_queries', 6)), 8 if t['kind'] != 'movie' else 0)]
 
     # ------------------------------------------------------------------ main
     def find(self, req, job):
@@ -574,8 +667,13 @@ class Finder(object):
             return clone.find(req, job)
         if req.get('type') == 'free':            # 3.3.3: free-text file search runs as a job too (progress, link tests)
             return self.find_free(req, job)
-        cache_key = 'src:%s:%s:%s:%s' % (req.get('type'), req.get('tmdb') or req.get('imdb') or req.get('title'),
-                                          req.get('season'), req.get('episode'))
+        logged_in = bool(self.tg and getattr(self.tg, 'me', None))
+        rd_on = bool(self.rd and self.rd.enabled)
+        # 3.3.5: the key says which sources were available - a list made while Telegram was not connected (Real-
+        # Debrid only) used to be served for half an hour after the login
+        cache_key = 'src:%s:%s:%s:%s:%s' % (req.get('type'), req.get('tmdb') or req.get('imdb') or req.get('title'),
+                                             req.get('season'), req.get('episode'),
+                                             ('t' if logged_in else '') + ('r' if rd_on else ''))
         # 3.3: a reduced ("fast" hub) search stores its shorter list under its own key - it used to replace the
         # full result for 30 minutes. It may still read a full result that is already there.
         store_key = cache_key + ':fast' if self._reduced else cache_key
@@ -590,10 +688,11 @@ class Finder(object):
         self.log('queries: %s' % queries)
         chats = self._pinned()
         chiko = self.chiko_chats(background=True) if self.s.get('chiko', True) else {'tg': [], 'telemedia': []}
-        tg_chats = chats + [c['id'] for c in chiko['tg'] if c['id'] not in chats]
+        # 3.3.5: pinned chats, then the chats that proved themselves in earlier searches, then the "chiko" ones
+        tg_chats = chats + [c for c in self.library_chats() if c not in chats]
+        tg_chats += [c['id'] for c in chiko['tg'] if c['id'] not in tg_chats]
         tm_chats = [c['id'] for c in chiko['telemedia']]
         # 3.3.3: the chats of the content bots are searched by name as well - what a bot sent last week is there
-        logged_in = bool(self.tg and getattr(self.tg, 'me', None))
         bots = self.content_bots() if logged_in else []
         tg_chats += [b['ref'] for b in bots if b['ref'] not in tg_chats]
 
@@ -601,7 +700,6 @@ class Finder(object):
         raw = []
         limit = int(self.s.get('search_limit', 100))
         futs = []
-        rd_on = bool(self.rd and self.rd.enabled)
         if self.tg and not self.bridge_ok() and not (self.servers and self.servers.enabled and t.get('imdb')) \
                 and not rd_on and self._tg_authorized() is False:
             # 3.3: every query of a logged-out client fails quietly and the user was told to "join channels"
@@ -621,6 +719,26 @@ class Finder(object):
                 futs.append(self._pool.submit(self.rd.cloud))
         if not futs:
             raise RuntimeError('no_backend')
+        # 3.3.5: the AI's extra names arrive while the first queries are already running; they are waited for at
+        # most 3 s (never when they are cached), and searched as soon as they are there
+        ai_fut = t.pop('_ai', None)
+        if ai_fut is not None:
+            job.update(15, 'ai_aliases')
+            try:
+                extra = ai_fut.result(timeout=float(self.s.get('ai_alias_wait', 3)))
+            except Exception:
+                extra = []
+            known = set(normalize(a) for a in t['aliases'])
+            new = [a for a in extra if normalize(a) and normalize(a) not in known]
+            if new:
+                t['aliases'] += new
+                more = [q for q in self.plan_queries(t) if q not in queries]
+                if self.tg:
+                    futs += [self.tg.submit(self.tg.search(q, limit=limit)) for q in more]
+                if self.bridge_ok():
+                    futs += [self._pool.submit(self.bridge.search, q, limit, None) for q in more]
+                queries += more
+            job.update(15, 'telegram_search')
         # 3.3.3: bots that hand out files on request are asked while the searches run
         bot_futs = set()
         if bots and self.s.get('bot_request', True):
@@ -638,6 +756,11 @@ class Finder(object):
             return matcher.evaluate(c, t, strict=strict)[0] == 'accept'
         raw, done_n, total, took = self._collect(futs, bot_futs, job, is_good)
         self.log('search: %d/%d queries, %d files in %.1fs' % (done_n, total, len(raw), took))
+        if self.tg and logged_in and not job.cancel and self.s.get('deep_search', True):
+            try:
+                raw += self._deep(raw, t, queries, set(tg_chats[:8]), job, is_good)
+            except Exception as exc:
+                self.log('deep search: %r' % exc)
         bot_rows, bot_join = self._bots_report(job)
         if job.cancel:
             return []
@@ -682,17 +805,20 @@ class Finder(object):
                 maybe.append(c)
         self.log('candidates: %d raw, %d unique, %d accepted, %d maybe' % (len(raw), len(cands), len(accepted), len(maybe)))
         job.stats = {'raw': len(raw), 'unique': len(cands), 'accepted': len(accepted), 'maybe': len(maybe),
-                     'queries': len(queries), 'bots': bot_rows, 'bot_join': bot_join}
+                     'queries': len(queries), 'bots': bot_rows, 'bot_join': bot_join,
+                     'deep': getattr(job, 'deep', None)}
 
         # ---- AI verification
         use_ai = self.ai and self.ai.enabled and self.s.get('ai_verify', True)
+        if use_ai and not self.ai.healthy():
+            use_ai = False            # 3.3.5: no model answers right now - the search does not wait for one
         if use_ai and (maybe or (accepted and self.s.get('ai_verify_all', False))):
             job.update(60, 'ai_verify')
             pool = sorted(maybe, key=lambda c: -c['score'])[:40]
             if self.s.get('ai_verify_all', False):
                 pool += sorted(accepted, key=lambda c: -c['score'])[:30]
             try:
-                verdicts = self.ai.verify(t, [self._ai_row(i, c) for i, c in enumerate(pool)], timeout=10)
+                verdicts = self.ai.verify(t, [self._ai_row(i, c) for i, c in enumerate(pool)], timeout=6)
                 for i, c in enumerate(pool):
                     v = verdicts.get(str(i))
                     if not v:
@@ -738,6 +864,8 @@ class Finder(object):
         if min_q:
             accepted = [c for c in accepted if (c['parsed']['quality'] or 0) >= min_q or not c['parsed']['quality']]
         accepted.sort(key=lambda c: -c['score'])
+        if not self._reduced:
+            self._learn_chats(accepted)
 
         # ---- probe
         if self.s.get('probe', True) and accepted:

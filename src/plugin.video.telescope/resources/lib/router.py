@@ -49,7 +49,8 @@ def meta():
     if _meta is None:
         key = common.setting('tmdb_key')
         if not key:
-            for aid, k in (('plugin.video.nova', 'tmdb_key'), ('plugin.video.pov', 'tmdb_read_token')):
+            for aid, k in (('plugin.video.nova', 'tmdb_key'), ('plugin.video.nova', 'tmdb_token'),     # 3.3.5
+                           ('plugin.video.pov', 'tmdb_read_token')):
                 try:
                     import xbmc
                     import xbmcaddon
@@ -1285,7 +1286,8 @@ def hub(p):
     from .parser import parse as parse_name, find_se, title_part
     from . import matcher
     fast = {'search_timeout': 5, 'probe_timeout': 4, 'probe_count': 6, 'ai_verify': False, 'ai_aliases': False,
-            'bot_request': False, 'probe_all': False}     # 3.3.3: a 10-second listing cannot wait for a bot
+            'bot_request': False, 'probe_all': False,     # 3.3.3: a 10-second listing cannot wait for a bot
+            'ai_alias_wait': 0, 'deep_timeout': 2.5}      # 3.3.5: ... nor for the AI; a short look inside the chats
     target, title = None, ''
     if p.get('tmdb') or p.get('imdb'):
         target = {'type': p.get('type') or 'movie', 'tmdb': p.get('tmdb'), 'imdb': p.get('imdb'),
