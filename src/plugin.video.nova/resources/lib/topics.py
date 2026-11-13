@@ -215,7 +215,8 @@ def show_search(handle, section, q=''):
     import xbmcgui
     import xbmcplugin
     if not q:
-        q = xbmcgui.Dialog().input(xbmc_label(section))
+        from . import searchhist
+        q = searchhist.ask(xbmc_label(section))
     if not q:
         return xbmcplugin.endOfDirectory(handle, succeeded=False)
     _list(handle, search(section, q))
@@ -286,7 +287,8 @@ def show_hub_search(handle, q=''):
     import xbmcgui
     import xbmcplugin
     if not q:
-        q = xbmcgui.Dialog().input(xbmc_label('hub'))
+        from . import searchhist
+        q = searchhist.ask(xbmc_label('hub'))
     if not q:
         return xbmcplugin.endOfDirectory(handle, succeeded=False)
     _list(handle, hub_search(q))

@@ -279,7 +279,17 @@ def search_menu(_):
 
 
 def _ask(heading=30034, default=''):
-    return xbmcgui.Dialog().input(L(heading), default).strip()
+    # 4.0.7: a search box - the hub's suggestions (history, catalogue titles) show on the keyboard, and the text
+    # that was searched joins the hub's search history
+    win = xbmcgui.Window(10000)
+    win.setProperty('bn.search', '1')
+    try:
+        text = xbmcgui.Dialog().input(L(heading), default).strip()
+    finally:
+        win.clearProperty('bn.search')
+    if len(text) >= 2 and xbmc.getCondVisibility('System.HasAddon(plugin.video.nova)'):
+        xbmc.executebuiltin('RunPlugin(plugin://plugin.video.nova/?a=sh_add&q=%s)' % quote(text, safe=''))
+    return text
 
 
 def search(p):
@@ -768,38 +778,51 @@ def playurl(p):
 
 # ------------------------------------------------------------------ account
 def account(_):
+    """4.0.7: one clear screen - where the account stands on top, then what can be done, in groups"""
     try:
         st = rpc.call('status', timeout=30)
     except rpc.RPCError as exc:
         st = {'error': str(exc)}
+
+    def head(text):
+        add_dir('[COLOR gold][B]%s[/B][/COLOR]' % text, {'mode': 'noop'}, folder=False)
+    err = str(st.get('error') or '')
     if st.get('authorized') and st.get('me'):
-        add_dir(Lf(30060, st['me']['name']), {'mode': 'status'}, folder=False)
-        add_dir(L(30052), {'mode': 'logout'}, folder=False)
+        add_dir(u'[COLOR limegreen]\u25cf %s[/COLOR]' % Lf(30060, st['me']['name']), {'mode': 'status'}, folder=False,
+                plot=LT('acc_ok'))
+        add_dir('    ' + L(30052), {'mode': 'logout'}, folder=False, plot=LT('acc_logout'))
+    elif 'not_configured' in err:
+        add_dir(u'[COLOR red]\u25cf %s[/COLOR]' % LT('acc_noapi'), {'mode': 'settings'}, folder=False, plot=L(30062))
     else:
-        add_dir(L(30050), {'mode': 'login', 'how': 'phone'}, folder=False)
-        add_dir(L(30051), {'mode': 'login', 'how': 'qr'}, folder=False)
-    add_dir(L(30053), {'mode': 'status'}, folder=False)
-    add_dir(L(30054), {'mode': 'ai_test'}, folder=False)
-    add_dir(L(30055), {'mode': 'clear_cache'}, folder=False)
-    add_dir(L(30056), {'mode': 'reinstall'}, folder=False)
+        add_dir(u'[COLOR orange]\u25d0 %s[/COLOR]' % LT('acc_off'), {'mode': 'status'}, folder=False, plot=LT('acc_how'))
+        head(LT('acc_choose'))
+        add_dir('    1. ' + LT('acc_phone'), {'mode': 'login', 'how': 'phone'}, folder=False, plot=LT('acc_phone_plot'))
+        add_dir('    2. ' + LT('acc_qr'), {'mode': 'login', 'how': 'qr'}, folder=False, plot=LT('acc_qr_plot'))
+    head('Real-Debrid')
     try:
         rd = rpc.call('rd_status', timeout=20)
     except rpc.RPCError:
         rd = {}
     if rd.get('logged_in') and rd.get('username'):
-        add_dir('[COLOR gold]Real-Debrid[/COLOR]  %s' % Lf(30173, rd['username'], rd.get('days', 0)),
+        add_dir(u'    [COLOR limegreen]●[/COLOR] %s' % Lf(30173, rd['username'], rd.get('days', 0)),
                 {'mode': 'rd_status'}, folder=False)
-        add_dir(L(30174), {'mode': 'rd_logout'}, folder=False)
+        add_dir('    ' + L(30174), {'mode': 'rd_logout'}, folder=False)
     elif rd.get('logged_in'):
-        add_dir('[COLOR orange]Real-Debrid: %s[/COLOR]' % common.scrub(rd.get('error') or '')[:60],
+        add_dir(u'    [COLOR red]● %s[/COLOR]' % common.scrub(rd.get('error') or '')[:60],
                 {'mode': 'rd_login'}, folder=False)
     else:
-        add_dir('[COLOR gold]Real-Debrid[/COLOR]  ' + L(30175), {'mode': 'rd_login'}, folder=False)
-    add_dir(L(30150), {'mode': 'config_export'}, folder=False)       # 3.3.4
-    add_dir(L(30151), {'mode': 'config_import'}, folder=False)
+        add_dir(u'    [COLOR orange]◐[/COLOR] ' + L(30175), {'mode': 'rd_login'}, folder=False)
+    head(LT('acc_backup'))
+    add_dir('    ' + L(30150), {'mode': 'config_export'}, folder=False)       # 3.3.4
+    add_dir('    ' + L(30151), {'mode': 'config_import'}, folder=False)
     if xbmc.getCondVisibility('System.HasAddon(plugin.video.nova)'):  # 4.0.4: the hub's one screen for every service
-        add_dir('[COLOR gold]%s[/COLOR]' % L(30177), {'mode': 'hub_go', 'to': 'accounts'}, folder=False)
-        add_dir('[COLOR gold]%s[/COLOR]' % L(30178), {'mode': 'hub_go', 'to': 'backup'}, folder=False)
+        add_dir('    ' + L(30177), {'mode': 'hub_go', 'to': 'accounts'}, folder=False)
+        add_dir('    ' + L(30178), {'mode': 'hub_go', 'to': 'backup'}, folder=False)
+    head(LT('acc_tools'))
+    add_dir('    ' + L(30053), {'mode': 'status'}, folder=False)
+    add_dir('    ' + L(30054), {'mode': 'ai_test'}, folder=False)
+    add_dir('    ' + L(30055), {'mode': 'clear_cache'}, folder=False)
+    add_dir('    ' + L(30056), {'mode': 'reinstall'}, folder=False)
     end(cache=False)
 
 
@@ -1044,6 +1067,18 @@ LOGIN_TEXT = {
                  u'Шаг 3 из 3: пароль двухэтапной проверки Telegram'),
     'hint': (u'רמז: %s', 'Hint: %s', u'Подсказка: %s'),
     'password_invalid': (u'הסיסמה שגויה. נסו שוב.', 'Wrong password. Try again.', u'Неверный пароль. Повторите.'),
+    'acc_ok': (u'החשבון מחובר. הקישורים מגיעים מהערוצים, הקבוצות והבוטים של החשבון הזה.', 'The account is connected. Links come from the channels, groups and bots of this account.', u'Аккаунт подключён. Ссылки берутся из его каналов, групп и ботов.'),
+    'acc_logout': (u'מנתק את המכשיר הזה מהחשבון. שאר המכשירים שלך לא מושפעים.', 'Disconnects this device from the account. Your other devices are not affected.', u'Отключает это устройство от аккаунта. Другие устройства не затронуты.'),
+    'acc_noapi': (u'חסרים API ID / API hash - לחצו לפתיחת ההגדרות', 'API ID / API hash are missing - press to open the settings', u'Нет API ID / API hash - нажмите, чтобы открыть настройки'),
+    'acc_off': (u'לא מחובר לטלגרם', 'Not connected to Telegram', u'Telegram не подключён'),
+    'acc_how': (u'בחרו אחת משתי דרכי ההתחברות שלמטה. מתחברים פעם אחת בלבד.', 'Choose one of the two ways below. You log in once only.', u'Выберите один из двух способов ниже. Вход выполняется один раз.'),
+    'acc_choose': (u'התחברות - בחרו דרך אחת', 'Log in - choose one way', u'Вход - выберите способ'),
+    'acc_phone': (u'מספר טלפון  \u2190  קוד מאפליקציית טלגרם  \u2190  אימות דו-שלבי', 'Phone number  >  code from the Telegram app  >  two-step verification', u'Номер телефона  >  код из Telegram  >  двухэтапная проверка'),
+    'acc_phone_plot': (u'שלב 1: מקלידים את מספר הטלפון.\nשלב 2: טלגרם שולח קוד לאפליקציה במכשיר אחר שלכם (או ב-SMS) - מקלידים אותו כאן. טעיתם? מקלידים שוב, אותו קוד נשאר בתוקף.\nשלב 3: אם לחשבון יש סיסמת אימות דו-שלבי - מקלידים אותה.', 'Step 1: type the phone number.\nStep 2: Telegram sends a code to the app on your other device (or by SMS) - type it here. A mistake? Type it again, the same code stays valid.\nStep 3: if the account has a two-step verification password - type it.', u'Шаг 1: введите номер телефона.\nШаг 2: Telegram отправит код в приложение на другом устройстве (или по SMS) - введите его. Ошиблись? Введите снова, код остаётся действительным.\nШаг 3: если у аккаунта есть пароль двухэтапной проверки - введите его.'),
+    'acc_qr': (u'קוד QR - סורקים מהטלפון (הכי מהיר, בלי הקלדה)', 'QR code - scan it with the phone (fastest, no typing)', u'QR-код - сканируйте телефоном (быстрее всего)'),
+    'acc_qr_plot': (u'על המסך יופיע קוד QR. בטלפון: טלגרם \u2190 הגדרות \u2190 מכשירים \u2190 קישור מכשיר, וסורקים. אם לחשבון יש סיסמת אימות דו-שלבי תתבקשו להקליד אותה.', 'A QR code appears on the screen. On the phone: Telegram > Settings > Devices > Link Desktop Device, and scan it. If the account has a two-step verification password you will be asked for it.', u'На экране появится QR-код. В телефоне: Telegram > Настройки > Устройства > Подключить устройство. Если есть пароль двухэтапной проверки, его нужно будет ввести.'),
+    'acc_backup': (u'הגדרות וגיבוי', 'Settings and backup', u'Настройки и копии'),
+    'acc_tools': (u'כלים', 'Tools', u'Инструменты'),
     'tries': (u'יותר מדי ניסיונות. התחילו את הכניסה מחדש.', 'Too many tries. Start the login again.', u'Слишком много попыток. Начните вход заново.'),
 }
 
@@ -1544,6 +1579,7 @@ MODES = {
     'chiko': chiko, 'chiko_chat': chiko_chat, 'playurl': playurl, 'hub': hub,
     'bots': bots, 'bot_ask': bot_ask, 'bot_mark': bot_mark, 'pin': pin,
     'config_export': config_export, 'config_import': config_import, 'hub_go': hub_go,
+    'noop': lambda p: None,            # a heading row
     'rd_login': rd_login, 'rd_logout': rd_logout, 'rd_status': rd_status, 'playrd': playrd,
 }
 

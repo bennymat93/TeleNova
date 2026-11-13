@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.0.6.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.0.7.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -30,13 +30,32 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.0.6 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.0.6 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.6 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.0.7 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.0.7 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.7 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.0.6 | This repository |
+| `repository.telenova` | 4.0.7 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.0.7 - search history, suggestions while typing, a clearer Telegram account screen
+
+- **Suggestions under the search box** (`searchhist.py`, `skinpatch.keyboard_complete`): the skin's on-screen
+  keyboard has a suggestion panel that nothing fed (it waited for an add-on the build does not carry). TeleNova
+  feeds it: with nothing typed the latest searches, while typing the earlier searches that contain the text first
+  and then titles from the catalogue, the best known first (Hebrew and Latin). A press puts the suggestion into the
+  box; the keyboard stays open. Only in SEARCH boxes - a search sets a window property while its keyboard is open -
+  so what is typed into a key, address or password box is never looked up and never stored.
+  Played live (`qa/t_kb_live.py`): typing "matr" lists The Matrix first, "פאו" lists פאודה; the panel is reached
+  with the arrows and a press fills the box.
+- **Search history**: every search of the hub and of the Telegram engine is remembered (60, newest first, one
+  entry per text). A new "Search history" screen repeats a search with one press, removes one from the context
+  menu, or clears all. The history is part of the setup that follows the account.
+- **Telegram account screen**: the state on top in one line (connected as ... / not connected / API details
+  missing), then the two ways to log in as numbered rows that say what happens in each ("phone number > code from
+  the Telegram app > two-step verification", "QR code - fastest, no typing") with the steps in the side text, then
+  Real-Debrid, settings and backup, tools - each under its own heading.
+- Tests: `qa/t_searchhist.py`, `qa/t_kb_live.py`.
 
 ## TeleNova 4.0.6 - Telegram login by phone that can be finished, YouTube live as TV channels
 

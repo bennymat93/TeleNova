@@ -121,6 +121,8 @@ def apply_details(li, tag, m, d):
 # ------------------------------------------------------------------ root
 def root():
     folder(providers.s('hub_search'), url(a='hub_search'), os.path.join(MEDIA, 'search_all.png'))   # a search-box tile
+    from resources.lib import searchhist
+    folder(searchhist.s('title'), url(a='search_hist'), 'DefaultAddonsRecentlyUpdated.png')
     folder(T('movies'), url(a='media_root', m='movie'), icon('movies'))
     folder(T('series'), url(a='media_root', m='tv'), icon('series'))
     folder(T('tv'), url(a='tv_root'), icon('tv'))
@@ -158,6 +160,11 @@ def bk_menu():
         xbmcplugin.addDirectoryItem(HANDLE, url(a=act), li, False)
     folder('Google Drive', url(a='gd_menu'), 'DefaultNetwork.png')      # backups on Drive, restore, sync
     end(cache=False)
+
+
+def _sh():
+    from resources.lib import searchhist
+    return searchhist
 
 
 def _gd():
@@ -330,7 +337,8 @@ def list_(m, path, page='1', **filters):
 
 def hub_search(q='', s=None, e=None):
     if not q:
-        q = xbmcgui.Dialog().input(providers.s('hub_search'))
+        from resources.lib import searchhist                  # 4.0.7: history + completions while typing
+        q = searchhist.ask(providers.s('hub_search'))
     if not q:
         return end()
     xbmcplugin.setPluginCategory(HANDLE, q)
@@ -354,7 +362,8 @@ def search(m):
     (TeleScope) finds for the same text - 3.0.0"""
     import threading
     from resources.lib import epmatch
-    q = xbmcgui.Dialog().input(T('search'))
+    from resources.lib import searchhist
+    q = searchhist.ask(T('search'))
     if not q:
         return end()
     xbmcplugin.setPluginCategory(HANDLE, q)
@@ -676,6 +685,12 @@ def router(p):
         'prov_all_off': lambda: (providers.set_all(False), refresh()),
         'prov_install_all': lambda: (providers.install_all(), refresh()),
         'hub_search': lambda: hub_search(p.get('q', ''), p.get('s'), p.get('e')),
+        'ac': lambda: _sh().suggest(HANDLE, p.get('q', '')),             # 4.0.7: the keyboard's suggestion panel
+        'ac_pick': lambda: _sh().pick(p.get('q', '')),
+        'search_hist': lambda: _sh().menu(HANDLE, url),
+        'sh_clear': lambda: _sh().clear(),
+        'sh_add': lambda: _sh().record(p.get('q', '')),
+        'sh_remove': lambda: _sh().forget(p.get('q', '')),
         'status': lambda: status.listing(HANDLE),
         'sysreport': lambda: sysupdate.listing(HANDLE, url),
         'sysupdate': system_update,
@@ -723,7 +738,7 @@ def router(p):
     simple[a]()
 
 
-ACTIONS = {'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc','tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
+ACTIONS = {'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc', 'ac_pick', 'sh_clear', 'sh_remove', 'sh_add', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
            'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu',
            'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go', 'clip_paste', 'clip_menu'}
 

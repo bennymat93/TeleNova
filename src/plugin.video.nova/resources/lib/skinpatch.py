@@ -196,6 +196,31 @@ def keyboard_buttons(xml):
     open(p, 'w', encoding='utf-8', newline='').write(t)
     return 1
 
+# ------------------------------------------------------------------ 4.0.7: search suggestions on the keyboard
+# The skin's keyboard has a suggestion panel (id 9010) that was fed by an add-on the build does not carry. It is fed by
+# TeleNova instead - in search boxes only (window property bn.search), never in a hidden (password) box.
+AC_MARK = '<!-- BN search suggestions v1 -->'
+AC_VALUE = ('<value condition="!String.IsEmpty(Window(home).Property(bn.search)) + !System.HasHiddenInput">'
+            'plugin://plugin.video.nova/?a=ac&amp;q=$INFO[Control.GetLabel(312).index(1)]</value>')
+
+
+def keyboard_complete(xml):
+    """-> 1 when Variables.xml was changed, 0 when already there or the skin has no such panel"""
+    p = os.path.join(xml, 'Variables.xml')
+    if not os.path.exists(p):
+        return 0
+    t = open(p, encoding='utf-8', newline='').read()
+    if AC_MARK in t:
+        return 0
+    m = re.search(r'<variable name="AutoCompletionContentVar">[ \t]*\r?\n', t)
+    if not m:
+        return 0
+    nl = '\r\n' if '\r\n' in t else '\n'
+    t = t[:m.end()] + '\t\t' + AC_MARK + nl + '\t\t' + AC_VALUE + nl + t[m.end():]
+    open(p, 'w', encoding='utf-8', newline='').write(t)
+    return 1
+
+
 # ------------------------------------------------------------------ 3.3.3: slim notification at the top of the screen
 NOTE_MARK = '<!-- BN notification v1 -->'
 NOTE_XML = '''<?xml version="1.0" encoding="UTF-8"?>

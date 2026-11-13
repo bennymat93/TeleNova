@@ -22,6 +22,15 @@
 6. ידוע ולא טופל: שגיאות קוסמטיות של סקין FENtastic בלוג (`Misplaced ]`, `unmatched parentheses`, `Control 60 ... can't focus`); YouTube 403/429; `EXCEPTION: Kodi is not playing any file` בעצירה מהירה של זרם (מקור לא אותר).
 7. המדריך בעברית בלבד (הקודם היה גם באנגלית) – להוסיף אנגלית/רוסית אם צריך.
 
+## 0.000000000000000 TeleNova 4.0.7 - היסטוריית חיפושים, השלמות במקלדת, מסך חשבון ברור (2026-11-13 05:05) – הכי עדכני
+
+**פורסם כ-4.0.7.** המשתמש הצליח להתחבר לטלגרם (4.0.6) וביקש: מסך ברור יותר, שמירת היסטוריית חיפושים, השלמות לטקסט בתיבת החיפוש.
+
+- **השלמות**: ב-`DialogKeyboard.xml` של FENtastic יש פאנל `9010` שהתוכן שלו `$VAR[AutoCompletionContentVar]` (Variables.xml) – הצביע על `plugin.program.autocompletion` שלא קיים בבילד. `skinpatch.keyboard_complete()` מוסיף ערך ראשון: `plugin://plugin.video.nova/?a=ac&q=$INFO[Control.GetLabel(312).index(1)]` בתנאי `Window(home).Property(bn.search)` ו-`!System.HasHiddenInput`. נקרא מ-`service.py` ומ-`Clean-Build.ps1`. `searchhist.suggest()` מחזיר היסטוריה + כותרים מ-TMDb `search/multi` (לפי פופולריות); פריט = `?a=ac_pick&q=` שעושה `Input.SendText(done=false)`. `searchhist.ask()` עוטף את `Dialog().input` (מדליק/מכבה את `bn.search`, שומר להיסטוריה) – בשימוש ב-`default.hub_search`, `default.search`, `topics` ×2; המנוע (`router._ask`) מדליק את אותו מאפיין ושומר דרך `?a=sh_add`. **לקח**: `Addons.ExecuteAddon` לא מריץ `ac_pick` בזמן שמקלדת של אותו תוסף פתוחה – לחיצה אמיתית על פריט בפאנל כן עובדת (נבדק ב-`qa/t_kb_live.py` בניווט חצים).
+- **היסטוריה**: `search_history.json` (60, חדש ראשון), מסך `?a=search_hist` בתפריט הראשי, `sh_remove` / `sh_clear`. נכלל בגיבוי המסתנכרן (לא ברשימת הדילוג).
+- **מסך חשבון טלגרם** (`router.account`): שורת מצב, דרכי התחברות ממוספרות עם הסבר ב-plot, כותרות (מצב `noop`), טקסטים ב-`LOGIN_TEXT` (`acc_*`).
+- רדיו / מרכז העזרה לא מחוברים להשלמות (ההצעות הן שמות סרטים וסדרות).
+
 ## 0.00000000000000 TeleNova 4.0.6 - כניסה לטלגרם בטלפון שאפשר לסיים + YouTube חי כערוץ (2026-11-13 04:45) – הכי עדכני
 
 **פורסם כ-4.0.6.**
