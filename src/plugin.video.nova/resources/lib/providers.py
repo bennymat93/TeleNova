@@ -611,7 +611,6 @@ def yt_channel(handle, url, cid, token=''):
         xbmcplugin.addDirectoryItem(handle, url(a='yt_channel', id=cid, token=nxt), li, True)
     xbmcplugin.setContent(handle, 'videos')
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
-    xbmc.executebuiltin('Container.SetViewMode(60)')      # BN Details view
 
 
 def ia_search(handle, q):
@@ -626,7 +625,6 @@ def ia_search(handle, q):
         _empty_row(handle)
     xbmcplugin.setContent(handle, 'movies')
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
-    xbmc.executebuiltin('Container.SetViewMode(60)')      # BN Details view
 
 
 def ia_item(handle, identifier):
@@ -653,7 +651,6 @@ def ia_item(handle, identifier):
         xbmcplugin.addDirectoryItem(handle, target, li, False)
     xbmcplugin.setContent(handle, 'videos')
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
-    xbmc.executebuiltin('Container.SetViewMode(60)')      # BN Details view
 
 
 def ia_play(handle, u, t, identifier=''):
@@ -675,7 +672,6 @@ def yt_search(handle, q):
         _empty_row(handle)
     xbmcplugin.setContent(handle, 'videos')
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
-    xbmc.executebuiltin('Container.SetViewMode(60)')      # BN Details view
 
 
 def _row(handle, url, pid, label, flags, on, icon):

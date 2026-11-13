@@ -955,6 +955,7 @@ def main():
             note = skinpatch.notification(skin_xml)          # 3.3.3: slim notification at the top
             home = skinpatch.home_layout(skin_xml)           # 3.3.3: toolbar and menu centred on one axis
             kb |= skinpatch.keyboard_complete(skin_xml)      # 4.0.7: search suggestions while typing
+            kb |= skinpatch.default_views(skin_xml)          # 4.0.8: the right view from the first frame
             if kb or note or home:
                 log('skin updated: keyboard buttons %s, notification %s, home layout %s' % (kb, note, home))
                 xbmc.executebuiltin('ReloadSkin()')

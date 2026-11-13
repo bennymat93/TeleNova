@@ -114,6 +114,71 @@ def translate(lines, src='auto', dst='iw', stats=None, deadline=None):
     return out
 
 
+# ------------------------------------------------------------------ 4.0.8: Hebrew, and only Hebrew
+# An engine sometimes hands a line back untranslated (Gemini skips one, Google returns the source, the last resort
+# above keeps the original on purpose). The viewer then read a subtitle that jumped between Hebrew and English /
+# Russian. Every translated line is checked; a line that is not Hebrew is translated again on its own, and one that
+# still is not Hebrew is left out - an AI Hebrew subtitle shows Hebrew only.
+def _letters(text):
+    heb = len(HEB.findall(text or ''))
+    other = sum(1 for ch in (text or '') if ch.isalpha()) - heb
+    return heb, max(0, other)
+
+
+def is_hebrew(text):
+    """True for a line a Hebrew reader reads as Hebrew: Hebrew letters, with foreign words (a brand, a name left in
+    Latin) at most as many as the Hebrew ones - and for a line with no letters at all (numbers, notes, dashes)."""
+    heb, other = _letters(text)
+    if not heb:
+        return other == 0
+    return other <= heb
+
+
+def hebrew_only(lines, out, src='auto', stats=None, deadline=None, again=None):
+    """lines: the source lines, out: their translations -> translations where every line is Hebrew or ''.
+    again(line) -> another translation of one line (default: the free engines above, one after the other)."""
+    out = list(out) if isinstance(out, list) and len(out) == len(lines) else [''] * len(lines)
+
+    def one(line):
+        if deadline and time.time() > deadline:
+            return ''
+        # with the job's language first, then letting the engine detect it (a film switches languages; the
+        # recogniser's guess for the whole film is not always right for one line)
+        for lang in ([src, 'auto'] if src and src != 'auto' else ['auto']):
+            for name, fn in ENGINES[:2] if lang == 'auto' and src != 'auto' else ENGINES:
+                try:
+                    r = fn([line], lang, 'iw')
+                    if r and is_hebrew(r[0]) and HEB.search(r[0] or ''):
+                        return r[0]
+                except Exception:
+                    continue
+        return ''
+    again = again or one
+    fixed = dropped = 0
+    for i, (s, o) in enumerate(zip(lines, out)):
+        o = (o or '').strip()
+        if is_hebrew(o) and (o or not (s or '').strip()):
+            out[i] = o
+            continue
+        if is_hebrew(s) and HEB.search(s or ''):          # the source line was Hebrew already
+            out[i] = s.strip()
+            continue
+        try:
+            new = (again(s.replace('\n', ' ').strip()) or '').strip()
+        except Exception:
+            new = ''
+        if new and is_hebrew(new) and HEB.search(new):
+            out[i] = new
+            fixed += 1
+        else:
+            out[i] = ''
+            dropped += 1
+    if stats is not None and (fixed or dropped):
+        stats['retranslated'] = stats.get('retranslated', 0) + fixed
+        stats['not_hebrew_dropped'] = stats.get('not_hebrew_dropped', 0) + dropped
+    return out
+
+
 # ------------------------------------------------------------------ subtitle text helpers
 TS = re.compile(r'(\d+):(\d\d):(\d\d)[,.](\d{1,3})')
 
@@ -185,5 +250,6 @@ def to_srt(cues, key='he'):
 
 
 def translate_cues(cues, src='auto', stats=None, deadline=None):
-    he = translate([c['text'] for c in cues], src, 'iw', stats, deadline)
-    return [dict(c, he=h) for c, h in zip(cues, he)]
+    texts = [c['text'] for c in cues]
+    he = hebrew_only(texts, translate(texts, src, 'iw', stats, deadline), src, stats, deadline)
+    return [dict(c, he=h) for c, h in zip(cues, he) if h]          # 4.0.8: Hebrew only - no line in another language

@@ -47,10 +47,8 @@ def end(content='', cache=True):
     if content:
         xbmcplugin.setContent(HANDLE, content)
     xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=cache)
-    if content in ('episodes', 'videos'):
-        xbmc.executebuiltin('Container.SetViewMode(%d)' % BN_EPISODES)    # wide pictures, per-episode background
-    elif content in ('movies', 'tvshows', 'seasons'):
-        xbmc.executebuiltin('Container.SetViewMode(%d)' % BN_VIEW)
+    # 4.0.8: no Container.SetViewMode here any more - it switched the view AFTER the list was on the screen (one
+    # design, then another). The skin picks the view by the content while the list loads (skinpatch.default_views).
 
 
 def details(m, ids):

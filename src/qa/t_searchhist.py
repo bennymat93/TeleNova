@@ -136,6 +136,22 @@ os.remove(os.path.join(xml, 'Variables.xml'))
 io.open(os.path.join(xml, 'Variables.xml'), 'w', encoding='utf-8').write(u'<includes></includes>')
 check(sp.keyboard_complete(xml) == 0, 'a skin without the panel is left alone')
 
+# ---- 4.0.8: the view is chosen by the content while the list loads
+v62 = ('<includes>\r\n\t<include name="View_62_BNEpisodes">\r\n\t\t<control type="group">\r\n\t\t\t<visible>Control.IsVisible(62)</visible>\r\n'
+       '\t\t\t<control type="list" id="62">\r\n\t\t\t\t<left>1160</left>\r\n\t\t\t</control>\r\n\t\t</control>\r\n\t</include>\r\n</includes>\r\n')
+io.open(os.path.join(xml, 'View_62_BNEpisodes.xml'), 'w', encoding='utf-8', newline='').write(v62)
+check(sp.default_views(xml) == 1 and sp.default_views(xml) == 0, 'view rule added once')
+out = io.open(os.path.join(xml, 'View_62_BNEpisodes.xml'), encoding='utf-8', newline='').read()
+minidom.parseString(out.encode('utf-8'))
+i = out.index('id="62">')
+check(out.index(sp.VIEW_RULE) > i and out.index(sp.VIEW_RULE) < out.index('<left>1160'), 'the rule sits inside the list control, first')
+check('Container.Content(episodes)' in sp.VIEW_RULE and 'Container.Content(videos)' in sp.VIEW_RULE, 'episodes and videos')
+check('\n' not in out.replace('\r\n', ''), 'line ends kept')
+os.remove(os.path.join(xml, 'View_62_BNEpisodes.xml'))
+check(sp.default_views(xml) == 0, 'a skin without that view is left alone')
+nova_src = io.open(os.path.join(NOVA, 'default.py'), encoding='utf-8').read() + io.open(os.path.join(NOVA, 'resources', 'lib', 'providers.py'), encoding='utf-8').read()
+check("executebuiltin('Container.SetViewMode" not in nova_src, 'no view switch after a list is shown')
+
 for b in bad:
     print('FAIL', b)
 print('SEARCHHIST TESTS OK' if not bad else 'SEARCHHIST TESTS: %d problems' % len(bad))

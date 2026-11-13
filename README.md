@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.0.7.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.0.8.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -30,13 +30,31 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.0.7 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.0.7 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.7 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.0.8 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.0.8 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.8 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.0.7 | This repository |
+| `repository.telenova` | 4.0.8 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.0.8 - the new design from the first frame, AI subtitles in Hebrew only
+
+- **Lists no longer open in one design and jump to another.** Every list opened in the skin's first view and was
+  switched a moment later by a command the add-on sent after the list was already on the screen
+  (`Container.SetViewMode`); that command is gone. The skin picks the view while the list loads
+  (`skinpatch.default_views`): the wide-picture view is valid for episodes and single videos only, every other list
+  (menus, films, series, seasons) takes the details view. Measured in Kodi by sampling the view every 0.15 s
+  (`qa/t_view_live.py`): menus, film lists, series lists, seasons and episodes show one view from the first sample
+  on. A view the viewer picks by hand is no longer overridden at the next open.
+- **AI / machine subtitles: Hebrew only** (`mtrans.hebrew_only`, used by the add-on and by the PC subtitle
+  server). An engine sometimes hands a line back untranslated - Gemini skips one, Google returns the source, the
+  last resort kept the original on purpose - and the subtitle jumped between Hebrew and English / Russian. Every
+  translated line is now checked: a line that is not Hebrew is translated again on its own (the job's language
+  first, then auto-detect), and one that still is not Hebrew is not shown. Gemini's instructions say so too.
+  Checked against the real engines: three foreign lines came back in Hebrew. `qa/t_hebrew_only.py`.
+  The PC server files (`nova_subs.py`, `live_restream.py`) are not part of this repository; they were patched on the
+  owner's PC with dated copies next to them.
 
 ## TeleNova 4.0.7 - search history, suggestions while typing, a clearer Telegram account screen
 

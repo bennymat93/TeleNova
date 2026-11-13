@@ -196,6 +196,32 @@ def keyboard_buttons(xml):
     open(p, 'w', encoding='utf-8', newline='').write(t)
     return 1
 
+# ------------------------------------------------------------------ 4.0.8: the right view from the first frame
+# Every list opened in the skin's first view and was switched a moment later by a command the add-on sent after the
+# list was already on the screen (Container.SetViewMode) - the viewer saw one design, then another. Now the skin itself
+# picks the view while the list loads: the wide-picture view (62) is valid for episodes and single videos only, so
+# every other list (menus, films, series, seasons) falls to the next view in the window's order, the details view (60).
+VIEW_MARK = '<!-- BN view by content v1 -->'
+VIEW_RULE = '<visible>Container.Content(episodes) | Container.Content(videos)</visible>'
+
+
+def default_views(xml):
+    """-> 1 when View_62_BNEpisodes.xml was changed, 0 when already there / the skin has no such view"""
+    p = os.path.join(xml, 'View_62_BNEpisodes.xml')
+    if not os.path.exists(p):
+        return 0
+    t = open(p, encoding='utf-8', newline='').read()
+    if VIEW_MARK in t:
+        return 0
+    m = re.search(r'([ \t]*)<control type="list" id="62">[ \t]*\r?\n', t)
+    if not m:
+        return 0
+    nl = '\r\n' if '\r\n' in t else '\n'
+    t = t[:m.end()] + m.group(1) + '\t' + VIEW_MARK + nl + m.group(1) + '\t' + VIEW_RULE + nl + t[m.end():]
+    open(p, 'w', encoding='utf-8', newline='').write(t)
+    return 1
+
+
 # ------------------------------------------------------------------ 4.0.7: search suggestions on the keyboard
 # The skin's keyboard has a suggestion panel (id 9010) that was fed by an add-on the build does not carry. It is fed by
 # TeleNova instead - in search boxes only (window property bn.search), never in a hidden (password) box.

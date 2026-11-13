@@ -22,6 +22,14 @@
 6. ידוע ולא טופל: שגיאות קוסמטיות של סקין FENtastic בלוג (`Misplaced ]`, `unmatched parentheses`, `Control 60 ... can't focus`); YouTube 403/429; `EXCEPTION: Kodi is not playing any file` בעצירה מהירה של זרם (מקור לא אותר).
 7. המדריך בעברית בלבד (הקודם היה גם באנגלית) – להוסיף אנגלית/רוסית אם צריך.
 
+## 0.0000000000000000 TeleNova 4.0.8 - העיצוב החדש מהפריים הראשון, תרגום AI בעברית בלבד (2026-11-13 05:25) – הכי עדכני
+
+**פורסם כ-4.0.8.**
+
+- **"התפריט מופיע בעיצוב הישן ואחרי 2 שניות משתנה"**: `default.end()` ו-4 מקומות ב-`providers.py` שלחו `Container.SetViewMode` אחרי `endOfDirectory` – הרשימה הוצגה בתצוגה הראשונה של הסקין (`<views>62,60,50,...` ב-MyVideoNav) ואז הוחלפה. **התיקון**: הפקודות הוסרו; `skinpatch.default_views()` מוסיף ל-`<control type="list" id="62">` ב-`View_62_BNEpisodes.xml` את `<visible>Container.Content(episodes) | Container.Content(videos)</visible>`, כך ש-Kodi בוחר בעצמו: פרקים/סרטונים → 62, כל השאר → 60. נקרא מ-`service.py` ומ-`Clean-Build.ps1`. `qa/t_view_live.py` דוגם `Container.Viewmode` כל 0.15 שניות – יציב בכל הרשימות. שים לב: רשימות YouTube / Internet Archive (תוכן `videos`) עברו מתצוגה 60 ל-62.
+- **תרגום AI בעברית בלבד**: `mtrans.is_hebrew`, `mtrans.hebrew_only(lines, out, src, stats, deadline, again)`; `translate_cues` משתמש בו ומשמיט שורות שלא הפכו לעברית. **שרת ה-PC** (`C:\Users\benny\kodi-build\server\nova_subs.py`, `live_restream.py` – מחוץ לריפו; עותקי `.before-hebrew-only-20261113` לידם): `translate()` עוטף את `_translate()` ב-`hebrew_only`, גם `machine()` של השידור החי, כלל חדש בפרומפט של Gemini; `mtrans.py` הועתק ל-`kodi-build\addons\plugin.video.nova\resources\lib\` (השרת מייבא משם). השרת הופעל מחדש (ה-supervisor מרים אותו). רצים שני supervisors ושני שרתים (venv ו-uv) – מצב קיים, לא נגעתי.
+- **בדיקה חיה נמצאה**: מקלדת חיפוש נשארה פתוחה ב-Kodi אחרי אחת הבדיקות (5+ דקות בלי קלט) – נסגרה. `t_kb_live.py` סוגר מקלדת פתוחה לפני שהוא מתחיל.
+
 ## 0.000000000000000 TeleNova 4.0.7 - היסטוריית חיפושים, השלמות במקלדת, מסך חשבון ברור (2026-11-13 05:05) – הכי עדכני
 
 **פורסם כ-4.0.7.** המשתמש הצליח להתחבר לטלגרם (4.0.6) וביקש: מסך ברור יותר, שמירת היסטוריית חיפושים, השלמות לטקסט בתיבת החיפוש.
