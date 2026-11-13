@@ -357,6 +357,23 @@ AUTOSUB17 = [(HEAD13, VERDICT17 + HEAD13),
               "            if steady >= 3 and _v != 'wait' and not _lab and (xbmc.getInfoLabel('Player.Time(hh:mm:ss)') or '00:00:00') >= '00:00:03':")]
 
 
+# v18 (4.0.4): the viewer's own Ktuvit account, when they switched it on in the services screen (off by default: the
+# add-on's shared account stays in use). TeleNova stores the e-mail and the encoded password in its services.json.
+MARK18 = '# BN guard v18'
+KTUVIT_ANCHOR = "    # Set login request data\n"
+KTUVIT18 = [(KTUVIT_ANCHOR, '''    try:   %s: the viewer's own account
+        import json as _bn_json
+        import xbmcvfs as _bn_vfs
+        with open(_bn_vfs.translatePath('special://profile/addon_data/plugin.video.nova/services.json'), encoding='utf-8') as _bn_f:
+            _bn_s = _bn_json.load(_bn_f)
+        if _bn_s.get('ktuvit_own') and _bn_s.get('ktuvit_email') and _bn_s.get('ktuvit_enc'):
+            email, password = str(_bn_s['ktuvit_email']), str(_bn_s['ktuvit_enc'])
+    except Exception:
+        pass
+
+''' % MARK18 + KTUVIT_ANCHOR)]
+
+
 def apply(addon_dir):
     """All_Subs: 1 when a file was changed, 0 when the guards were already there; raises if it changed shape"""
     path = os.path.join(addon_dir, 'autosub.py')
@@ -399,6 +416,12 @@ def apply(addon_dir):
     n |= _patch(path, MARK15, AUTOSUB15)
     n |= _patch(path, MARK16, AUTOSUB16)
     n |= _patch(path, MARK17, AUTOSUB17)
+    kt = os.path.join(addon_dir, 'resources', 'sources', 'ktuvit.py')
+    if os.path.exists(kt):
+        try:
+            n |= _patch(kt, MARK18, KTUVIT18)
+        except RuntimeError:          # another version of the source: the shared account simply stays in use
+            pass
     return n
 
 

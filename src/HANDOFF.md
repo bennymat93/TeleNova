@@ -22,6 +22,19 @@
 6. ידוע ולא טופל: שגיאות קוסמטיות של סקין FENtastic בלוג (`Misplaced ]`, `unmatched parentheses`, `Control 60 ... can't focus`); YouTube 403/429; `EXCEPTION: Kodi is not playing any file` בעצירה מהירה של זרם (מקור לא אותר).
 7. המדריך בעברית בלבד (הקודם היה גם באנגלית) – להוסיף אנגלית/רוסית אם צריך.
 
+## 0.000000000000 TeleNova 4.0.4 - מסך שירותים אחד, גיבוי שמסתנכרן דרך חשבון הטלגרם (2026-11-13 03:15) – הכי עדכני
+
+**4.0.3 פורסם** (4 ערוצי לקויי שמיעה, `tools/bump.py` מעדכן את מספר הגרסה בכל מקום). **4.0.4 פורסם** עם:
+
+- **החלטות המשתמש** (על השאלות ב-`docs/RESEARCH-sources.md`): StremThru – לשלב, כבוי כברירת מחדל; OpenSubtitles – להוסיף, כבוי; Ktuvit חשבון אישי – להוסיף, כבוי. TorBox – לא נענה, לא שולב. בנוסף: מסך אחד עם מצב כל שירות, קישורים לדפי המפתחות שנפתחים בדפדפן של המכשיר, גיבוי שמסתנכרן בין מכשירים, יבוא/יצוא מלא.
+- **`plugin.video.nova/resources/lib/services.py`** – המסך (`?a=accounts`), פעולות `?a=svc&do=<key>`. `services_state(facts)` הוא הכללים (טהור, נבדק); `facts()` אוסף במקביל. המצבים: on / off / key / login / setup / error. `_addon()` בודק תיקייה ולא רק `System.HasAddon` – Kodi עונה "לא" על מזהה עם אותיות גדולות (All_Subs).
+- **`weblink.py`** – `open_url` (Windows `os.startfile`, Android `StartAndroidActivity`, macOS `open`, Linux `xdg-open`) + חלון עם הכתובת ו-QR תמיד. לא נבדק חזותית (פותח דפדפן אמיתי במחשב של המשתמש).
+- **`cloudsync.py`** + מנוע `tgclient.cloud_list/put/get/delete`, `service._cloud` – קובץ חתום (`configio`, מפתח מזהה החשבון: הסוואה, לא הגנה – ההגנה היא החשבון עצמו) ב-Saved Messages עם התגית `#TeleNovaSetup`, קובץ אחד לכל מכשיר. `backup._members(sync=True)` מוציא: session, lib, מטמונים, m3u, firstrun, clipboard, skin, iptvsimple. מצב המכשיר ב-`sync_state.json` (אף פעם לא בגיבוי), הדגל `sync_on` ב-`services.json` (כן בגיבוי). `decide()` מונע פינג-פונג בעזרת טביעת אצבע של ההגדרות (בלי ערכים שמשתנים לבד: `rd_token` וכו'). שחזור = `backup.extract` + `os._exit(1)` כמו השחזור הקיים. **נבדק חי**: העלאה/רשימה/הורדה/החלפה/מחיקה, והעלאה אמיתית מה-hub (14 קבצים, 18KB). השחזור עצמו נבדק רק ביחידה (סוגר את Kodi ודורס פרופיל). הסנכרון כבוי אצל המשתמש; קבצי הבדיקה נמחקו מהחשבון.
+- **מנוע**: הגדרות `st_enabled`, `st_url`, `os_enabled`, `os_key` (כבויות). `stremthru.py` מחווט ב-`realdebrid.torrentio` (גם במצב מפתח: טורנטים שהאינדקס לא סימן נבדקים שוב). `opensubs.py` מחווט ב-`sources._os_identify` (עד 4 קבצים, 7 שניות, רק כשיש imdb). RPC `svc_check`. **לא נבדקו עם מפתח/חשבון אמיתי** (אין לי, ואני לא מקליד פרטי התחברות).
+- **Ktuvit**: `ktuvitauth.py` (האלגוריתם נקרא מ-`LoginHandler.js` של האתר: IV = האימייל כ-hex, PBKDF2-SHA1 3000 סבבים עם קבוע האתר, AES-128-CBC, SHA-256, base64). guard v18 ב-`subspatch.py` מוסיף ל-`login_to_ktuvit` של All_Subs קריאה של `services.json`. החשבון המשותף נשאר כשהאפשרות כבויה. הכניסה שמורה במטמון של All_Subs כשעה – החלפת חשבון נכנסת לתוקף אחרי שעה או הפעלה מחדש.
+- **בדיקות חדשות**: `qa/t_services.py`, `t_stremthru.py`, `t_opensubs.py`, `t_ktuvitauth.py`, `t_cloud_live.py`.
+- **הבא בתור**: צימוד מכשירים ב-LAN (המחקר ב-`docs/RESEARCH-device-transfer.md`) פחות דחוף עכשיו שיש סנכרון דרך החשבון; פריטי הקיצור 1–4 של הקישורים; שלבי QA 0, 2–6; יותר ערוצים (המשתמש רוצה ~70).
+
 ## 0.00000000000 TeleNova 4.0.2 - יציאה מ-Kodi, קבצים כבדים, בוטים, 29 ערוצים, מספר גרסה אחד (2026-11-13 02:30) – הכי עדכני
 
 **פורסם כ-4.0.2.** מעכשיו לכל התוספים אותו מספר (nova, telescope, wizard, repository) – `package.py` אורז את ארבעתם ומעתיק את zip הריפו גם לשורש האתר; `Clean-Build.ps1` מעדכן גם את `repository.telenova` ב-stage. `repository.telenova-3.1.0.zip` נשאר בשורש בשביל קישורים ישנים.

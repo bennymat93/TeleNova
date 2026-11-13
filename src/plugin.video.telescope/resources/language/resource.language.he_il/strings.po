@@ -875,3 +875,27 @@ msgstr "מספר תוצאות Real-Debrid"
 msgctxt "#32108"
 msgid "Heaviest file listed, Mbit/s (0 = no limit; Telegram never above what the account is served)"
 msgstr "הקובץ הכבד ביותר שמוצג, Mbit לשנייה (0 = בלי הגבלה; בטלגרם לעולם לא מעל מה שהחשבון מקבל)"
+
+msgctxt "#30177"
+msgid "Services and connections - everything in one place"
+msgstr "שירותים וחיבורים - הכול במקום אחד"
+
+msgctxt "#30178"
+msgid "Setup backup: sync between devices, export, import"
+msgstr "גיבוי ההגדרות: סנכרון בין מכשירים, ייצוא, ייבוא"
+
+msgctxt "#32117"
+msgid "StremThru: second check of what Real-Debrid has (the Real-Debrid key is sent to that server)"
+msgstr "StremThru: בדיקה נוספת של מה שיש ב-Real-Debrid (מפתח ה-Real-Debrid נשלח לשרת הזה)"
+
+msgctxt "#32118"
+msgid "StremThru server address (empty = the public one)"
+msgstr "כתובת שרת StremThru (ריק = הציבורי)"
+
+msgctxt "#32119"
+msgid "OpenSubtitles: certain identification of files by their fingerprint"
+msgstr "OpenSubtitles: זיהוי ודאי של קבצים לפי טביעת אצבע"
+
+msgctxt "#32120"
+msgid "OpenSubtitles API key"
+msgstr "מפתח API של OpenSubtitles"

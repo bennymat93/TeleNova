@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.0.3.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.0.4.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -30,13 +30,41 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.0.3 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.0.3 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.3 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.0.4 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.0.4 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.4 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.0.3 | This repository |
+| `repository.telenova` | 4.0.4 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.0.4 - every service on one screen, a setup that follows the Telegram account
+
+- **Services and connections** (`services.py`, hub > Accounts): one row per service with its state - active, off,
+  API key missing, login needed, needs setting up, error (with the reason) - and a summary line. One press opens what
+  can be done: switch on / off, connect, type the key, open the page that issues the key in the device's own browser
+  (`weblink.py`: Windows, Android, macOS, Linux; the address and a QR code are always shown for boxes without a
+  browser), test now. The checks run in parallel: the screen opens in about 2 s.
+- **Three optional services, all off by default.**
+  - *StremThru* (`stremthru.py`): asks a StremThru instance which torrents Real-Debrid really has, file by file, and
+    lists those the index did not mark. The Real-Debrid key is sent to that instance - the viewer is told before
+    switching it on. API verified against the project's docs and source; not exercised with a real key.
+  - *OpenSubtitles ID* (`opensubs.py`): the file fingerprint (first + last 64 KB) of the few best Telegram files
+    whose identity rests on the name alone; another film / episode is dropped, a match is marked certain. Needs the
+    viewer's free API key. Not exercised with a real key.
+  - *Ktuvit, own account* (`ktuvitauth.py`, All_Subs guard v18): the viewer's account instead of the add-on's
+    shared one. The site's own password encoding was read from its login script and reimplemented (PBKDF2 + AES-CBC
+    + SHA-256, standard library only); the plain password is never stored. Not tested against a real account.
+- **The setup follows the Telegram account** (`cloudsync.py`, engine `cloud_*` RPC): settings, keys, service
+  logins, IPTV lists, favourites and history as one sealed file (18 KB) in the account's own Saved Messages; one
+  file per device. A device uploads after a change (at most every 10 minutes), and offers a newer setup of another
+  device at start. A new device: log in to Telegram, answer "yes". The Telegram login itself is never in that file,
+  nor anything that belongs to one device (caches, downloaded libraries, device type). Off until switched on.
+  Upload, list, download, replace and delete were run against the real account (`qa/t_cloud_live.py`).
+- **Export / import with everything** (the Telegram login too) is on the same screen, in the backup menu and in the
+  Telegram engine's account screen.
+- Tests: `qa/t_services.py` (states, sync decisions, restore, what the synced copy holds, the Ktuvit patch),
+  `t_stremthru.py`, `t_opensubs.py`, `t_ktuvitauth.py`, `t_cloud_live.py`.
 
 ## TeleNova 4.0.3 - subtitled feeds
 

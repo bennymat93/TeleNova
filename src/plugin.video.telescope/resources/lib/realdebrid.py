@@ -174,7 +174,7 @@ class RealDebrid(object):
         except Exception as exc:
             self.log('rd: torrent index failed: %s' % type(exc).__name__)          # never the URL: it holds the key
             return []
-        out = []
+        out, maybe = [], []
         for i, st in enumerate(data.get('streams') or []):
             name, title = st.get('name') or '', st.get('title') or st.get('description') or ''
             hints = st.get('behaviorHints') or {}
@@ -182,7 +182,11 @@ class RealDebrid(object):
             size = hints.get('videoSize') or _size(title)
             if with_key:
                 if '[RD+]' not in name or not (st.get('url') or '').startswith('http'):
-                    continue                    # not cached at RD: it would have to be downloaded first
+                    # not cached at RD as far as the index knows: it would have to be downloaded first.
+                    # 4.0.4: with StremThru switched on these are asked about once more, below
+                    if st.get('infoHash'):
+                        maybe.append((i, st.get('infoHash'), st.get('fileIdx'), fname, size, title))
+                    continue
                 out.append(self._cand(i, fname, size, title, url=st['url'], cached=True,
                                       doc='rd:%s:%s' % (st.get('infoHash') or st['url'], st.get('fileIdx'))))
             else:
@@ -191,6 +195,25 @@ class RealDebrid(object):
                     continue
                 ref = {'hash': ih, 'idx': st.get('fileIdx'), 'name': fname}
                 out.append(self._cand(i, fname, size, title, ref=ref, cached=None, doc='rd:%s:%s' % (ih, st.get('fileIdx'))))
+        st_srv = getattr(self, 'st', None)
+        if st_srv is not None and st_srv.enabled:
+            try:
+                if with_key and maybe:
+                    known = st_srv.check([m[1] for m in maybe[:100]], sid=sid)
+                    have = set(c['doc_id'] for c in out)
+                    for i, ih, idx, fname, size, title in maybe[:100]:
+                        doc = 'rd:%s:%s' % (ih, idx)
+                        if (known.get(ih.lower()) or {}).get('cached') and doc not in have:
+                            have.add(doc)
+                            out.append(self._cand(i, fname, size, title, ref={'hash': ih, 'idx': idx, 'name': fname},
+                                                  cached=True, doc=doc))
+                elif not with_key and out:
+                    known = st_srv.check([c['rd']['hash'] for c in out[:100]], sid=sid)
+                    for c in out:
+                        if (known.get(c['rd']['hash'].lower()) or {}).get('cached'):
+                            c['rd_cached'] = True
+            except Exception as exc:
+                self.log('rd: stremthru check failed: %s' % type(exc).__name__)
         cap = int(self.s.get('rd_max', 40))
         return out[:cap * 2]
 

@@ -74,6 +74,9 @@ def _load_settings():
         'rd_torrentio_on': gb('rd_torrentio_on', True), 'rd_torrentio_key': gb('rd_torrentio_key', True),
         'rd_cloud': gb('rd_cloud', True), 'rd_max': gi('rd_max', 15),
         'max_mbit': gi('max_mbit', 40),             # 4.0.2: heavier files are not listed (0 = no limit)
+        # 4.0.4: optional services, off by default
+        'st_enabled': gb('st_enabled', False), 'st_url': g('st_url').strip(),
+        'os_enabled': gb('os_enabled', False), 'os_key': g('os_key').strip(),
     }
 
 
@@ -151,8 +154,16 @@ class Service(xbmc.Monitor):
         servers = StremioServers(self.s['stremio_servers'], common.log)
         from .realdebrid import RealDebrid
         self.rd = RealDebrid(self.s, self._rd_store, common.log)
+        # 4.0.4: two optional helpers, both off until the viewer switches them on in the services screen
+        from .stremthru import StremThru, DEFAULT_BASE
+        from .opensubs import OpenSubs
+        self.st = StremThru((self.s.get('st_url') or DEFAULT_BASE) if self.s.get('st_enabled') else '',
+                            lambda: self.rd.token, common.log)
+        self.rd.st = self.st
+        self.osub = OpenSubs(lambda: self.s.get('os_key') if self.s.get('os_enabled') else '', common.log)
         self.finder = Finder(self.tg, meta, ai, self.app.store if self.app else None, self.cache, self.s,
                              common.log, bridge=self.bridge, servers=servers, rd=self.rd)
+        self.finder.osub = self.osub
 
     def _rd_store(self, key, value):
         """Real-Debrid writes its login into the settings; that write must not restart Telegram or the finder."""
@@ -318,6 +329,48 @@ class Service(xbmc.Monitor):
         return {'ok': True, 'settings': n, 'session': sess is not None, 'authorized': bool(st.get('authorized')),
                 'me': st.get('me'), 'error': self.tg_error or st.get('error')}
 
+    # ------------------------------------------------------------------ 4.0.4: setup kept in the account
+    def _cloud_key(self):
+        """The file sits in the account's own Saved Messages: whoever can read it holds the account already. It is
+        sealed all the same (configio), with a key made of the account's id, so that its text - keys, tokens - is
+        never readable in a chat window, a search result or an export of the chat."""
+        me = getattr(self.tg, 'me', None)
+        if me is None:
+            self.tg.run(self.tg.status(), 30)
+            me = self.tg.me
+        if me is None:
+            raise RuntimeError('not_authorized')
+        return 'telenova-setup-v1:%d' % int(me.id)
+
+    def _cloud(self, method, p):
+        import base64
+        from . import configio
+        if not self.tg:
+            raise RuntimeError(self.tg_error or 'not_configured')
+        if not self.tg.run(self.tg.status(), 30).get('authorized'):
+            raise RuntimeError('not_authorized')
+        if method == 'cloud_list':
+            return self.tg.run(self.tg.cloud_list(), 40)
+        if method == 'cloud_put':
+            note = {'device': str(p.get('device') or '')[:40], 'name': str(p.get('name') or '')[:60],
+                    'build': str(p.get('build') or '')[:20], 'fp': str(p.get('fp') or '')[:24], 'v': 1}
+            blob = configio.pack({}, {'setup.zip': base64.b64decode(p['data'])}, self._cloud_key(), {'note': note})
+            if len(blob) > 48 * 1024 * 1024:
+                raise RuntimeError('setup file too large')
+            return self.tg.run(self.tg.cloud_put('TeleNova-setup-%s.tnsync' % (note['device'] or 'device'), blob, note), 180)
+        if method == 'cloud_get':
+            blob = self.tg.run(self.tg.cloud_get(p['id']), 180)
+            try:
+                files = configio.unpack(blob, self._cloud_key())[1]
+            except configio.ConfigError as exc:
+                raise RuntimeError(str(exc))
+            if 'setup.zip' not in files:
+                raise RuntimeError('damaged')
+            return {'data': base64.b64encode(files['setup.zip']).decode('ascii')}
+        if method == 'cloud_delete':
+            return {'removed': self.tg.run(self.tg.cloud_delete(p.get('ids') or []), 60)}
+        raise RuntimeError('unknown method %s' % method)
+
     def onSettingsChanged(self):
         if getattr(self, '_importing', False):       # config_import() restarts everything once, at its end
             return
@@ -464,6 +517,20 @@ class Service(xbmc.Monitor):
             if method == 'rd_resolve':
                 return {'url': rd.resolve(p['cand'], p.get('want'))}
             raise RuntimeError('unknown method %s' % method)
+        if method == 'svc_check':                        # 4.0.4: the services screen asks whether a helper answers
+            if not getattr(self, 'rd', None):
+                self._build()
+            if p.get('name') == 'stremthru':
+                if not self.st.base:
+                    return {'ok': None, 'detail': 'off'}
+                ok, detail = self.st.health()
+                return {'ok': bool(ok) and bool(self.rd.token), 'detail': detail if self.rd.token else 'no Real-Debrid login'}
+            if p.get('name') == 'opensubs':
+                ok, detail = self.osub.check_key()
+                return {'ok': ok, 'detail': detail}
+            raise RuntimeError('unknown service')
+        if method.startswith('cloud_'):                  # 4.0.4: the setup kept in the account's Saved Messages
+            return self._cloud(method, p)
         if method == 'config_export':
             return self.config_export(p.get('password') or '')
         if method == 'config_import':

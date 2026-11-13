@@ -1173,6 +1173,8 @@ class Finder(object):
         checks = {'tested': 0, 'ok': 0, 'dead': 0, 'wrong': 0, 'mirror': 0, 'untested': 0}
         deadline = t0 + timeout
         pref = self.s.get('lang_pref', 'any')
+        osub = getattr(self, 'osub', None)
+        os_on = bool(osub and osub.enabled and self.tg and target and target.get('imdb'))
         while pending and time.time() < deadline and not job.cancel:
             done, pending = fut_wait(pending, timeout=0.5, return_when=FIRST_COMPLETED)
             for f in done:
@@ -1217,7 +1219,9 @@ class Finder(object):
                         continue
                 c['probe'] = 'ok'
                 checks['ok'] += 1
-                speed = len(data) / elapsed                              # bytes/s for one request
+                if os_on and not c.get('url') and len(data) >= 65536:
+                    c['_head'] = bytes(data[:65536])
+                speed = len(data) / elapsed                             # bytes/s for one request
                 c['speed'] = speed
                 bitrate = (c['size'] / float(c['duration'])) if c.get('duration') else 0
                 c['bitrate'] = bitrate
@@ -1240,6 +1244,8 @@ class Finder(object):
             c['probe'] = 'untested'
             late.append(c)
             f.cancel()
+        if os_on:
+            ok = self._os_identify(ok, target, checks)
         if self.s.get('hide_slow', True):
             ok = [c for c in ok if c.get('smooth', True)] or ok
         ok.sort(key=lambda c: -c['score'])
@@ -1261,6 +1267,60 @@ class Finder(object):
         self.log('probe: %(tested)d tested in %(seconds)ss - %(ok)d ok, %(dead)d dead, %(wrong)d wrong file, '
                  '%(mirror)d mirror retries, %(untested)d untested' % checks)
         return ok
+
+    # 4.0.4: certain identification through the OpenSubtitles file fingerprint (off unless the viewer switched it on
+    # and gave a key). The fingerprint needs the first and the last 64 KB of the file; the first is the probe's
+    # sample, the last costs one more read - so only the few best files whose identity rests on their name alone
+    # are asked about, with a time limit of their own.
+    OS_MAX, OS_SECONDS = 4, 7.0
+
+    def _os_identify(self, ok, target, checks):
+        from . import opensubs
+        from .tgclient import CHUNK
+        for c in ok:
+            c.setdefault('_head', None)
+        picks = [c for c in sorted(ok, key=lambda c: -c['score'])
+                 if c.get('_head') and not c.get('trusted_id') and (c.get('size') or 0) > 4 * CHUNK][:self.OS_MAX]
+        deadline = time.time() + self.OS_SECONDS
+
+        def one(c):
+            size = int(c['size'])
+            last = (size - 1) // CHUNK
+            tail = self.tg.run(self.tg.read_chunk(c['chat_id'], c['msg_id'], last), self.OS_SECONDS)
+            if len(tail) < 65536:
+                tail = self.tg.run(self.tg.read_chunk(c['chat_id'], c['msg_id'], last - 1), self.OS_SECONDS) + tail
+            return self.osub.identify(opensubs.moviehash(size, c['_head'], bytes(tail[-65536:])), size)
+        futs = dict((self._pool.submit(one, c), c) for c in picks)
+        drop = set()
+        want_ep = target.get('kind') == 'episode' and target.get('episode') is not None
+        for f, c in futs.items():
+            try:
+                ident = f.result(max(0.1, deadline - time.time()))
+            except Exception as exc:
+                self.log('opensubtitles id %s: %s' % (c['file'], type(exc).__name__))
+                continue
+            if not ident or not ident.get('imdb'):
+                continue
+            same = ident['imdb'] == target.get('imdb')
+            if same and want_ep and ident.get('episode') is not None:
+                same = (int(ident.get('season') or 0), int(ident['episode'])) == \
+                    (int(target.get('season') or 0), int(target['episode']))
+            if same:
+                c['trusted_id'] = True
+                c['os_match'] = True
+                c['score'] += 8
+                if ident.get('hebrew'):
+                    c['os_hebrew'] = True
+                checks['os_ok'] = checks.get('os_ok', 0) + 1
+            else:
+                drop.add(id(c))
+                c['probe'] = 'mismatch'
+                checks['wrong'] += 1
+                checks['os_wrong'] = checks.get('os_wrong', 0) + 1
+                self.log('opensubtitles id: %s is %s %s - dropped' % (c['file'], ident['imdb'], ident.get('title') or ''))
+        for c in ok:
+            c.pop('_head', None)
+        return [c for c in ok if id(c) not in drop]
 
     def _apply_media(self, c, info, target, pref):
         """Folds what the file header says into the candidate. Returns a reason when the file is certainly not the

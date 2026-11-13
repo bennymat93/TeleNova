@@ -147,6 +147,11 @@ def root():
 
 
 def bk_menu():
+    from resources.lib import cloudsync                               # 4.0.4: the setup that follows the account
+    li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % cloudsync.s('title'))
+    li.getVideoInfoTag().setPlot(cloudsync.s('explain'))
+    li.setArt({'icon': 'DefaultAddonProgram.png'})
+    xbmcplugin.addDirectoryItem(HANDLE, url(a='svc', do='backup'), li, False)
     for label, act in ((T('backup'), 'bk_do'), (T('restore'), 'bk_restore')):
         li = xbmcgui.ListItem(label)
         li.setArt({'icon': 'DefaultAddonProgram.png'})
@@ -649,7 +654,8 @@ def router(p):
         'favs': lambda: favs(p.get('kind')),
         'fav_add': lambda: fav_add(**p),
         'fav_rm': lambda: fav_rm(**p),
-        'accounts': lambda: accounts.screen(HANDLE, url),
+        'accounts': lambda: __import__('resources.lib.services', fromlist=['x']).screen(HANDLE, url),   # 4.0.4
+        'svc': lambda: __import__('resources.lib.services', fromlist=['x']).action(p['do']),
         'acc': lambda: accounts.action(p['do']),
         'tv_root': lambda: iptv.menu(HANDLE, url, folder, end),
         'tv_do': lambda: iptv.action(p['do']),
@@ -717,7 +723,7 @@ def router(p):
     simple[a]()
 
 
-ACTIONS = {'fav_add', 'fav_rm', 'history_clear', 'acc', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
+ACTIONS = {'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc','tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
            'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu',
            'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go', 'clip_paste', 'clip_menu'}
 

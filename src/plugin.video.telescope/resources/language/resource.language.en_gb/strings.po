@@ -875,3 +875,27 @@ msgstr ""
 msgctxt "#32108"
 msgid "Heaviest file listed, Mbit/s (0 = no limit; Telegram never above what the account is served)"
 msgstr ""
+
+msgctxt "#30177"
+msgid "Services and connections - everything in one place"
+msgstr ""
+
+msgctxt "#30178"
+msgid "Setup backup: sync between devices, export, import"
+msgstr ""
+
+msgctxt "#32117"
+msgid "StremThru: second check of what Real-Debrid has (the Real-Debrid key is sent to that server)"
+msgstr ""
+
+msgctxt "#32118"
+msgid "StremThru server address (empty = the public one)"
+msgstr ""
+
+msgctxt "#32119"
+msgid "OpenSubtitles: certain identification of files by their fingerprint"
+msgstr ""
+
+msgctxt "#32120"
+msgid "OpenSubtitles API key"
+msgstr ""

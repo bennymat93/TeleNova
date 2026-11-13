@@ -795,6 +795,9 @@ def account(_):
         add_dir('[COLOR gold]Real-Debrid[/COLOR]  ' + L(30175), {'mode': 'rd_login'}, folder=False)
     add_dir(L(30150), {'mode': 'config_export'}, folder=False)       # 3.3.4
     add_dir(L(30151), {'mode': 'config_import'}, folder=False)
+    if xbmc.getCondVisibility('System.HasAddon(plugin.video.nova)'):  # 4.0.4: the hub's one screen for every service
+        add_dir('[COLOR gold]%s[/COLOR]' % L(30177), {'mode': 'hub_go', 'to': 'accounts'}, folder=False)
+        add_dir('[COLOR gold]%s[/COLOR]' % L(30178), {'mode': 'hub_go', 'to': 'backup'}, folder=False)
     end(cache=False)
 
 
@@ -928,6 +931,14 @@ def config_import(_):
     else:
         dlg.ok(common.ADDON_NAME, '%s\n%s' % (L(30167), L(30168)))
     xbmc.executebuiltin('Container.Refresh')
+
+
+def hub_go(p):
+    """4.0.4: the hub's services screen / setup backup, reachable from the engine's own account screen"""
+    if p.get('to') == 'backup':
+        xbmc.executebuiltin('RunPlugin(plugin://plugin.video.nova/?a=svc&do=backup)')
+    else:
+        xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.nova/?a=accounts,return)')
 
 
 def _rpc_fail(exc):
@@ -1390,7 +1401,7 @@ MODES = {
     'clear_cache': clear_cache, 'reinstall': reinstall, 'play': play, 'playtg': playtg, 'settings': settings,
     'chiko': chiko, 'chiko_chat': chiko_chat, 'playurl': playurl, 'hub': hub,
     'bots': bots, 'bot_ask': bot_ask, 'bot_mark': bot_mark, 'pin': pin,
-    'config_export': config_export, 'config_import': config_import,
+    'config_export': config_export, 'config_import': config_import, 'hub_go': hub_go,
     'rd_login': rd_login, 'rd_logout': rd_logout, 'rd_status': rd_status, 'playrd': playrd,
 }
 

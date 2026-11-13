@@ -16,23 +16,43 @@ ADDON_DATA = ['plugin.video.nova', 'plugin.video.telescope', 'pvr.iptvsimple', '
 FILES = ['favourites.xml', 'sources.xml', 'passwords.xml', 'mediasources.xml']
 # 3.3: + the Google Drive sign-in of the box that makes the backup (never part of a backup / locked profile)
 SKIP = ('cache', 'cache.db', 'Thumbnails', 'temp', 'packages', '.tmp', 'preset.nvp', 'preset_guard.json',
-        'gdrive_token.json', 'gdrive_state.json')
+        'gdrive_token.json', 'gdrive_state.json', 'sync_state.json')
 AUTO_DIR = os.path.join(PROFILE, 'backups')
+# 4.0.4: the copy kept in the Telegram account for the other devices. A device reads it only after its own Telegram
+# login, so the login itself is not in it (one session on two devices at once can lose the login on both), and
+# neither is anything that belongs to one device: downloaded libraries, caches, the local port, aligned subtitles.
+SYNC_SKIP_DIRS = ('lib', 'aligned', 'subs', 'logs', 'clips', 'Cached_subs', 'trans_subs', 'temp', 'cache', 'downloads')
+SYNC_SKIP_FILES = ('port.json', 'firstrun.json', 'subbox.json', 'alternates.json', 'live_extra.json', 'iptv_status.json',
+                   'clipboard.json', 'sysupdate.json', 'status.json', 'plots_he.json', 'data_cache.sqlite')
+SYNC_SKIP_EXT = ('.session', '.session-journal', '.session-wal', '.session-shm', '.db', '.db-journal', '.m3u',
+                 '.m3u8', '.gz', '.log', '.bak', '.srt', '.ass', '.png', '.jpg', '.mkv', '.mp4')
+SYNC_MAX_FILE = 2 * 1024 * 1024
 
 
-def _members():
+def _members(sync=False):
     for a in ADDON_DATA:
+        if sync and a in ('skin.fentastic', 'pvr.iptvsimple'):   # set per device type / rebuilt by the service
+            continue
         base = os.path.join(USERDATA, 'addon_data', a)
         for d, dirs, files in os.walk(base):
-            dirs[:] = [x for x in dirs if x not in SKIP and not (a == 'plugin.video.nova' and x == 'backups')]
+            dirs[:] = [x for x in dirs if x not in SKIP and not (a == 'plugin.video.nova' and x == 'backups')
+                       and not (sync and (x in SYNC_SKIP_DIRS or x.startswith('temp_')))]
             for fn in files:
+                if sync and (fn in SYNC_SKIP_FILES or fn.lower().endswith(SYNC_SKIP_EXT) or fn.startswith(('yt_cache', 'radio_cache', 'tmdb_cache', 'epg'))):
+                    continue
+                if sync:
+                    try:
+                        if os.path.getsize(os.path.join(d, fn)) > SYNC_MAX_FILE:
+                            continue
+                    except OSError:
+                        continue
                 # never a backup inside a backup (pre_update.zip lives in this folder: it zipped itself to 37 GB)
                 if not fn.endswith(SKIP) and not fn.endswith(('.zip', '.part', '.tmp')):
                     full = os.path.join(d, fn)
                     yield full, os.path.relpath(full, USERDATA)
     for fn in FILES:
         p = os.path.join(USERDATA, fn)
-        if os.path.exists(p):
+        if os.path.exists(p) and not (sync and fn != 'favourites.xml'):   # sources / passwords are this device's
             yield p, fn
 
 
@@ -76,12 +96,12 @@ def extract(z):
     return done, skipped
 
 
-def make_zip(path):
+def make_zip(path, sync=False):
     n = 0
     part = path + '.part'                   # only a complete file gets the real name
     with zipfile.ZipFile(part, 'w', zipfile.ZIP_DEFLATED) as z:
         z.writestr('bn_backup.txt', 'BN Stream backup %s\n' % time.ctime())
-        for full, arc in _members():
+        for full, arc in _members(sync):
             try:
                 z.write(full, arc.replace(os.sep, '/'))
                 n += 1

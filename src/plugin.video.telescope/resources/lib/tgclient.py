@@ -7,6 +7,7 @@ of the add-on can be tested with a fake client.
 """
 import asyncio
 import collections
+import json
 import re
 import threading
 import time
@@ -127,6 +128,54 @@ class TG(object):
             me = {'name': ' '.join(x for x in [self.me.first_name, self.me.last_name] if x),
                   'username': self.me.username, 'premium': bool(getattr(self.me, 'premium', False))}
         return {'connected': ok, 'authorized': auth, 'me': me}
+
+    # ------------------------------------------------------------------ 4.0.4: the setup kept in the account
+    # One small file per device in the account's own "Saved Messages": every device logged in to the same account
+    # sees it. Nothing is sent to any chat but the account's own.
+    CLOUD_TAG = '#TeleNovaSetup'
+
+    async def cloud_list(self, limit=30):
+        out = []
+        async for m in self.client.iter_messages('me', search=self.CLOUD_TAG, limit=limit):
+            if not m.file or not (m.message or '').startswith(self.CLOUD_TAG):
+                continue
+            note = {}
+            try:
+                note = json.loads((m.message or '')[len(self.CLOUD_TAG):].strip() or '{}')
+            except ValueError:
+                pass
+            out.append({'id': m.id, 'date': int(m.date.timestamp()) if m.date else 0, 'size': m.file.size or 0,
+                        'name': m.file.name or '', 'note': note if isinstance(note, dict) else {}})
+        out.sort(key=lambda x: -x['date'])
+        return out
+
+    async def cloud_put(self, name, data, note):
+        """uploads the file, then removes the older files of the same device (note['device'])"""
+        import io
+        buf = io.BytesIO(data)
+        buf.name = name
+        caption = '%s %s' % (self.CLOUD_TAG, json.dumps(note, ensure_ascii=False, sort_keys=True))
+        msg = await self.client.send_file('me', buf, caption=caption[:1000], force_document=True, silent=True)
+        old = [x['id'] for x in await self.cloud_list() if x['id'] != msg.id
+               and (x['note'].get('device') == note.get('device'))]
+        if old:
+            await self.client.delete_messages('me', old)
+        return {'id': msg.id, 'date': int(msg.date.timestamp()) if msg.date else int(time.time()), 'removed': len(old)}
+
+    async def cloud_get(self, msg_id, limit=64 * 1024 * 1024):
+        m = await self.client.get_messages('me', ids=int(msg_id))
+        if not m or not m.file or not (m.message or '').startswith(self.CLOUD_TAG):
+            raise TGError('no such setup file')
+        if (m.file.size or 0) > limit:
+            raise TGError('setup file too large')
+        return await self.client.download_media(m, bytes)
+
+    async def cloud_delete(self, ids):
+        own = set(x['id'] for x in await self.cloud_list(100))
+        ids = [int(i) for i in ids if int(i) in own]         # only setup files, never another message
+        if ids:
+            await self.client.delete_messages('me', ids)
+        return len(ids)
 
     async def send_code(self, phone):
         phone = re.sub(r'[^\d+]', '', phone)

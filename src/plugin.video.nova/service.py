@@ -1119,6 +1119,21 @@ def main():
             log('auto backup: %s' % e, xbmc.LOGWARNING)
     later(600, backup_job)      # 10 min after start, at most once a week
 
+    def sync_job():             # 4.0.4: the setup that follows the Telegram account (resources/lib/cloudsync.py)
+        from resources.lib import cloudsync
+        mon = monitor()
+        try:
+            if wait_idle():
+                cloudsync.check_start()
+        except Exception as e:
+            log('setup sync (start): %s' % e, xbmc.LOGWARNING)
+        while not mon.waitForAbort(300):
+            try:
+                cloudsync.tick()
+            except Exception as e:
+                log('setup sync: %s' % e, xbmc.LOGWARNING)
+    later(90, sync_job)
+
     def streams_job():
         # 1.6.2: dead channels are found from this box's own connection (20 min after start, then every 12 h);
         # newly dead ones leave the list at once, revived ones come back on the next merge

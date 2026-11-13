@@ -37,6 +37,10 @@
         <setting id="rd_refresh" type="text" default="" visible="false"/>
         <setting id="rd_client_id" type="text" default="" visible="false"/>
         <setting id="rd_client_secret" type="text" default="" visible="false"/>
+        <setting id="st_enabled" type="bool" label="32117" default="false"/>
+        <setting id="st_url" type="text" label="32118" default="" enable="eq(-1,true)"/>
+        <setting id="os_enabled" type="bool" label="32119" default="false"/>
+        <setting id="os_key" type="text" label="32120" default="" option="hidden" enable="eq(-1,true)"/>
     </category>
     <category label="32100">
         <setting id="bot_request" type="bool" label="32101" default="true"/>
