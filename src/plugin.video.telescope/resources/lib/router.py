@@ -351,6 +351,8 @@ def _lang_tags(s):
         tags.append(L(30094) + (' ' + TICK if s.get('he_audio_inside') else ''))
     if 'he_sub' in langs:
         tags.append(L(30093) + (' ' + TICK if s.get('he_sub_inside') else ''))
+    elif s.get('he_sub_synced'):          # 4.0.5: a Hebrew subtitle for this very release exists (Wizdom)
+        tags.append(L(30093) + ' Wizdom')
     if 'ru_audio' in langs:
         tags.append(L(30095))
     if 'ru_sub' in langs:

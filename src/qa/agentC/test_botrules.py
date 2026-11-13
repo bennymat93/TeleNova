@@ -53,6 +53,22 @@ class Rules(unittest.TestCase):
         f = self.finder({'ads_bot': {'asked': 2, 'hits': 0, 'last': old}}, [{'id': 3, 'username': 'ads_bot', 'title': 'Ads'}])
         self.assertEqual([b['key'] for b in f.content_bots(target={'aliases': ['Inception']})], ['ads_bot'])
 
+    def test_bot_that_rarely_answers_rests(self):
+        now = int(time.time())
+        auto = [{'id': 1, 'username': 'rare_bot', 'title': u'על טבעי'}, {'id': 2, 'username': 'good_bot', 'title': 'Movies'},
+                {'id': 3, 'username': 'young_bot', 'title': 'New'}]
+        stats = {'rare_bot': {'asked': 8, 'hits': 1, 'files': 1, 'last': now},        # answered once in eight
+                 'good_bot': {'asked': 8, 'hits': 3, 'files': 9, 'last': now},
+                 'young_bot': {'asked': 3, 'hits': 1, 'files': 1, 'last': now}}       # too few requests to judge
+        f = self.finder(stats, auto)
+        got = [b['key'] for b in f.content_bots(target={'aliases': ['Breaking Bad', u'שובר שורות']})]
+        self.assertNotIn('rare_bot', got)
+        self.assertEqual(got, ['good_bot', 'young_bot'])
+        own = [b['key'] for b in f.content_bots(target={'aliases': ['Supernatural', u'על טבעי']})]
+        self.assertEqual(own[0], 'rare_bot')                    # still asked for the series it is named after
+        stats['rare_bot']['last'] = now - 31 * 86400
+        self.assertIn('rare_bot', [b['key'] for b in f.content_bots(target={'aliases': ['Breaking Bad']})])
+
     def test_marked_bot_is_always_asked(self):
         f = self.finder({'my_bot': {'asked': 9, 'hits': 0, 'last': int(time.time())}}, [])
         f._bots_load = lambda: {'cfg': {'my_bot': {'state': 'on', 'username': 'my_bot', 'title': 'Mine'}},

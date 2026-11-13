@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.0.4.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.0.5.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -30,13 +30,35 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.0.4 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.0.4 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.4 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.0.5 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.0.5 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.5 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.0.4 | This repository |
+| `repository.telenova` | 4.0.5 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.0.5 - better lists: Hebrew names, synced subtitles, dead links remembered, faster search
+
+- **A bot that rarely answers no longer holds every search.** A one-series bot that had answered once in six
+  requests was still asked for every title and each search waited 11 s for it. A bot with at least four requests
+  and one answer in four or fewer now rests for 30 days (it is still asked first for the series it is named after).
+  Measured on the real account: an episode search 25.5 s -> 10.3 s, a film 16.9 s -> 4.1 s.
+- **Hebrew names from Wikidata** (`hints.py`, keyless): the Hebrew label and spelling variants of the title by its
+  IMDb id join TMDb's translations as search names. Asked in the background, kept 30 days.
+- **"A Hebrew subtitle in sync exists"** (Wizdom, keyless): the release names that have a Hebrew subtitle for the
+  film / episode are compared with every source; the same release, or the same group and source, gets a few points
+  and the mark "Wizdom" in the list. A ranking signal only - never a reason to drop a file. A bare "Title.1994" is
+  not a release and marks nothing.
+- **Real-Debrid links that cannot be played are remembered** (`realdebrid.py`): a file Real-Debrid refuses
+  (`infringing_file`) is left out of the lists for 30 days, a torrent that turned out not to be there for 6 hours.
+  Network and login failures say nothing about a link and are not remembered. The file keeps hashed names only -
+  never a link or the account's key.
+- **The length of the very episode.** The link test compared a file with the series' usual episode length; it now
+  uses the length of the wanted episode (TMDb season data), and a file far longer than it (several episodes glued
+  together, a film under the episode's name) is listed last and marked.
+- Tests: `qa/t_hints.py`, a fourth rule test in `qa/agentC/test_botrules.py`, `qa/t_find_live.py` (a real search
+  through the running engine).
 
 ## TeleNova 4.0.4 - every service on one screen, a setup that follows the Telegram account
 

@@ -60,13 +60,13 @@ MediaFusion's junk gate (empty title, hash-like names, no release evidence) [V, 
 
 | # | Addition | Cost | Status |
 |---|---|---|---|
-| 1 | Real-Debrid `infringing_file` = dead link, remembered | small | open |
-| 2 | Wizdom release list as "has a synced Hebrew subtitle" ranking signal + Hebrew title | small, free, no key | open |
-| 3 | Wikidata Hebrew labels and variants as search aliases | small, free | open |
-| 4 | Runtime gate against TMDb (per episode) + sample / fake rules | small | partly (film length check exists) |
+| 1 | Real-Debrid `infringing_file` = dead link, remembered | small | done 4.0.5 |
+| 2 | Wizdom release list as "has a synced Hebrew subtitle" ranking signal + Hebrew title | small, free, no key | done 4.0.5 |
+| 3 | Wikidata Hebrew labels and variants as search aliases | small, free | done 4.0.5 |
+| 4 | Runtime gate against TMDb (per episode) + sample / fake rules | small | done 4.0.5 (per-episode length; sample rules existed) |
 | 5 | Paged global search + de-duplication by document id | medium | deep in-chat search done in 4.0.0 |
-| 6 | StremThru file-level cache check | medium | needs the owner's decision (privacy) |
-| 7 | OpenSubtitles moviehash for certain identification | medium | needs a free key |
+| 6 | StremThru file-level cache check | medium | done 4.0.4, off by default |
+| 7 | OpenSubtitles moviehash for certain identification | medium | done 4.0.4, off by default |
 | 8 | PTT episode / pack patterns in `re` + junk-name gate | medium | open |
 | 9 | Tail probe (moov / Cues), mid-file throughput, DV / passthrough flags | medium | head probe + speed exist |
 | 10 | Union de-duplication with size buckets across Telegram / RD / Stremio | medium | open |

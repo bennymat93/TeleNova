@@ -317,9 +317,12 @@ class Finder(object):
                 return False
             if st.get('named'):
                 return True                  # the bot of one series (it delivered when asked for it): not for others
+            recent = now - st.get('last', 0) < 30 * 86400
             if st.get('hits'):
-                return False
-            return st.get('asked', 0) >= 2 and now - st.get('last', 0) < 30 * 86400
+                # 4.0.5: a bot that answered once in many requests (a one-series bot that was asked by hand, a
+                # bot that mostly sends adverts) cost every search its full waiting time - 11 s measured
+                return st.get('asked', 0) >= 4 and st['hits'] * 4 <= st.get('asked', 0) and recent
+            return st.get('asked', 0) >= 2 and recent
         out = [b for b in out if not resting(b)]
         out.sort(key=lambda b: (not b['series'], -(stats.get(b['key']) or {}).get('hits', 0)))
         return out[:int(limit or self.s.get('bot_max', 3))]
@@ -542,6 +545,24 @@ class Finder(object):
             aliases = [title]
         if kind == 'episode' and req.get('episode_runtime'):
             runtime = req['episode_runtime']
+        elif kind == 'episode' and details and details.get('tmdb') and req.get('episode') is not None:
+            # 4.0.5: the length of this very episode (a double-length opener, a 20-minute special) instead of the
+            # series' usual one - the link test compares the file's real length with it
+            try:
+                eps = self.meta.season(details['tmdb'], req.get('season') or 1) or []
+                rt = next((e.get('runtime') for e in eps if e.get('episode') == int(req['episode'])), 0)
+                if rt:
+                    runtime = rt
+            except Exception as exc:
+                self.log('episode runtime: %s' % type(exc).__name__)
+        imdb = req.get('imdb') or (details.get('imdb') if details else None)
+        wd_fut = None
+        if imdb and self.s.get('he_hints', True):
+            extra = self.cache.get('wd_he:%s' % imdb)
+            if extra is None:
+                wd_fut = self._pool.submit(self._wikidata, imdb)
+            else:
+                aliases += extra
         ai_fut = None
         if self.ai and self.ai.enabled and self.s.get('ai_aliases', True):
             ck = 'ai_alias:%s:%s' % (mkind, ident or title)
@@ -560,10 +581,34 @@ class Finder(object):
             if n and n not in seen and len(n) >= 2:
                 seen.add(n)
                 uniq.append(a)
-        imdb = req.get('imdb') or (details.get('imdb') if details else None)
         return {'kind': kind, 'title': title, 'aliases': uniq, 'year': year, 'runtime': runtime, 'imdb': imdb,
                 'season': req.get('season'), 'episode': req.get('episode'), 'total_seasons': total_seasons,
-                'ident': ident, '_ai': ai_fut}
+                'ident': ident, '_ai': ai_fut, '_wd': wd_fut}
+
+    def _wikidata(self, imdb):
+        """Runs in the pool. Hebrew names of the title; kept 30 days (an empty answer 3 days, a failure not at all)."""
+        from . import hints
+        try:
+            names = hints.wikidata_he(imdb)
+        except Exception as exc:
+            self.log('wikidata: %s' % type(exc).__name__)
+            return []
+        self.cache.set('wd_he:%s' % imdb, names, (30 if names else 3) * 86400)
+        return names
+
+    def _wizdom(self, t):
+        """Runs in the pool. Release names with a Hebrew subtitle for the wanted film / episode (kept 12 hours)."""
+        from . import hints
+        ck = 'wiz:%s:%s:%s' % (t['imdb'], t.get('season'), t.get('episode'))
+        got = self.cache.get(ck)
+        if got is None:
+            try:
+                got = hints.wizdom_versions(t['imdb'], t.get('season'), t.get('episode') if t['kind'] == 'episode' else None)
+            except Exception as exc:
+                self.log('wizdom: %s' % type(exc).__name__)
+                return []
+            self.cache.set(ck, got, 12 * 3600)
+        return got
 
     def _ai_aliases(self, ck, title, original, year, kind, known):
         """Runs in the pool. The answer is kept for 30 days even when the search that asked did not wait for it."""
@@ -750,13 +795,23 @@ class Finder(object):
             raise RuntimeError('no_backend')
         # 3.3.5: the AI's extra names arrive while the first queries are already running; they are waited for at
         # most 3 s (never when they are cached), and searched as soon as they are there
-        ai_fut = t.pop('_ai', None)
-        if ai_fut is not None:
+        ai_fut, wd_fut = t.pop('_ai', None), t.pop('_wd', None)
+        # 4.0.5: which releases have a Hebrew subtitle (asked now, used when the list is ranked)
+        wiz_fut = self._pool.submit(self._wizdom, t) if t.get('imdb') and self.s.get('he_hints', True) else None
+        if ai_fut is not None or wd_fut is not None:
             job.update(15, 'ai_aliases')
+            extra = []
+            wait = float(self.s.get('ai_alias_wait', 3))
             try:
-                extra = ai_fut.result(timeout=float(self.s.get('ai_alias_wait', 3)))
+                if wd_fut is not None:               # Wikidata answers in well under a second
+                    extra += wd_fut.result(timeout=min(wait, 2.0))
             except Exception:
-                extra = []
+                pass
+            try:
+                if ai_fut is not None:
+                    extra += ai_fut.result(timeout=wait)
+            except Exception:
+                pass
             known = set(normalize(a) for a in t['aliases'])
             new = [a for a in extra if normalize(a) and normalize(a) not in known]
             if new:
@@ -896,6 +951,11 @@ class Finder(object):
         min_q = int(self.s.get('min_quality', 0))
         if min_q:
             accepted = [c for c in accepted if (c['parsed']['quality'] or 0) >= min_q or not c['parsed']['quality']]
+        if wiz_fut is not None and accepted:
+            try:
+                self._mark_synced(accepted, wiz_fut.result(timeout=1.5))
+            except Exception:
+                pass                              # not there in time: asked again (from the cache) next search
         accepted.sort(key=lambda c: -c['score'])
         if not self._reduced:
             self._learn_chats(accepted)
@@ -1322,6 +1382,24 @@ class Finder(object):
             c.pop('_head', None)
         return [c for c in ok if id(c) not in drop]
 
+    def _mark_synced(self, cands, versions):
+        """4.0.5: a file whose release has a Hebrew subtitle at Wizdom gets a few points (more for the very same
+        release) - with the viewer's language set to Hebrew or "any" only. Never a reason to drop a file."""
+        from . import hints
+        if not versions or self.s.get('lang_pref', 'any') not in ('any', 'he'):
+            return 0
+        n = 0
+        for c in cands:
+            how = hints.synced(c.get('file') or '', versions)
+            if how:
+                n += 1
+                c['he_sub_synced'] = how
+                c['score'] += 5 if how == 'exact' else 3
+                c.setdefault('why', []).append('hebrew subtitle in sync (%s)' % how)
+        if n:
+            self.log('wizdom: %d of %d sources have a synced Hebrew subtitle' % (n, len(cands)))
+        return n
+
     def _apply_media(self, c, info, target, pref):
         """Folds what the file header says into the candidate. Returns a reason when the file is certainly not the
         wanted one (a sample, a clip), else None."""
@@ -1370,6 +1448,12 @@ class Finder(object):
         else:
             if runtime and real < 0.4 * runtime:
                 return 'real length %d min, an episode runs %d' % (real // 60, runtime // 60)
+            if runtime and real > 2.6 * runtime and real > runtime + 40 * 60 and not p.get('episode_end'):
+                # 4.0.5: far longer than this episode: several episodes glued together, or a film with the
+                # episode's name - listed last and marked, not dropped (some uploads join two parts on purpose)
+                c['score'] -= 12
+                c['loose'] = True
+                c.setdefault('why', []).append('length %d min, the episode runs %d' % (real // 60, runtime // 60))
             title = info.get('title') or ''
             if title:
                 tp = parse(title + '.mkv', '', '')
@@ -1412,6 +1496,7 @@ class Finder(object):
             'he_audio_inside': bool(c.get('he_audio_inside')), 'year': p.get('year'),
             'title': p.get('title') or '',
             'rd': c.get('rd'), 'rd_cached': c.get('rd_cached'),
+            'he_sub_synced': c.get('he_sub_synced') or '',          # 4.0.5
         }
 
     GROUP = {'tg': 0, 'telemedia': 0, 'rd': 1}

@@ -237,7 +237,7 @@ class RealDebrid(object):
         out = []
         if self.s.get('rd_torrentio_on', True):
             out += self.torrentio(kind, imdb, season, episode)
-        return out
+        return self.alive(out)
 
     # ------------------------------------------------------------------ play
     @staticmethod
@@ -259,8 +259,93 @@ class RealDebrid(object):
             raise RDError('no link')
         return url
 
+    # ------------------------------------------------------------------ 4.0.5: links that cannot be played
+    # Real-Debrid refuses some files it holds ("infringing_file") and an index sometimes lists a torrent that is not
+    # there any more. Such a link failed at play time and was offered again in the next search. It is remembered:
+    # a refusal for 30 days, "not there" for 6 hours.
+    DEAD_REFUSED, DEAD_GONE = 30 * 86400, 6 * 3600
+
+    def _dead_load(self):
+        if getattr(self, '_dead', None) is None:
+            import json
+            self._dead = {}
+            path = self.s.get('rd_dead_file')
+            try:
+                if path:
+                    with open(path, encoding='utf-8') as fh:
+                        data = json.load(fh)
+                    if isinstance(data, dict):
+                        now = time.time()
+                        self._dead = dict((k, v) for k, v in data.items()
+                                          if isinstance(v, list) and len(v) == 2 and v[0] > now)
+            except (OSError, ValueError):
+                pass
+        return self._dead
+
+    def mark_dead(self, key, reason, seconds):
+        import json
+        dead = self._dead_load()
+        dead[str(key)] =[int(time.time() + seconds), str(reason)[:60]]
+        if len(dead) > 2000:                     # the oldest go first
+            for k in sorted(dead, key=lambda k: dead[k][0])[:len(dead) - 2000]:
+                dead.pop(k, None)
+        path = self.s.get('rd_dead_file')
+        if path:
+            try:
+                with open(path + '.tmp', 'w', encoding='utf-8') as fh:
+                    json.dump(dead, fh)
+                import os
+                os.replace(path + '.tmp', path)
+            except OSError as exc:
+                self.log('rd: dead list not saved: %s' % type(exc).__name__)
+
+    @staticmethod
+    def link_key(cand):
+        """One short name for a link, the same in the list and at play time. A hash, because a Torrentio link
+        carries the account's key and must never be written to a file."""
+        import hashlib
+        ref = cand.get('rd') or {}
+        raw = cand.get('url') or ('h:%s:%s' % (str(ref.get('hash')).lower(), ref.get('idx')) if ref.get('hash')
+                                  else 't:%s' % ref.get('torrent') if ref.get('torrent') else '')
+        return hashlib.sha1(raw.encode('utf-8')).hexdigest()[:20] if raw else ''
+
+    def is_dead(self, key):
+        v = self._dead_load().get(str(key))
+        return bool(key and v and v[0] > time.time())
+
+    def alive(self, cands):
+        dead = self._dead_load()
+        if not dead:
+            return cands
+        out = [c for c in cands if not self.is_dead(self.link_key(c))]
+        if len(out) != len(cands):
+            self.log('rd: %d link(s) left out - refused or gone when last played' % (len(cands) - len(out)))
+        return out
+
+    @staticmethod
+    def dead_for(message):
+        """how long a failure keeps a link out of the lists: seconds, or 0 for a failure that says nothing about
+        the link itself (network, login, premium)"""
+        m = (message or '').lower()
+        if 'infring' in m or 'virus' in m:
+            return RealDebrid.DEAD_REFUSED
+        if any(x in m for x in ('not cached', 'no video in torrent', 'empty torrent', 'link refused', 'magnet_error',
+                                'no link', 'unavailable_file', 'hoster_unavailable')):
+            return RealDebrid.DEAD_GONE
+        return 0
+
     def resolve(self, cand, want=None, wait=8.0):
         """A candidate -> a direct HTTPS link Kodi can play. Raises RDError (the caller tries the next source)."""
+        try:
+            return self._resolve(cand, want, wait)
+        except RDError as exc:
+            keep, key = self.dead_for(str(exc)), self.link_key(cand)
+            if keep and key:
+                self.mark_dead(key, str(exc), keep)
+                self.log('rd: link remembered as unplayable for %d h: %s' % (keep // 3600, str(exc)[:40]))
+            raise
+
+    def _resolve(self, cand, want=None, wait=8.0):
         ref = cand.get('rd') or {}
         url = cand.get('url')
         if url:                                           # Torrentio link: it redirects to the RD download link
@@ -272,6 +357,8 @@ class RealDebrid(object):
             loc = r.headers.get('Location') or ''
             if r.status_code in (301, 302, 303, 307, 308) and loc.startswith('http') and 'failed' not in loc.lower():
                 return loc
+            if 'infring' in loc.lower():
+                raise RDError('infringing_file')
             if r.status_code in (200, 206):
                 return url
             raise RDError('link refused (%s)' % r.status_code)

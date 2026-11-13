@@ -68,6 +68,7 @@ def _load_settings():
         'bots': [x.strip().lstrip('@') for x in g('bots', '').replace(' ', ',').split(',') if x.strip()],
         'bot_max': gi('bot_max', 3), 'bot_timeout': gi('bot_timeout', 14), 'bot_autojoin': gb('bot_autojoin', False),
         'probe_all': gb('probe_all', True), 'bots_file': os.path.join(common.PROFILE, 'bots.json'),
+        'rd_dead_file': os.path.join(common.PROFILE, 'rd_dead.json'),      # 4.0.5: links refused / gone at play time
         # 3.3.4: Real-Debrid
         'rd_enabled': gb('rd_enabled', True), 'rd_token': g('rd_token').strip(), 'rd_refresh': g('rd_refresh').strip(),
         'rd_client_id': g('rd_client_id').strip(), 'rd_client_secret': g('rd_client_secret').strip(),

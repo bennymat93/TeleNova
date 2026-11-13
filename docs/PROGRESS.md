@@ -1,6 +1,6 @@
 # TeleNova - QA / upgrade programme: progress
 
-Updated 2026-11-13 03:20, after TeleNova 4.0.4 (published). Percent = steps finished / steps defined for the phase.
+Updated 2026-11-13 03:20, after TeleNova 4.0.5 (published). Percent = steps finished / steps defined for the phase.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -18,8 +18,8 @@ Extra tracks asked for by the owner
 ✅ Subtitles: certain detection of Hebrew   100%  (4.0.1)
 ✅ Set up once, restore everywhere           90%  (4.0.4: setup follows the Telegram account + full export/import;
                                                    restore on a second real device not yet run)
-▶️ Finding / checking / verifying links      45%  (4.0.4: StremThru + OpenSubtitles ID, off by default, not run
-                                                   with real keys; shortlist items 1-4 open)
+▶️ Finding / checking / verifying links      65%  (4.0.4: StremThru + OpenSubtitles ID, off by default, not run
+                                                   with real keys; shortlist 1-4, 6, 7 done; 5, 8-10 open)
 ✅ One screen for every service             100%  (4.0.4)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FIXES IDENTIFIED: 17  |  Fixed: 13 |  Pending: 4
