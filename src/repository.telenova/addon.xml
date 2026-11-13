@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="repository.telenova" name="TeleNova Repository" version="4.0.2" provider-name="NovaTV">
+<addon id="repository.telenova" name="TeleNova Repository" version="4.0.3" provider-name="NovaTV">
   <extension point="xbmc.addon.repository" name="TeleNova Repository">
     <dir>
       <info compressed="false">https://bennymat93.github.io/TeleNova/repo/addons.xml</info>
