@@ -52,6 +52,11 @@ CHANNELS = {
     'kdrama': (['Keshet Drama Channel', 'ערוץ הדרמה'], [], [('ch_free_drama', 'keshet', 10)]),
     'kmusic': (['Keshet Music Channel', 'ערוץ המוזיקה'], [], [('ch_free_music', 'keshet', 10)]),
     'kfood': (['Keshet Food Channel', 'ערוץ האוכל'], [], [('ch_free_food', 'keshet', 10)]),
+    # 4.0.3: the broadcasters' feeds for the hard of hearing (subtitled / signed)
+    'kan11c': (['Kan 11 - subtitled', 'כאן 11 - לקויי שמיעה'], [], [('ch_11c', 'kan', 10)]),
+    'keshet12c': (['Keshet 12 - subtitled', 'קשת 12 - לקויי שמיעה'], [], [('ch_12c', 'keshet', 10)]),
+    'reshet13c': (['Reshet 13 - subtitled', 'רשת 13 - לקויי שמיעה'], [], [('ch_13c', 'reshet', 4)]),
+    'knesset99c': (['Knesset Channel - subtitled', 'ערוץ הכנסת - לקויי שמיעה'], [], [('ch_99c', 'tv', 10)]),
     'radius100': (['100FM Radius (video)', '100FM רדיוס'], [], [('ch_100', 'tv', 10)]),
     'pervoe891': (['Первое Радио 89.1FM'], [], [('ch_891', 'tv', 10)]),
 }
