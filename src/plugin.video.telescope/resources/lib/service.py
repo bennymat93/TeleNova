@@ -602,7 +602,8 @@ class Service(xbmc.Monitor):
         tg = self._need_tg()
         t = 60
         simple = {
-            'send_code': lambda: tg.send_code(p['phone']),
+            'send_code': lambda: tg.send_code(p['phone'], bool(p.get('again'))),
+            'resend_code': lambda: tg.resend_code(),
             'sign_in': lambda: tg.sign_in(p['code']),
             'sign_in_password': lambda: tg.sign_in_password(p['password']),
             'qr_start': lambda: tg.qr_start(),

@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.0.5.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.0.6.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -30,13 +30,34 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.0.5 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.0.5 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.5 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.0.6 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.0.6 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.6 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.0.5 | This repository |
+| `repository.telenova` | 4.0.6 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.0.6 - Telegram login by phone that can be finished, YouTube live as TV channels
+
+- **Login by phone number, step by step** (`tgauth.py`, engine `send_code` / `resend_code` / `sign_in` /
+  `sign_in_password`, `router._phone_login`): number -> the code Telegram sends to the app on another device (or by
+  SMS) -> the two-step verification password -> connected. Before, every mistake - a mistyped code, a wrong
+  password, a number without its country code - ended the login with a raw error, and the next try asked Telegram
+  for a new code; Telegram limits code requests per number, so after a few tries the number was blocked for hours.
+  Now a code is asked for once and stays valid: a wrong code or password is typed again, a local number
+  (`054...`) is accepted, the screen says where the code went, an empty code field offers "send it another way"
+  (SMS / call, when Telegram allows it), the password prompt shows the account's hint, and a block is reported with
+  the time to wait and the note that the QR login is not affected. Codes and passwords never reach the log.
+  Verified against the build's Telethon (error classes, code delivery types); `qa/t_tgauth.py` runs the whole flow
+  against a stand-in Telegram. No real login was run - a test would spend the owner's code requests.
+- **A broadcaster's permanent YouTube live broadcast as a TV channel** (`ytlive.py`): the list keeps the channel
+  (`yt:UC...`), the video that is live now is looked up when the channel is opened (no API key), and it plays
+  through the YouTube add-on. Three official streams added and played in Kodi: Western Wall live cameras, Lev
+  HaMedina 91FM studio video, Kol Chai Music clip channel. 36 Israeli channels with licensed sources.
+  `docs/RESEARCH-il-channels.md` lists what was checked: the public free lists hold nothing more that is licensed
+  (the rest are restreams of pay channels), and the official YouTube channels of news sites and radio stations
+  broadcast by day only - they could not be verified at night and are listed there for a daytime check.
 
 ## TeleNova 4.0.5 - better lists: Hebrew names, synced subtitles, dead links remembered, faster search
 

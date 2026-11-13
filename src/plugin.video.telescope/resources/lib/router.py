@@ -993,18 +993,9 @@ def login(p):
                     win.show()
             win.close()
             if needs_pw:
-                ok = _password()
+                ok = _password(r.get('hint') or '')
         else:
-            phone = xbmcgui.Dialog().input(L(30057), common.setting('phone'), type=xbmcgui.INPUT_ALPHANUM)
-            if not phone:
-                return
-            common.set_setting('phone', phone)
-            rpc.call('send_code', phone=phone)
-            code = xbmcgui.Dialog().input(L(30058), type=xbmcgui.INPUT_NUMERIC)
-            if not code:
-                return
-            r = rpc.call('sign_in', code=code)
-            ok = r.get('ok') or (r.get('password') and _password())
+            ok = _phone_login()
         if ok:
             st = rpc.call('status')
             common.notify(Lf(30060, ((st.get('me')) or {}).get('name') or ''))
@@ -1013,11 +1004,160 @@ def login(p):
         xbmcgui.Dialog().ok(common.ADDON_NAME, str(exc))
 
 
-def _password():
-    pw = xbmcgui.Dialog().input(L(30059), option=xbmcgui.ALPHANUM_HIDE_INPUT)
-    if not pw:
+# 4.0.6: the login by phone, one clear step after another (resources/lib/tgauth.py explains why)
+LOGIN_TEXT = {
+    'phone': (u'מספר הטלפון של חשבון הטלגרם (למשל 0541234567 או ‎+972541234567)',
+              'The phone number of the Telegram account (e.g. +972541234567)',
+              u'Номер телефона аккаунта Telegram (например +972541234567)'),
+    'phone_invalid': (u'המספר לא תקין. הקלידו את המספר המלא, למשל 0541234567.', 'That is not a valid number. Type the whole number, e.g. +972541234567.',
+                      u'Неверный номер. Введите номер полностью, например +972541234567.'),
+    'phone_banned': (u'טלגרם חסם את המספר הזה.', 'Telegram has banned this number.', u'Telegram заблокировал этот номер.'),
+    'phone_unknown': (u'אין חשבון טלגרם עם המספר הזה.', 'There is no Telegram account with this number.', u'Аккаунта Telegram с этим номером нет.'),
+    'api_invalid': (u'ה-API ID / API hash בהגדרות ההרחבה לא תקינים.', 'The API ID / API hash in the add-on settings are not valid.',
+                    u'API ID / API hash в настройках дополнения неверны.'),
+    'flood': (u'טלגרם חסם זמנית בקשות קוד למספר הזה (יותר מדי ניסיונות).\nאפשר לנסות שוב בעוד %s.\nכניסה עם קוד QR לא מושפעת מהחסימה.',
+              'Telegram has temporarily blocked code requests for this number (too many attempts).\nTry again in %s.\nThe QR code login is not affected.',
+              u'Telegram временно заблокировал запросы кода для этого номера (слишком много попыток).\nПовторите через %s.\nВход по QR-коду не затронут.'),
+    'network': (u'אין תשובה מטלגרם. בדקו את החיבור לאינטרנט ונסו שוב.', 'No answer from Telegram. Check the internet connection and try again.',
+                u'Нет ответа от Telegram. Проверьте интернет и повторите.'),
+    'other': (u'טלגרם דחה את הבקשה (%s).', 'Telegram refused the request (%s).', u'Telegram отклонил запрос (%s).'),
+    'via_app': (u'שלב 2 מתוך 3: הקוד נשלח לאפליקציית טלגרם במכשיר אחר שלך.\nפתחו את טלגרם בטלפון - ההודעה מגיעה מהצ\'אט "Telegram".',
+                'Step 2 of 3: the code was sent to the Telegram app on your other device.\nOpen Telegram on the phone - the message is in the chat "Telegram".',
+                u'Шаг 2 из 3: код отправлен в приложение Telegram на другом устройстве.\nОткройте Telegram - сообщение в чате «Telegram».'),
+    'via_sms': (u'שלב 2 מתוך 3: הקוד נשלח בהודעת SMS למספר %s.', 'Step 2 of 3: the code was sent by SMS to %s.', u'Шаг 2 из 3: код отправлен по SMS на %s.'),
+    'via_call': (u'שלב 2 מתוך 3: הקוד יימסר בשיחת טלפון למספר %s.', 'Step 2 of 3: the code comes in a phone call to %s.', u'Шаг 2 из 3: код придёт звонком на %s.'),
+    'via_email': (u'שלב 2 מתוך 3: הקוד נשלח לכתובת האימייל של החשבון.', 'Step 2 of 3: the code was sent to the account\'s e-mail.', u'Шаг 2 из 3: код отправлен на e-mail аккаунта.'),
+    'via_other': (u'שלב 2 מתוך 3: טלגרם שלח קוד כניסה.', 'Step 2 of 3: Telegram sent a login code.', u'Шаг 2 из 3: Telegram отправил код.'),
+    'same_code': (u'(הקוד שנשלח קודם עדיין בתוקף - לא נשלח קוד חדש)', '(the code sent before is still valid - no new code was sent)',
+                  u'(прежний код ещё действует - новый не отправлен)'),
+    'code': (u'קוד הכניסה מטלגרם', 'The login code from Telegram', u'Код входа из Telegram'),
+    'code_invalid': (u'הקוד שגוי. הקלידו אותו שוב - אותו קוד עדיין בתוקף.', 'Wrong code. Type it again - the same code is still valid.',
+                     u'Неверный код. Введите снова - тот же код ещё действует.'),
+    'code_expired': (u'תוקף הקוד פג. יישלח קוד חדש.', 'The code has expired. A new one will be sent.', u'Срок кода истёк. Будет отправлен новый.'),
+    'no_code': (u'לא הוקלד קוד. מה לעשות?', 'No code was typed. What now?', u'Код не введён. Что дальше?'),
+    'retype': (u'להקליד את הקוד', 'Type the code', u'Ввести код'),
+    'resend': (u'לשלוח את הקוד בדרך אחרת (SMS / שיחה)', 'Send the code another way (SMS / call)', u'Отправить код иначе (SMS / звонок)'),
+    'cancel': (u'ביטול', 'Cancel', u'Отмена'),
+    'too_early': (u'אפשר לבקש דרך אחרת רק בעוד %s.', 'Another way can be asked for only in %s.', u'Другой способ можно запросить через %s.'),
+    'no_more_ways': (u'טלגרם לא מציע דרך אחרת לקוד הזה.', 'Telegram offers no other way for this code.', u'Telegram не предлагает другого способа.'),
+    'password': (u'שלב 3 מתוך 3: סיסמת האימות הדו-שלבי של טלגרם', 'Step 3 of 3: the Telegram two-step verification password',
+                 u'Шаг 3 из 3: пароль двухэтапной проверки Telegram'),
+    'hint': (u'רמז: %s', 'Hint: %s', u'Подсказка: %s'),
+    'password_invalid': (u'הסיסמה שגויה. נסו שוב.', 'Wrong password. Try again.', u'Неверный пароль. Повторите.'),
+    'tries': (u'יותר מדי ניסיונות. התחילו את הכניסה מחדש.', 'Too many tries. Start the login again.', u'Слишком много попыток. Начните вход заново.'),
+}
+
+
+def LT(key):
+    return LOGIN_TEXT[key][{'he': 0, 'ru': 2}.get(common.ui_language(), 1)]
+
+
+def _login_error(res):
+    """the engine's refusal in the viewer's words"""
+    from . import tgauth
+    err = res.get('error') or 'other'
+    if err == 'flood':
+        text = LT('flood') % tgauth.wait_text(res.get('wait'), common.ui_language())
+    elif err == 'too_early':
+        text = LT('too_early') % tgauth.wait_text(res.get('wait'), common.ui_language())
+    elif err in LOGIN_TEXT and '%s' not in LT(err):
+        text = LT(err)
+    else:
+        text = LT('other') % (res.get('detail') or err)
+    xbmcgui.Dialog().ok(common.ADDON_NAME, text)
+
+
+def _mask_phone(number):
+    return number[:4] + u'•' * max(0, len(number) - 6) + number[-2:] if len(number) > 6 else number
+
+
+def _phone_login():
+    """number -> code (typed again as often as needed, never asked for twice) -> two-step password"""
+    from . import tgauth
+    dlg = xbmcgui.Dialog()
+    phone = dlg.input(LT('phone'), common.setting('phone'), type=xbmcgui.INPUT_ALPHANUM)
+    if not phone:
         return False
-    return bool(rpc.call('sign_in_password', password=pw).get('ok'))
+    number = tgauth.normalize_phone(phone)
+    if not number:
+        dlg.ok(common.ADDON_NAME, LT('phone_invalid'))
+        return False
+    common.set_setting('phone', number)
+    sent = rpc.call('send_code', phone=number, timeout=60)
+    if not sent.get('sent'):
+        _login_error(sent)
+        return False
+    for _ in range(3):                     # a code that expired is asked for again, at most twice
+        where = LT('via_' + (sent.get('via') or 'other'))
+        if '%s' in where:
+            where = where % _mask_phone(number)
+        if sent.get('reused'):
+            where += '\n' + LT('same_code')
+        dlg.ok(common.ADDON_NAME, where)
+        res = _type_code(dlg)
+        if res is None:
+            return False
+        if res.get('ok'):
+            return True
+        if res.get('password'):
+            return _password(res.get('hint') or '')
+        if res.get('resent'):
+            sent = res['resent']
+            continue
+        if res.get('error') == 'code_expired':
+            dlg.ok(common.ADDON_NAME, LT('code_expired'))
+            sent = rpc.call('send_code', phone=number, again=True, timeout=60)
+            if not sent.get('sent'):
+                _login_error(sent)
+                return False
+            continue
+        _login_error(res)
+        return False
+    dlg.ok(common.ADDON_NAME, LT('tries'))
+    return False
+
+
+def _type_code(dlg):
+    """-> the engine's answer to a typed code; {'resent': info} when another delivery was asked for; None = cancelled"""
+    for _ in range(6):
+        code = dlg.input(LT('code'), type=xbmcgui.INPUT_NUMERIC)
+        if not code:
+            pick = dlg.select(LT('no_code'), [LT('retype'), LT('resend'), LT('cancel')])
+            if pick == 0:
+                continue
+            if pick == 1:
+                again = rpc.call('resend_code', timeout=60)
+                if again.get('sent'):
+                    return {'resent': again}
+                _login_error(again)
+                continue
+            return None
+        res = rpc.call('sign_in', code=code, timeout=60)
+        if res.get('error') == 'code_invalid':
+            dlg.ok(common.ADDON_NAME, LT('code_invalid'))
+            continue
+        return res
+    return {'error': 'other', 'detail': 'too many tries'}
+
+
+def _password(hint=''):
+    dlg = xbmcgui.Dialog()
+    for _ in range(5):
+        head = LT('password') + (('  -  ' + LT('hint') % hint) if hint else '')
+        pw = dlg.input(head, option=xbmcgui.ALPHANUM_HIDE_INPUT)
+        if not pw:
+            return False
+        res = rpc.call('sign_in_password', password=pw, timeout=60)
+        if res.get('ok'):
+            return True
+        if res.get('error') == 'password_invalid':
+            hint = res.get('hint') or hint
+            dlg.ok(common.ADDON_NAME, LT('password_invalid'))
+            continue
+        _login_error(res)
+        return False
+    dlg.ok(common.ADDON_NAME, LT('tries'))
+    return False
 
 
 def logout(_):

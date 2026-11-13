@@ -57,6 +57,10 @@ CHANNELS = {
     'keshet12c': (['Keshet 12 - subtitled', 'קשת 12 - לקויי שמיעה'], [], [('ch_12c', 'keshet', 10)]),
     'reshet13c': (['Reshet 13 - subtitled', 'רשת 13 - לקויי שמיעה'], [], [('ch_13c', 'reshet', 4)]),
     'knesset99c': (['Knesset Channel - subtitled', 'ערוץ הכנסת - לקויי שמיעה'], [], [('ch_99c', 'tv', 10)]),
+    # 4.0.6: official streams found on the broadcasters' own sites / YouTube channels (docs/RESEARCH-il-channels.md)
+    'kotel': (['Western Wall Live', 'הכותל המערבי - שידור חי'], ['yt:UCvcdHbNAQvbe2GuIDLhlwaw'], []),
+    'lev91': (['Lev HaMedina 91FM (video)', 'רדיו לב המדינה 91FM - וידאו'], ['https://cdn.cybercdn.live/Lev_Hamedina/Video/playlist.m3u8'], []),
+    'kolchaimusic': (['Kol Chai Music', 'קול חי מיוזיק - ערוץ הקליפים'], ['https://media.kcm.fm/rtmp-server/live/musiclip.m3u8'], []),
     'radius100': (['100FM Radius (video)', '100FM רדיוס'], [], [('ch_100', 'tv', 10)]),
     'pervoe891': (['Первое Радио 89.1FM'], [], [('ch_891', 'tv', 10)]),
 }
@@ -141,7 +145,15 @@ def live(handle, key, alt=''):
         cands, label = list(direct) + listed + [IDAN % (u, mode, module) for u, module, mode in idan], names[0]
     else:
         return xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
-    for url in cands:
+    n_all = len(cands)
+    for pos, url in enumerate(cands):
+        if url.startswith('yt:'):          # 4.0.6: the permanent live broadcast of the broadcaster's own YouTube channel
+            from . import ytlive
+            url = ytlive.play_url(ytlive.find(url[3:]) or '')
+            if not url:
+                continue                   # not on the air right now: the next source
+            log('live %s -> YouTube live (%d of %d)' % (key, pos + 1, n_all))
+            return xbmcplugin.setResolvedUrl(handle, True, xbmcgui.ListItem(path=url))
         if url.startswith('plugin://') or _alive_url(url):
             li = xbmcgui.ListItem(path=url)
             if not url.startswith('plugin://') and '.m3u8' in url.split('|')[0].lower() and \

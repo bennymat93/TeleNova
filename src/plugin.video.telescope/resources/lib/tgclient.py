@@ -177,23 +177,100 @@ class TG(object):
             await self.client.delete_messages('me', ids)
         return len(ids)
 
-    async def send_code(self, phone):
-        phone = re.sub(r'[^\d+]', '', phone)
-        sent = await self.client.send_code_request(phone)
-        self._login = {'phone': phone, 'hash': sent.phone_code_hash}
-        return {'sent': True, 'type': type(sent.type).__name__}
+    # 4.0.6: the login by phone, see tgauth.py. Every step answers with a dict - {'error': reason, ...} instead of
+    # an exception - so the screen can let the viewer type again without asking Telegram for another code.
+    def _auth(self):
+        from . import tgauth
+        if getattr(self, '_login_state', None) is None:
+            self._login_state = tgauth.LoginState()
+        return self._login_state
+
+    async def _password_hint(self):
+        try:
+            from telethon import functions
+            pw = await self.client(functions.account.GetPasswordRequest())
+            return getattr(pw, 'hint', '') or ''
+        except Exception:
+            return ''
+
+    async def send_code(self, phone, again=False):
+        from . import tgauth
+        st = self._auth()
+        number = tgauth.normalize_phone(phone)
+        if not number:
+            return {'sent': False, 'error': 'phone_invalid'}
+        if st.reusable(number) and not again:
+            return dict(st.info, sent=True, reused=True, phone=number)
+        if st.flood_left():
+            return {'sent': False, 'error': 'flood', 'wait': st.flood_left()}
+        try:
+            sent = await self.client.send_code_request(number)
+        except Exception as exc:
+            info = tgauth.error_info(exc)
+            if info['error'] == 'flood':
+                st.flood(info.get('wait'))
+            self.log('login: code request refused: %s' % info['detail'])
+            return dict(info, sent=False)
+        st.remember(number, sent.phone_code_hash, tgauth.sent_info(sent))
+        self._login = {'phone': number, 'hash': sent.phone_code_hash}
+        return dict(st.info, sent=True, phone=number)
+
+    async def resend_code(self):
+        """the next way Telegram offers for the same login (usually SMS after the in-app code)"""
+        from . import tgauth
+        st = self._auth()
+        if not st.hash:
+            return {'sent': False, 'error': 'code_expired'}
+        if not st.can_resend():
+            return {'sent': False, 'error': 'too_early' if st.info.get('next') else 'no_more_ways',
+                    'wait': max(0, int((st.info.get('timeout') or 0) - (time.time() - st.sent_at)))}
+        try:
+            from telethon import functions
+            sent = await self.client(functions.auth.ResendCodeRequest(st.phone, st.hash))
+        except Exception as exc:
+            info = tgauth.error_info(exc)
+            if info['error'] == 'flood':
+                st.flood(info.get('wait'))
+            self.log('login: resend refused: %s' % info['detail'])
+            return dict(info, sent=False)
+        st.remember(st.phone, sent.phone_code_hash, tgauth.sent_info(sent))
+        self._login = {'phone': st.phone, 'hash': sent.phone_code_hash}
+        return dict(st.info, sent=True, phone=st.phone)
 
     async def sign_in(self, code):
-        from telethon.errors import SessionPasswordNeededError
+        from . import tgauth
+        st = self._auth()
+        code = re.sub(r'\D', '', code or '')
+        if not st.hash:
+            return {'ok': False, 'error': 'code_expired'}
+        if not code:
+            return {'ok': False, 'error': 'code_invalid'}
         try:
-            self.me = await self.client.sign_in(self._login['phone'], code.strip(),
-                                                phone_code_hash=self._login['hash'])
-            return {'ok': True}
-        except SessionPasswordNeededError:
-            return {'ok': False, 'password': True}
+            self.me = await self.client.sign_in(st.phone, code, phone_code_hash=st.hash)
+        except Exception as exc:
+            info = tgauth.error_info(exc)
+            if info['error'] == 'password_needed':
+                return {'ok': False, 'password': True, 'hint': await self._password_hint()}
+            if info['error'] == 'code_expired':
+                st.forget()
+            if info['error'] == 'flood':
+                st.flood(info.get('wait'))
+            self.log('login: code refused: %s' % info['detail'])
+            return dict(info, ok=False)
+        st.forget()
+        return {'ok': True}
 
     async def sign_in_password(self, password):
-        self.me = await self.client.sign_in(password=password)
+        from . import tgauth
+        try:
+            self.me = await self.client.sign_in(password=password)
+        except Exception as exc:
+            info = tgauth.error_info(exc)
+            self.log('login: password refused: %s' % info['detail'])
+            if info['error'] == 'password_invalid':
+                info['hint'] = await self._password_hint()
+            return dict(info, ok=False)
+        self._auth().forget()
         return {'ok': True}
 
     async def qr_start(self):
@@ -215,7 +292,7 @@ class TG(object):
             return {'ok': False}
         except SessionPasswordNeededError:
             self._qr = None
-            return {'ok': False, 'password': True}
+            return {'ok': False, 'password': True, 'hint': await self._password_hint()}
 
     async def logout(self):
         await self.client.log_out()
