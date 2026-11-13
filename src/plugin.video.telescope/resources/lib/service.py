@@ -73,6 +73,7 @@ def _load_settings():
         'rd_client_id': g('rd_client_id').strip(), 'rd_client_secret': g('rd_client_secret').strip(),
         'rd_torrentio_on': gb('rd_torrentio_on', True), 'rd_torrentio_key': gb('rd_torrentio_key', True),
         'rd_cloud': gb('rd_cloud', True), 'rd_max': gi('rd_max', 15),
+        'max_mbit': gi('max_mbit', 40),             # 4.0.2: heavier files are not listed (0 = no limit)
     }
 
 
@@ -159,7 +160,14 @@ class Service(xbmc.Monitor):
         try:
             common.set_setting(key, value)
         finally:
-            threading.Timer(2.0, lambda: setattr(self, '_importing', False)).start()
+            self._later(2.0, lambda: setattr(self, '_importing', False))
+
+    def _later(self, seconds, job):
+        """a daemon timer (threading.Timer is not one: Kodi waits for it on exit)"""
+        def run():
+            if not self.waitForAbort(seconds):
+                job()
+        threading.Thread(target=run, daemon=True).start()
 
     def _fetch(self, chat, msg, idx):
         if not self.tg:
@@ -300,7 +308,7 @@ class Service(xbmc.Monitor):
             self._start_tg()
             self._build()
         finally:
-            threading.Timer(4.0, lambda: setattr(self, '_importing', False)).start()
+            self._later(4.0, lambda: setattr(self, '_importing', False))
         st = {}
         if self.tg:
             try:
@@ -357,6 +365,7 @@ class Service(xbmc.Monitor):
         # 3.3.5: Kodi gives a service 5 s to end and then waits for its threads all the same. The connections of
         # the players are closed first (a background reader - the subtitle server's ffmpeg - went on pulling the
         # film for minutes after "quit", and Kodi's process never ended), then Telegram gets 3 s to say goodbye.
+        common.log('exit: abort seen, shutting down', xbmc.LOGINFO)
         if self.app:
             try:
                 self.app.shutdown()
@@ -364,6 +373,30 @@ class Service(xbmc.Monitor):
                 common.log('shutdown: %r' % exc)
         if self.tg:
             self.tg.stop(3)
+        # 4.0.2: the workers of the search pool wait on a queue for ever - they are told to go
+        pool = getattr(self.finder, '_pool', None)
+        if pool is not None:
+            try:
+                pool.shutdown(wait=False)
+            except Exception:
+                pass
+        self._threads_left('after shutdown')
+
+    def _threads_left(self, when):
+        """what is still running in this script when it ends (Kodi waits for every thread): one log line each"""
+        try:
+            import sys
+            import traceback
+            me = threading.current_thread()
+            frames = sys._current_frames()
+            for th in threading.enumerate():
+                if th is me or th.name in ('telescope-tg', 'telescope-http') or th.name.startswith('Dummy'):
+                    continue
+                st = traceback.extract_stack(frames.get(th.ident))[-3:] if th.ident in frames else []
+                common.log('exit (%s): thread %s daemon=%s at %s' % (when, th.name, th.daemon, ' < '.join(
+                    '%s:%d %s' % (os.path.basename(f.filename), f.lineno, f.name) for f in reversed(st))), xbmc.LOGINFO)
+        except Exception as exc:
+            common.log('exit: %r' % exc)
 
     # ------------------------------------------------------------------ RPC
     def _need_tg(self):

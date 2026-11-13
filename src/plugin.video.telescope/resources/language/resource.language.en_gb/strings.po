@@ -871,3 +871,7 @@ msgstr ""
 msgctxt "#32116"
 msgid "Real-Debrid results listed"
 msgstr ""
+
+msgctxt "#32108"
+msgid "Heaviest file listed, Mbit/s (0 = no limit; Telegram never above what the account is served)"
+msgstr ""

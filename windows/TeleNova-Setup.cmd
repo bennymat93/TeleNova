@@ -1,7 +1,7 @@
 @echo off
-rem TeleNova 3.1 - Windows installer. Double-click to run.
+rem TeleNova 4.0 - Windows installer. Double-click to run.
 rem Installs Kodi (if missing) and the TeleNova build (Telegram engine included).
-title TeleNova 3.1 Setup
+title TeleNova 4.0 Setup
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$f='%~f0'; $s=(Get-Content -LiteralPath $f -Raw) -split '(?m)^#PSBEGIN\r?$',2; Invoke-Expression $s[1]"
 echo.
 pause
@@ -40,7 +40,7 @@ function Find-Kodi {
 }
 
 try {
-    Say '=== TeleNova 3.1 Setup ==='
+    Say '=== TeleNova 4.0 Setup ==='
     if (-not [Environment]::Is64BitOperatingSystem) { throw 'A 64-bit Windows is required.' }
     New-Item -ItemType Directory -Force -Path $Tmp | Out-Null
 
@@ -103,7 +103,7 @@ try {
     $lnk = $ws.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'TeleNova.lnk'))
     $lnk.TargetPath = $kodi
     $lnk.WorkingDirectory = Split-Path $kodi
-    $lnk.Description = 'TeleNova 3.1'
+    $lnk.Description = 'TeleNova 4.0'
     $lnk.Save()
 
     Remove-Item -LiteralPath $Tmp -Recurse -Force -ErrorAction SilentlyContinue

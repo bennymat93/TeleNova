@@ -322,6 +322,41 @@ OFF16 = "            if False:   %s (withdrawn in 3.3.1: guard v11 already cover
 AUTOSUB16 = [(CALL14, OFF16)]
 
 
+MARK17 = '# BN guard v17'
+# 4.0: the label of a track is not proof. TeleNova reads the text of the subtitle tracks from the file itself and
+# publishes what it found as Window(Home).Property(NovaTV.HebInside): 'wait' while it reads, then 'yes' (Hebrew text
+# inside - also in a track that has no label), 'no' (the track that says Hebrew holds something else, is empty or
+# broken) or '' (could not be told: the labels decide, as before). The search waits for that verdict (25 s at most).
+VERDICT17 = '''def _bn_verdict():   %s
+    """what TeleNova found by reading the subtitle tracks themselves: 'yes' / 'no' / 'wait' / ''"""
+    try:
+        import xbmcgui as _g
+        return _g.Window(10000).getProperty('NovaTV.HebInside')
+    except Exception:
+        return ''
+
+
+''' % MARK17
+HEAD13 = 'def _bn_embedded_hebrew():   %s\n' % MARK12
+AUTOSUB17 = [(HEAD13, VERDICT17 + HEAD13),
+             ("    while _t.time() - began < 8 and not monit.abortRequested():\n",
+              "    while _t.time() - began < 25 and not monit.abortRequested():   %s\n" % MARK17),
+             ("            for s in subs:\n                name = s.get('name') or ''\n",
+              "            _v, _lab = _bn_verdict(), False\n"
+              "            if _v == 'yes':\n"
+              "                return True\n"
+              "            if _v == 'no' and _t.time() - began > 1:\n"
+              "                return False\n"
+              "            for s in subs:\n                name = s.get('name') or ''\n"),
+             ("                        not (s.get('isforced') or 'forced' in name.lower()):\n                    return True\n",
+              "                        not (s.get('isforced') or 'forced' in name.lower()):\n"
+              "                    _lab = True\n"
+              "                    if _v == '' and _t.time() - began > 1.5:      # nobody is reading the tracks: the label decides\n"
+              "                        return True\n"),
+             ("            if steady >= 3 and (xbmc.getInfoLabel('Player.Time(hh:mm:ss)') or '00:00:00') >= '00:00:03':",
+              "            if steady >= 3 and _v != 'wait' and not _lab and (xbmc.getInfoLabel('Player.Time(hh:mm:ss)') or '00:00:00') >= '00:00:03':")]
+
+
 def apply(addon_dir):
     """All_Subs: 1 when a file was changed, 0 when the guards were already there; raises if it changed shape"""
     path = os.path.join(addon_dir, 'autosub.py')
@@ -363,6 +398,7 @@ def apply(addon_dir):
     n |= _patch(path, MARK14, AUTOSUB14)
     n |= _patch(path, MARK15, AUTOSUB15)
     n |= _patch(path, MARK16, AUTOSUB16)
+    n |= _patch(path, MARK17, AUTOSUB17)
     return n
 
 

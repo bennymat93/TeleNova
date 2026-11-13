@@ -272,7 +272,12 @@ class Finder(object):
         self.log('bots: %d bot chats, %d of them hold videos' % (len(bots), len(res)))
         return res
 
-    def content_bots(self, limit=None):
+    def content_bots(self, limit=None, target=None):
+        """The bots a search asks. 4.0.2, after looking at real bot chats: most bots that hold videos are not
+        "type a title" bots. Many serve ONE series through a menu (their name is the series), others only send
+        adverts. So with a target: a bot named after the wanted series comes first and is asked in its own words
+        ("עונה 2 פרק 5"); a bot named after nothing we look for is asked only while it is new (two tries) or after
+        it has brought files before; a bot that never brought anything rests for a month, not a day."""
         from . import tgbots
         if not self.tg or not self.s.get('bot_request', True):
             return []
@@ -302,14 +307,30 @@ class Finder(object):
                     continue
                 add(b.get('username') or b['id'], b['title'], 'auto', b['id'])
         now = time.time()
+        aliases = (target or {}).get('aliases') or []
+        for b in out:
+            b['series'] = bool(aliases) and self._bot_fits(b['title'], aliases)
 
         def resting(b):
             st = stats.get(b['key']) or {}
-            return b['why'] == 'auto' and st.get('asked', 0) >= 4 and not st.get('hits') \
-                and now - st.get('last', 0) < 86400
+            if b['why'] != 'auto' or b['series']:
+                return False
+            if st.get('named'):
+                return True                  # the bot of one series (it delivered when asked for it): not for others
+            if st.get('hits'):
+                return False
+            return st.get('asked', 0) >= 2 and now - st.get('last', 0) < 30 * 86400
         out = [b for b in out if not resting(b)]
-        out.sort(key=lambda b: -(stats.get(b['key']) or {}).get('hits', 0))
+        out.sort(key=lambda b: (not b['series'], -(stats.get(b['key']) or {}).get('hits', 0)))
         return out[:int(limit or self.s.get('bot_max', 3))]
+
+    @staticmethod
+    def _bot_fits(title, aliases):
+        """the bot is named after the wanted title ("על טבעי", "FBI Most Wanted - direct viewing ...")"""
+        if matcher.contains_alias(title or '', aliases):
+            return True
+        nt = normalize(title or '')
+        return len(nt) >= 4 and any(nt == normalize(a) for a in aliases)
 
     def bot_list(self):
         """For the "My bots" screen: every bot chat of the account + every bot the user chose, with its state."""
@@ -353,6 +374,8 @@ class Finder(object):
             if res.get('files'):
                 st['hits'] = st.get('hits', 0) + 1
                 st['files'] = st.get('files', 0) + len(res['files'])
+                if res.get('series'):
+                    st['named'] = True       # it is named after a title and serves that title
             st['last'] = int(time.time())
             st['error'] = res.get('error') or ''
         self._bots_save(data)
@@ -446,7 +469,13 @@ class Finder(object):
             res = await self.tg.bot_ask(bot['ref'], queries, timeout=float(self.s.get('bot_timeout', 14)),
                                         clicks=int(self.s.get('bot_clicks', 5)), rank=rank,
                                         autojoin=self.s.get('bot_autojoin', False))
+            res['series'] = bool(bot.get('series'))
             job.bots.append((bot, res))
+            if bot.get('series'):
+                # the bot of this very series answered this very request: its file needs no title in its name
+                # (such bots send "video.mp4" without a caption). A name that says otherwise still rejects it.
+                for c in res['files']:
+                    c['trusted_id'] = True
             return res['files']
         return self.tg.submit(go())
 
@@ -693,7 +722,7 @@ class Finder(object):
         tg_chats += [c['id'] for c in chiko['tg'] if c['id'] not in tg_chats]
         tm_chats = [c['id'] for c in chiko['telemedia']]
         # 3.3.3: the chats of the content bots are searched by name as well - what a bot sent last week is there
-        bots = self.content_bots() if logged_in else []
+        bots = self.content_bots(target=t) if logged_in else []
         tg_chats += [b['ref'] for b in bots if b['ref'] not in tg_chats]
 
         job.update(15, 'telegram_search')
@@ -745,7 +774,11 @@ class Finder(object):
             bq = self.bot_queries(t, queries)
             rank = self._button_rank(t)
             for b in bots:
-                bot_futs.add(self._ask_bot(b, bq, rank, job))
+                own = bq
+                if b.get('series') and t['kind'] == 'episode':
+                    # a one-series bot does not read titles: its menu speaks of seasons and episodes
+                    own = [u'\u05e2\u05d5\u05e0\u05d4 %d \u05e4\u05e8\u05e7 %d' % (int(t['season']), int(t['episode']))] + bq[:1]
+                bot_futs.add(self._ask_bot(b, own, rank, job))
             futs += list(bot_futs)
             self.log('bots asked: %s -> %s' % ([b['title'] for b in bots], bq))
         strict = self.s.get('strict', True)
@@ -866,16 +899,50 @@ class Finder(object):
         accepted.sort(key=lambda c: -c['score'])
         if not self._reduced:
             self._learn_chats(accepted)
+        # 4.0.2: a file whose data rate is above what its source can deliver cannot play without stalls - it is not
+        # listed at all (before the link test by the title's runtime, after it by the file's real length)
+        accepted, heavy = self.playable(accepted, (t.get('runtime') or 0) * 60)
 
         # ---- probe
         if self.s.get('probe', True) and accepted:
             job.update(70, 'probe')
             accepted = self.probe(accepted, job, t)
+        accepted, heavy2 = self.playable(accepted, (t.get('runtime') or 0) * 60)
+        if heavy or heavy2:
+            job.stats = dict(job.stats or {}, too_heavy=heavy + heavy2)
+            self.log('%d source(s) left out: data rate above what the source can deliver' % (heavy + heavy2))
         result = [self._public(c) for c in self.order_groups(accepted)]
         if result:
             self.cache.set(store_key, result, 1800)
         job.update(100, 'done')
         return result
+
+    def rate_caps(self):
+        """bytes per second a file may need: (Telegram, everything else); 0 = no limit.
+        Telegram: four fifths of what the account is being served (4.5 MB/s for a non-Premium account, measured;
+        less after flood waits) - about 29 Mbit/s. Others (Real-Debrid ...): the "max_mbit" setting."""
+        other = int(self.s.get('max_mbit', 40) or 0) * 125000
+        tg = 0
+        try:
+            rate = self.tg.sustained_rate() if self.tg else 0
+            tg = int(rate * 0.8) if rate else 0
+        except Exception:
+            tg = int(4.5 * 1048576 * 0.8)
+        if other and tg:
+            tg = min(tg, other)
+        return tg or other, other
+
+    def playable(self, cands, runtime):
+        tg_cap, other_cap = self.rate_caps()
+        keep, dropped = [], 0
+        for c in cands:
+            cap = tg_cap if (c.get('backend') or 'tg') in ('tg', 'telemedia') else other_cap
+            dur = c.get('duration') or runtime
+            if cap and dur and c.get('size') and c['size'] / float(dur) > cap:
+                dropped += 1
+                continue
+            keep.append(c)
+        return keep, dropped
 
     def _pinned(self):
         """Pinned chats of the settings: numeric ids, and - 3.3.3 - @names / t.me links of public channels, which
@@ -953,7 +1020,7 @@ class Finder(object):
         job.update(10, 'telegram_search')
         limit = int(self.s.get('search_limit', 100))
         logged_in = bool(self.tg and getattr(self.tg, 'me', None))
-        bots = self.content_bots() if logged_in else []
+        bots = self.content_bots(target={'aliases': [q]}) if logged_in else []
         futs, bot_futs = [], set()
         if self.tg and (logged_in or not self.bridge_ok()):
             if not logged_in and self._tg_authorized() is False:

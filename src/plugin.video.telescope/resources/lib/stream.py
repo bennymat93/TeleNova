@@ -325,6 +325,15 @@ class ChunkStore(object):
 
 class _Server(ThreadingMixIn, HTTPServer):
     daemon_threads = True
+    block_on_close = False          # 4.0.2: closing the listener never waits for a connection's thread
+
+    def handle_error(self, request, client_address):
+        # a player that drops its connection is everyday business, not an error with a traceback in the log
+        import sys
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionError, OSError, ValueError)):
+            return
+        HTTPServer.handle_error(self, request, client_address)
     allow_reuse_address = True
     request_queue_size = 32
 
@@ -359,6 +368,29 @@ def make_handler(app):
         def log_message(self, fmt, *args):
             if app.debug:
                 app.log('http: ' + fmt % args)
+
+        # 4.0.2: every connection is known from the moment it is accepted. The player keeps its connections open
+        # after a film (keep-alive); their threads then sit in a read that never ends, and Kodi cannot finish a
+        # script while one of its threads is stuck there - it hung on exit after every Telegram film. On shutdown
+        # all of them are closed.
+        def setup(self):
+            conns = getattr(app, 'conns', None)
+            if conns is None:
+                conns = app.conns = set()
+            conns.add(self.request)
+            BaseHTTPRequestHandler.setup(self)
+
+        def finish(self):
+            try:
+                BaseHTTPRequestHandler.finish(self)
+            finally:
+                getattr(app, 'conns', set()).discard(self.request)
+
+        def handle_one_request(self):
+            if getattr(app, 'closing', False):
+                self.close_connection = True
+                return
+            BaseHTTPRequestHandler.handle_one_request(self)
 
         def _json(self, code, obj):
             body = json.dumps(obj, ensure_ascii=False).encode('utf-8')
@@ -465,25 +497,27 @@ def make_handler(app):
             # counts as "the picture", its chunks come after the player's and it reads two chunks ahead at most.
             agent = self.headers.get('User-Agent') or ''
             other = not agent.startswith('Kodi/')
+            # 4.0.1: TeleNova's own short reads (the check of the subtitle tracks at the start of a film) are neither:
+            # they never count as the picture, but they are answered at once - the verdict is waited for
+            aux = agent.startswith('TeleNova-')
+            last_wanted = end // CHUNK
             # ... as long as Kodi's own player has the film open: another player (VLC, MX Player) is served in full
-            bg = other and store.has_player(chat, msg, token)
-            store.set_pos(token, chat, msg, idx, bg)
+            bg = other and not aux and store.has_player(chat, msg, token)
+            store.set_pos(token, chat, msg, idx, bg or aux)
             try:
-                store.cancel_stale(chat, msg, readahead, last_idx)   # a seek drops read-ahead nobody reads any more
+                if not aux:
+                    store.cancel_stale(chat, msg, readahead, last_idx)   # a seek drops read-ahead nobody reads any more
             except Exception as exc:
                 app.log('cancel_stale: %r' % exc)
             t_open, first_idx, sent, first_byte, waits, wait_sum, wait_max, blocked = time.time(), idx, 0, None, 0, 0.0, 0.0, 0.0
             behind = lows = 0
-            conns = getattr(app, 'conns', None)
-            if conns is None:
-                conns = app.conns = set()
-            conns.add(self.connection)
+            conns = getattr(app, 'conns', None) or set()
             if app.debug:
                 app.log('connection opened at chunk %d (range %s) by %s' % (idx, self.headers.get('Range'), self.headers.get('User-Agent')))
             try:
                 while pos <= end and not getattr(app, 'closing', False):
-                    bg = other and store.has_player(chat, msg, token)
-                    store.set_pos(token, chat, msg, idx, bg)
+                    bg = other and not aux and store.has_player(chat, msg, token)
+                    store.set_pos(token, chat, msg, idx, bg or aux)
                     # Kodi holds several connections of one film: the picture, the index at the end, one more it
                     # opens at the start and leaves idle, and after a jump the old one, which it goes on reading
                     # slowly. Which of them is "the picture" cannot be told for sure (the newest one is not always),
@@ -495,7 +529,11 @@ def make_handler(app):
                     # one needs - except the first: the player finishes the read it was in before it switches, so
                     # that chunk is still served at once.
                     live = store.is_live(token, last_idx)
-                    if live:
+                    if aux:
+                        behind = 0
+                        # a bounded read: only what was asked for is fetched ahead
+                        store.prefetch(chat, msg, idx, min(readahead + 1, last_wanted - idx + 1), last_idx)
+                    elif live:
                         behind = 0
                         # keep the pipeline full before blocking on the current chunk
                         store.prefetch(chat, msg, idx, readahead + 1, last_idx)
@@ -539,7 +577,6 @@ def make_handler(app):
                 say('stream error at %d: %r' % (pos, exc))
                 self.close_connection = True
             finally:
-                conns.discard(self.connection)
                 if getattr(app, 'closing', False):
                     self.close_connection = True
                 took = time.time() - t_open
@@ -626,10 +663,16 @@ class App(object):
                 sock.shutdown(socket.SHUT_RDWR)
             except Exception:
                 pass
+            # 4.0.2: close() of a socket object does nothing while the handler's file objects still hold it, and on
+            # Windows shutdown() does not wake a thread that sits in recv(). The descriptor itself is closed: the
+            # blocked read / write in the handler thread returns at once.
             try:
-                sock.close()
+                socket.close(sock.detach())
             except Exception:
-                pass
+                try:
+                    sock.close()
+                except Exception:
+                    pass
         if self.server:
             self.server.shutdown()
             self.server.server_close()

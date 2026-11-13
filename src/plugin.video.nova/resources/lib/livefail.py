@@ -20,7 +20,7 @@ IDAN = 'plugin://plugin.video.idanplus/?url=%s&mode=%s&module=%s&moredata=best'
 CHANNELS = {
     'kan11': (['Kan 11', 'כאן 11'], [KAN % 'kan11'], [('ch_11', 'kan', 10), ('ch_11b', 'tv', 10)]),
     'keshet12': (['Keshet 12', 'קשת 12', 'Channel 12'], [],
-                 [('ch_12', 'keshet', 10), ('ch_12b', 'keshet', 10), ('ch_12b2', 'keshet', 10), ('ch_12b3', 'keshet', 10)]),
+                 [('ch_12', 'keshet', 10), ('ch_12b', 'keshet', 10), ('ch_12b2', 'keshet', 10)]),
     'reshet13': (['Channel 13 (Israel)', 'Reshet 13', 'רשת 13', 'Channel 13'], [],
                  [('ch_13', 'reshet', 4), ('ch_13b', 'reshet', 4), ('ch_13b2', 'reshet', 4)]),
     'now14': (['Now 14', 'עכשיו 14', 'Channel 14'], ['https://r.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8'],
@@ -35,6 +35,25 @@ CHANNELS = {
     'i24en': (['i24NEWS English'], ['https://i24newsenglish-cdn.encoders.immergo.tv/master.m3u8'], [('ch_i24newsen', 'tv', 10)]),
     'i24fr': (['i24NEWS French'], ['https://i24newsfrench-cdn.encoders.immergo.tv/master.m3u8'], [('ch_i24newsfr', 'tv', 10)]),
     'i24ar': (['i24NEWS Arabic'], ['https://i24newsarabic-cdn.encoders.immergo.tv/master.m3u8'], [('ch_i24newsar', 'tv', 10)]),
+    # 4.0.2: the rest of what Idan+ carries - the broadcasters' own free web channels. Every one of them is always in
+    # the channel list (iptv._merge adds the keys that no playlist brought), the ones a playlist also carries get
+    # Idan+ as their fallback. Paid cable / satellite channels have no licensed free source and stay out.
+    'kalkala10': (['Kalkala 10', 'כלכלה 10'], [], [('ch_10', 'tv', 10)]),
+    'ch16': (['Channel 16', 'ערוץ 16'], [], [('ch_16tv', 'tv', 10)]),
+    'kab66': (['Kabbalah for the People Israel', 'קבלה 66', 'קבלה לעם'], [], [('ch_66', 'tv', 10)]),
+    'kabru': (['Kabbalah (Russian)', 'קבלה - רוסית'], [], [('ch_kabru', 'tv', 10)]),
+    # played 13/11 (qa/t_live_keys.py): Big Brother 26, Musayof, Ynet Live and the Sport 5 site did not start - left out
+    'comedy13': (['Comedy Channel', '13 ערוץ הקומדיות'], [], [('ch_13comedy', 'reshet', 4)]),
+    'nofesh13': (['Vacation Channel', 'ערוץ הנופש'], [], [('ch_13nofesh', 'reshet', 4)]),
+    'reality13': (['Reality Channel', 'ערוץ הריאליטי'], [], [('ch_13reality', 'reshet', 4)]),
+    'eretz': (['Eretz Nehederet Channel', 'ערוץ ארץ נהדרת'], [], [('ch_erets', 'keshet', 10)]),
+    'savri': (['Savri Maranan Channel', 'ערוץ סברי מרנן'], [], [('ch_savri', 'keshet', 10)]),
+    'kcomedy': (['Keshet Comedy Channel', 'ערוץ הקומדיה'], [], [('ch_free_comedy', 'keshet', 10)]),
+    'kdrama': (['Keshet Drama Channel', 'ערוץ הדרמה'], [], [('ch_free_drama', 'keshet', 10)]),
+    'kmusic': (['Keshet Music Channel', 'ערוץ המוזיקה'], [], [('ch_free_music', 'keshet', 10)]),
+    'kfood': (['Keshet Food Channel', 'ערוץ האוכל'], [], [('ch_free_food', 'keshet', 10)]),
+    'radius100': (['100FM Radius (video)', '100FM רדיוס'], [], [('ch_100', 'tv', 10)]),
+    'pervoe891': (['Первое Радио 89.1FM'], [], [('ch_891', 'tv', 10)]),
 }
 
 
@@ -112,7 +131,9 @@ def live(handle, key, alt=''):
         cands = load('alternates.json', {}).get(alt, [])
         label = alt
     elif key in CHANNELS:
-        cands, label = candidates(key), CHANNELS[key][0][0]
+        names, direct, idan = CHANNELS[key]
+        listed = [u for u in load('live_extra.json', {}).get(key, []) if u not in direct and not u.startswith('plugin://')]
+        cands, label = list(direct) + listed + [IDAN % (u, mode, module) for u, module, mode in idan], names[0]
     else:
         return xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
     for url in cands:

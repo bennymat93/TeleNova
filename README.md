@@ -1,10 +1,10 @@
-# TeleNova 3.1
+# TeleNova 4.0
 
 Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one catalogue for movies and series,
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-3.1.0.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.0.2.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -30,14 +30,67 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.0.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.0.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 3.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.0.2 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.0.2 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.2 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 3.1.0 | This repository |
+| `repository.telenova` | 4.0.2 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
 
+## TeleNova 4.0.2 - Kodi closes at once, heavy files out of the list, 29 licensed Israeli channels
+
+Every add-on of the repository carries the same number from now on (hub, Telegram engine, wizard, repository).
+
+- **Leaving Kodi after Telegram playback.** Kodi waits for every thread of an add-on; the threads of the local
+  streaming server sat in a socket read that Windows does not wake with `shutdown()`. The server now keeps the open
+  connections and releases the handles themselves (`socket.close(sock.detach())`), stops the Telegram client with a
+  3-second limit and cancels the reads in flight. Measured: Kodi's process ends 14 s after "exit" (before: it never
+  ended and had to be killed). `qa/t_exit.py`.
+- **Files that cannot play cleanly are not offered.** The account's real rate is measured (4.3-4.5 MB/s without
+  Premium). A Telegram file whose data rate is above 80% of it (about 29 Mbit/s) would stall, so it is left out of
+  the list - before and after the probe. Two 4K HDR files under the limit were played from Telegram with no stall,
+  so 4K as such stays. Other sources: new setting "heaviest file" (`max_mbit`, 40 Mbit/s, 0 = no limit).
+- **Bots, tested against the account's real bots** (23 bots, 6 with video). A bot named after a series is asked
+  first and in its own words ("עונה 5 פרק 20" - it delivered the file), and is not asked for other titles. A bot that
+  gave nothing in two tries rests for 30 days; a bot the viewer marked is always asked. `qa/agentC/test_botrules.py`,
+  `qa/t_bots_live.py`.
+- **Israeli channels: 14 -> 29 with licensed failover.** What Idan+ carries and really plays is now in the channel
+  list whether or not a free playlist brings it: Kalkala 10, Channel 16, Kabbalah 66 and its Russian channel,
+  Reshet's comedy / vacation / reality channels, Keshet's Eretz Nehederet / Savri Maranan / comedy / drama / music /
+  food channels, 100FM Radius and 89.1FM video. A channel a playlist also carries keeps that stream, between the
+  broadcaster's own and Idan+ (`live_extra.json`). All 29 were played in Kodi (`qa/t_live_keys.py`); Big Brother 26,
+  Musayof, Ynet Live and the Sport 5 site broadcast did not start and were left out. Paid cable and satellite
+  channels have no licensed free source and stay out.
+
+## TeleNova 4.0.1 - Hebrew subtitles: the text decides, not the label
+
+- **What is inside the tracks** (`subprobe.py`): at the start of a film the subtitle tracks of the file itself are
+  read (the Matroska track table, then stretches of the file until every text track has shown what it is - 2 to 10 MB
+  in practice, 24 MB at most). Each track gets a verdict: Hebrew text, another language, broken encoding, empty,
+  picture subtitles (cannot be read), unknown. A track labelled Hebrew that holds English, is empty or is saved in a
+  wrong encoding no longer stops the search; Hebrew in a track without any label is found and switched on; a full
+  Hebrew track that only carries the "forced" flag (uploaders set it so that players show the track) counts as full.
+- **The decision** (`subprobe.decide`, `service.py` `verify_embedded`): Hebrew inside -> that track is switched on,
+  nothing is searched or generated. No Hebrew inside -> the search (All_Subs) and the AI generation run as before.
+  All_Subs waits for the verdict (`subspatch.py` guard v17, Window property `NovaTV.HebInside`: wait / yes / no).
+- **Subtitles burned into the picture** (`hardsub.py`): three frames of the playing film (the lower third) are
+  shown to Gemini - is there subtitle text in the picture, in which script; up to three rounds, an answer counts
+  only when two frames agree. Burned-in Hebrew -> the subtitles that were added are switched off again. Burned-in
+  subtitles in another language -> the Hebrew subtitles are shown on an opaque black box (Kodi's subtitle
+  background); the viewer's own style is saved and put back when the film ends, also after a crash. Without a
+  Gemini key only the file name is a hint ("HebSub", "ת.מ", "HC", "KORSUB") and nothing is switched on its strength.
+- **Engine 4.0.1** (`stream.py`): TeleNova's own short reads are answered at once (the check took 25 s behind the
+  player's buffering, 2.6 s now) and never count as the picture.
+- **Checked in Kodi on real Telegram files**: a film with a Hebrew track -> "yes" after 2.6 s, track on; an episode
+  whose only track is English -> "no", Hebrew subtitle fetched; a "HebSub" release with no tracks -> Hebrew seen in two
+  of three frames after about a minute, the fetched subtitle switched off. Not exercised on a real file: the black
+  box for foreign burned-in subtitles (unit-tested only), MP4 text tracks (the label still decides there).
+- Tests: `src/qa/t_subprobe.py` (16 cases on Matroska files built in the test, plus `live` on real files),
+  `src/qa/t_hardsub.py` (22), `src/qa/t_subs_kodi.py` (inside Kodi).
+- Research for the next steps: `docs/RESEARCH-device-transfer.md` (set up once, restore on every device - design
+  chosen, not implemented), `docs/RESEARCH-sources.md` (finding / checking / verifying links - shortlist and open
+  questions), `docs/DESIGN_PRINCIPLES.md` (35 binding design rules for the skin).
 ## TeleNova 4.0.0 - Telegram playback and search, measured against a real account
 
 Everything below was measured with a logged-in (non-Premium) Telegram account, outside Kodi (`src/qa/tg_bench.py`)

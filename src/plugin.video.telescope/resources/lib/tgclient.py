@@ -526,6 +526,14 @@ class TG(object):
     HEDGE_AFTER = 3.0                     # s without an answer for the chunk a player waits for -> asked twice
     RATE_FREE = 12 * 1048576              # paced above this = no pacing
 
+    def sustained_rate(self):
+        """bytes per second the account is being served over time; 0 = not limited (Premium, nothing refused yet)"""
+        self._pace_init()
+        if self._rate:
+            return max(self._rate, self.RATE_MIN)
+        premium = bool(getattr(getattr(self, 'me', None), 'premium', False))
+        return 0 if premium else self.RATE_FIRST
+
     def pace_info(self):
         self._pace_init()
         return {'on_wire': self._running, 'waiting': len(self._waitq), 'urgent': len(self._urgent),

@@ -222,6 +222,7 @@ class FinderRDTests(unittest.TestCase):
         rd, _, _ = make_rd(h)
         f = tb.finder_for(self.tg, 'rd1', bot_request=False)
         f.rd = rd
+        f.s['max_mbit'] = 0             # 4.0.2: the weight limit has its own test below
 
         class M(object):
             def details(self, kind, ident):
@@ -236,6 +237,32 @@ class FinderRDTests(unittest.TestCase):
         self.assertTrue(all(r['probe'] == 'rd' for r in j.result[1:]))
         self.assertEqual(j.stats['checks']['rd'], 2)
         self.assertLess(time.time() - t0, 8)
+
+    def test_too_heavy_sources_are_not_listed(self):
+        """4.0.2: a file that needs more than its source can deliver cannot play without stalls - it is left out.
+        Telegram: four fifths of what the account is served; everything else: the max_mbit setting."""
+        f = sources.Finder.__new__(sources.Finder)
+
+        class TG(object):
+            def sustained_rate(self):
+                return 4.5 * 1048576                    # a non-Premium account
+        f.tg = TG()
+        f.s = {'max_mbit': 40}
+        gb, hour = 1024 ** 3, 3600
+        cands = [{'file': 'tg 4K web 8 GB / 2 h', 'size': 8 * gb, 'duration': 2 * hour},              # 9 Mbit
+                 {'file': 'tg remux 40 GB / 2 h', 'size': 40 * gb, 'duration': 2 * hour},             # 47 Mbit
+                 {'file': 'tg 1080p no length', 'size': 3 * gb},                                      # runtime decides
+                 {'file': 'tg 30 GB no length', 'size': 30 * gb},
+                 {'file': 'rd 4K 25 GB', 'size': 25 * gb, 'backend': 'rd'},                           # 29 Mbit
+                 {'file': 'rd remux 80 GB', 'size': 80 * gb, 'backend': 'rd'}]                        # 95 Mbit
+        keep, dropped = f.playable(cands, 2 * hour)
+        self.assertEqual([c['file'] for c in keep], ['tg 4K web 8 GB / 2 h', 'tg 1080p no length', 'rd 4K 25 GB'])
+        self.assertEqual(dropped, 3)
+        keep, dropped = f.playable(cands, 0)                # runtime unknown: only files with their own length are judged
+        self.assertEqual(dropped, 1)
+        f.s = {'max_mbit': 0}                               # no limit set: Telegram's own limit still holds
+        keep, dropped = f.playable(cands, 2 * hour)
+        self.assertEqual(sorted(c['file'] for c in keep), sorted(['tg 4K web 8 GB / 2 h', 'tg 1080p no length', 'rd 4K 25 GB', 'rd remux 80 GB']))
 
 
 class LiveIndexTest(unittest.TestCase):

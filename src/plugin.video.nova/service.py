@@ -29,6 +29,16 @@ SESSION_PROPS = ('NovaTV.ABLoop', 'NovaTV.Dual', 'NovaTV.SyncMarkAudio', 'NovaTV
                  'NovaTV.AIMode', 'NovaTV.PrimaryFile')
 HEB_CODES = ('heb', 'he', 'hebrew', 'iw')
 WIN = xbmcgui.Window(10000)
+BOX_FILE = os.path.join(PROFILE, 'subbox.json')      # 4.0: the viewer's subtitle style while the black box is on
+
+
+def _rpc(method, params=None):
+    """Kodi's JSON-RPC -> the 'result' dict, or None"""
+    try:
+        r = json.loads(xbmc.executeJSONRPC(json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params or {}})))
+        return r.get('result')
+    except Exception:
+        return None
 _HIST_LOCK = threading.Lock()       # 3.3: history.json is written in a thread - one writer at a time
 
 
@@ -125,6 +135,154 @@ class Flow:
             if self.p.flow is self and not self.alive():
                 status('')
 
+    # ------------------------------------------------------------ 4.0: what the video really carries
+    def _reader(self):
+        """-> (read(offset, length) -> bytes, size) for the playing file, or (None, 0) when it cannot be read here"""
+        path = self.file
+        if path.startswith(('http://', 'https://')):
+            import requests
+            from urllib.parse import parse_qsl, unquote
+            url, _, opts = path.partition('|')
+            headers = dict((k, unquote(v)) for k, v in parse_qsl(opts)) if opts else {}
+            headers = dict((k, v) for k, v in headers.items() if k.lower() in ('user-agent', 'referer', 'cookie', 'authorization'))
+            headers.setdefault('User-Agent', 'TeleNova-subprobe')        # the Telegram engine serves it behind the player
+            sess = requests.Session()
+
+            def read(off, length):
+                r = sess.get(url, headers=dict(headers, Range='bytes=%d-%d' % (off, off + length - 1)), timeout=25, stream=True)
+                try:
+                    if r.status_code not in (200, 206):
+                        return b''
+                    if r.status_code == 200 and off:
+                        return b''                               # the server ignores ranges: nothing is downloaded whole
+                    return r.raw.read(length)
+                finally:
+                    r.close()
+            r = sess.get(url, headers=dict(headers, Range='bytes=0-0'), timeout=20, stream=True)
+            try:
+                total = r.headers.get('Content-Range', '').rpartition('/')[2]
+                size = int(total) if total.isdigit() else 0
+            finally:
+                r.close()
+            return (read, size) if size else (None, 0)
+        if os.path.isfile(path):
+            def read_file(off, length):
+                with open(path, 'rb') as f:
+                    f.seek(off)
+                    return f.read(length)
+            return read_file, os.path.getsize(path)
+        return None, 0
+
+    def verify_embedded(self):
+        """True = the video has Hebrew subtitles of its own (they were switched on): nothing is searched or generated.
+        Sets Window(Home).Property(NovaTV.HebInside) to yes / no / '' (could not be told - the labels decide)."""
+        from resources.lib import subdetect, subprobe
+        p = self.p
+        subs = subdetect.tracks() or []
+        res, began = None, time.time()
+        if subs and (ADDON.getSetting('sub_verify') or 'true') != 'false':
+            try:
+                read, size = self._reader()
+                if read:
+                    res = subprobe.probe(read, size, budget=24 * 1048576,
+                                         alive=lambda: self.alive() and time.time() - began < 25)
+            except Exception as e:
+                log('subtitles: the file could not be read for the check (%s)' % str(e)[:100])
+        dec = subprobe.decide(subs, res)
+        tracks = (res or {}).get('tracks') or []
+        p.not_hebrew = set(int(subs[i].get('index', i)) for i, t in enumerate(tracks[:len(subs)])
+                           if t['verdict'] in ('other', 'broken', 'empty'))
+        log('subtitles: %d track(s), %.1f MB read in %.1fs: %s -> Hebrew inside: %s (%s)%s' % (
+            len(subs), (res or {}).get('read', 0) / 1048576.0, time.time() - began,
+            ', '.join('%s=%s' % (t['lang'] or 'und', t['verdict']) for t in tracks) or 'not read',
+            dec['hebrew'], dec['why'], '' if dec['certain'] else ' [by label]'), xbmc.LOGINFO)
+        if not self.alive():
+            WIN.clearProperty('NovaTV.HebInside')
+            return False
+        if dec['hebrew'] == 'yes' and dec['index'] >= 0:
+            WIN.setProperty('NovaTV.HebInside', 'yes')
+            p.chosen = p.gen
+            WIN.setProperty('NovaTV.SubsChosen', self.file)
+            try:
+                p.setSubtitleStream(dec['index'])
+                p.showSubtitles(True)
+            except RuntimeError:
+                pass
+            return True
+        WIN.setProperty('NovaTV.HebInside', 'no' if dec['certain'] else '')
+        return False
+
+    def hardsub_check(self):
+        """Subtitles that are part of the picture. Runs next to the search (it needs frames with speech, half a
+        minute into the film): burned-in Hebrew -> our subtitles are not needed; another language -> black box."""
+        from resources.lib import hardsub, subdetect
+        p, mon = self.p, monitor()
+        try:
+            tag = p.getVideoInfoTag()
+            hint = hardsub.name_hint(self.file, tag.getTitle(), xbmc.getInfoLabel('Player.Filename'))
+        except Exception:
+            hint = ''
+        key = ADDON.getSetting('gemini_key').strip()
+        found, certain = '', False
+        if key and (ADDON.getSetting('hc_detect') or 'true') != 'false':
+            import requests
+            # up to three rounds of three frames: a round without speech says nothing. A second / third round is
+            # taken only when the name promises burned-in subtitles or the first answer was not clear.
+            for rnd in range(3):
+                pngs, tries = [], 0
+                while self.alive() and len(pngs) < 3 and tries < 8:
+                    if mon.waitForAbort(10 if (tries or rnd) else 1):
+                        return
+                    if subdetect.play_secs() < 40 or xbmc.getCondVisibility('Player.Paused'):
+                        continue                         # titles and logos first; a paused picture shows the same frame
+                    tries += 1
+                    try:
+                        cap = xbmc.RenderCapture()
+                        w = 960
+                        h = int(w / max(1.0, float(cap.getAspectRatio() or 1.78)))
+                        cap.capture(w, h)
+                        img = cap.getImage(2000)
+                        if img and len(img) >= w * h * 4 and not hardsub.dull(img, w, h):
+                            pngs.append(hardsub.png(bytes(img), w, h))
+                    except Exception as e:
+                        log('hard-coded subtitles: no frame (%s)' % str(e)[:80])
+                        tries = 99
+                if len(pngs) < 2 or not self.alive():
+                    break
+                frames = hardsub.ask_gemini(key, pngs, requests.post, log=log)
+                if not frames:
+                    break
+                found, certain = hardsub.verdict(frames)
+                log('subtitles: frames round %d: %s -> %s' % (rnd + 1, ' '.join(
+                    (f.get('script') or '?') if f.get('subtitle') else '-' for f in frames if isinstance(f, dict)), found or 'unclear'))
+                if found in ('hebrew', 'foreign') and certain:
+                    break
+                if found == 'none' and not hint:
+                    break
+                found, certain = '', False
+        if not found and hint:
+            found, certain = hint, False
+        if not self.alive() or not found or found == 'none':
+            if found == 'none':
+                log('subtitles: no subtitles in the picture itself', xbmc.LOGINFO)
+            return
+        log('subtitles: burned into the picture: %s (%s)' % (found, 'seen in the frames' if certain else 'by the file name'), xbmc.LOGINFO)
+        if found == 'hebrew' and certain:
+            # the film has its Hebrew subtitles in the picture: whatever was added on top is switched off again
+            WIN.setProperty('NovaTV.HebInside', 'yes')
+            self.cancelled = True
+            status('')
+            try:
+                if WIN.getProperty('NovaTV.SubsManual') != self.file:
+                    p.showSubtitles(False)
+            except RuntimeError:
+                pass
+            xbmcgui.Dialog().notification('TeleNova', u'בסרט יש כתוביות עברית צרובות בתמונה',
+                                          xbmcgui.NOTIFICATION_INFO, 4000, False)
+        elif found == 'foreign':
+            if hardsub.box_on(_rpc, BOX_FILE):
+                log('subtitles: black box behind the Hebrew subtitles (foreign subtitles in the picture)', xbmc.LOGINFO)
+
     def _run(self):
         p, mon = self.p, monitor()
         if '/live/' in self.file and xbmcgui.Window(10000).getProperty('BN.LiveSubs'):
@@ -150,20 +308,35 @@ class Flow:
             # 3.3: the track list of a slow stream (Telegram, IPTV VOD) can arrive a few seconds after the picture:
             # wait until it stopped changing (at most 8 s) instead of a fixed 3 s
             from resources.lib import subdetect
+            # 4.0: the label of a track is not proof. While the track list settles nothing is decided; then the TEXT
+            # of the tracks is read from the file itself (subprobe.py) and that decides - a track marked Hebrew that
+            # holds English, an empty one or one in a broken encoding no longer stops the search, and Hebrew in a
+            # track without any label is found and switched on. All_Subs waits for this verdict (guard v17).
+            WIN.setProperty('NovaTV.HebInside', 'wait')
             seen, steady = -1, 0
             for _ in range(16):
-                if p.has_hebrew():
-                    log('subtitles: embedded Hebrew track - no search')
-                    return
                 n = len(subdetect.tracks() or [])
                 steady = steady + 1 if n == seen else 0
                 seen = n
                 if not p.isPlayingVideo():
+                    WIN.clearProperty('NovaTV.HebInside')
                     return
                 if steady >= 3 and subdetect.play_secs() >= 3:      # read as a label: never raises on a closing video
                     break
                 if mon.waitForAbort(0.5) or not self.alive():
+                    WIN.clearProperty('NovaTV.HebInside')
                     return
+            try:
+                inside = self.verify_embedded()
+            except Exception as e:
+                log('subtitles: check of the embedded tracks failed: %s' % e, xbmc.LOGWARNING)
+                WIN.clearProperty('NovaTV.HebInside')
+                inside = p.has_hebrew()
+            if inside or not self.alive():
+                return
+            # subtitles burned into the picture: Hebrew ones end the search, foreign ones get a black box (hardsub.py)
+            if not subdetect.is_live():
+                threading.Thread(target=self.hardsub_check, daemon=True).start()
             # 3.3: a live stream opened by its address (not through the TV service) has no subtitle file to wait
             # for and nothing to transcribe ahead - the same rule All_Subs follows (guard v14)
             if subdetect.is_live():
@@ -417,7 +590,9 @@ def align_job():
             base = ADDON.getSetting('sub_server').rstrip('/')
             if not base:
                 continue
-            r = requests.post(base + '/align', json=spec, timeout=240).json()
+            r = _post_wait(base + '/align', spec, 240, mon)
+            if r is None:
+                return                # Kodi is closing
             info = r.get('info') or {}
             log('subtitle align %s: %s' % (os.path.basename(f), info))
             if not r.get('srt') or not p.isPlayingVideo() or p.getPlayingFile() != path:
@@ -438,6 +613,35 @@ def align_job():
             xbmcgui.Dialog().notification('TeleNova', T('synced') % (info.get('offset', 0), drift), xbmcgui.NOTIFICATION_INFO, 4000)
         except Exception as e:
             log('subtitle align: %s' % e, xbmc.LOGWARNING)
+
+
+def _post_wait(url, payload, timeout, mon):
+    """POST json and wait for the json answer, looking at Kodi's abort flag every second (4.0.2). A thread that sits
+    in a blocking socket read is never told that Kodi is closing: Kodi waited 5 s for it and then killed the script.
+    Returns None when Kodi closes; raises on errors like requests did."""
+    import http.client
+    import select
+    from urllib.parse import urlsplit
+    u = urlsplit(url)
+    cls = http.client.HTTPSConnection if u.scheme == 'https' else http.client.HTTPConnection
+    c = cls(u.netloc, timeout=10)
+    try:
+        c.request('POST', (u.path or '/') + ('?' + u.query if u.query else ''), json.dumps(payload).encode('utf-8'),
+                  {'Content-Type': 'application/json', 'Connection': 'close'})
+        end = time.time() + timeout
+        while not select.select([c.sock], [], [], 1.0)[0]:
+            if mon.abortRequested():
+                return None
+            if time.time() > end:
+                raise TimeoutError('no answer in %d s' % timeout)
+        c.sock.settimeout(30)
+        resp = c.getresponse()
+        data = resp.read()
+        if resp.status >= 400:
+            raise RuntimeError('HTTP %d' % resp.status)
+        return json.loads(data.decode('utf-8'))
+    finally:
+        c.close()
 
 
 def _current_sub_is(name):
@@ -499,6 +703,10 @@ class Player(xbmc.Player):
         status('')
         WIN.clearProperty('NovaTV.AISrt')            # the previous video's AI file is not offered here
         WIN.clearProperty('NovaTV.SubsChosen')
+        WIN.clearProperty('NovaTV.HebInside')        # 4.0: the verdict about the embedded tracks belongs to one video
+        WIN.clearProperty('NovaTV.SubsManual')
+        self.not_hebrew = set()                      # tracks labelled Hebrew whose text is not (subprobe)
+        self._box_off()
         self.chosen = 0
         gen = self.gen
         # 3.3: live TV keeps the channel's own subtitle choice - only videos start with subtitles off
@@ -577,6 +785,8 @@ class Player(xbmc.Player):
             self.gen += 1
             ended, self.file, self.active, self.flow = self.file, '', False, None
         status('')
+        WIN.clearProperty('NovaTV.HebInside')
+        self._box_off()
         if ':8765/live/' in (ended or '') or '/live/' in (ended or ''):
             try:            # the live-subtitle stream ended (zap / stop): the server stops re-streaming it
                 from resources.lib import livesubs
@@ -680,14 +890,24 @@ class Player(xbmc.Player):
         threading.Thread(target=write, daemon=True).start()
 
     # ------------------------------------------------------------ subtitles
+    def _box_off(self):
+        """4.0: the black box behind the subtitles belongs to one film - the viewer's own style comes back"""
+        try:
+            from resources.lib import hardsub
+            if hardsub.box_off(_rpc, BOX_FILE):
+                log('subtitles: the viewer\'s subtitle style is back')
+        except Exception as e:
+            log('subtitle box: %s' % e, xbmc.LOGWARNING)
+
     def has_hebrew(self):
         """a Hebrew track of the playing video (embedded, or added by All_Subs) -> make it the active one.
         Never raises: while a video closes the player calls fail, and that simply means "no"."""
         try:
             if not self.isPlayingVideo():
                 return False
+            bad = getattr(self, 'not_hebrew', None) or set()
             active = (xbmc.getInfoLabel('VideoPlayer.SubtitlesLanguage') or '').lower()
-            if xbmc.getCondVisibility('VideoPlayer.SubtitlesEnabled') and active in HEB_CODES:
+            if not bad and xbmc.getCondVisibility('VideoPlayer.SubtitlesEnabled') and active in HEB_CODES:
                 self.chosen = self.gen
                 return True
             # 3.3: language code OR track name ("Hebrew" / "עברית" on a track marked "und"); a forced track is
@@ -696,7 +916,8 @@ class Player(xbmc.Player):
             subs = subdetect.tracks()
             if subs is None:                 # JSON-RPC not answering: the plain language list
                 subs = [{'index': i, 'language': lang} for i, lang in enumerate(self.getAvailableSubtitleStreams())]
-            i = subdetect.hebrew_index(subs)
+            # 4.0: a track that is labelled Hebrew but whose text was read and is not Hebrew does not count
+            i = subdetect.hebrew_index([s for s in subs if int(s.get('index', -1)) not in bad])
             if i >= 0:
                 self.chosen = self.gen
                 WIN.setProperty('NovaTV.SubsChosen', self.file)    # nothing switches it off again
@@ -723,6 +944,7 @@ class Monitor(xbmc.Monitor):
 def main():
     monitor()               # the shared Monitor is created here, on the main thread, and lives until exit
     player = Player()
+    player._box_off()        # 4.0: a black subtitle box left by a crash is taken off again
     mon = Monitor(player)
     try:        # boxes updated from the repository: add the AI subtitle button to the installed skin once
         import xbmcvfs
@@ -1269,7 +1491,20 @@ def main():
         if mon.waitForAbort(due_in + 0.5 if 0 < due_in < 30 else 30):
             break
     del player
-
+    # 4.0.2: Kodi waits for every thread of a script when it closes. What is still running is written down once.
+    try:
+        import sys
+        import traceback
+        frames = sys._current_frames()
+        for th in threading.enumerate():
+            if th is threading.current_thread():
+                continue
+            st = traceback.extract_stack(frames.get(th.ident))[-14:] if th.ident in frames else []
+            st = [f for f in st if 'plugin.video.nova' in f.filename or f is st[-1]]
+            log('exit: thread %s daemon=%s at %s' % (th.name, th.daemon, ' < '.join(
+                '%s:%d %s' % (os.path.basename(f.filename), f.lineno, f.name) for f in reversed(st))), xbmc.LOGINFO)
+    except Exception as e:
+        log('exit: %s' % e)
 
 if __name__ == '__main__':
     main()

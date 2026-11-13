@@ -15,7 +15,7 @@ import zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'src')
 SITE = 'https://bennymat93.github.io/TeleNova/'
-ADDONS = ['plugin.video.nova', 'plugin.video.telescope', 'plugin.program.novawizard']
+ADDONS = ['plugin.video.nova', 'plugin.video.telescope', 'plugin.program.novawizard', 'repository.telenova']
 PART = 95 * 1024 * 1024
 SKIP_DIRS = {'__pycache__'}
 SKIP_EXT = ('.pyc', '.pyo', '.bak')
@@ -69,6 +69,9 @@ def main():
             raise SystemExit('%s not in addons.xml' % aid)
         xml = rx.sub(lambda m: text, xml, 1)
         print('%s %s: %.1f MB' % (aid, ver, os.path.getsize(dest) / 1e6))
+        if aid == 'repository.telenova':        # the zip people install first sits at the site's root as well
+            import shutil
+            shutil.copyfile(dest, os.path.join(ROOT, os.path.basename(dest)))
     with open(index, 'w', encoding='utf-8', newline='\n') as f:
         f.write(xml)
     with open(index + '.md5', 'w', newline='\n') as f:

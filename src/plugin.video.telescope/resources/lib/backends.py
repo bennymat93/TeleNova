@@ -232,7 +232,7 @@ class StremioServers(object):
         def run(b):
             results[b] = self._one(b, skind, sid)
         for b in self.bases:
-            t = threading.Thread(target=run, args=(b,))
+            t = threading.Thread(target=run, args=(b,), daemon=True)
             t.start()
             threads.append(t)
         for t in threads:

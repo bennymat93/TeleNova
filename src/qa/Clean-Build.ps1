@@ -1,5 +1,5 @@
 param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$Src)
-# TeleNova 3.3 clean-up of a Kodi home folder (live install or a staging copy of the build)
+# TeleNova 4.0 clean-up of a Kodi home folder (live install or a staging copy of the build)
 $ErrorActionPreference = 'Stop'
 $before = (Get-ChildItem $Root -Recurse -File | Measure-Object Length -Sum).Sum
 
@@ -34,14 +34,14 @@ if ($t2 -ne $t) { [IO.File]::WriteAllText($fav, $t2, $enc); "favourites cleaned"
 [xml]$null = $t2
 
 # 4. the updated add-ons
-foreach ($a in 'plugin.video.nova', 'plugin.video.telescope', 'plugin.program.novawizard') {
+foreach ($a in 'plugin.video.nova', 'plugin.video.telescope', 'plugin.program.novawizard', 'repository.telenova') {
     $dst = Join-Path $Root "addons\$a"
     Remove-Item -LiteralPath $dst -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $Src $a) -Destination $dst -Recurse
     Get-ChildItem $dst -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
     "updated $a"
 }
-[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 4.0.0`n", $enc)
+[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 4.0.2`n", $enc)
 
 # 5. the build ships with the skin and All_Subs already patched (the service does the same on boxes that update)
 $env:TN_ROOT = $Root; $env:TN_SRC = $Src

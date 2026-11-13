@@ -871,3 +871,7 @@ msgstr "Включать моё облако Real-Debrid"
 msgctxt "#32116"
 msgid "Real-Debrid results listed"
 msgstr "Результатов Real-Debrid"
+
+msgctxt "#32108"
+msgid "Heaviest file listed, Mbit/s (0 = no limit; Telegram never above what the account is served)"
+msgstr "Самый тяжёлый файл в списке, Мбит/с (0 = без ограничения; в Telegram не выше скорости аккаунта)"

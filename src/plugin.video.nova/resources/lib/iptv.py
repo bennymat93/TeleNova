@@ -400,14 +400,18 @@ def _merge(notify):
             alt_urls[k] = urls
             best[k]['url'], best[k]['opts'] = 'plugin://plugin.video.nova/?a=live&alt=' + k, []
     save('alternates.json', alt_urls)
-    have = set()
+    have, extra = set(), {}
     for c in best.values():
         # an Israeli channel unless the list marks it as another country's (the Russian 'Channel12.ru' is not Keshet 12)
         cc = ALIAS.get(country(c['attrs']), country(c['attrs'])) or ''
         key = livefail.key_for(c['name']) if (c['group'] == 'Israel' or cc in ('', 'IL')) and c['group'] != 'Russian' else None
         if key and key not in have:
+            # 4.0.2: the streams the free lists carry for this channel stay in use, between the broadcaster's own
+            # stream and Idan+ (a channel that played from its list keeps playing from it)
+            extra[key] = alt_urls.get(norm(c['name'])) or [with_headers(c)]
             c['url'], c['opts'] = 'plugin://plugin.video.nova/?a=live&ch=' + key, []
             have.add(key)
+    save('live_extra.json', extra)
     for key, (names, _, _) in livefail.CHANNELS.items():
         if key not in have:            # only a restream carried it: the licensed sources bring it back
             best['live:' + key] = {'attrs': {}, 'name': names[0], 'opts': [], 'src': 'BN', 'q': 3, 'group': 'Israel',

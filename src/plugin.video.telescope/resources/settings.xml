@@ -56,6 +56,7 @@
         <setting id="probe_count" type="slider" label="32036" default="6" range="3,1,30" option="int"/>
         <setting id="probe_timeout" type="slider" label="32037" default="6" range="5,1,40" option="int"/>
         <setting id="hide_slow" type="bool" label="32038" default="true"/>
+        <setting id="max_mbit" type="slider" label="32108" default="40" range="0,5,150" option="int"/>
         <setting id="keep_unprobed" type="bool" label="32039" default="false"/>
         <setting id="max_results" type="slider" label="32040" default="25" range="5,5,100" option="int"/>
         <setting id="autoplay" type="bool" label="32041" default="false"/>
