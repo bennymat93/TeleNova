@@ -2,6 +2,10 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
+<!-- Only what the app needs. Scripts: this site and the pinned libraries on jsDelivr (hls.js here; fflate and the QR
+     drawer when Telegram is connected). Frames: the trailer and Internet Archive players. Telegram: its own web
+     sockets. Pictures, streams and catalogue requests go to many hosts (channel lists, radio stations) - https only. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; media-src 'self' https: blob:; connect-src 'self' https: wss://*.web.telegram.org; frame-src https://www.youtube-nocookie.com https://archive.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <meta name="mobile-web-app-capable" content="yes">
@@ -11,10 +15,13 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>BN Stream Web</title>
-<meta name="description" content="BN Stream in the browser: movies, series, live TV, radio and favorites">
+<meta name="description" content="BN Stream in the browser: movies, series, live TV, radio, favorites and history - in sync with the BN Stream app">
 <link rel="icon" href="icon.png">
 <link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js" integrity="sha384-w6Gb3fXHb5e1LUYa/hYA5Q41bEDglN5ZPCG7Jvnoo8/X90oGnlPqBlBJCe38mEMm" crossorigin="anonymous" defer></script>
+<script src="syncdoc.js" defer></script>
+<script src="store.js" defer></script>
+<script src="websync.js" defer></script>
 <script src="app.js" defer></script>
 </head>
 <body>
@@ -22,7 +29,7 @@
 <header class="top">
   <a class="brand" href="#/"><img src="icon.png" alt=""><span>BN Stream</span></a>
   <nav id="nav"></nav>
-  <form id="search" class="search" role="search"><input id="q" type="search" autocomplete="off"></form>
+  <form id="search" class="search" role="search"><input id="q" type="search" autocomplete="off"><div id="sug" class="sug" hidden></div></form>
 </header>
 <main id="view"></main>
 <div id="radiobar" class="radiobar" hidden></div>

@@ -4,7 +4,8 @@ __pycache__/
 *.bak
 *.nvp
 native/build-*/
-plugin.video.nova/resources/media/
+plugin.video.nova/resources/media/*
+!plugin.video.nova/resources/media/logos/
 qa/HANDOFF-copy.md
 # Google OAuth client of the Drive sign-in: GitHub's push protection refuses it as a secret (it ships inside the add-on zip)
 plugin.video.nova/resources/gdrive_client.json

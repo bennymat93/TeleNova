@@ -179,6 +179,15 @@ class FClient(object):
         out = sorted(out, key=lambda m: -m.id)
         return out[:limit] if limit else out
 
+    async def send_read_acknowledge(self, ent, clear_mentions=False, **kw):
+        ent = await self.get_entity(ent)
+        self.read = getattr(self, 'read', []) + [ent.id]
+        return True
+
+    async def edit_folder(self, ent, folder):
+        self.archived = getattr(self, 'archived', []) + [(getattr(ent, 'id', None), folder)]
+        return True
+
     async def send_message(self, ent, text):
         ent = await self.get_entity(ent)
         m = self.post(ent, text, out=True)
@@ -200,6 +209,9 @@ class FClient(object):
             return self.search_result(request.q) if callable(self.search_result) else self.search_result
         if name == 'GetChannelRecommendationsRequest':
             return types.SimpleNamespace(chats=self.recommend.get(request.channel.id, []))
+        if name == 'UpdateNotifySettingsRequest':            # 4.1.2: quiet mode
+            self.muted = getattr(self, 'muted', []) + [(getattr(request.peer.peer, 'id', None), request.settings.mute_until)]
+            return True
         if name in ('JoinChannelRequest', 'ImportChatInviteRequest'):
             self.joined.append(getattr(request, 'channel', None) or getattr(request, 'hash', None))
             return None
@@ -222,8 +234,9 @@ class FClient(object):
                         yield m
         return gen()
 
-    def iter_dialogs(self, limit=None):
+    def iter_dialogs(self, limit=None, **kw):
         client = self
+        client.dialog_asks = getattr(client, 'dialog_asks', []) + [dict(kw, limit=limit)]
 
         async def gen():
             for d in client.dialog_list:
@@ -250,8 +263,9 @@ def make_tg(client):
     tg.client = client
     tg.me = types.SimpleNamespace(first_name='Tester', last_name='', username='tester')
 
-    async def join(link):
+    async def join(link, quiet=None):
         client.joined.append(link)
+        client.join_quiet = getattr(client, 'join_quiet', []) + [quiet]
         return True
     tg.join = join
     return tg
@@ -401,6 +415,33 @@ class BotTalkTests(unittest.TestCase):
         res = run(self.tg, self.tg.bot_ask(bot.id, ['Big Buck Movie'], timeout=14, autojoin=True))
         self.assertEqual(self.c.joined, ['https://t.me/must_join_me'])
         self.assertEqual([c['file'] for c in res['files']], ['Big.Buck.Movie.2020.mkv'])
+        # 4.1.2 quiet mode: a channel joined because a bot demanded it is joined quietly; the bots the engine wrote to
+        # are muted for good and what the engine read is marked as read - the viewer's phone does not ring
+        self.assertEqual(self.c.join_quiet, [True])
+        muted = dict(self.c.muted)
+        self.assertIn(530, muted)
+        self.assertEqual(muted[530], 2 ** 31 - 1)
+        self.assertIn(530, self.c.read)
+        self.assertFalse(getattr(self.c, 'archived', []))          # a bot chat is never moved: only muted
+
+    def test_quiet_mode_can_be_switched_off(self):
+        bot = self.c.add(FEnt(535, 'plainbot', bot=True), StoreBot('Big.Buck.Movie.2020.mkv'))
+        self.c.post(bot, 'old')
+        self.tg.quiet = False
+        try:
+            run(self.tg, self.tg.bot_ask(bot.id, ['Big Buck Movie'], timeout=8))
+        finally:
+            self.tg.quiet = True
+        self.assertFalse(getattr(self.c, 'muted', []))
+        self.assertFalse(getattr(self.c, 'read', []))
+
+    def test_mute_is_asked_once_per_chat(self):
+        bot = self.c.add(FEnt(536, 'twicebot', bot=True), StoreBot('Big.Buck.Movie.2020.mkv'))
+        self.c.post(bot, 'old')
+        self.tg._hushed = set()
+        run(self.tg, self.tg.bot_ask(bot.id, ['Big Buck Movie'], timeout=8))
+        run(self.tg, self.tg.bot_ask(bot.id, ['Big Buck Movie'], timeout=8))
+        self.assertEqual([m[0] for m in self.c.muted].count(536), 1)
 
     def test_silent_bot_costs_only_its_time_limit(self):
         bot = self.c.add(FEnt(540, 'deadbot', bot=True), SilentBot())
@@ -610,6 +651,9 @@ class FinderTests(unittest.TestCase):
         self.c.post(bank, 'your balance')
         self.c.dialog_list = [dlg(x) for x in (films, bank, father, person, chan)]
         rows = run(self.tg, self.tg.dialogs(50))
+        self.assertEqual(self.c.dialog_asks[-1], {'archived': None, 'limit': 50})     # 4.1.2: the archive too
+        run(self.tg, self.tg.dialogs(0))
+        self.assertEqual(self.c.dialog_asks[-1], {'archived': None, 'limit': None})   # ... and every chat, no cap
         self.assertEqual(sorted((r['kind'], r['title']) for r in rows),
                          [('bot', 'BotFather'), ('bot', 'filmsbot'), ('bot', 'mybankbot'), ('channel', 'Movies')])
         f = finder_for(self.tg, 'f5', bot_auto=True)

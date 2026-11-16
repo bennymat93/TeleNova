@@ -1,0 +1,436 @@
+[
+ {
+  "key": "kan11",
+  "name": "Kan 11",
+  "name_he": "כאן 11",
+  "names": [
+   "Kan 11",
+   "כאן 11"
+  ],
+  "urls": [
+   "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/kan11/live.livx/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "keshet12",
+  "name": "Keshet 12",
+  "name_he": "קשת 12",
+  "names": [
+   "Keshet 12",
+   "קשת 12",
+   "Channel 12"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "reshet13",
+  "name": "Channel 13 (Israel)",
+  "name_he": "רשת 13",
+  "names": [
+   "Channel 13 (Israel)",
+   "Reshet 13",
+   "רשת 13",
+   "Channel 13"
+  ],
+  "urls": [
+   "https://d198ztbnlup2iq.cloudfront.net/out/v1/850e31c0e6fa4d94a44d6ccd63e4b400/index.m3u8"
+  ]
+ },
+ {
+  "key": "now14",
+  "name": "Now 14",
+  "name_he": "עכשיו 14",
+  "names": [
+   "Now 14",
+   "עכשיו 14",
+   "Channel 14"
+  ],
+  "urls": [
+   "https://r.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "kanedu",
+  "name": "Kan Educational",
+  "name_he": "כאן חינוכית",
+  "names": [
+   "Kan Educational",
+   "כאן חינוכית"
+  ],
+  "urls": [
+   "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/kan_edu/live.livx/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "ch24",
+  "name": "Channel 24 (Israel)",
+  "name_he": "ערוץ 24",
+  "names": [
+   "Channel 24 (Israel)",
+   "Channel 24",
+   "ערוץ 24"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "makan33",
+  "name": "Makan 33",
+  "name_he": "מכאן 33",
+  "names": [
+   "Makan 33",
+   "מכאן 33"
+  ],
+  "urls": [
+   "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/makan/live.livx/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "knesset",
+  "name": "Knesset Channel",
+  "name_he": "ערוץ הכנסת",
+  "names": [
+   "Knesset Channel",
+   "ערוץ הכנסת",
+   "כנסת 99"
+  ],
+  "urls": [
+   "https://knesetn.gostreaming.tv/Knesset/index.m3u8"
+  ]
+ },
+ {
+  "key": "ch9",
+  "name": "Channel 9 (Israel)",
+  "name_he": "ערוץ 9",
+  "names": [
+   "Channel 9 (Israel)",
+   "Channel 9",
+   "ערוץ 9"
+  ],
+  "urls": [
+   "https://contact.gostreaming.tv/Con-11/index.m3u8"
+  ]
+ },
+ {
+  "key": "hidabroot",
+  "name": "Hidabroot",
+  "name_he": "הידברות",
+  "names": [
+   "Hidabroot",
+   "הידברות"
+  ],
+  "urls": [
+   "https://cdn.cybercdn.live/HidabrootIL/Live97/playlist.m3u8",
+   "https://htv-live.cybercdn.live/HidabrootIL/Live97/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "i24he",
+  "name": "i24NEWS Hebrew",
+  "name_he": "i24 עברית",
+  "names": [
+   "i24NEWS Hebrew",
+   "i24 עברית"
+  ],
+  "urls": [
+   "https://i24newshebrew-cdn.encoders.immergo.tv/master.m3u8"
+  ]
+ },
+ {
+  "key": "i24en",
+  "name": "i24NEWS English",
+  "name_he": "",
+  "names": [
+   "i24NEWS English"
+  ],
+  "urls": [
+   "https://i24newsenglish-cdn.encoders.immergo.tv/master.m3u8"
+  ]
+ },
+ {
+  "key": "i24fr",
+  "name": "i24NEWS French",
+  "name_he": "",
+  "names": [
+   "i24NEWS French"
+  ],
+  "urls": [
+   "https://i24newsfrench-cdn.encoders.immergo.tv/master.m3u8"
+  ]
+ },
+ {
+  "key": "i24ar",
+  "name": "i24NEWS Arabic",
+  "name_he": "",
+  "names": [
+   "i24NEWS Arabic"
+  ],
+  "urls": [
+   "https://i24newsarabic-cdn.encoders.immergo.tv/master.m3u8"
+  ]
+ },
+ {
+  "key": "kalkala10",
+  "name": "Kalkala 10",
+  "name_he": "כלכלה 10",
+  "names": [
+   "Kalkala 10",
+   "כלכלה 10"
+  ],
+  "urls": [
+   "https://r.il.cdn-redge.media/livehls/oil/calcala-live/live/channel10/live.livx/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "ch16",
+  "name": "Channel 16",
+  "name_he": "ערוץ 16",
+  "names": [
+   "Channel 16",
+   "ערוץ 16"
+  ],
+  "urls": [
+   "https://ch16israel-cdn.encoders.immergo.tv/2/streamPlaylist.m3u8"
+  ]
+ },
+ {
+  "key": "kab66",
+  "name": "Kabbalah for the People Israel",
+  "name_he": "קבלה 66",
+  "names": [
+   "Kabbalah for the People Israel",
+   "קבלה 66",
+   "קבלה לעם"
+  ],
+  "urls": [
+   "https://edge2.il.kab.tv/live/tv66-heb-high/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "kabru",
+  "name": "Kabbalah (Russian)",
+  "name_he": "קבלה - רוסית",
+  "names": [
+   "Kabbalah (Russian)",
+   "קבלה - רוסית"
+  ],
+  "urls": [
+   "https://edge3.uk.kab.tv/live/tvrus-rus-high/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "comedy13",
+  "name": "Comedy Channel",
+  "name_he": "13 ערוץ הקומדיות",
+  "names": [
+   "Comedy Channel",
+   "13 ערוץ הקומדיות"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "nofesh13",
+  "name": "Vacation Channel",
+  "name_he": "ערוץ הנופש",
+  "names": [
+   "Vacation Channel",
+   "ערוץ הנופש"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "reality13",
+  "name": "Reality Channel",
+  "name_he": "ערוץ הריאליטי",
+  "names": [
+   "Reality Channel",
+   "ערוץ הריאליטי"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "eretz",
+  "name": "Eretz Nehederet Channel",
+  "name_he": "ערוץ ארץ נהדרת",
+  "names": [
+   "Eretz Nehederet Channel",
+   "ערוץ ארץ נהדרת"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "savri",
+  "name": "Savri Maranan Channel",
+  "name_he": "ערוץ סברי מרנן",
+  "names": [
+   "Savri Maranan Channel",
+   "ערוץ סברי מרנן"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "kcomedy",
+  "name": "Keshet Comedy Channel",
+  "name_he": "ערוץ הקומדיה",
+  "names": [
+   "Keshet Comedy Channel",
+   "ערוץ הקומדיה"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "kdrama",
+  "name": "Keshet Drama Channel",
+  "name_he": "ערוץ הדרמה",
+  "names": [
+   "Keshet Drama Channel",
+   "ערוץ הדרמה"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "kmusic",
+  "name": "Keshet Music Channel",
+  "name_he": "ערוץ המוזיקה",
+  "names": [
+   "Keshet Music Channel",
+   "ערוץ המוזיקה"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "kfood",
+  "name": "Keshet Food Channel",
+  "name_he": "ערוץ האוכל",
+  "names": [
+   "Keshet Food Channel",
+   "ערוץ האוכל"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "kan11c",
+  "name": "Kan 11 - subtitled",
+  "name_he": "כאן 11 - לקויי שמיעה",
+  "names": [
+   "Kan 11 - subtitled",
+   "כאן 11 - לקויי שמיעה"
+  ],
+  "urls": [
+   "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/kan11_subs/live.livx/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "keshet12c",
+  "name": "Keshet 12 - subtitled",
+  "name_he": "קשת 12 - לקויי שמיעה",
+  "names": [
+   "Keshet 12 - subtitled",
+   "קשת 12 - לקויי שמיעה"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "reshet13c",
+  "name": "Reshet 13 - subtitled",
+  "name_he": "רשת 13 - לקויי שמיעה",
+  "names": [
+   "Reshet 13 - subtitled",
+   "רשת 13 - לקויי שמיעה"
+  ],
+  "urls": [
+   "https://reshet.g-mana.live/media/4607e158-e4d4-4e18-9160-3dc3ea9bc677/mainManifest.m3u8"
+  ]
+ },
+ {
+  "key": "knesset99c",
+  "name": "Knesset Channel - subtitled",
+  "name_he": "ערוץ הכנסת - לקויי שמיעה",
+  "names": [
+   "Knesset Channel - subtitled",
+   "ערוץ הכנסת - לקויי שמיעה"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "kotel",
+  "name": "Western Wall Live",
+  "name_he": "הכותל המערבי - שידור חי",
+  "names": [
+   "Western Wall Live",
+   "הכותל המערבי - שידור חי"
+  ],
+  "kodi_only": true,
+  "why": "youtube"
+ },
+ {
+  "key": "lev91",
+  "name": "Lev HaMedina 91FM (video)",
+  "name_he": "רדיו לב המדינה 91FM - וידאו",
+  "names": [
+   "Lev HaMedina 91FM (video)",
+   "רדיו לב המדינה 91FM - וידאו"
+  ],
+  "urls": [
+   "https://cdn.cybercdn.live/Lev_Hamedina/Video/playlist.m3u8"
+  ]
+ },
+ {
+  "key": "kolchaimusic",
+  "name": "Kol Chai Music",
+  "name_he": "קול חי מיוזיק - ערוץ הקליפים",
+  "names": [
+   "Kol Chai Music",
+   "קול חי מיוזיק - ערוץ הקליפים"
+  ],
+  "urls": [
+   "https://media.kcm.fm/rtmp-server/live/musiclip.m3u8"
+  ]
+ },
+ {
+  "key": "musawa",
+  "name": "Musawa",
+  "name_he": "מוסאוא",
+  "names": [
+   "Musawa",
+   "قناة مساواة",
+   "מוסאוא"
+  ],
+  "urls": [
+   "https://pbc.furrera.ps/musawahd/index.m3u8"
+  ]
+ },
+ {
+  "key": "radius100",
+  "name": "100FM Radius (video)",
+  "name_he": "100FM רדיוס",
+  "names": [
+   "100FM Radius (video)",
+   "100FM רדיוס"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ },
+ {
+  "key": "pervoe891",
+  "name": "Первое Радио 89.1FM",
+  "name_he": "",
+  "names": [
+   "Первое Радио 89.1FM"
+  ],
+  "kodi_only": true,
+  "why": "idanplus"
+ }
+]

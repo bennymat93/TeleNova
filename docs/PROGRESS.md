@@ -1,6 +1,6 @@
 # TeleNova - QA / upgrade programme: progress
 
-Updated 2026-11-16, after TeleNova 4.1.0 (published). Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
+Updated 2026-11-16 22:30, after TeleNova 4.1.2 (published). Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -22,9 +22,9 @@ Extra tracks asked for by the owner
                                                    with real keys; shortlist 1-4, 6, 7 done; 5, 8-10 open)
 ✅ One screen for every service             100%  (4.0.4)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FIXES IDENTIFIED: 17  |  Fixed: 13 |  Pending: 4
-  Critical: 0          High: 8 (7 fixed)
-  Medium:  7 (6 fixed) Low:  2 (0 fixed)
+FIXES IDENTIFIED: 20  |  Fixed: 16 |  Pending: 4
+  Critical: 0          High: 9 (8 fixed)
+  Medium:  9 (8 fixed) Low:  2 (0 fixed)
 ```
 
 ## Phases and their steps
@@ -59,7 +59,20 @@ FIXES IDENTIFIED: 17  |  Fixed: 13 |  Pending: 4
 | BUG-014 | Low | TV channels: the first open of a stream sometimes fails in the demuxer and the retry adds 8-10 s | `service.py` tv retry / stream sources | pending (seen 2026-11-13 01:10) |
 | BUG-015 | High | Kodi never closed after Telegram playback (server threads in a socket read Windows does not wake) | \stream.App.shutdown\, \service._post_wait\ | fixed 4.0.2, verified in Kodi |
 | BUG-016 | High | Files too heavy for the account's real rate were offered and stalled | \sources.playable\, setting \max_mbit\ | fixed 4.0.2 |
+| BUG-019 | High | First version of the guide filler replaced real guide ids while one guide source was down (found by the 4.1.2 review) | `iptv.fill_unserved` | fixed before release: ids are never replaced |
+| BUG-020 | Medium | First version of the guide filler built ids from Hebrew names that kept only digits: two channels could share a row (review) | `iptv.fill_unserved` | fixed before release: sha1 of the full name |
+| BUG-018 | Medium | The free-guide refresh rewrote the TV guide without the build's own rows: 13 channels showed an empty guide again | `iptv.py` free guide apply | fixed 4.1.2 (`livefail.own_rows`, test in `t_epg_xml.py`) |
 | BUG-017 | Medium | Every bot was asked for every title: one-series and advert bots wasted the search time | \sources.content_bots\ | fixed 4.0.2, tested against the real bots |
+
+## Last release: TeleNova 4.1.2 (2026-11-16, evening)
+
+| Step | Estimate | State |
+|---|---|---|
+| TV channels: official direct streams for 9 channels that played only through Idan+, Musawa, logos in the add-on, guide for Kalkala 10 and the subtitled feeds, filler guide rows | done in code | unit tests pass; **bug found and fixed**: the free-guide refresh dropped the filler rows (BUG-018) |
+| Telegram engine: quiet mode (bot chats muted, answers marked read), archived chats searched | done in code | 25/25 engine tests |
+| Web version 4.2: users / history / favourites / search history shared with the Kodi build, Telegram sync in the browser | done in code | WEB TESTS OK; GramJS bundle rebuilt from npm byte-identical; real Telegram login in a browser not tested |
+| Live QA on the owner's profile (`qa_live.ps1`, channel rounds, audit) | done | crawl 167 screens 0 errors; playback 10/11 (Internet Archive film at the 60 s limit, also on 12/11); stress 0; TV rounds 16/16; audit 41/41 logos + guide |
+| Package 4.1.2, docs, publish | done | build 100.3 MB in 2 parts |
 
 ## Next
 

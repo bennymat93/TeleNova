@@ -49,6 +49,7 @@
         <setting id="bot_max" type="slider" label="32104" default="3" range="1,1,6" option="int" enable="eq(-3,true)"/>
         <setting id="bot_timeout" type="slider" label="32105" default="14" range="6,1,40" option="int" enable="eq(-4,true)"/>
         <setting id="bot_autojoin" type="bool" label="32106" default="false" enable="eq(-5,true)"/>
+        <setting id="tg_quiet" type="bool" label="32121" default="true"/>
     </category>
     <category label="32030">
         <setting id="strict" type="bool" label="32031" default="true"/>

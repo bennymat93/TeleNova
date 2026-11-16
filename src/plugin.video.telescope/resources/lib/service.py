@@ -67,6 +67,7 @@ def _load_settings():
         'bot_request': gb('bot_request', True), 'bot_auto': gb('bot_auto', True),
         'bots': [x.strip().lstrip('@') for x in g('bots', '').replace(' ', ',').split(',') if x.strip()],
         'bot_max': gi('bot_max', 3), 'bot_timeout': gi('bot_timeout', 14), 'bot_autojoin': gb('bot_autojoin', False),
+        'tg_quiet': gb('tg_quiet', True),           # 4.1.2: chats the engine writes to are muted, their answers marked read
         'probe_all': gb('probe_all', True), 'bots_file': os.path.join(common.PROFILE, 'bots.json'),
         'rd_dead_file': os.path.join(common.PROFILE, 'rd_dead.json'),      # 4.0.5: links refused / gone at play time
         # 3.3.4: Real-Debrid
@@ -131,6 +132,7 @@ class Service(xbmc.Monitor):
             self.tg = TG(self.s['api_id'], self.s['api_hash'], common.SESSION_FILE, common.log,
                          parallel=self.s['parallel'])
             self.tg.info = lambda m: common.log(m, xbmc.LOGINFO)     # 3.3.1: flood waits are always logged
+            self.tg.quiet = self.s.get('tg_quiet', True)
             self.tg.start(timeout)
             if self.app:                 # 3.3.5: the chunk a player waits for is requested before the read-ahead
                 self.app.store.on_wait = self.tg.bump
@@ -377,6 +379,8 @@ class Service(xbmc.Monitor):
             return
         old = self.s
         self.s = load_settings()
+        if self.tg:
+            self.tg.quiet = self.s.get('tg_quiet', True)
         if (old['api_id'], old['api_hash'], old['parallel']) != (self.s['api_id'], self.s['api_hash'],
                                                                  self.s['parallel']):
             self._start_tg()
@@ -584,7 +588,7 @@ class Service(xbmc.Monitor):
                     return tg.run(tg.discover(q if isinstance(q, list) else [q]), 60)
                 chats = p.get('chats')
                 if not chats:                    # "similar to my channels": the account's own broadcast channels
-                    mine = [d for d in tg.run(tg.dialogs(200, False), 60) if d.get('kind') == 'channel']
+                    mine = [d for d in tg.run(tg.dialogs(0, False), 90) if d.get('kind') == 'channel']
                     chats = [d['id'] for d in mine[:8]]
                 return tg.run(tg.similar(chats), 90)
             if method == 'chiko_browse':

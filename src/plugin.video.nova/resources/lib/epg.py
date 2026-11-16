@@ -44,6 +44,7 @@ IL_ALIASES = {
     'vacation': ['vacation channel', 'ערוץ הנופש'],
     'reality': ['reality channel', 'ערוץ הריאליטי'],
     'hidabroot': ['hidabroot', 'ערוץ הידברות', 'הידברות'],
+    'kalkala10': ['kalkala 10', 'כלכלה 10', 'ערוץ הכלכלה', 'הכלכלה'],      # 4.1.2: the guide has it as "ערוץ הכלכלה"
     'one2': ['one 2', 'one2'],
     'goodlife': ['good life', 'good life+'],
     'homeplus': ['home +', 'home+', 'בית +', 'בית+'],
@@ -91,13 +92,37 @@ def match(playlist_names, guide_channels):
     return out
 
 
-def filter_guide(xml_text, keep_ids):
+# 4.1.2: the guide file the build writes must be real XML. Free guides are sloppy (a bare "&" in a title:
+# "Pinkalicious & Peterrific") and a translated title may hold "&" or "<" - one such character made the whole file
+# unreadable for a strict reader (Kodi's own reader forgave it; guide tools and other players do not).
+_BARE_AMP = re.compile(r'&(?!(?:amp|lt|gt|quot|apos|#\d{1,7}|#x[0-9A-Fa-f]{1,6});)')
+_CTRL = re.compile(u'[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]')
+
+
+def well_formed(part):
+    """a <channel> / <programme> block as it came from a guide -> the same block with every bare '&' written as
+    &amp; and control characters removed"""
+    return _CTRL.sub('', _BARE_AMP.sub('&amp;', part))
+
+
+def _plain(text):
+    """XML text -> the plain text it stands for"""
+    import html
+    return html.unescape(text or '')
+
+
+def xml_text(text):
+    """plain text (a translation) -> text that is safe between two tags"""
+    return _CTRL.sub('', _BARE_AMP.sub('&amp;', text or '')).replace('<', '&lt;').replace('>', '&gt;')
+
+
+def filter_guide(xml, keep_ids):
     """only the channels / programmes of keep_ids (the free guides list hundreds of channels)"""
     parts = []
     for m in re.finditer(r'<channel\s+id="([^"]+)".*?</channel>|<programme\b[^>]*\bchannel="([^"]+)".*?</programme>',
-                         xml_text, re.S):
+                         xml, re.S):
         if (m.group(1) or m.group(2)) in keep_ids:
-            parts.append(m.group(0))
+            parts.append(well_formed(m.group(0)))
     return parts
 
 
@@ -120,6 +145,7 @@ def to_translate(parts, mode='he'):
     for p in parts:
         for tag in ('title', 'desc'):
             for t in re.findall(r'<%s[^>]*>([^<]{2,300})</%s>' % (tag, tag), p):
+                t = _plain(t)                       # 4.1.2: the translator gets text, not XML entities
                 if needs(t, mode) and t not in seen:
                     seen.append(t)
     return seen
@@ -131,7 +157,9 @@ def apply_lang(parts, tr, mode):
         return parts
 
     def sub(m):
-        return m.group(1) + tr.get(key(m.group(2), mode), m.group(2)) + m.group(3)
+        # the translator saw the plain text ("Tom & Jerry"), the guide holds it as XML ("Tom &amp; Jerry")
+        new = tr.get(key(_plain(m.group(2)), mode)) or tr.get(key(m.group(2), mode))
+        return m.group(1) + (xml_text(new) if new else m.group(2)) + m.group(3)
     out = []
     for p in parts:
         if p.startswith('<programme'):

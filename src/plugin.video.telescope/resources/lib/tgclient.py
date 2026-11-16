@@ -390,7 +390,9 @@ class TG(object):
         """Channels, groups and - 3.3.3 - bots. A bot chat is where "request" bots leave their files; it used to be
         filtered out, so those files could be searched but never browsed and the bot could not be chosen."""
         res = []
-        async for d in self.client.iter_dialogs(limit=limit):
+        # 4.1.2: archived=None asks for the main list AND the archive (the viewer keeps most sources archived so
+        # that they do not ring); limit=None = every chat, however many
+        async for d in self.client.iter_dialogs(limit=limit or None, archived=None):
             ent = d.entity
             is_bot = bool(d.is_user and getattr(ent, 'bot', False))
             if not (d.is_channel or d.is_group or (bots and is_bot)):
@@ -401,8 +403,56 @@ class TG(object):
             res.append({'id': d.id, 'title': d.name, 'username': getattr(ent, 'username', None),
                         'channel': kind == 'channel', 'kind': kind, 'unread': d.unread_count,
                         'inline': bool(getattr(ent, 'bot_inline_placeholder', None)) if is_bot else False,
-                        'members': getattr(ent, 'participants_count', None)})
+                        'members': getattr(ent, 'participants_count', None),
+                        'archived': bool(getattr(d, 'archived', False) or getattr(d, 'folder_id', 0) == 1)})
         return res
+
+    # ------------------------------------------------------------------ 4.1.2: the engine never makes the phone ring
+    # Searching is silent by nature. Talking to a bot is not: its answers are new messages, and every search that asked
+    # a bot made the viewer's phone ring (and pulled an archived bot chat back into the main list). So a chat the
+    # engine writes to is muted once (for ever - the viewer can unmute it in Telegram), its answers are marked as
+    # read as soon as the engine has read them, and a channel the engine joined because a bot demanded it is muted
+    # and put into the archive. Nothing here limits what is searched or which files can be used.
+    MUTE_FOREVER = 2 ** 31 - 1
+
+    def quiet_mode(self):
+        return bool(getattr(self, 'quiet', True))
+
+    async def hush(self, entity, archive=False):
+        """mute `entity` for good (once per run and chat); archive=True also moves it to the archive.
+        -> True when Telegram accepted it; never raises"""
+        if not self.quiet_mode():
+            return False
+        done = getattr(self, '_hushed', None)
+        if done is None:
+            done = self._hushed = set()
+        try:
+            from telethon.tl import functions, types
+            peer = await self.client.get_input_entity(entity)
+            key = (getattr(peer, 'user_id', None) or getattr(peer, 'channel_id', None) or getattr(peer, 'chat_id', None), archive)
+            if key in done:
+                return True
+            await self.client(functions.account.UpdateNotifySettingsRequest(
+                peer=types.InputNotifyPeer(peer),
+                settings=types.InputPeerNotifySettings(mute_until=self.MUTE_FOREVER, show_previews=False, silent=True)))
+            if archive:
+                await self.client.edit_folder(peer, 1)
+            done.add(key)
+            return True
+        except Exception as exc:
+            self.log('quiet: could not mute a chat: %s' % type(exc).__name__)
+            return False
+
+    async def seen(self, entity):
+        """what the engine has read is marked as read: no unread counter is left behind. Never raises"""
+        if not self.quiet_mode():
+            return False
+        try:
+            await self.client.send_read_acknowledge(entity, clear_mentions=True)
+            return True
+        except Exception as exc:
+            self.log('quiet: could not mark a chat as read: %s' % type(exc).__name__)
+            return False
 
     async def chat_videos(self, chat_id, offset_id=0, limit=50, query=None):
         from telethon.tl import types
@@ -426,16 +476,20 @@ class TG(object):
         out.sort(key=lambda c: c['msg_id'], reverse=True)
         return {'items': out, 'next': last if len(out) >= limit // 2 else 0}
 
-    async def join(self, link):
+    async def join(self, link, quiet=None):
+        """quiet: mute the joined chat and put it into the archive (default: the engine's quiet mode)"""
         from telethon.tl.functions.channels import JoinChannelRequest
         from telethon.tl.functions.messages import ImportChatInviteRequest
         link = link.strip()
         m = re.search(r'(?:joinchat/|/\+|^\+)([\w-]+)', link)
         if m:
-            await self.client(ImportChatInviteRequest(m.group(1)))
+            res = await self.client(ImportChatInviteRequest(m.group(1)))
         else:
             name = re.sub(r'^(?:https?://)?(?:t\.me/|telegram\.me/)?@?', '', link).split('/')[0]
-            await self.client(JoinChannelRequest(name))
+            res = await self.client(JoinChannelRequest(name))
+        if quiet if quiet is not None else self.quiet_mode():
+            for chat in getattr(res, 'chats', None) or []:
+                await self.hush(chat, archive=True)
         return True
 
     async def leave(self, chat_id):

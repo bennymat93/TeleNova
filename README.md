@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.1.1.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.1.2.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -23,20 +23,56 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 - TV remotes and keyboards: the arrows move between items, Enter opens, Back / Escape returns.
 - Installable as an app (manifest + service worker); the shell opens without a connection.
 - Optional own TMDb key in Settings for the full movie and series catalogue with no server; without it the
-  catalogue comes from the Internet Archive. Live TV: iptv-org; radio: radio-browser. The web version has no
-  Telegram sources - those need the Kodi build.
+  catalogue comes from the Internet Archive. Live TV: the build's own Israeli channel table + iptv-org; radio:
+  radio-browser. The web version has no Telegram video sources - those need the Kodi build.
+- Since 4.1.2: the same users, history, favourites and search history as the Kodi build; connecting the household's
+  Telegram account (the build shows a pairing QR code) keeps the browser in the build's continuous sync. Details
+  and the verified hash of the bundled Telegram client: [`web/README.md`](web/README.md).
 
 ## Add-ons in this repository
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.1.1 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.1.1 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.1.1 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.1.2 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.1.2 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.1.2 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.1.1 | This repository |
+| `repository.telenova` | 4.1.2 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.1.2 - more channels with their own streams, a guide for every Israeli channel, quiet Telegram
+
+**TV channels**
+- Official direct streams (found on the broadcasters' own pages, checked live on 16/11) for channels that played
+  only through Idan+: Kan Educational, Kan 11 subtitled, Knesset Channel, Kalkala 10, Channel 16, Kabbalah 66,
+  Kabbalah Russian, Reshet 13 and Reshet 13 subtitled. They start faster and do not depend on another add-on. Reshet
+  13's direct stream is 720p only, so Idan+ stays first there and the direct stream is the fallback. A second host
+  for Hidabroot. Research: `docs/RESEARCH-il-channels-2.md`.
+- New channel: Musawa (Arabic, for Arab citizens of Israel).
+- Logos ship inside the add-on (`resources/media/logos`, 32 channels) instead of pointing at web addresses that
+  come and go.
+- Guide: Kalkala 10 matched ("ערוץ הכלכלה"); subtitled feeds show their main channel's programmes; every Israeli
+  channel that no guide covers shows "<name> - live broadcast" instead of an empty row. A channel's own guide id is
+  never replaced, so a guide that is down for one refresh takes its place again by itself. The guide file is now
+  always valid XML (a bare "&" in a free guide or in a translated title made it unreadable for strict readers).
+- Live audit of the Israel group (`src/qa/t_il_audit.py`): 41 channels, 0 missing logos, 0 without programmes
+  today (was 20).
+
+**Telegram engine**
+- Quiet mode (on by default, setting in the engine): a chat the engine writes to (a bot asked for a title) is
+  muted and its answers marked as read, a channel joined because a bot demanded it is muted and archived - a search
+  no longer makes the phone ring or leaves unread counters. Searching itself is unchanged.
+- Archived chats are searched and listed too (most viewers archive their sources); the chat list reads every chat.
+
+**Web version 4.2** - see the Web version section above.
+
+**Checks**: engine 25/25, Real-Debrid 10/10, web suite (documents byte-identical to the build's Python in both
+directions, Kodi + browser on one account), guide XML and filler tests; a review by four independent agents with
+three skeptics per finding upheld two defects in the new guide filler - both fixed before release (ids were being
+replaced while a guide was down; Hebrew names could collide). Not tested: a real Telegram login inside a browser,
+quiet mode's mute state read back from Telegram (the only way would run a second copy of the session, which can
+log the account out).
 
 ## TeleNova 4.1.1 - Idan+ can no longer wait for ever; backups without device files
 

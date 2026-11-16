@@ -154,7 +154,7 @@ class Finder(object):
         res = {'tg': [], 'telemedia': []}
         if self.tg:
             try:
-                for d in self.tg.run(self.tg.dialogs(500), 60):
+                for d in self.tg.run(self.tg.dialogs(0), 90):
                     if any(k in (d['title'] or '').lower() for k in kws) or CHIKO_TAG.search(d['title'] or ''):
                         res['tg'].append({'id': d['id'], 'title': d['title']})
             except Exception as exc:
@@ -264,7 +264,7 @@ class Finder(object):
                     self._auto_busy = True
                     threading.Thread(target=self._auto_bg, name='telescope-bots', daemon=True).start()
                 return []
-        bots = [d for d in self.tg.run(self.tg.dialogs(500), 60)
+        bots = [d for d in self.tg.run(self.tg.dialogs(0), 90)
                 if d.get('kind') == 'bot' and not tgbots.is_system_bot(d.get('username'))]
         good = set(self.tg.run(self.tg.bots_with_videos([b['id'] for b in bots]), 120)) if bots else set()
         res = [{'id': b['id'], 'username': b.get('username'), 'title': b['title']} for b in bots if b['id'] in good]
@@ -344,7 +344,7 @@ class Finder(object):
         listed = set(self._bot_key(x) for x in self.s.get('bots') or [])
         rows, seen = [], set()
         if self.tg:
-            for d in self.tg.run(self.tg.dialogs(500), 60):
+            for d in self.tg.run(self.tg.dialogs(0), 90):
                 if d.get('kind') != 'bot' or tgbots.is_system_bot(d.get('username')):
                     continue
                 key = self._bot_key(d.get('username') or d['id'])

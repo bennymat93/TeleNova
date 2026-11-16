@@ -899,3 +899,7 @@ msgstr "OpenSubtitles: точное опознание файлов по отп�
 msgctxt "#32120"
 msgid "OpenSubtitles API key"
 msgstr "Ключ API OpenSubtitles"
+
+msgctxt "#32121"
+msgid "Quiet mode: chats the add-on writes to (bots) are muted and their answers marked as read - no notifications on your phone"
+msgstr "Тихий режим: чаты, куда пишет дополнение (боты), без звука, ответы отмечаются прочитанными - без уведомлений"

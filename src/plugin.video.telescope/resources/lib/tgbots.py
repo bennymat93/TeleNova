@@ -323,7 +323,7 @@ class _Talk(object):
         ok = 0
         for link in self.res['join'][:3]:
             try:
-                await self.tg.join(link)
+                await self.tg.join(link, quiet=True)      # 4.1.2: a channel a bot demanded: muted and archived
                 ok += 1
             except Exception as exc:
                 self.tg.log('bot join %s failed: %r' % (link, exc))
@@ -354,6 +354,7 @@ async def ask(tg, bot, query, timeout=14.0, clicks=5, rank=None, autojoin=False)
     async with tg.bot_lock(ent.id):
         talk = _Talk(tg, query, rank, clicks, autojoin, res)
         try:
+            await tg.hush(ent)                    # 4.1.2: the bot's answers must not ring on the viewer's phone
             last = await client.get_messages(ent, limit=1)
             if not last:                          # never opened: a bot answers nobody before /start
                 first = await client.send_message(ent, '/start')
@@ -404,6 +405,7 @@ async def ask(tg, bot, query, timeout=14.0, clicks=5, rank=None, autojoin=False)
                     break
             elif idle >= (2.0 if res['files'] else 4.5):
                 break
+        await tg.seen(ent)                        # 4.1.2: read by the engine = read (no unread counter)
     res['took'] = round(time.time() - t0, 2)
     return res
 

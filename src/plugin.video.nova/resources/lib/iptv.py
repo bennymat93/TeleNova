@@ -410,13 +410,14 @@ def _merge(notify):
             # stream and Idan+ (a channel that played from its list keeps playing from it)
             extra[key] = alt_urls.get(norm(c['name'])) or [with_headers(c)]
             c['url'], c['opts'] = 'plugin://plugin.video.nova/?a=live&ch=' + key, []
+            c['key'] = key
             have.add(key)
     save('live_extra.json', extra)
     for key, (names, _, _) in livefail.CHANNELS.items():
         if key not in have:            # only a restream carried it: the licensed sources bring it back
-            best['live:' + key] = {'attrs': {}, 'name': names[0], 'opts': [], 'src': 'BN', 'q': 3, 'group': 'Israel',
+            best['live:' + key] = {'attrs': {}, 'name': names[0], 'opts': [], 'src': 'BN', 'q': 3, 'group': 'Israel', 'key': key,
                                    'url': 'plugin://plugin.video.nova/?a=live&ch=' + key}
-    used, lines = set(), ['#EXTM3U']
+    used, lines, own_rows = set(), ['#EXTM3U'], []
     ordered = sorted(best.values(), key=lambda c: ([b for b, _ in BLOCKS].index(c['group']), c['name'].lower()))
     if not os.path.exists(FREE_GUIDE):
         # first start: build the guide NOW, before the TV service starts for the first time. Kodi scans the guide
@@ -472,8 +473,19 @@ def _merge(notify):
         used.add(num)
         a = dict(c['attrs'])
         gid = guide[1].get(display_name(c['name'])) or guide[1].get(c['name'])   # the guide is keyed by shown names
+        if not gid and c.get('key') in livefail.SAME_GUIDE:      # 4.1.2: a second feed of a channel shares its guide
+            gid = guide[1].get(livefail.SAME_GUIDE[c['key']])
+        if not gid and c.get('key') and c.get('src') == 'BN':
+            # 4.1.2: a channel of the build that no guide lists (a web channel, a studio camera): its row in the TV
+            # guide says what it is instead of staying empty
+            gid = 'bn.' + c['key']
+            own_rows.append((gid, livefail.CHANNELS[c['key']][0]))
         if gid:
             a['tvg-id'] = gid
+        if c.get('key'):                                         # 4.1.2: the build's own logo for its own channels
+            logo = livefail.logo_for(c['key'])
+            if logo:                 # a file in the add-on, not a picture on somebody's server that may be gone
+                a['tvg-logo'] = logo
         attrs = ' '.join('%s="%s"' % (k, v) for k, v in a.items() if k not in ('tvg-chno', 'group-title'))
         lines.append('#EXTINF:-1 %s tvg-chno="%d" group-title="%s",%s' % (attrs, num, c['group'], display_name(c['name'])))
         opts = list(c['opts'])
@@ -486,7 +498,7 @@ def _merge(notify):
         lines.extend(opts)
         lines.append(with_headers(c))
     _write_atomic(MERGED_M3U, '\n'.join(lines) + '\n')
-    merge_epg(src['epg'], errors, extra=guide[0])
+    merge_epg(src['epg'], errors, extra=list(guide[0]) + livefail.own_guide(own_rows))
     if not configure_pvr(force=notify):
         errors.append('PVR IPTV Simple Client could not be installed - check internet, then Accounts > IPTV again')
     save('iptv_status.json', {'when': time.time(), 'channels': len(best), 'errors': errors})
@@ -630,7 +642,10 @@ def rebuild_guide(pl, max_new=3000, apply=True, budget=180):
                     line = re.sub(r' tvg-id="[^"]*"', '', line).replace('#EXTINF:-1 ', '#EXTINF:-1 tvg-id="%s" ' % ids[name], 1)
             out.append(line)
         _write_atomic(MERGED_M3U, '\n'.join(out))
-        merge_epg(sources()['epg'], [], extra=parts)
+        from . import livefail
+        # 4.1.2: this writes the merged guide again - the build's own rows ("<channel> - live broadcast" for the
+        # channels no guide lists) must go in again too, or those channels lose their guide after every refresh
+        merge_epg(sources()['epg'], [], extra=list(parts) + livefail.own_guide(livefail.own_rows(out)))
         forget_epg_scans()
         configure_pvr(force=True)        # the TV service reads tvg-ids and the guide when its client starts
     except Exception as e:
@@ -643,10 +658,16 @@ def merge_epg(urls, errors, extra=()):
     """Stream-merge several XMLTV files into one gzip without loading a DOM (+ the free guide parts first)."""
     tmp = MERGED_EPG + '.tmp'
     seen_channels = set()
+    served = set()                                   # 4.1.2: guide ids that got at least one programme
+    prog_id = re.compile(r'<programme\b[^>]*\bchannel="([^"]+)"')
     with gzip.open(tmp, 'wt', encoding='utf-8') as out:
         out.write('<?xml version="1.0" encoding="UTF-8"?>\n<tv generator-info-name="TeleNova">\n')
+        from . import epg as _epg                    # 4.1.2: every block is written as real XML (bare "&" ...)
         for part in extra:
-            out.write(part + '\n')
+            pm = prog_id.match(part)
+            if pm:
+                served.add(pm.group(1))
+            out.write(_epg.well_formed(part) + '\n')
         for u in urls:
             try:
                 raw = _fetch(u)
@@ -660,11 +681,60 @@ def merge_epg(urls, errors, extra=()):
                         if m.group(1) in seen_channels:
                             continue
                         seen_channels.add(m.group(1))
-                    out.write(m.group(0) + '\n')
+                    else:
+                        pm = prog_id.match(m.group(0))
+                        if pm:
+                            served.add(pm.group(1))
+                    out.write(_epg.well_formed(m.group(0)) + '\n')
             except Exception as e:
                 errors.append('EPG %s: %s' % (u[:40], e))
+        try:
+            for part in fill_unserved(served):
+                out.write(part + '\n')
+        except Exception as e:                       # the guide itself must never be lost over the filler rows
+            errors.append('EPG filler: %s' % e)
         out.write('</tv>\n')
     _replace(tmp, MERGED_EPG)
+
+
+def fill_unserved(served, m3u=None):
+    """4.1.2: an Israeli channel whose guide id no guide serves (ids copied from free channel lists, such as
+    "Channel16.il@SD") showed an empty row in the TV guide. It gets rows that say "<name> - live broadcast" UNDER ITS
+    OWN ID - an id is never replaced, so when a guide that was down for a moment answers again, its real programmes
+    take the place of the filler by themselves. Only a channel with no id at all gets one (bn.n.<hash of the full
+    name>: Hebrew names keep only their digits in an ASCII slug, and two channels must never share an id).
+    -> the XMLTV parts to add"""
+    import hashlib
+    from . import livefail
+    m3u = m3u or MERGED_M3U
+    if not os.path.exists(m3u):
+        return []
+    with open(m3u, encoding='utf-8') as f:
+        lines = f.read().split('\n')
+    rows, changed, taken = [], False, set()
+    for i, line in enumerate(lines):
+        if not line.startswith('#EXTINF') or 'group-title="Israel"' not in line:
+            continue
+        m = re.search(r' tvg-id="([^"]*)"', line)
+        gid = m.group(1) if m else ''
+        if gid and gid in served:
+            continue
+        name = line.rsplit(',', 1)[1].strip()
+        if gid.startswith('bn.') and gid[3:] in livefail.CHANNELS:
+            new, names = gid, livefail.CHANNELS[gid[3:]][0]
+        elif gid:
+            new, names = gid, [name]                 # its own id stays: the filler only covers the gap
+        else:
+            new = 'bn.n.' + hashlib.sha1(name.encode('utf-8')).hexdigest()[:12]
+            names = [name]
+            lines[i] = line.replace('#EXTINF:-1 ', '#EXTINF:-1 tvg-id="%s" ' % new, 1)
+            changed = True
+        if new not in taken:
+            taken.add(new)
+            rows.append((new, names))
+    if changed:
+        _write_atomic(m3u, '\n'.join(lines))
+    return livefail.own_guide(rows)
 
 
 def repo_knows(addon_id):

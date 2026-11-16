@@ -899,3 +899,7 @@ msgstr ""
 msgctxt "#32120"
 msgid "OpenSubtitles API key"
 msgstr ""
+
+msgctxt "#32121"
+msgid "Quiet mode: chats the add-on writes to (bots) are muted and their answers marked as read - no notifications on your phone"
+msgstr ""

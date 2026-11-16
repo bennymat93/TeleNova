@@ -15,22 +15,27 @@ RESTREAM_HOSTS = ('iptvhd.ru', 'freeott.top', 'mcquack.net')
 
 KAN = 'https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/%s/live.livx/playlist.m3u8'
 IDAN = 'plugin://plugin.video.idanplus/?url=%s&mode=%s&module=%s&moredata=best'
+# 4.1.2: channels whose official direct stream is of a lower quality than what Idan+ gets: Idan+ first, the
+# direct stream as the fallback (everywhere else the direct stream comes first - it starts faster and does not
+# depend on another add-on)
+DIRECT_LAST = ('reshet13',)
 
 # key: (names the playlists / guides use, [direct streams], [(Idan+ url, module, mode)])
 CHANNELS = {
     'kan11': (['Kan 11', 'כאן 11'], [KAN % 'kan11'], [('ch_11', 'kan', 10), ('ch_11b', 'tv', 10)]),
     'keshet12': (['Keshet 12', 'קשת 12', 'Channel 12'], [],
                  [('ch_12', 'keshet', 10), ('ch_12b', 'keshet', 10), ('ch_12b2', 'keshet', 10)]),
-    'reshet13': (['Channel 13 (Israel)', 'Reshet 13', 'רשת 13', 'Channel 13'], [],
+    'reshet13': (['Channel 13 (Israel)', 'Reshet 13', 'רשת 13', 'Channel 13'], ['https://d198ztbnlup2iq.cloudfront.net/out/v1/850e31c0e6fa4d94a44d6ccd63e4b400/index.m3u8'],   # 720p only: tried after Idan+ (DIRECT_LAST)
                  [('ch_13', 'reshet', 4), ('ch_13b', 'reshet', 4), ('ch_13b2', 'reshet', 4)]),
     'now14': (['Now 14', 'עכשיו 14', 'Channel 14'], ['https://r.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8'],
               [('ch_14', '14tv', 10), ('ch_14b', 'tv', 10), ('ch_14b2', 'tv', 10)]),
-    'kanedu': (['Kan Educational', 'כאן חינוכית'], [], [('ch_23', 'kan', 10), ('ch_23b', 'tv', 10)]),
+    'kanedu': (['Kan Educational', 'כאן חינוכית'], [KAN % 'kan_edu'], [('ch_23', 'kan', 10), ('ch_23b', 'tv', 10)]),
     'ch24': (['Channel 24 (Israel)', 'Channel 24', 'ערוץ 24'], [], [('ch_24', 'keshet', 10), ('ch_24b', 'keshet', 10)]),
     'makan33': (['Makan 33', 'מכאן 33'], [KAN % 'makan'], [('ch_33', 'kan', 10), ('ch_33b', 'tv', 10)]),
-    'knesset': (['Knesset Channel', 'ערוץ הכנסת', 'כנסת 99'], [], [('ch_99', 'tv', 10)]),
+    'knesset': (['Knesset Channel', 'ערוץ הכנסת', 'כנסת 99'], ['https://knesetn.gostreaming.tv/Knesset/index.m3u8'], [('ch_99', 'tv', 10)]),
     'ch9': (['Channel 9 (Israel)', 'Channel 9', 'ערוץ 9'], ['https://contact.gostreaming.tv/Con-11/index.m3u8'], [('ch_9', 'tv', 10)]),
-    'hidabroot': (['Hidabroot', 'הידברות'], ['https://cdn.cybercdn.live/HidabrootIL/Live97/playlist.m3u8'], [('ch_97', 'hidabroot', 10)]),
+    'hidabroot': (['Hidabroot', 'הידברות'], ['https://cdn.cybercdn.live/HidabrootIL/Live97/playlist.m3u8',
+                                           'https://htv-live.cybercdn.live/HidabrootIL/Live97/playlist.m3u8'], [('ch_97', 'hidabroot', 10)]),
     'i24he': (['i24NEWS Hebrew', 'i24 עברית'], ['https://i24newshebrew-cdn.encoders.immergo.tv/master.m3u8'], [('ch_i24news', 'tv', 10)]),
     'i24en': (['i24NEWS English'], ['https://i24newsenglish-cdn.encoders.immergo.tv/master.m3u8'], [('ch_i24newsen', 'tv', 10)]),
     'i24fr': (['i24NEWS French'], ['https://i24newsfrench-cdn.encoders.immergo.tv/master.m3u8'], [('ch_i24newsfr', 'tv', 10)]),
@@ -38,10 +43,10 @@ CHANNELS = {
     # 4.0.2: the rest of what Idan+ carries - the broadcasters' own free web channels. Every one of them is always in
     # the channel list (iptv._merge adds the keys that no playlist brought), the ones a playlist also carries get
     # Idan+ as their fallback. Paid cable / satellite channels have no licensed free source and stay out.
-    'kalkala10': (['Kalkala 10', 'כלכלה 10'], [], [('ch_10', 'tv', 10)]),
-    'ch16': (['Channel 16', 'ערוץ 16'], [], [('ch_16tv', 'tv', 10)]),
-    'kab66': (['Kabbalah for the People Israel', 'קבלה 66', 'קבלה לעם'], [], [('ch_66', 'tv', 10)]),
-    'kabru': (['Kabbalah (Russian)', 'קבלה - רוסית'], [], [('ch_kabru', 'tv', 10)]),
+    'kalkala10': (['Kalkala 10', 'כלכלה 10'], ['https://r.il.cdn-redge.media/livehls/oil/calcala-live/live/channel10/live.livx/playlist.m3u8'], [('ch_10', 'tv', 10)]),
+    'ch16': (['Channel 16', 'ערוץ 16'], ['https://ch16israel-cdn.encoders.immergo.tv/2/streamPlaylist.m3u8'], [('ch_16tv', 'tv', 10)]),
+    'kab66': (['Kabbalah for the People Israel', 'קבלה 66', 'קבלה לעם'], ['https://edge2.il.kab.tv/live/tv66-heb-high/playlist.m3u8'], [('ch_66', 'tv', 10)]),
+    'kabru': (['Kabbalah (Russian)', 'קבלה - רוסית'], ['https://edge3.uk.kab.tv/live/tvrus-rus-high/playlist.m3u8'], [('ch_kabru', 'tv', 10)]),
     # played 13/11 (qa/t_live_keys.py): Big Brother 26, Musayof, Ynet Live and the Sport 5 site did not start - left out
     'comedy13': (['Comedy Channel', '13 ערוץ הקומדיות'], [], [('ch_13comedy', 'reshet', 4)]),
     'nofesh13': (['Vacation Channel', 'ערוץ הנופש'], [], [('ch_13nofesh', 'reshet', 4)]),
@@ -53,9 +58,9 @@ CHANNELS = {
     'kmusic': (['Keshet Music Channel', 'ערוץ המוזיקה'], [], [('ch_free_music', 'keshet', 10)]),
     'kfood': (['Keshet Food Channel', 'ערוץ האוכל'], [], [('ch_free_food', 'keshet', 10)]),
     # 4.0.3: the broadcasters' feeds for the hard of hearing (subtitled / signed)
-    'kan11c': (['Kan 11 - subtitled', 'כאן 11 - לקויי שמיעה'], [], [('ch_11c', 'kan', 10)]),
+    'kan11c': (['Kan 11 - subtitled', 'כאן 11 - לקויי שמיעה'], [KAN % 'kan11_subs'], [('ch_11c', 'kan', 10)]),
     'keshet12c': (['Keshet 12 - subtitled', 'קשת 12 - לקויי שמיעה'], [], [('ch_12c', 'keshet', 10)]),
-    'reshet13c': (['Reshet 13 - subtitled', 'רשת 13 - לקויי שמיעה'], [], [('ch_13c', 'reshet', 4)]),
+    'reshet13c': (['Reshet 13 - subtitled', 'רשת 13 - לקויי שמיעה'], ['https://reshet.g-mana.live/media/4607e158-e4d4-4e18-9160-3dc3ea9bc677/mainManifest.m3u8'], [('ch_13c', 'reshet', 4)]),
     'knesset99c': (['Knesset Channel - subtitled', 'ערוץ הכנסת - לקויי שמיעה'], [], [('ch_99c', 'tv', 10)]),
     # 4.0.6: official streams found on the broadcasters' own sites / YouTube channels (docs/RESEARCH-il-channels.md)
     'kotel': (['Western Wall Live', 'הכותל המערבי - שידור חי'], ['yt:UCvcdHbNAQvbe2GuIDLhlwaw'], []),
@@ -64,9 +69,67 @@ CHANNELS = {
     # Not added (checked 16/11 18:00): Meir TV and 103FM broadcast on YouTube by day only, and YouTube sources proved
     # less dependable than HLS ones - on a day YouTube asks the address to "sign in to confirm you're not a bot" the
     # YouTube add-on needs 30-65 s to start any video. No more yt: channels until that path is dependable.
+    # 4.1.2 (docs/RESEARCH-il-channels-2.md): the channel's own stream, checked three times on 16/11
+    'musawa': (['Musawa', 'قناة مساواة', 'מוסאוא'], ['https://pbc.furrera.ps/musawahd/index.m3u8'], []),
     'radius100': (['100FM Radius (video)', '100FM רדיוס'], [], [('ch_100', 'tv', 10)]),
     'pervoe891': (['Первое Радио 89.1FM'], [], [('ch_891', 'tv', 10)]),
 }
+
+
+# 4.1.2: a channel that is a second feed of another one (subtitled / signed) shows the same programmes: it gets
+# the guide of the main channel (the value is the name the main channel is shown by)
+SAME_GUIDE = {'kan11c': 'Kan 11', 'keshet12c': 'Keshet 12', 'reshet13c': 'Channel 13 (Israel)', 'knesset99c': 'Knesset Channel'}
+# ... and wears the logo of the main channel when it has none of its own
+SAME_LOGO = {'kan11c': 'kan11', 'keshet12c': 'keshet12', 'reshet13c': 'reshet13', 'knesset99c': 'knesset',
+             'kabru': 'kab66', 'comedy13': 'reshet13', 'nofesh13': 'reshet13', 'reality13': 'reshet13',
+             'eretz': 'keshet12', 'savri': 'keshet12', 'kcomedy': 'keshet12', 'kdrama': 'keshet12', 'kmusic': 'keshet12',
+             'kfood': 'keshet12'}
+
+
+def own_guide(rows, now=None, days=3, hours=6):
+    """guide blocks for the build's channels that no guide lists. rows: [(guide id, [names])] -> XMLTV parts: the
+    channel, then one entry per `hours` for `days` days that says "<channel> - live broadcast" (Hebrew + English)"""
+    import time
+    from xml.sax.saxutils import escape
+    now = int(now if now is not None else time.time())
+    start = now - now % (hours * 3600)
+    parts = []
+    for gid, names in rows:
+        en = names[0]
+        he = next((n for n in names[1:] if re.search(u'[א-ת]', n)), en)
+        parts.append('<channel id="%s"><display-name lang="he">%s</display-name><display-name lang="en">%s</display-name></channel>'
+                     % (escape(gid, {'"': '&quot;'}), escape(he), escape(en)))
+        for i in range(days * 24 // hours):
+            a, b = start + i * hours * 3600, start + (i + 1) * hours * 3600
+            parts.append('<programme start="%s +0000" stop="%s +0000" channel="%s"><title lang="he">%s</title>'
+                         '<desc lang="he">%s</desc></programme>'
+                         % (time.strftime('%Y%m%d%H%M%S', time.gmtime(a)), time.strftime('%Y%m%d%H%M%S', time.gmtime(b)),
+                            escape(gid, {'"': '&quot;'}), escape(u'%s - שידור חי' % he),
+                            escape(u'%s - live broadcast' % en)))
+    return parts
+
+
+def own_rows(m3u_lines):
+    """the playlist lines -> [(guide id, names)] of the channels that carry the build's own guide id (bn.<key>)"""
+    rows, seen = [], set()
+    for line in m3u_lines:
+        m = re.search(r'tvg-id="bn\.([^"]+)"', line) if line.startswith('#EXTINF') else None
+        if m and m.group(1) in CHANNELS and m.group(1) not in seen:
+            seen.add(m.group(1))
+            rows.append(('bn.' + m.group(1), CHANNELS[m.group(1)][0]))
+    return rows
+
+
+def logo_for(key, folder=None):
+    """the logo the build ships for one of its channels (resources/media/logos/<key>.png) as a path Kodi's TV
+    add-on reads, or '' - logos on the web come and go, a file in the add-on does not"""
+    import os
+    if folder is None:
+        folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'media', 'logos')
+    for k in (key, SAME_LOGO.get(key)):
+        if k and os.path.isfile(os.path.join(folder, k + '.png')):
+            return 'special://home/addons/plugin.video.nova/resources/media/logos/%s.png' % k
+    return ''
 
 
 # 1.4.4 (owner: "Sport 4 shows loading, then nothing"): restreams also come from bare IPs with a port and
@@ -100,7 +163,8 @@ def key_for(name):
 
 def candidates(key):
     names, direct, idan = CHANNELS[key]
-    return list(direct) + [IDAN % (u, mode, module) for u, module, mode in idan]
+    via_idan = [IDAN % (u, mode, module) for u, module, mode in idan]
+    return via_idan + list(direct) if key in DIRECT_LAST else list(direct) + via_idan
 
 
 # ------------------------------------------------------------ Kodi
@@ -145,7 +209,9 @@ def live(handle, key, alt=''):
     elif key in CHANNELS:
         names, direct, idan = CHANNELS[key]
         listed = [u for u in load('live_extra.json', {}).get(key, []) if u not in direct and not u.startswith('plugin://')]
-        cands, label = list(direct) + listed + [IDAN % (u, mode, module) for u, module, mode in idan], names[0]
+        via_idan = [IDAN % (u, mode, module) for u, module, mode in idan]
+        cands = (via_idan + list(direct) + listed) if key in DIRECT_LAST else (list(direct) + listed + via_idan)
+        label = names[0]
     else:
         return xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
     n_all = len(cands)
