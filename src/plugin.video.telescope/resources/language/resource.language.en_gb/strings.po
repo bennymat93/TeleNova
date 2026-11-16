@@ -753,7 +753,7 @@ msgid "Import configuration from a file"
 msgstr ""
 
 msgctxt "#30152"
-msgid "The file will hold every setting of the add-on and your Telegram login. Whoever has the file can enter your Telegram account. Keep it private."
+msgid "The file will hold every setting of the add-on, including keys and the Real-Debrid login (not the Telegram login). Whoever has the file can use those accounts. Keep it private."
 msgstr ""
 
 msgctxt "#30153"
@@ -902,4 +902,8 @@ msgstr ""
 
 msgctxt "#32121"
 msgid "Quiet mode: chats the add-on writes to (bots) are muted and their answers marked as read - no notifications on your phone"
+msgstr ""
+
+msgctxt "#30179"
+msgid "The Telegram login is not in the file: every device needs a login of its own. On the other device log in from Account & Status - or use TeleNova > Backup & sync > Send my setup to another device."
 msgstr ""

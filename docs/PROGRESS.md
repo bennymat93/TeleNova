@@ -1,6 +1,6 @@
 # TeleNova - QA / upgrade programme: progress
 
-Updated 2026-11-16 22:30, after TeleNova 4.1.2 (published). Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
+Updated 2026-11-17 01:15, after TeleNova 4.2.0. Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -22,8 +22,8 @@ Extra tracks asked for by the owner
                                                    with real keys; shortlist 1-4, 6, 7 done; 5, 8-10 open)
 ✅ One screen for every service             100%  (4.0.4)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FIXES IDENTIFIED: 20  |  Fixed: 16 |  Pending: 4
-  Critical: 0          High: 9 (8 fixed)
+FIXES IDENTIFIED: 22  |  Fixed: 19 |  Pending: 3
+  Critical: 0          High: 11 (11 fixed)
   Medium:  9 (8 fixed) Low:  2 (0 fixed)
 ```
 
@@ -52,13 +52,15 @@ FIXES IDENTIFIED: 20  |  Fixed: 16 |  Pending: 4
 | BUG-007 | Medium | A request in flight could be dropped half-way by Python's garbage collector | `tgclient._spawn` | fixed 4.0.0 |
 | BUG-008 | High | "Hebrew" label trusted blindly: mislabelled / empty / broken tracks stopped the subtitle search; unlabelled Hebrew tracks were missed | `subprobe.py`, `service.py`, guard v17 | fixed 4.0.1, verified in Kodi |
 | BUG-009 | Medium | Burned-in Hebrew subtitles not recognised: a second subtitle was fetched on top | `hardsub.py` | fixed 4.0.1, verified in Kodi |
-| BUG-010 | High | The configuration export carries the Telegram session: two devices online with it can lose the login on both (AUTH_KEY_DUPLICATED) | `configio.py`, `service.config_export` | pending - replaced by the pairing design |
+| BUG-010 | High | The configuration export carries the Telegram session: two devices online with it can lose the login on both (AUTH_KEY_DUPLICATED) | `configio.py`, `service.config_export` | fixed 4.2.0: no session in the file, an old file's session is ignored; pairing gives each device its own login |
 | BUG-011 | Medium | Kodi is slow to exit right after a Telegram film when the AI subtitle server is reading it (the server cannot cancel a job) | `kodi-build\server\nova_subs.py` (outside this repository) | fixed 4.0.2 on our side: the stream server releases its connections, the hub's wait for the server watches the abort flag; exit after a Telegram film = exit when idle (18-20 s) |
 | BUG-012 | Medium | A broken request parameter shows a raw error notification to the viewer | `plugin.video.nova/default.py` | pending |
 | BUG-013 | Low | First request into a far, never-read region of a very large Telegram file can take 7-15 s (Telegram's side); a second request is sent after 3 s | `tgclient.py` | mitigated |
 | BUG-014 | Low | TV channels: the first open of a stream sometimes fails in the demuxer and the retry adds 8-10 s | `service.py` tv retry / stream sources | pending (seen 2026-11-13 01:10) |
 | BUG-015 | High | Kodi never closed after Telegram playback (server threads in a socket read Windows does not wake) | \stream.App.shutdown\, \service._post_wait\ | fixed 4.0.2, verified in Kodi |
 | BUG-016 | High | Files too heavy for the account's real rate were offered and stalled | \sources.playable\, setting \max_mbit\ | fixed 4.0.2 |
+| BUG-021 | High | After "Log out" the engine could not connect again until Kodi restarted (Telethon client reused after log_out closed its session) | `tgclient.logout`, `reconnect` | fixed 4.2.0, found in the live pairing test |
+| BUG-022 | High | QR login could hang (the accepted-update fell between short waits) or fail with LoginTokenMigrateTo (account in another data centre) | `tgclient.qr_wait`, `_qr_settle` | fixed 4.2.0, found in the live pairing test |
 | BUG-019 | High | First version of the guide filler replaced real guide ids while one guide source was down (found by the 4.1.2 review) | `iptv.fill_unserved` | fixed before release: ids are never replaced |
 | BUG-020 | Medium | First version of the guide filler built ids from Hebrew names that kept only digits: two channels could share a row (review) | `iptv.fill_unserved` | fixed before release: sha1 of the full name |
 | BUG-018 | Medium | The free-guide refresh rewrote the TV guide without the build's own rows: 13 channels showed an empty guide again | `iptv.py` free guide apply | fixed 4.1.2 (`livefail.own_rows`, test in `t_epg_xml.py`) |
@@ -77,7 +79,7 @@ FIXES IDENTIFIED: 20  |  Fixed: 16 |  Pending: 4
 ## Next
 
 0. Owner asked to come back to the TV channels after the release: more licensed sources (target ~70 channels); 29 play today.
-1. Device pairing ("send my setup to another device"): the protocol core with tests, then the two screens, then a test PC -> Android emulator.
+1. ~~Device pairing~~ done in 4.2.0. Left: a test between two physical devices on a real home network.
 2. Link shortlist items 1-4 (`docs/RESEARCH-sources.md`): Real-Debrid refusals, Wizdom signal, Wikidata aliases, runtime gate.
 3. Phase 0 leftovers: architecture map, XML checker for the skin (also Phase 4's tool).
 4. Owner's decisions: TorBox, StremThru, OpenSubtitles key (see `docs/RESEARCH-sources.md`).

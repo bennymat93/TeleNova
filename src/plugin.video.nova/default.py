@@ -665,6 +665,8 @@ def router(p):
         'history': history,
         'history_clear': lambda: (save('history.json', []), _users().mark(_users()._root(), 'history_cleared'), refresh()),
         'users': lambda: _users().menu(HANDLE, url),                      # 4.1.0
+        'pair_send': lambda: __import__('resources.lib.pairui', fromlist=['x']).send(),        # 4.2
+        'pair_receive': lambda: __import__('resources.lib.pairui', fromlist=['x']).receive(),
         'user_do': lambda: _users().action(p['id']),
         'favs': lambda: favs(p.get('kind')),
         'fav_add': lambda: fav_add(**p),
@@ -745,7 +747,7 @@ def router(p):
 
 
 ACTIONS = {'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc', 'ac_pick', 'sh_clear', 'sh_remove', 'sh_add', 'user_do', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
-           'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu',
+           'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu', 'pair_send', 'pair_receive',
            'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go', 'clip_paste', 'clip_menu'}
 
 

@@ -919,7 +919,7 @@ def config_export(_):
     except (rpc.RPCError, IOError, OSError) as exc:
         dlg.ok(common.ADDON_NAME, '%s\n%s' % (L(30160), common.scrub(exc)[:200]))
         return
-    dlg.ok(common.ADDON_NAME, '%s\n%s\n%s' % (L(30161), path, L(30162) if res.get('session') else L(30163)))
+    dlg.ok(common.ADDON_NAME, '%s\n%s\n%s' % (L(30161), path, L(30179)))        # 4.2: never the Telegram login (BUG-010)
 
 
 def config_import(_):

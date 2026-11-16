@@ -90,7 +90,14 @@ class TG(object):
     async def reconnect(self):
         """3.3: called by the service's watchdog when the client is found disconnected."""
         if not self.client.is_connected():
-            await self.client.connect()
+            try:
+                await self.client.connect()
+            except Exception as exc:
+                # 4.2: a client whose session was closed (an older logout, a deleted session file) cannot connect
+                # again - a fresh one can
+                self.log('reconnect failed (%s): a fresh Telegram client' % type(exc).__name__)
+                await self._connect()
+                return True
         if self.me is None and await self.client.is_user_authorized():
             self.me = await self.client.get_me()
         return True
@@ -277,27 +284,94 @@ class TG(object):
         self._qr = await self.client.qr_login()
         return {'url': self._qr.url, 'expires': self._qr.expires.timestamp() if self._qr.expires else 0}
 
+    async def qr_accept(self, token):
+        """4.2 (device pairing): this logged-in session approves another device's login token
+        (auth.acceptLoginToken). token: the base64url text of its tg://login?token=... -> {'ok', 'error'}"""
+        import base64
+        from telethon.tl.functions.auth import AcceptLoginTokenRequest
+        text = str(token or '').strip()
+        if text.startswith('tg://'):
+            text = text.split('token=', 1)[-1]
+        try:
+            raw = base64.urlsafe_b64decode(text + '=' * (-len(text) % 4))
+        except (ValueError, TypeError):
+            return {'ok': False, 'error': 'bad_token'}
+        if not raw or len(raw) > 512:
+            return {'ok': False, 'error': 'bad_token'}
+        try:
+            await self.client(AcceptLoginTokenRequest(token=raw))
+            return {'ok': True}
+        except Exception as exc:                       # AuthTokenExpiredError, AuthTokenInvalidError, ...
+            return {'ok': False, 'error': type(exc).__name__}
+
+    async def _qr_settle(self):
+        """4.2 (live pairing test 17/11): the state of the QR login read from Telegram itself.
+        Telethon's wait() must run without a break while the token is accepted; this engine waits in short slices,
+        so the "token accepted" update can fall between two of them and the login hung - and once the token had
+        been accepted, the next export came back as LoginTokenMigrateTo (the account lives in another data
+        centre), which has no expiry: AttributeError. This asks again and finishes the way Telethon does:
+        LoginTokenMigrateTo -> switch data centre + importLoginToken; LoginTokenSuccess -> logged in.
+        -> {'ok': True} | {'ok': False} | {'ok': False, 'password': True, ...}"""
+        from telethon.errors import SessionPasswordNeededError
+        from telethon.tl import functions, types
+        try:
+            resp = await self.client(self._qr._request)
+            if isinstance(resp, types.auth.LoginTokenMigrateTo):
+                await self.client._switch_dc(resp.dc_id)
+                resp = await self.client(functions.auth.ImportLoginTokenRequest(resp.token))
+            if isinstance(resp, types.auth.LoginTokenSuccess):
+                user = resp.authorization.user
+                await self.client._on_login(user)
+                self.me = user
+                self._qr = None
+                return {'ok': True}
+            if isinstance(resp, types.auth.LoginToken):
+                self._qr._resp = resp                  # not accepted yet: a fresh token (the URL changes)
+                return {'ok': False, 'url': self._qr.url}
+            return {'ok': False, 'error': type(resp).__name__}
+        except SessionPasswordNeededError:
+            self._qr = None
+            return {'ok': False, 'password': True, 'hint': await self._password_hint()}
+
+    async def qr_check(self):
+        """4.2 (device pairing): the configured device has accepted this device's token - finish the login now"""
+        if not self._qr:
+            return {'ok': bool(self.me)}
+        return await self._qr_settle()
+
     async def qr_wait(self, timeout=5):
         from telethon.errors import SessionPasswordNeededError
         if not self._qr:
-            return {'ok': False}
+            return {'ok': bool(self.me)}
         try:
             self.me = await self._qr.wait(timeout)
             self._qr = None
             return {'ok': True}
         except asyncio.TimeoutError:
-            if self._qr.expires and self._qr.expires.timestamp() < time.time() + 2:
-                await self._qr.recreate()
-                return {'ok': False, 'url': self._qr.url}
+            expires = getattr(self._qr._resp, 'expires', None)      # 4.2: a migrate / success answer has none
+            if expires is None or expires.timestamp() < time.time() + 2:
+                # expired (or already answered): Telegram tells where the login stands - accepted meanwhile
+                # (the update fell between two waits), or a fresh token for the QR code
+                return await self._qr_settle()
             return {'ok': False}
         except SessionPasswordNeededError:
             self._qr = None
             return {'ok': False, 'password': True, 'hint': await self._password_hint()}
 
     async def logout(self):
-        await self.client.log_out()
-        self.me = None
-        await self.client.connect()
+        """4.2 (found in the live pairing test, 17/11): Telethon's log_out() deletes the session and closes it, and
+        connect() on that same client can never succeed again - the engine reported "telegram is disconnected -
+        reconnecting" every 30 s and no new login was possible until Kodi was restarted. A fresh client is made."""
+        try:
+            await self.client.log_out()
+        finally:
+            self.me = None
+            self._qr = None
+            try:
+                await self.client.disconnect()
+            except Exception:
+                pass
+            await self._connect()
         return True
 
     # ------------------------------------------------------------------ helpers

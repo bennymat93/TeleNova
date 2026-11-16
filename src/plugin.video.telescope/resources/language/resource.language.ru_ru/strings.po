@@ -753,8 +753,8 @@ msgid "Import configuration from a file"
 msgstr "Импорт конфигурации из файла"
 
 msgctxt "#30152"
-msgid "The file will hold every setting of the add-on and your Telegram login. Whoever has the file can enter your Telegram account. Keep it private."
-msgstr "Файл будет содержать все настройки и вход в Telegram. Тот, у кого есть файл, может войти в ваш аккаунт. Храните его в тайне."
+msgid "The file will hold every setting of the add-on, including keys and the Real-Debrid login (not the Telegram login). Whoever has the file can use those accounts. Keep it private."
+msgstr "Файл будет содержать все настройки, включая ключи и вход Real-Debrid (без входа в Telegram). Тот, у кого есть файл, может пользоваться этими аккаунтами. Храните его в тайне."
 
 msgctxt "#30153"
 msgid "Cancel"
@@ -903,3 +903,7 @@ msgstr "Ключ API OpenSubtitles"
 msgctxt "#32121"
 msgid "Quiet mode: chats the add-on writes to (bots) are muted and their answers marked as read - no notifications on your phone"
 msgstr "Тихий режим: чаты, куда пишет дополнение (боты), без звука, ответы отмечаются прочитанными - без уведомлений"
+
+msgctxt "#30179"
+msgid "The Telegram login is not in the file: every device needs a login of its own. On the other device log in from Account & Status - or use TeleNova > Backup & sync > Send my setup to another device."
+msgstr "Вход в Telegram не сохраняется в файле: каждому устройству нужен свой вход. На другом устройстве войдите в «Аккаунт и статус» - или используйте TeleNova > Копии и синхронизация > Отправить мои настройки на другое устройство."

@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.1.2.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.2.0.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -33,13 +33,42 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.1.2 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.1.2 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.1.2 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.2.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.2.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.2.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.1.2 | This repository |
+| `repository.telenova` | 4.2.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.2.0 - send my setup to another device
+
+**Pairing** (TeleNova > Backup & sync): set the build up once, then a new device on the same network gets everything
+with no typing on a remote.
+- New device: "Receive setup from another device" - it waits, announces itself on the network and shows its name and
+  address. Configured device: "Send my setup to another device" - finds it (or takes the typed address).
+- Both screens show the same 6-digit code; the viewer confirms on both. The code comes from an ephemeral
+  Diffie-Hellman exchange (RFC 3526 group 14) with a commitment, so a device in the middle shows two different codes
+  (it matches once in a million). Everything after it is encrypted and authenticated (SHAKE-256 keystream,
+  HMAC-SHA256 per frame and sequence). Python standard library only: works on Windows, Android, iOS, macOS.
+- What is sent: every syncable setting of the hub, the Telegram engine and All_Subs, the users and their lists.
+  **Never the Telegram session**: the new device gets a login of its own - it sends a login token through the channel
+  and the configured device approves it (`auth.acceptLoginToken`); a two-step password is typed on the configured
+  device. After that the continuous sync takes over.
+- Progress is reported while a slow device applies the setup (131 settings took ~4 minutes on an emulator).
+
+**Fixed in the Telegram engine**
+- After "Log out", no new login was possible until Kodi was restarted (the client reused a closed session).
+- A QR login could hang (the "accepted" notice fell between two waits) or fail when the account lives in another
+  Telegram data centre (`LoginTokenMigrateTo`).
+- The configuration file (.tncfg) no longer carries the Telegram session, and an older file's session is not
+  restored: one login key on two devices makes Telegram end it on both (BUG-010).
+
+**Checks**: `src/qa/t_pairing.py` 44 checks (RFC vectors, tampering, replay, a man in the middle 5/5, cancel at every
+wait, wrong password, slow devices, a port scanner first); a security review by 49 agents upheld 5 defects, all fixed;
+live: this PC -> Kodi on an Android emulator with the owner's account (he allowed it; the test device was logged out
+again after each run): discovery, the same code on both screens, the setup arrived (131 values), the PC approved the
+new device's Telegram login. Live result (17/11, 01:17): discovery by beacon, the same code on both screens (752 998), the setup arrived, the PC approved the new device's Telegram login; the account has two-step verification and the owner was away from the PC, so the password step was not completed live - it is covered by the simulated tests (wrong password, retry, no password). Each device kept its own session, the PC stayed logged in, the test device was logged out again.
 
 ## TeleNova 4.1.2 - more channels with their own streams, a guide for every Israeli channel, quiet Telegram
 

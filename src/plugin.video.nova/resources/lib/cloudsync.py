@@ -95,8 +95,9 @@ def menu():
     from . import autosync, backup, users
     d = xbmcgui.Dialog()
     while True:
+        from . import pairui                       # 4.2: device pairing
         rows = [s('on') if autosync.is_on() else s('off'), s('now'), '%s: %s' % (users.s('title'), users.current_name()),
-                s('file_out'), s('file_full'), s('file_in')]
+                s('file_out'), s('file_full'), s('file_in'), pairui.s('send'), pairui.s('receive')]
         i = d.select(s('title'), rows)
         if i < 0:
             break
@@ -120,4 +121,8 @@ def menu():
             backup.backup(full=True)
         elif i == 5:
             backup.restore()
+        elif i == 6:
+            pairui.send()
+        elif i == 7:
+            pairui.receive()
     xbmc.executebuiltin('Container.Refresh')

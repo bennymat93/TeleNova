@@ -257,9 +257,10 @@ class Service(xbmc.Monitor):
         from . import configio
         settings = dict((i, common.setting(i, '')) for i in self._setting_ids())
         files = {}
-        sess = self._session_bytes()
-        if sess:
-            files['telegram.session'] = sess
+        # 4.2 (BUG-010): the Telegram session is never written into the file. One login key used by two devices at
+        # once makes Telegram end it on both (AUTH_KEY_DUPLICATED). The other device logs in by itself, or gets its own
+        # login through "send my setup to another device" (plugin.video.nova pairing).
+        sess = None
         bots = self.s.get('bots_file')
         if bots and os.path.exists(bots):
             with open(bots, 'rb') as fh:
@@ -282,6 +283,11 @@ class Service(xbmc.Monitor):
         except configio.ConfigError as exc:
             raise RuntimeError(str(exc))
         sess = files.get('telegram.session')
+        if sess is not None:
+            # 4.2 (BUG-010): a file made by an older version still carries the session of the device that made it -
+            # restoring it would put one login key on two devices. It is left out; this device logs in by itself.
+            common.log('config import: the Telegram login in the file is not used (one login per device)')
+            sess = None
         if sess is not None and not sess.startswith(b'SQLite format 3'):
             raise RuntimeError('damaged')
         known = set(self._setting_ids())
@@ -612,6 +618,8 @@ class Service(xbmc.Monitor):
             'sign_in_password': lambda: tg.sign_in_password(p['password']),
             'qr_start': lambda: tg.qr_start(),
             'qr_wait': lambda: tg.qr_wait(p.get('timeout', 4)),
+            'qr_accept': lambda: tg.qr_accept(p.get('token')),          # 4.2: device pairing
+            'qr_check': lambda: tg.qr_check(),
             'logout': lambda: tg.logout(),
             'dialogs': lambda: tg.dialogs(p.get('limit', 300)),
             'chat_videos': lambda: tg.chat_videos(p['chat_id'], int(p.get('offset', 0)), int(p.get('limit', 50)),
@@ -626,7 +634,7 @@ class Service(xbmc.Monitor):
             if method == 'raw_search':
                 for c in res:
                     c.pop('parsed', None)
-            if method in ('sign_in', 'sign_in_password', 'qr_wait') and isinstance(res, dict) and res.get('ok'):
+            if method in ('sign_in', 'sign_in_password', 'qr_wait', 'qr_check') and isinstance(res, dict) and res.get('ok'):
                 self._build()
             return res
         raise RuntimeError('unknown method %s' % method)
