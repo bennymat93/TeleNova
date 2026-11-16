@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.1.0.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.1.1.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -30,13 +30,34 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.1.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.1.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.1.1 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.1.1 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.1.1 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.1.0 | This repository |
+| `repository.telenova` | 4.1.1 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.1.1 - Idan+ can no longer wait for ever; backups without device files
+
+- **The hang of 16/11.** Kodi stopped responding while Keshet 12 and then Reshet 13 were being opened through
+  Idan+. Every request of Idan+'s `common.OpenURL` was made without a time limit: when a broadcaster's server does
+  not answer, the add-on waits for ever, the channel never opens and its Python threads pile up. `idanpatch.py` now
+  gives every one of those requests a limit (12 s, 20 s for the scraper call) - at service start and in the build -
+  so a channel that cannot be reached fails cleanly and TeleNova's failover / "not available right now" takes over.
+  The hang itself could not be reproduced (three clean playback rounds); with YouTube out of the picture the eight
+  main channels started 32 times out of 32 in 6-23 s (`qa/t_tv_rounds.py`).
+- **Backups hold no device files.** Made from a real profile, the ordinary backup carried the Telegram engine's
+  downloaded libraries (built for the device they were fetched on) and compiled files: 487 files. They are left out
+  now - 68 files, 2.6 MB. `port.json` is left out too.
+- **Full backup on installs that were updated through the repository.** They had no list of the build's add-ons,
+  so "add-ons installed on top" was always empty. The list now also travels with the hub
+  (`resources/build_addons.txt`, written by the build script).
+- **Users, live.** `qa/t_users_live.py` drives the real screens: a second user is created with the on-screen
+  keyboard, starts with empty lists while the first user's 99 history entries wait aside, switching back and
+  deleting work, the profile ends as it began.
+- The 4.0.4 per-device sync (one zip per device, a question at start) that 4.1.0 replaced was removed from the code
+  and its tests (`cloudsync.py` 365 -> 123 lines).
 
 ## TeleNova 4.1.0 - users, continuous sync between devices, full backup with add-ons
 

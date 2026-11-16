@@ -1,11 +1,11 @@
 {
  "name": "TeleNova",
- "version": "4.1.0",
+ "version": "4.1.1",
  "kodi": "21",
  "parts": [
-  "https://bennymat93.github.io/TeleNova/build/TeleNova-4.1.0.zip.part0"
+  "https://bennymat93.github.io/TeleNova/build/TeleNova-4.1.1.zip.part0"
  ],
- "url": "https://bennymat93.github.io/TeleNova/build/TeleNova-4.1.0.zip.part0",
- "size": 99448941,
- "sha256": "a0c1ae64894aceb70987f54ada0f7a9e40605d6ebaaff50264d9aad8d287a17c"
+ "url": "https://bennymat93.github.io/TeleNova/build/TeleNova-4.1.1.zip.part0",
+ "size": 99446562,
+ "sha256": "af875f634ec0a09fa245b65e8cad1632b4f1f22a7e8fe92b628e3df260c79c61"
 }

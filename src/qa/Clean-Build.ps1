@@ -33,6 +33,10 @@ $t2 = [regex]::Replace($t, '[ \t]*<favourite\b[^>]*>[^<]*(?:plugin\.video\.pov|k
 if ($t2 -ne $t) { [IO.File]::WriteAllText($fav, $t2, $enc); "favourites cleaned" }
 [xml]$null = $t2
 
+# 3b. the list of the build's add-ons that travels with the hub itself (installs updated through the repository
+#     have no userdata list): written into the source BEFORE the add-ons are copied
+[IO.File]::WriteAllText((Join-Path $Src 'plugin.video.nova\resources\build_addons.txt'), ((Get-ChildItem (Join-Path $Root 'addons') -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'addon.xml') } | ForEach-Object Name | Sort-Object) -join "`n") + "`n", $enc)
+
 # 4. the updated add-ons
 foreach ($a in 'plugin.video.nova', 'plugin.video.telescope', 'plugin.program.novawizard', 'repository.telenova') {
     $dst = Join-Path $Root "addons\$a"
@@ -41,14 +45,14 @@ foreach ($a in 'plugin.video.nova', 'plugin.video.telescope', 'plugin.program.no
     Get-ChildItem $dst -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
     "updated $a"
 }
-[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 4.1.0`n", $enc)
+[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 4.1.1`n", $enc)
 
 # 4b. which add-ons the build ships (a full backup carries only what the viewer installed on top of them)
 [IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_addons.txt'), ((Get-ChildItem (Join-Path $Root 'addons') -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'addon.xml') } | ForEach-Object Name | Sort-Object) -join "`n") + "`n", $enc)
 
 # 5. the build ships with the skin and All_Subs already patched (the service does the same on boxes that update)
 $env:TN_ROOT = $Root; $env:TN_SRC = $Src
-python -c "import os, sys; sys.path.insert(0, os.path.join(os.environ['TN_SRC'], 'plugin.video.nova', 'resources', 'lib')); import depov, subspatch, skinpatch; r = os.environ['TN_ROOT']; print('skin 3.3 patch:', depov.patch_skin33(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| AI button:', skinpatch.apply(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| paste:', skinpatch.keyboard_buttons(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| suggestions:', skinpatch.keyboard_complete(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| views:', skinpatch.default_views(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| notification:', skinpatch.notification(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| home layout:', skinpatch.home_layout(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| All_Subs guards:', subspatch.apply(os.path.join(r, 'addons', 'service.subtitles.All_Subs')))"
+python -c "import os, sys; sys.path.insert(0, os.path.join(os.environ['TN_SRC'], 'plugin.video.nova', 'resources', 'lib')); import depov, subspatch, skinpatch, idanpatch; r = os.environ['TN_ROOT']; print('skin 3.3 patch:', depov.patch_skin33(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| AI button:', skinpatch.apply(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| paste:', skinpatch.keyboard_buttons(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| suggestions:', skinpatch.keyboard_complete(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| views:', skinpatch.default_views(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| notification:', skinpatch.notification(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| home layout:', skinpatch.home_layout(os.path.join(r, 'addons', 'skin.fentastic', 'xml')), '| All_Subs guards:', subspatch.apply(os.path.join(r, 'addons', 'service.subtitles.All_Subs')), '| Idan+ fixes:', idanpatch.apply(os.path.join(r, 'addons', 'plugin.video.idanplus')))"
 Get-ChildItem (Join-Path $Root 'addons') -Recurse -File -Filter '*.pre-telenova33' -ErrorAction SilentlyContinue | Remove-Item -Force
 
 $after = (Get-ChildItem $Root -Recurse -File | Measure-Object Length -Sum).Sum

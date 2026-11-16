@@ -1073,7 +1073,7 @@ def main():
         import xbmcvfs
         from resources.lib import idanpatch
         if idanpatch.apply(xbmcvfs.translatePath('special://home/addons/plugin.video.idanplus')):
-            log('Idan+ YouTube fix applied')
+            log('Idan+ fixes applied (YouTube ids, time limits on its requests)')
     except Exception as e:
         log('Idan+ fix: %s' % e, xbmc.LOGWARNING)
     threading.Thread(target=discover_server, daemon=True).start()

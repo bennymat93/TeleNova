@@ -18,41 +18,25 @@ FILES = ['favourites.xml', 'sources.xml', 'passwords.xml', 'mediasources.xml']
 SKIP = ('cache', 'cache.db', 'Thumbnails', 'temp', 'packages', '.tmp', 'preset.nvp', 'preset_guard.json',
         'gdrive_token.json', 'gdrive_state.json', 'sync_state.json', 'sync_meta.json')
 AUTO_DIR = os.path.join(PROFILE, 'backups')
-# 4.0.4: the copy kept in the Telegram account for the other devices. A device reads it only after its own Telegram
-# login, so the login itself is not in it (one session on two devices at once can lose the login on both), and
-# neither is anything that belongs to one device: downloaded libraries, caches, the local port, aligned subtitles.
-SYNC_SKIP_DIRS = ('lib', 'aligned', 'subs', 'logs', 'clips', 'Cached_subs', 'trans_subs', 'temp', 'cache', 'downloads')
-SYNC_SKIP_FILES = ('port.json', 'firstrun.json', 'subbox.json', 'alternates.json', 'live_extra.json', 'iptv_status.json',
-                   'clipboard.json', 'sysupdate.json', 'status.json', 'plots_he.json', 'data_cache.sqlite')
-SYNC_SKIP_EXT = ('.session', '.session-journal', '.session-wal', '.session-shm', '.db', '.db-journal', '.m3u',
-                 '.m3u8', '.gz', '.log', '.bak', '.srt', '.ass', '.png', '.jpg', '.mkv', '.mp4')
-SYNC_MAX_FILE = 2 * 1024 * 1024
-
-
-def _members(sync=False):
+def _members():
     for a in ADDON_DATA:
-        if sync and a in ('skin.fentastic', 'pvr.iptvsimple'):   # set per device type / rebuilt by the service
-            continue
         base = os.path.join(USERDATA, 'addon_data', a)
         for d, dirs, files in os.walk(base):
-            dirs[:] = [x for x in dirs if x not in SKIP and not (a == 'plugin.video.nova' and x == 'backups')
-                       and not (sync and (x in SYNC_SKIP_DIRS or x.startswith('temp_')))]
+            # 4.1.1: no compiled files, and not the Telegram engine's downloaded libraries (lib/): they are built for
+            # the device they were fetched on - restored on another system they break the engine, and it fetches
+            # its own anyway. port.json is the address of this device's running service.
+            dirs[:] = [x for x in dirs if x not in SKIP and x != '__pycache__'
+                       and not (a == 'plugin.video.nova' and x == 'backups')
+                       and not (a == 'plugin.video.telescope' and d == base and x == 'lib')]
+            files = [f for f in files if not (a == 'plugin.video.telescope' and f == 'port.json') and not f.endswith(('.pyc', '.pyo'))]
             for fn in files:
-                if sync and (fn in SYNC_SKIP_FILES or fn.lower().endswith(SYNC_SKIP_EXT) or fn.startswith(('yt_cache', 'radio_cache', 'tmdb_cache', 'epg'))):
-                    continue
-                if sync:
-                    try:
-                        if os.path.getsize(os.path.join(d, fn)) > SYNC_MAX_FILE:
-                            continue
-                    except OSError:
-                        continue
                 # never a backup inside a backup (pre_update.zip lives in this folder: it zipped itself to 37 GB)
                 if not fn.endswith(SKIP) and not fn.endswith(('.zip', '.part', '.tmp')):
                     full = os.path.join(d, fn)
                     yield full, os.path.relpath(full, USERDATA)
     for fn in FILES:
         p = os.path.join(USERDATA, fn)
-        if os.path.exists(p) and not (sync and fn != 'favourites.xml'):   # sources / passwords are this device's
+        if os.path.exists(p):
             yield p, fn
 
 
@@ -69,13 +53,19 @@ OWN = ('plugin.video.nova', 'plugin.video.telescope', 'plugin.program.novawizard
 
 
 def build_addons():
-    """ids the build shipped with, or None when this install has no such list (then nothing counts as "extra")"""
-    try:
-        with open(BUILD_LIST, encoding='utf-8') as f:
-            ids = set(x.strip() for x in f.read().split() if x.strip())
-        return ids or None
-    except OSError:
-        return None
+    """ids the build ships with: the list written into the build (userdata), else the one that comes with the hub
+    itself (an install that was updated through the repository has only that one). None when neither is there -
+    then nothing counts as "extra"."""
+    from .common import ADDON_PATH
+    for path in (BUILD_LIST, os.path.join(ADDON_PATH, 'resources', 'build_addons.txt')):
+        try:
+            with open(path, encoding='utf-8') as f:
+                ids = set(x.strip() for x in f.read().split() if x.strip())
+            if ids:
+                return ids
+        except OSError:
+            continue
+    return None
 
 
 def extras(folders=None, shipped=None):
@@ -102,14 +92,14 @@ def _members_full():
         if a in ADDON_DATA:
             continue
         for d, dirs, files in os.walk(os.path.join(base, a)):
-            dirs[:] = [x for x in dirs if x not in SKIP and x.lower() not in ('cache', 'temp', 'tmp', 'thumbnails')]
+            dirs[:] = [x for x in dirs if x not in SKIP and x.lower() not in ('cache', 'temp', 'tmp', 'thumbnails', '__pycache__')]
             for fn in files:
                 full = os.path.join(d, fn)
                 try:
                     small = os.path.getsize(full) <= 20 * 1024 * 1024
                 except OSError:
                     continue
-                if small and not fn.endswith(SKIP) and not fn.endswith(('.zip', '.part', '.tmp', '.log')):
+                if small and not fn.endswith(SKIP) and not fn.endswith(('.zip', '.part', '.tmp', '.log', '.pyc', '.pyo')):
                     yield full, os.path.relpath(full, USERDATA)
     for a in extras():
         for d, dirs, files in os.walk(os.path.join(HOME, 'addons', a)):
@@ -192,7 +182,7 @@ def extract(z):
     return done, skipped
 
 
-def make_zip(path, sync=False, full=False):
+def make_zip(path, full=False):
     n = 0
     part = path + '.part'                   # only a complete file gets the real name
     with zipfile.ZipFile(part, 'w', zipfile.ZIP_DEFLATED) as z:
@@ -200,8 +190,7 @@ def make_zip(path, sync=False, full=False):
         if full:
             import json
             z.writestr(MANIFEST, json.dumps({'extras': extras(), 'made': int(time.time())}))
-        for full_path, arc in (_members_full() if full else _members(sync)):
-            full = full_path
+        for full_path, arc in (_members_full() if full else _members()):
             try:
                 z.write(full_path, arc.replace(os.sep, '/'))
                 n += 1
