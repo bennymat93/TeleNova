@@ -40,8 +40,8 @@ STR = {
     'email': ('אימייל של החשבון', 'Account e-mail', 'E-mail аккаунта'),
     'password': ('סיסמה', 'Password', 'Пароль'),
     'checking': ('בודק את השירותים...', 'Checking the services...', 'Проверка сервисов...'),
-    'backup': ('גיבוי ההגדרות: סנכרון בין מכשירים, ייצוא, ייבוא', 'Setup backup: sync between devices, export, import',
-               'Копия настроек: синхронизация, экспорт, импорт'),
+    'backup': ('סנכרון אוטומטי בין מכשירים, משתמשים, ייצוא וייבוא', 'Automatic sync between devices, users, export and import',
+               'Автосинхронизация устройств, пользователи, экспорт и импорт'),
     'sync_on': ('סנכרון פעיל', 'sync on', 'синхронизация включена'),
     'sync_off': ('סנכרון כבוי', 'sync off', 'синхронизация выключена'),
     'export': ('ייצוא כל ההגדרות והחיבורים לקובץ', 'Export every setting and login to a file',
@@ -372,10 +372,11 @@ def action(key):
     if key == 'backup':
         cloudsync.menu()
         return xbmc.executebuiltin('Container.Refresh')
-    if key == 'sync_now':               # no questions: for a remote button / QA (qa/t_cloud_live.py)
-        ok, text = cloudsync.push(force=True)
-        return d.notification('TeleNova', cloudsync.s('pushed') if ok else '%s: %s' % (cloudsync.s('push_fail'), text[:60]),
-                              xbmcgui.NOTIFICATION_INFO if ok else xbmcgui.NOTIFICATION_WARNING, 5000)
+    if key == 'sync_now':               # no questions: for a remote button / QA
+        from . import autosync
+        res = autosync.run_once('asked')
+        return d.notification('TeleNova', cloudsync.s('synced') if res is not None else cloudsync.s('push_fail'),
+                              xbmcgui.NOTIFICATION_INFO if res is not None else xbmcgui.NOTIFICATION_WARNING, 5000)
     if key == 'export':
         return backup.backup()
     if key == 'import':

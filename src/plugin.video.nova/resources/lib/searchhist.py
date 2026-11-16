@@ -199,6 +199,8 @@ def clear():
     from .common import save
     if xbmcgui.Dialog().yesno('TeleNova', s('clear_q')):
         save(FILE, [])
+        from . import users                      # 4.1.0: stays cleared on the other devices too
+        users.mark(users._root(), 'searches_cleared')
         xbmc.executebuiltin('Container.Refresh')
 
 
@@ -206,4 +208,6 @@ def forget(q):
     import xbmc
     from .common import save
     save(FILE, remove(load(), q))
+    from . import users
+    users.mark(users._root(), 'searches_removed', q)
     xbmc.executebuiltin('Container.Refresh')

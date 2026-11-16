@@ -131,6 +131,7 @@ def root():
     folder(T('history'), url(a='history'), icon('history'))
     folder(T('favourites'), url(a='favs'), icon('favourites'))
     folder(providers.s('library'), url(a='libs'), icon('libraries'))
+    folder('%s: %s' % (_users().s('title'), _users().current_name()), url(a='users'), 'DefaultUser.png', plot=_users().s('about'))
     folder(T('accounts'), url(a='accounts'), icon('accounts'))
     folder(T('kodi_settings'), url(a='kodi_settings'), icon('accounts'))
     folder(T('backup_menu'), url(a='bk_menu'), icon('backup'))
@@ -158,6 +159,11 @@ def bk_menu():
         xbmcplugin.addDirectoryItem(HANDLE, url(a=act), li, False)
     folder('Google Drive', url(a='gd_menu'), 'DefaultNetwork.png')      # backups on Drive, restore, sync
     end(cache=False)
+
+
+def _users():
+    from resources.lib import users
+    return users
 
 
 def _sh():
@@ -657,7 +663,9 @@ def router(p):
         'episodes': lambda: episodes(p['id'], p['s']),
         'kukhnya': kukhnya,
         'history': history,
-        'history_clear': lambda: (save('history.json', []), refresh()),
+        'history_clear': lambda: (save('history.json', []), _users().mark(_users()._root(), 'history_cleared'), refresh()),
+        'users': lambda: _users().menu(HANDLE, url),                      # 4.1.0
+        'user_do': lambda: _users().action(p['id']),
         'favs': lambda: favs(p.get('kind')),
         'fav_add': lambda: fav_add(**p),
         'fav_rm': lambda: fav_rm(**p),
@@ -736,7 +744,7 @@ def router(p):
     simple[a]()
 
 
-ACTIONS = {'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc', 'ac_pick', 'sh_clear', 'sh_remove', 'sh_add', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
+ACTIONS = {'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc', 'ac_pick', 'sh_clear', 'sh_remove', 'sh_add', 'user_do', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
            'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu',
            'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go', 'clip_paste', 'clip_menu'}
 

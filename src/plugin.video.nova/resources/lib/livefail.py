@@ -61,6 +61,9 @@ CHANNELS = {
     'kotel': (['Western Wall Live', 'הכותל המערבי - שידור חי'], ['yt:UCvcdHbNAQvbe2GuIDLhlwaw'], []),
     'lev91': (['Lev HaMedina 91FM (video)', 'רדיו לב המדינה 91FM - וידאו'], ['https://cdn.cybercdn.live/Lev_Hamedina/Video/playlist.m3u8'], []),
     'kolchaimusic': (['Kol Chai Music', 'קול חי מיוזיק - ערוץ הקליפים'], ['https://media.kcm.fm/rtmp-server/live/musiclip.m3u8'], []),
+    # Not added (checked 16/11 18:00): Meir TV and 103FM broadcast on YouTube by day only, and YouTube sources proved
+    # less dependable than HLS ones - on a day YouTube asks the address to "sign in to confirm you're not a bot" the
+    # YouTube add-on needs 30-65 s to start any video. No more yt: channels until that path is dependable.
     'radius100': (['100FM Radius (video)', '100FM רדיוס'], [], [('ch_100', 'tv', 10)]),
     'pervoe891': (['Первое Радио 89.1FM'], [], [('ch_891', 'tv', 10)]),
 }

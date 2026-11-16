@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.0.8.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.1.0.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -30,13 +30,44 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.0.8 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.0.8 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.0.8 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.1.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.1.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.1.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.0.8 | This repository |
+| `repository.telenova` | 4.1.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.1.0 - users, continuous sync between devices, full backup with add-ons
+
+- **Users** (`users.py`, hub > Users): every user has their own history, favourites and search history; service
+  logins and settings belong to the household. Create, switch, rename, delete; which user is active is each
+  device's own choice.
+- **Continuous sync, nothing to press** (`autosync.py`, `syncdoc.py`): every device logged in to the same Telegram
+  account runs one small round about every 90 seconds - users, each user's content, the settings of the hub, the
+  Telegram engine and the subtitle add-on (keys, service logins, choices), IPTV sources. No question, no restart:
+  settings are written through Kodi and take effect at once, lists are merged. A new device needs its Telegram
+  login only. On by default (it can be switched off in the same screen); the document is one sealed file in the
+  account's own Saved Messages, the Telegram login itself is never in it, and neither is what belongs to one
+  device (the PC server's address, debug switches, ports).
+  The merge rules keep everybody's changes and give the same result on every device whatever the order: union for
+  history / favourites / searches (later use wins, removals and clearings travel as marks), last change wins per
+  setting, and a value a device never changed carries time 0 - so a freshly installed device takes everything and
+  never pushes its empty defaults. `qa/t_syncdoc.py` merges four random devices in all 24 orders, 60 rounds;
+  `qa/t_autosync.py` runs the real loop with two and three devices against a stand-in cloud (new device, changes on
+  both sides at once, the account unreachable, a user deleted elsewhere, no writes while idle).
+- **Full backup** (`backup.py`): besides the ordinary file (settings, logins, users, content) a full one that also
+  holds the data of every add-on and the add-ons installed on top of the build; after a full restore they are
+  registered and switched on at the next start. A backup can never replace an add-on the build ships
+  (`allowed_addon_member`), and the viewer is told before add-ons are written.
+- **A backup into any user**: "favourites, history and searches only - into the user ..." merges the personal
+  content of any backup file into the active user without touching anything else and without a restart.
+- **Search**: the same file uploaded separately to several channels (same name, same size to the byte) is one
+  row; the other copies become its mirrors (`hints.merge_same_files`).
+- Docs: `docs/ARCHITECTURE.md`, `docs/BUGS.md` (31 recorded defects, 6 open), `docs/WEAKNESSES.md`,
+  `docs/QA_MATRIX.md`.
+- Not added: Meir TV and 103FM (YouTube, daytime only) - on a day YouTube bot-checks the address its add-on needs
+  30-65 s per video, so no further YouTube-based channels for now.
 
 ## TeleNova 4.0.8 - the new design from the first frame, AI subtitles in Hebrew only
 

@@ -74,6 +74,26 @@ check(S('Breaking.Bad.S01E01.1080p.BluRay.x264-OTHER.mkv', vers) == '', 'another
 check(S('The Shawshank Redemption (1994).mp4', ['The.Shawshank.Redemption.1994']) == '', 'a bare title is no release')
 check(S('Breaking Bad S01E01.mkv', vers) == '' and S('', vers) == '' and S('x-REWARD.mkv', []) == '', 'nothing to compare')
 
+# ---- the same file uploaded again
+GB = 1024 ** 3
+rows = [
+    {'file': 'The.Matrix.1999.1080p.BluRay.x264-GRP.mkv', 'size': 2 * GB, 'chat_id': 1, 'msg_id': 10, 'backend': 'tg'},
+    {'file': 'The Matrix 1999 1080p BluRay x264-GRP.mkv', 'size': 2 * GB, 'chat_id': 2, 'msg_id': 20, 'backend': 'tg', 'mirrors': [[5, 50]]},
+    {'file': 'The.Matrix.1999.1080p.BluRay.x264-GRP.mkv', 'size': 2 * GB + 1, 'chat_id': 3, 'msg_id': 30, 'backend': 'tg'},
+    {'file': 'The.Matrix.1999.1080p.BluRay.x264-GRP.mkv', 'size': 2 * GB, 'chat_id': 0, 'msg_id': 0, 'backend': 'rd', 'url': 'https://a/1'},
+    {'file': 'The.Matrix.1999.1080p.BluRay.x264-GRP.mkv', 'size': 2 * GB, 'chat_id': 0, 'msg_id': 1, 'backend': 'rd', 'url': 'https://a/2'},
+    {'file': 'video_123.mp4', 'size': GB, 'chat_id': 4, 'msg_id': 40}, {'file': 'video_123.mp4', 'size': GB, 'chat_id': 6, 'msg_id': 60},
+    {'file': 'The.Matrix.1999.1080p.BluRay.x264-GRP.mkv', 'size': 0, 'chat_id': 7, 'msg_id': 70},
+    {'file': 'The.Matrix.1999.1080p.BluRay.x264-GRP.mkv', 'size': 2 * GB, 'chat_id': 1, 'msg_id': 10, 'backend': 'telemedia'},
+]
+kept, folded = hints.merge_same_files(rows)
+check(folded == 3, 'three repeated uploads folded: %d' % folded)
+check([(r.get('chat_id'), r.get('backend')) for r in kept] == [(1, 'tg'), (3, 'tg'), (0, 'rd'), (4, None), (6, None), (7, None)],
+      'first copy kept; another size, another source, generic names and unknown sizes stay: %r' % [(r.get('chat_id'), r.get('backend')) for r in kept])
+check(kept[0]['mirrors'] == [[2, 20], [5, 50]], 'the copies (and their own mirrors) become mirrors, never the row itself: %r' % kept[0].get('mirrors'))
+check('mirrors' not in kept[2], 'a server row has no mirrors')
+check(hints.merge_same_files([]) == ([], 0), 'nothing in, nothing out')
+
 # ---- Real-Debrid: links that cannot be played
 tmp = tempfile.mkdtemp(prefix='tn_rd_')
 dead_file = os.path.join(tmp, 'rd_dead.json')

@@ -72,6 +72,40 @@ def squash(name):
     return re.sub(r'[^a-z0-9א-ת]+', '', _EXT.sub('', (name or '').lower()))
 
 
+def same_file_key(c):
+    """4.0.9: one name for "the very same file uploaded again". The same document forwarded between chats is
+    already recognised by its id; a file uploaded separately to several channels has another id each time and
+    filled the list with identical rows. Same name (letters and digits only) and the same size to the byte is the
+    same file. None when the row cannot be told apart safely (no size, a generic name like video_123.mp4)."""
+    size = int(c.get('size') or 0)
+    name = squash(c.get('file') or '')
+    if size < 1048576 or len(name) < 8 or re.match(r'^(video|vid|movie|file|document)?\d*$', name):
+        return None
+    group = 'tg' if (c.get('backend') or 'tg') in ('tg', 'telemedia') else (c.get('backend') or '')
+    return group, name, size
+
+
+def merge_same_files(cands):
+    """-> (kept rows, how many were folded in). A Telegram copy becomes a mirror of the first row (the link test
+    falls back to it when the first copy is dead); a repeated server / Real-Debrid row is simply left out."""
+    out, seen, folded = [], {}, 0
+    for c in cands:
+        key = same_file_key(c)
+        if key is None or key not in seen:
+            if key is not None:
+                seen[key] = c
+            out.append(c)
+            continue
+        first = seen[key]
+        folded += 1
+        if key[0] == 'tg' and not c.get('url') and c.get('chat_id'):
+            mirrors = first.setdefault('mirrors', [])
+            for m in [[c['chat_id'], c['msg_id']]] + list(c.get('mirrors') or []):
+                if m not in mirrors and m != [first.get('chat_id'), first.get('msg_id')]:
+                    mirrors.append(m)
+    return out, folded
+
+
 def release_key(name):
     """-> (group, source, quality) of a release name; '' / 0 where it does not say"""
     base = _EXT.sub('', (name or '').strip())

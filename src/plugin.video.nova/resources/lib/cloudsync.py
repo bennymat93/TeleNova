@@ -280,7 +280,10 @@ def tick():
 
 # ------------------------------------------------------------------ menu
 STR = {
-    'title': ('גיבוי שמסתנכרן בין המכשירים', 'Setup that follows your devices', 'Настройки, общие для устройств'),
+    'title': ('סנכרון אוטומטי וגיבוי', 'Automatic sync and backup', 'Автосинхронизация и копии'),
+    'now': ('סנכרן עכשיו', 'Sync now', 'Синхронизировать сейчас'),
+    'synced': ('הסנכרון בוצע. המכשיר הזה והחשבון זהים.', 'Synced. This device and the account are the same.', 'Синхронизировано.'),
+    'file_full': ('ייצוא מלא לקובץ - גם כל התוספים', 'Full export to a file - with every add-on', 'Полный экспорт в файл - со всеми дополнениями'),
     'on': ('סנכרון אוטומטי: פעיל', 'Automatic sync: on', 'Автосинхронизация: включена'),
     'off': ('סנכרון אוטומטי: כבוי', 'Automatic sync: off', 'Автосинхронизация: выключена'),
     'need_tg': ('נדרשת כניסה לחשבון טלגרם - הגיבוי נשמר ב"הודעות שמורות" של החשבון',
@@ -299,11 +302,12 @@ STR = {
     'taken': ('ההגדרות שוחזרו. Kodi ייסגר עכשיו - פתחו אותו שוב.', 'The setup was restored. Kodi closes now - open it again.',
               'Настройки восстановлены. Kodi закроется - откройте его снова.'),
     'this': ('המכשיר הזה', 'this device', 'это устройство'),
-    'explain': ('ההגדרות, המפתחות והחיבורים לשירותים נשמרים כקובץ חתום ב"הודעות שמורות" של חשבון הטלגרם שלך. כל מכשיר '
-                'עם הבילד שמחובר לאותו חשבון מקבל אותם. הכניסה לטלגרם עצמה לא נשמרת בקובץ.',
-                'Settings, keys and service logins are kept as a sealed file in your Telegram account\'s "Saved Messages". '
-                'Every device with the build that is logged in to the same account receives them. The Telegram login '
-                'itself is not in the file.',
+    'explain': ('המשתמשים, המועדפים, ההיסטוריה, החיפושים, ההגדרות, המפתחות והחיבורים לשירותים מסתנכרנים לבד בין כל המכשירים '
+                'שמחוברים לאותו חשבון טלגרם - בלי לשאול ובלי להפעיל מחדש. הם נשמרים כקובץ חתום ב"הודעות שמורות" של החשבון. '
+                'הכניסה לטלגרם עצמה לא נשמרת שם.',
+                'Users, favourites, history, searches, settings, keys and service logins sync by themselves between all '
+                'devices logged in to the same Telegram account - no questions, no restart. They are kept as a sealed '
+                'file in the account\'s "Saved Messages". The Telegram login itself is not kept there.',
                 'Настройки, ключи и входы в сервисы хранятся запечатанным файлом в «Избранном» вашего Telegram. Каждое '
                 'устройство со сборкой и тем же аккаунтом получает их. Сам вход в Telegram в файл не входит.'),
     'file_out': ('ייצוא לקובץ - הכול, כולל הכניסה לטלגרם', 'Export to a file - everything, with the Telegram login',
@@ -319,57 +323,43 @@ def s(key):
 
 def status_line():
     """(state, detail) for the services screen: 'on' | 'off' | 'login'"""
-    if not account_ready():
-        return 'login', s('need_tg')
-    st = state()
-    last = max(st.get('pushed', 0), st.get('applied', 0))
-    when = time.strftime('%d/%m %H:%M', time.localtime(last)) if last else ''
-    return ('on' if is_on() else 'off'), when
+    from . import autosync
+    state, detail = autosync.status()
+    if state == 'login':
+        detail = s('need_tg')
+    return state, detail
 
 
 def menu():
+    """4.1.0: the sync works by itself; this menu only switches it, shows the users and makes / reads backup files"""
     import xbmc
     import xbmcgui
-    from . import backup
+    from . import autosync, backup, users
     d = xbmcgui.Dialog()
     while True:
-        ready = account_ready()
-        rows = [s('on') if is_on() else s('off'), s('push'), s('pull'), s('file_out'), s('file_in')]
+        rows = [s('on') if autosync.is_on() else s('off'), s('now'), '%s: %s' % (users.s('title'), users.current_name()),
+                s('file_out'), s('file_full'), s('file_in')]
         i = d.select(s('title'), rows)
         if i < 0:
-            return
-        if i in (0, 1, 2) and not ready:
+            break
+        if i in (0, 1) and not account_ready():
             d.ok('TeleNova', s('need_tg'))
             continue
         if i == 0:
-            if not is_on():
+            if not autosync.is_on():
                 d.ok('TeleNova', s('explain'))
-                set_on(True)
-                ok, text = push(force=True)
-                d.notification('TeleNova', s('pushed') if ok else '%s: %s' % (s('push_fail'), text[:60]),
-                               xbmcgui.NOTIFICATION_INFO if ok else xbmcgui.NOTIFICATION_WARNING, 5000)
-            else:
-                set_on(False)
+            autosync.set_on(not autosync.is_on())
+            xbmcgui.Window(10000).setProperty('bn.sync.now', '1')
         elif i == 1:
-            ok, text = push(force=True)
-            d.ok('TeleNova', s('pushed') + ' (%s)' % text if ok else '%s\n%s' % (s('push_fail'), text[:150]))
+            res = autosync.run_once('asked')
+            d.ok('TeleNova', s('synced') if res is not None else s('push_fail'))
         elif i == 2:
-            try:
-                items = copies()
-            except RuntimeError as e:
-                d.ok('TeleNova', str(e)[:200])
-                continue
-            if not items:
-                d.ok('TeleNova', s('none'))
-                continue
-            mine = state()['device']
-            labels = ['%s  ·  %s%s' % ((it['note'].get('name') or '?'), time.strftime('%d/%m/%Y %H:%M', time.localtime(it['date'])),
-                                      ('  (%s)' % s('this')) if it['note'].get('device') == mine else '') for it in items]
-            j = d.select(s('pull'), labels)
-            if j >= 0:
-                take(items[j])
+            xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.nova/?a=users,return)')
+            break
         elif i == 3:
-            backup.backup()
+            backup.backup(full=False)
         elif i == 4:
+            backup.backup(full=True)
+        elif i == 5:
             backup.restore()
     xbmc.executebuiltin('Container.Refresh')

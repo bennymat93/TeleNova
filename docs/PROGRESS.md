@@ -1,23 +1,23 @@
 # TeleNova - QA / upgrade programme: progress
 
-Updated 2026-11-13 03:20, after TeleNova 4.0.5 (published). Percent = steps finished / steps defined for the phase.
+Updated 2026-11-16, after TeleNova 4.1.0 (published). Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PROGRESS  ▓▓▓▓░░░░░░░░░░░░░░░░  Overall: 24%
+PROGRESS  ▓▓▓▓░░░░░░░░░░░░░░░░  Overall: 38%
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-▶️ Phase 0 — Map the build                   25%
+▶️ Phase 0 — Map the build                   70%
 ✅ Phase 1 — Design research                100%
 ▶️ Phase 2 — Intensive QA                    30%   ← CURRENT
-⏳ Phase 3 — Weakness analysis               10%
+⏳ Phase 3 — Weakness analysis               60%
 ⏳ Phase 4 — Screen adaptation                0%
 ⏳ Phase 5 — Redesign and UX                  0%
-▶️ Phase 6 — Fix, verify, regress            25%
+▶️ Phase 6 — Fix, verify, regress            45%
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Extra tracks asked for by the owner
 ✅ Subtitles: certain detection of Hebrew   100%  (4.0.1)
-✅ Set up once, restore everywhere           90%  (4.0.4: setup follows the Telegram account + full export/import;
-                                                   restore on a second real device not yet run)
+✅ Set up once, restore everywhere          100%  (4.1.0: users + continuous sync, verified live with a second
+                                                   stand-in device against the real account)
 ▶️ Finding / checking / verifying links      65%  (4.0.4: StremThru + OpenSubtitles ID, off by default, not run
                                                    with real keys; shortlist 1-4, 6, 7 done; 5, 8-10 open)
 ✅ One screen for every service             100%  (4.0.4)

@@ -22,6 +22,20 @@
 6. ידוע ולא טופל: שגיאות קוסמטיות של סקין FENtastic בלוג (`Misplaced ]`, `unmatched parentheses`, `Control 60 ... can't focus`); YouTube 403/429; `EXCEPTION: Kodi is not playing any file` בעצירה מהירה של זרם (מקור לא אותר).
 7. המדריך בעברית בלבד (הקודם היה גם באנגלית) – להוסיף אנגלית/רוסית אם צריך.
 
+## 0.00000000000000000 TeleNova 4.1.0 - משתמשים, סנכרון רציף בין מכשירים, גיבוי מלא עם תוספים (2026-11-16) – הכי עדכני
+
+**בקשת המשתמש (16/11)**: "אפשרות לפתיחת משתמשים, כשכל ההגדרות והתוכן משתמשים ב-cross device automatic sync אוטומטי ורציף, המשתמש לא צריך לעשות כלום. בנוסף ייצוא של כל ההגדרות והתוספות לקובץ גיבוי שניתן לשחזר בכל משתמש אחר."
+
+- **`syncdoc.py`** (טהור): מסמך אחד לחשבון – `users`, `data[uid]` (history / favourites / removed / searches / marks), `settings[addon][key] = [value, time]`, `files[name] = [obj, time]`. `merge()` קומוטטיבי, אסוציאטיבי ואידמפוטנטי (נבדק: 4 מכשירים אקראיים × 24 סדרים × 60 סבבים). כללים חשובים: שוויון זמנים נשבר לפי `canon()`; `stamp_changes(None, ...)` = מבט ראשון של מכשיר → זמן 0 (מכשיר חדש לא דוחף ברירות מחדל); מפתח שמופיע אחר כך → זמן השינוי; תוכן של משתמש מחוק לא נשמר, תוכן של משתמש שעוד לא מוכר כן.
+- **`users.py`**: `users.json` (משותף), המשתמש הפעיל ב-`sync_state.json` (מקומי). קובצי המשתמש הפעיל הם הרגילים בשורש הפרופיל; של האחרים ב-`users/<id>/`. `store_switch` מחליף. `mark()` כותב `user_marks.json` (ניקוי היסטוריה / חיפושים, הסרת חיפוש) – בשימוש ב-`default.history_clear` וב-`searchhist.clear/forget`. מסך `?a=users`, פעולה `?a=user_do&id=`.
+- **`autosync.py`**: `cycle(host)` – הלולאה מול אובייקט host (קבצים, הגדרות, ענן) כדי שתיבדק בלי Kodi; `KodiHost` האמיתי; `loop()` רץ מ-`service.sync_job` (45 שניות אחרי עלייה, סבב כל 90 שניות, מיד כש-`bn.sync.now` מודלק). המסמך בענן הוא קובץ ה"מכשיר" `sync-v2` ב-`cloud_put` של המנוע (zip עם `sync.json`, חתום ב-configio). `LOCAL` = הגדרות שלא מסתנכרנות (debug, port, sub_server, *_done, kodion.* ...). מצב מקומי ב-`sync_meta.json` (לא בגיבוי). **פעיל כברירת מחדל** (`services.json: sync_on`, אפשר לכבות במסך השירותים / תפריט הגיבוי) – החלטת המשתמש.
+- **`cloudsync.py`**: נשארו `engine`, `account_ready`, `settings_map`, הטקסטים והתפריט החדש (`menu`: הפעלה/כיבוי, סנכרן עכשיו, משתמשים, ייצוא, ייצוא מלא, ייבוא). הפונקציות הישנות (`push`, `take`, `decide`, `check_start`, `tick`, `fingerprint`) עדיין בקובץ ונבדקות ב-`t_services.py` אבל **אינן מחוברות יותר** – למחוק בסבב ניקוי.
+- **`backup.py`**: `make_zip(path, full=True)` + `bn_addons.json`; `extras()` לפי `userdata/novatv_addons.txt` (נכתב ב-`Clean-Build.ps1`; בלי הקובץ אין "תוספים נוספים"); `extract()` כותב `addons/<id>/` רק ל-id שהגיבוי מצהיר עליו ושאינו של הבילד; `enable_restored()` מ-`service.restored_job`; `restore()` שואל: מלא / רק התוכן האישי אל המשתמש הפעיל (`restore_personal` – מיזוג, בלי הפעלה מחדש).
+- **חיפוש**: `hints.merge_same_files` (אותו שם ואותו גודל בדיוק → שורה אחת, העותקים כ-mirrors).
+- **מסמכים שנוצרו על ידי סוכני משנה**: `docs/ARCHITECTURE.md`, `docs/BUGS.md`, `docs/WEAKNESSES.md`, `docs/QA_MATRIX.md`. הסוכן ציין סתירות ברשומות (למשל PROGRESS.md לא עודכן אחרי 4.0.5).
+- **תקיעת Kodi 16/11 18:25**: Kodi "לא מגיב" בזמן playtest שרץ ברקע, אחרי 20 דקות של בדיקות YouTube תקועות (YouTube סימן את ה-IP כבוט: "Sign in to confirm you're not a bot"; התוסף נזקק ל-30–65 שניות לכל סרטון). בלוג: `live keshet12 -> idanplus` ואז `live reshet13 -> idanplus` בלי `VideoPlayer::OpenFile` אחריהם. **לא שוחזר** בשלושה סבבי playtest נקיים. הלוג נשמר ב-scratchpad של הסשן (`kodi-hang-1611.log`). ערוצי YouTube נוספים לא נוספו.
+- **בדיקות חדשות**: `qa/t_syncdoc.py`, `t_autosync.py`, `t_backup_full.py`, `yt_channels_check.py` (+ `yt_channels_log.tsv`).
+
 ## 0.0000000000000000 TeleNova 4.0.8 - העיצוב החדש מהפריים הראשון, תרגום AI בעברית בלבד (2026-11-13 05:25) – הכי עדכני
 
 **פורסם כ-4.0.8.**

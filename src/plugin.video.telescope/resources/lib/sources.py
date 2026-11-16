@@ -871,6 +871,12 @@ class Finder(object):
                 continue
             by_doc[key] = c
             cands.append(c)
+        # 4.0.9: the same file uploaded separately to several channels (another document id each time, the same
+        # name and size to the byte) is one row; the other copies are kept as its mirrors
+        from . import hints
+        cands, folded = hints.merge_same_files(cands)
+        if folded:
+            self.log('%d repeated upload(s) of the same file folded into their first copy' % folded)
 
         accepted, maybe = [], []
         for c in cands:
