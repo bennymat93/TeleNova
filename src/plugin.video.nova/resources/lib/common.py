@@ -304,6 +304,20 @@ def _session():
     return _SESSION
 
 
+_ROUTE = []
+
+
+def _tmdb_route():
+    # 4.2.4: a car box on a phone's hotspot could not reach api.themoviedb.org at all
+    if not _ROUTE:
+        from .netfix import Failover
+
+        def get(url, headers, timeout):
+            return _session().get(url, headers=headers, timeout=timeout).text
+        _ROUTE.append(Failover((TMDB, 'https://api.tmdb.org/3'), get, log))
+    return _ROUTE[0]
+
+
 def tmdb(path, **params):
     import hashlib
     import requests
@@ -321,9 +335,11 @@ def tmdb(path, **params):
         except (ValueError, OSError):           # 3.3: a half-written / unreadable cache file: ask the network
             pass
     try:
-        r = _session().get(TMDB + path, params=params, headers=headers, timeout=(4, 10))
-        r.raise_for_status()
-        data = r.json()
+        def one(base):
+            r = _session().get(base + path, params=params, headers=headers, timeout=(4, 10))
+            r.raise_for_status()
+            return r.json()
+        data = _tmdb_route().call(one)        # 4.2.4: other name / DNS over HTTPS when the network fails
     except Exception:
         # 3.3: TMDb unreachable: the old answer (past its 6 h) is better than an error screen
         try:

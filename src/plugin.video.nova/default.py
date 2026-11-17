@@ -812,8 +812,21 @@ if __name__ == '__main__':
         # 3.3: the message on the screen never carries an address or a key (requests errors hold the whole URL)
         msg = re.sub(r'https?://\S+', '', str(e))
         msg = re.sub(r'(api_key|key|token)=[^&\s]+', '', msg).strip()
-        xbmcgui.Dialog().notification('TeleNova', ('%s: %s %s' % (T('error'), type(e).__name__, msg[:120])).strip(),
-                                      xbmcgui.NOTIFICATION_ERROR)
+        from resources.lib.netfix import is_net_error
+        if is_net_error(e):
+            # 4.2.4: no internet / the movie database unreachable: one short line, shown at most once a minute
+            # (a car box showed a stack of long ConnectionError texts, one per widget)
+            from resources.lib.common import ui_lang
+            win = xbmcgui.Window(10000)
+            import time
+            if time.time() - float(win.getProperty('bn.neterr') or 0) > 60:
+                win.setProperty('bn.neterr', str(time.time()))
+                xbmcgui.Dialog().notification('TeleNova', {'he': u'אין חיבור למאגר הסרטים – בודק את הרשת',
+                                                           'ru': u'Нет связи с базой фильмов – проверьте сеть'}.get(
+                    ui_lang(), 'No connection to the movie database - check the network'), xbmcgui.NOTIFICATION_WARNING, 4000)
+        else:
+            xbmcgui.Dialog().notification('TeleNova', ('%s: %s %s' % (T('error'), type(e).__name__, msg[:120])).strip(),
+                                          xbmcgui.NOTIFICATION_ERROR)
         try:
             xbmcplugin.endOfDirectory(HANDLE, False)
         except Exception:

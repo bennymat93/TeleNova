@@ -18,6 +18,13 @@ class Meta(object):
         if len(self.key) > 40:
             self.s.headers['Authorization'] = 'Bearer ' + self.key
 
+    def _route(self):
+        if not getattr(self, '_fo', None):
+            from .netfix import Failover
+            self._fo = Failover((TMDB, 'https://api.tmdb.org/3'),
+                                lambda u, h, t: self.s.get(u, headers=h, timeout=t).text, self.log)
+        return self._fo
+
     @property
     def has_tmdb(self):
         return bool(self.key)
@@ -34,7 +41,10 @@ class Meta(object):
             params['api_key'] = self.key
         import requests
         try:
-            r = self.s.get(url, params=params, timeout=15)
+            if url.startswith(TMDB):          # 4.2.4: other name / DNS over HTTPS when the network fails
+                r = self._route().call(lambda base: self.s.get(base + url[len(TMDB):], params=params, timeout=15))
+            else:
+                r = self.s.get(url, params=params, timeout=15)
             if r.status_code == 404:
                 return {}
             r.raise_for_status()
