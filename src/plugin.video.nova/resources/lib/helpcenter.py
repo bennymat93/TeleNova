@@ -53,7 +53,7 @@ def trouble_text(rows, lang):
     out = []
     for r in rows:
         p, c, f = r[lang]
-        out.append('[B][COLOR FFE8BE5A]%s[/COLOR][/B]\n[B]%s:[/B] %s\n[B]%s:[/B] %s\n' % (p, k['causes'][i], c, k['fix'][i], f))
+        out.append('[COLOR FFE8BE5A][B]%s[/B][/COLOR]\n[B]%s:[/B] %s\n[B]%s:[/B] %s\n' % (p, k['causes'][i], c, k['fix'][i], f))
     return '\n'.join(out)
 
 
@@ -163,7 +163,7 @@ def about_text():
     r = json.loads(xbmc.executeJSONRPC(json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'Addons.GetAddons',
                                                   'params': {'properties': ['name', 'version', 'enabled']}})))
     adds = (r.get('result') or {}).get('addons', [])
-    lines = ['[B][COLOR FFE8BE5A]BN Stream[/COLOR][/B]',
+    lines = ['[COLOR FFE8BE5A][B]BN Stream[/B][/COLOR]',
              '%s: %s' % (STR['version'][i], ADDON.getAddonInfo('version')),
              '%s: %s' % (STR['built'][i], built or '-'),
              '%s: %s' % (STR['kodi'][i], xbmc.getInfoLabel('System.BuildVersion')),

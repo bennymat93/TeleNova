@@ -328,7 +328,7 @@ def list_(m, path, page='1', **filters):
     if not rows:                        # 3.3: an empty list says so
         folder(T('empty'), url(a='noop'))
     if int(page) < min(int(data.get('total_pages', 1)), 500):
-        li = xbmcgui.ListItem('[B]%s >>[/B]' % T('next_page'))
+        li = xbmcgui.ListItem('%s >>' % T('next_page'))
         li.setArt({'icon': icon('next'), 'thumb': icon('next'), 'fanart': icon('fanart')})
         li.setProperty('SpecialSort', 'bottom')         # stays last whatever the viewer sorts by
         xbmcplugin.addDirectoryItem(HANDLE, url(a='list', m=m, path=path, page=int(page) + 1, **filters), li, True)
@@ -410,18 +410,22 @@ def seasons(tv_id):
         if s.get('season_number') == 0 and not s.get('episode_count'):
             continue
         li = xbmcgui.ListItem(s.get('name') or '%s %s' % (T('season'), s['season_number']))
-        a = art(s) or art(show)
+        a = art(s) or {}
+        if not a.get('poster'):            # 4.2.8 (display review): seasons 1-8 of a show had no picture
+            a = dict(art(show), **dict((k, v) for k, v in a.items() if v))
         a.setdefault('fanart', art(show).get('fanart'))
         li.setArt(a)
         tag = li.getVideoInfoTag()
         tag.setPlot(s.get('overview') or show.get('overview') or '')
         try:                            # 3.3: the skin's season views read these
             tag.setMediaType('season')
-            tag.setSeason(int(s['season_number']))
+            if int(s['season_number']) > 0:      # 4.2.8: season 0 showed as a raw "S0"
+                tag.setSeason(int(s['season_number']))
             tag.setTvShowTitle(show.get('name') or '')
         except Exception:
             pass
         xbmcplugin.addDirectoryItem(HANDLE, url(a='episodes', id=tv_id, s=s['season_number']), li, True)
+    xbmcplugin.setPluginCategory(HANDLE, show.get('name') or '')     # 4.2.8: the header read "Shows"
     end('seasons')
 
 

@@ -69,7 +69,7 @@ def label(t, enabled):
     what = s('ai_track') if is_ai else (s('external') if '(' in name else s('embedded'))
     text = '%s  ·  %s' % (lang_name(t.get('language')), name.split(' (')[0] or what)
     if is_ai:
-        text = '[B][COLOR FFE8BE5A]AI[/COLOR][/B]  ' + text
+        text = '[COLOR FFE8BE5A][B]AI[/B][/COLOR]  ' + text
     if t['current'] and enabled:
         text = '[COLOR limegreen]●[/COLOR] %s   [COLOR grey](%s)[/COLOR]' % (text, s('now'))
     return text
@@ -103,7 +103,7 @@ def show():
         if ts:
             rows.append(s('off') if enabled else s('on'))
             acts.append(('toggle', None))
-        rows.append('[B][COLOR FFE8BE5A]%s[/COLOR][/B]' % s('ai_make'))
+        rows.append('[COLOR FFE8BE5A][B]%s[/B][/COLOR]' % s('ai_make'))
         acts.append(('ai', None))
         rows.append(s('search'))
         acts.append(('search', None))

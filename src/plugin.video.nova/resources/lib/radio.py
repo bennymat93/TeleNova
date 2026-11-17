@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Radio via the free, open radio-browser.info directory (no key, no quota)."""
+import re
+import time
 import xbmcgui
 import xbmcplugin
 
@@ -13,6 +15,54 @@ HEADERS = {'User-Agent': 'NovaTV/0.2'}
 # 3.3: only what the lists read is kept in the cache (a station has ~40 fields; the file was several MB)
 _KEEP = ('stationuuid', 'name', 'url_resolved', 'url', 'favicon', 'tags', 'country', 'countrycode', 'language',
          'bitrate', 'codec', 'votes')
+
+
+# 4.2.8 (display review): the skin's font has no Arabic letters - "A-Shams - <Arabic>" showed as empty boxes.
+# A name with Latin / Hebrew letters keeps only those parts; tags that are directory bookkeeping are not shown.
+_ARABIC = re.compile(u'[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]+')
+NOISE = re.compile(r'(?i)^\s*(\w*stations?|radio|fm|am|online|live|internet radio|\d+)\s*$')
+
+
+def readable(name):
+    name = ' '.join((name or '').split())
+    if _ARABIC.search(name) and re.search(u'[A-Za-z֐-׿]', name):
+        name = _ARABIC.sub('', name)
+        name = re.sub(r'\s*[-|/–]\s*(?=[-|/–]|$)', '', name).strip(' -|/–')
+    return name
+
+
+_DIRECT = {}
+
+
+def direct(url):
+    """4.2.8 (QA 17/11): a redirect service (bynetcdn's /Redirector/ - Glglz) made Kodi wait 35 s before the sound;
+    the address it points to answers at once. Resolved here with a short limit and remembered for this run."""
+    if not url or '/redirector/' not in url.lower():
+        return url
+    if not _DIRECT:
+        try:
+            from .common import load
+            saved = load('radio_direct.json', {})
+            if isinstance(saved, dict) and time.time() - saved.get('_t', 0) < 86400:
+                _DIRECT.update(saved)
+        except Exception:
+            pass
+    if url not in _DIRECT:
+        try:
+            import requests
+            r = requests.get(url, allow_redirects=False, timeout=3, stream=True)     # HEAD is refused (405)
+            r.close()
+            loc = r.headers.get('Location') or ''
+            _DIRECT[url] = loc if r.status_code in (301, 302, 303, 307, 308) and loc.startswith('http') else url
+        except Exception:
+            _DIRECT[url] = url
+        try:
+            from .common import save
+            _DIRECT.setdefault('_t', time.time())
+            save('radio_direct.json', _DIRECT)       # a day: the next list opens without the wait
+        except Exception:
+            pass
+    return _DIRECT[url]
 
 
 def _get(path, **params):
@@ -131,8 +181,8 @@ def listing(handle, url, end, by, v=''):        # v='' is dropped from the URL b
     for s in data:
         if not isinstance(s, dict):
             continue
-        name = (s.get('name') or '').strip()
-        stream = s.get('url_resolved') or s.get('url')
+        name = readable(s.get('name'))
+        stream = direct(s.get('url_resolved') or s.get('url'))
         if not name or not stream or name.lower() in seen:
             continue
         seen.add(name.lower())
@@ -141,7 +191,7 @@ def listing(handle, url, end, by, v=''):        # v='' is dropped from the URL b
         li.setArt({'thumb': pic, 'icon': pic, 'poster': pic})
         tag = li.getMusicInfoTag()
         tag.setTitle(name)
-        tag.setGenres([g for g in (s.get('tags') or '').split(',') if g][:3])
+        tag.setGenres([g.strip() for g in (s.get('tags') or '').split(',') if g.strip() and not NOISE.search(g)][:3])
         tag.setComment('%s · %s kbps' % (s.get('country') or '', s.get('bitrate') or '?'))
         li.setProperty('IsPlayable', 'true')
         li.addContextMenuItems([(T('add_fav'), 'RunPlugin(%s)' % url(a='fav_add', kind='radio',
@@ -155,4 +205,5 @@ def listing(handle, url, end, by, v=''):        # v='' is dropped from the URL b
         li.setProperty('IsPlayable', 'false')
         xbmcplugin.addDirectoryItem(handle, url(a='noop'), li, False)
     xbmcplugin.setContent(handle, 'songs')
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)     # 4.2.8: no "sort by date" header
     end()

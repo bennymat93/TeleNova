@@ -123,6 +123,9 @@ def check(k):
             st = load('iptv_status.json', {})
             if not load('iptv.json', {}).get('m3u'):
                 return None, ''
+            n = st.get('channels', 0)
+            if st.get('errors') and n > 0:          # 4.2.8 (QA): one guide source down while the channels work
+                return True, '%s %s · %s' % (n, T('channels'), '; '.join(st['errors'])[:80])
             if st.get('errors'):
                 return False, '; '.join(st['errors'])[:120]
             return (st.get('channels', 0) > 0, '%s %s' % (st.get('channels', 0), T('channels')))

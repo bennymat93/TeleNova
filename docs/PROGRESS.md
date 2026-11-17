@@ -1,6 +1,6 @@
 # TeleNova - QA / upgrade programme: progress
 
-Updated 2026-11-17 11:15, after TeleNova 4.2.7. Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
+Updated 2026-11-17 12:40, after TeleNova 4.2.8 (QA + display review). Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

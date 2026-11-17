@@ -19,6 +19,10 @@ def apply(xml):
         n = expr_fixes(xml)     # 4.2.7: first, so a skin file that changed shape below does not stop it
     except Exception:           # review 17/11: an unreadable skin file never stops the other patches
         n = 0
+    try:
+        n += focus_label(xml)  # 4.2.8
+    except Exception:
+        pass
     item = ('\n\t<item>\n\t\t<label>%s</label>\n\t\t<icon>osd/fullscreen/buttons/subs3.png</icon>\n'
             '\t\t<onclick>%s</onclick>\n\t\t<visible>!VideoPlayer.Content(LiveTV)</visible>\n\t</item>') % (AI_LABEL, AI_RUN)
     # item-list players (advanced, netflix): right after "search subtitles"
@@ -265,6 +269,29 @@ def _close_parens(m):
     if miss > 0 and c.count('[') == c.count(']') and not c.rstrip().endswith((']', '|', '+')):
         c = c.rstrip() + ')' * miss
     return m.group(1) + c + m.group(3)
+
+
+def focus_label(xml):
+    """4.2.8 (display review): the focused row of the TeleNova lists was drawn as [B]label[/B]; a label that
+    carries its own [B] (section headers, the services summary) then showed "[B/]" and lost its text. The gold
+    focus bar already marks the row - the focused label is drawn without the wrapper. -> files changed"""
+    n = 0
+    for fn in ('View_60_BN.xml', 'View_62_BNEpisodes.xml'):
+        p = os.path.join(xml, fn)
+        if not os.path.exists(p):
+            continue
+        t = open(p, encoding='utf-8', newline='').read()
+        new = t.replace('<label>[B]$INFO[ListItem.Label][/B]</label>', '<label>$INFO[ListItem.Label]</label>')
+        # a gold label (section headers) on the gold focus bar was invisible: a dark shadow keeps it readable
+        # (FF101010 is the dark text of the focused row only, in both TeleNova views)
+        if '<shadowcolor>FF101010' not in new:
+            new = new.replace('<textcolor>FF101010</textcolor>',
+                              '<textcolor>FF101010</textcolor><shadowcolor>FF101010</shadowcolor>')
+        if new != t:
+            with open(p, 'w', encoding='utf-8', newline='') as f:
+                f.write(new)
+            n += 1
+    return n
 
 
 def expr_fixes(xml):

@@ -412,7 +412,10 @@ class Flow:
             try:
                 # 4.2.5: the position travels with every poll - the server transcribes just ahead of it and pauses
                 # when the polls stop (it used to work through the whole film after the viewer had left)
-                pos = p.getTime() if self.alive() else 0
+                try:
+                    pos = p.getTime() if self.alive() else 0
+                except RuntimeError:            # stopped between the check and the read
+                    pos = 0
                 r = requests.get('%s/jobs/%s' % (base, job_id), params={'pos': '%.0f' % pos}, timeout=10)
                 if r.status_code == 200 and (r.json() or {}).get('state') == 'stopped':
                     job['position'] = pos

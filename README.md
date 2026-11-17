@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.2.0.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.2.8.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -33,13 +33,43 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.2.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.2.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.2.0 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.2.8 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.2.8 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.2.8 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.2.0 | This repository |
+| `repository.telenova` | 4.2.8 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.2.1 - 4.2.8 (2026-11-17) - fixes from real use
+
+- **4.2.1** the search says why Telegram is missing: a device whose Telegram engine is not logged in gets one row
+  ("Telegram is not connected on this device") that opens the login, instead of a silent empty section.
+- **4.2.2** StremThru (`stremthru.13377001.xyz`) is on by default: Real-Debrid links are checked before they are
+  listed. Devices that never touched the switch are turned on once; a device switched off by its owner stays off.
+- **4.2.3** iPad / iPhone: touch scrolling and selection came back. A computer's device profile and skin touch mode
+  had reached the iPad by backup / sync; every start now puts the iOS profile and touch mode back. The device profile
+  is no longer synced.
+- **4.2.4** car boxes and phone networks that cannot reach the movie database: TMDb requests fall back to
+  `api.tmdb.org`, then to addresses taken over HTTPS (Cloudflare / Google by IP). One short message instead of a stack
+  of errors.
+- **4.2.5** AI subtitles follow the viewer: the PC server transcribes at most 20 minutes ahead, pauses after 90 s
+  without a viewer and ends after 30 minutes (what was done is kept), frees the GPU after 10 idle minutes, runs below
+  normal priority. Measured: 16 minutes of film in 165 s on a GTX 1050 laptop, translation ~1 s per 4 minutes.
+- **4.2.6** a restore never writes an empty value over a working key (an automatic backup from before Telegram was set
+  up wiped the PC's Telegram keys).
+- **4.2.7** quiet broken links, faster TV channel retry, episode ranges / season packs / junk files in the Telegram
+  engine, one entry per release across Telegram / Real-Debrid / Stremio, the skin's unparsable conditions fixed, a
+  crash log and a safe model unload in the subtitle server.
+- **4.2.8** one version for every add-on again, a new full build, the guide brought up to date. QA on the owner's
+  profile: 167 screens / 3,182 items with 0 errors, stress 0 failures, playback 10 / 11 (one external radio stream).
+  Display fixes from a screenshot review: the focused row showed "[B/]" and lost its text when the label was bold
+  (section headers, the services summary, search headers) - labels no longer carry bold and the focused row gets a
+  dark shadow; gold headers stay readable on the gold bar; seasons without a poster take the show's; "Specials" no
+  longer shows "S0"; radio: Arabic letters the font cannot draw are dropped from mixed names, directory tags hidden,
+  redirect addresses resolved (Glglz played after 35 s, now ~20 s); a service check that answered "http 400" shows
+  as an error, not "active"; Internet Archive / YouTube no longer listed as "not installed"; IPTV stays "active"
+  when one guide source is down; the OpenSubtitles / Ktuvit texts say "off by default" again (4.2.2 had changed them).
 
 ## TeleNova 4.2.0 - send my setup to another device
 

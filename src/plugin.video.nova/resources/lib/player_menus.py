@@ -386,7 +386,7 @@ def picker(filter_lang=None, filter_src=None):
             return
         pid, streams, cur, enabled = _tracks()
         rows = []
-        head = lambda t: rows.append(('head', None, '[B][COLOR %s]%s[/COLOR][/B]' % (GOLD, t)))
+        head = lambda t: rows.append(('head', None, '[COLOR %s][B]%s[/B][/COLOR]' % (GOLD, t)))
         head('רצועות בסרטון')
         for s in streams:
             if filter_lang and (s.get('language') or '') != filter_lang:

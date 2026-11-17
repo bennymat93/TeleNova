@@ -301,7 +301,7 @@ def _radio_matches(q):
         return []
 
 def _header(handle, text, target='plugin://plugin.video.nova/?a=noop', folder=False):
-    li = xbmcgui.ListItem('[COLOR gold][B]%s[/B][/COLOR]' % text)
+    li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % text)     # 4.2.8: the skin bolds the focused row
     li.setArt({'icon': 'DefaultAddonsSearch.png', 'thumb': 'DefaultAddonsSearch.png'})
     xbmcplugin.addDirectoryItem(handle, target, li, folder)
 
@@ -607,7 +607,7 @@ def yt_channel(handle, url, cid, token=''):
     if not videos and not nxt:
         _empty_row(handle)
     if nxt:
-        li = xbmcgui.ListItem('[B]%s >>[/B]' % T('next_page'))
+        li = xbmcgui.ListItem('%s >>' % T('next_page'))
         xbmcplugin.addDirectoryItem(handle, url(a='yt_channel', id=cid, token=nxt), li, True)
     xbmcplugin.setContent(handle, 'videos')
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)

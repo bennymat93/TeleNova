@@ -53,8 +53,10 @@ def addon_rows():
     from .providers import PROVIDERS, name_of, status as prov_status
     rows = []
     stable = prov_status()
+    # 4.2.8 (QA): YouTube / Internet Archive search run inside TeleNova (p[4] 'internal:') - never "not installed"
     ids = list(ADDONS) + [(p[1], name_of(p).split(' – ')[0]) for p in PROVIDERS
-                          if stable.get(p[0], {}).get('stable', True) and p[1] not in dict(ADDONS)]
+                          if stable.get(p[0], {}).get('stable', True) and p[1] not in dict(ADDONS)
+                          and not (p[4] or '').startswith('internal:')]
     for aid, name in ids:
         r = _rpc('Addons.GetAddonDetails', addonid=aid, properties=['enabled', 'version', 'broken'])
         a = (r.get('result') or {}).get('addon')
@@ -159,7 +161,7 @@ def _mark(ok):
 def as_text(data):
     out = []
     for sec in ('content', 'services', 'addons'):
-        out.append('[B][COLOR FFE8BE5A]%s[/COLOR][/B]' % s(sec))
+        out.append('[COLOR FFE8BE5A][B]%s[/B][/COLOR]' % s(sec))
         for name, ok, detail in data[sec]:
             out.append('%s  [B]%s[/B] - %s' % (_mark(ok), name, detail) if sec == 'content' else
                        '%s  [B]%s[/B]   %s' % (_mark(ok), name, detail))
@@ -186,10 +188,11 @@ def listing(handle):
     """the status as a list: readable with a TV remote"""
     data = gather()
     for sec in ('content', 'services', 'addons'):
-        li = xbmcgui.ListItem('[B][COLOR FFE8BE5A]%s[/COLOR][/B]' % s(sec))
+        li = xbmcgui.ListItem('[COLOR FFE8BE5A]%s[/COLOR]' % s(sec))
         xbmcplugin.addDirectoryItem(handle, 'plugin://plugin.video.nova/?a=noop', li, False)
         for name, ok, detail in data[sec]:
             li = xbmcgui.ListItem(('%s  %s - %s' if sec == 'content' else '%s  %s   [COLOR grey]%s[/COLOR]') % (_mark(ok), name, detail))
             li.getVideoInfoTag().setPlot(detail or '')
             xbmcplugin.addDirectoryItem(handle, 'plugin://plugin.video.nova/?a=noop', li, False)
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)     # 4.2.8: the header said "sort by date"
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)

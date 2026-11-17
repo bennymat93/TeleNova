@@ -9,7 +9,9 @@ function Restart-Kodi {
     Get-Process kodi -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep 3
     Start-Process 'C:\Program Files\Kodi\kodi.exe'
-    for ($i = 0; $i -lt 80; $i++) { Start-Sleep 3; if ((Test-Path $log) -and (Select-String -Path $log -Pattern 'telescope\] service ready' -Quiet)) { break } }
+    $t0 = Get-Date
+    # 4.2.8: wait for a 'service ready' line of THIS start (the old log could still hold the previous one) and the port
+    for ($i = 0; $i -lt 80; $i++) { Start-Sleep 3; if ((Test-Path $log) -and ((Get-Item $log).LastWriteTime -gt $t0) -and (Select-String -Path $log -Pattern 'telescope\] service ready' -Quiet) -and (Port-Ok)) { break } }
     Start-Sleep 25
 }
 if (-not (Get-Process kodi -ErrorAction SilentlyContinue) -or -not (Port-Ok)) { 'Kodi not answering - starting it'; Restart-Kodi }

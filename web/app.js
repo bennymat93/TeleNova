@@ -198,7 +198,7 @@ const IMG = 'https://image.tmdb.org/t/p/';
 const RADIO = 'https://de1.api.radio-browser.info/json';
 const KODI = 'plugin://plugin.video.nova/?';
 const MENU = [['movies', '🎬'], ['tv', '📺'], ['live', '📡'], ['radio', '📻'], ['favs', '♥'], ['history', '🕘'], ['users', '👤'], ['bn', '★'], ['settings', '⚙']];
-const WEB_VERSION = '4.2.0';
+const WEB_VERSION = '4.2.8';
 
 // ---------------------------------------------------------------- per-browser storage (never required)
 const mem = new Map();                         // a browser that refuses storage (private mode, blocked cookies): this visit only
@@ -722,7 +722,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-4.1.1.zip">${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-4.2.8.zip">${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);

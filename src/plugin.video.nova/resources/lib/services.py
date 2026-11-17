@@ -24,9 +24,9 @@ STR = {
     'login': ('נדרשת כניסה לחשבון', 'login needed', 'нужен вход'),
     'setup': ('נדרשת הגדרה', 'needs setting up', 'нужна настройка'),
     'error': ('שגיאה', 'error', 'ошибка'),
-    'summary': ('פעילים %d  ·  כבויים %d  ·  דורשים טיפול %d  ·  שגיאות %d',
-                'active %d  ·  off %d  ·  need attention %d  ·  errors %d',
-                'активны %d  ·  выключены %d  ·  требуют внимания %d  ·  ошибки %d'),
+    'summary': ('%d פעילים · %d כבויים · %d לטיפול · %d שגיאות',          # 4.2.8: the long line was cut off
+                '%d on · %d off · %d to fix · %d errors',
+                '%d вкл · %d выкл · %d исправить · %d ошибок'),
     'turn_on': ('הפעל', 'Switch on', 'Включить'), 'turn_off': ('כבה', 'Switch off', 'Выключить'),
     'connect': ('התחבר לחשבון', 'Connect the account', 'Подключить аккаунт'),
     'disconnect': ('התנתק מהחשבון', 'Disconnect the account', 'Отключить аккаунт'),
@@ -71,12 +71,12 @@ ABOUT = {
                   'are listed. Note: the Real-Debrid key is sent to the StremThru server. On by default (4.2.2).',
                   'StremThru (бесплатно, открытый код): проверяет, какие файлы действительно доступны в Real-Debrid. '
                   'Внимание: ключ Real-Debrid отправляется на сервер StremThru. По умолчанию включён (4.2.2).'),
-    'opensubs': ('זיהוי ודאי של קובץ לפי טביעת האצבע שלו ב-OpenSubtitles (חינמי, דורש מפתח API אישי). פועל כברירת מחדל (4.2.2).',
+    'opensubs': ('זיהוי ודאי של קובץ לפי טביעת האצבע שלו ב-OpenSubtitles (חינמי, דורש מפתח API אישי). כבוי כברירת מחדל.',
                  'Certain identification of a file by its OpenSubtitles fingerprint (free, needs your own API key). '
-                 'On by default (4.2.2).',
+                 'Off by default.',
                  'Точное опознание файла по отпечатку OpenSubtitles (бесплатно, нужен свой ключ API). По умолчанию выключено.'),
-    'ktuvit_own': ('כתוביות מ-Ktuvit עם החשבון האישי שלך במקום החשבון המשותף של התוסף. פועל כברירת מחדל (4.2.2).',
-                   'Ktuvit subtitles through your own account instead of the add-on\'s shared one. On by default (4.2.2).',
+    'ktuvit_own': ('כתוביות מ-Ktuvit עם החשבון האישי שלך במקום החשבון המשותף של התוסף. כבוי כברירת מחדל.',
+                   'Ktuvit subtitles through your own account instead of the add-on\'s shared one. Off by default.',
                    'Субтитры Ktuvit через ваш аккаунт вместо общего аккаунта дополнения. По умолчанию выключено.'),
     'sub_ktuvit': ('אתר הכתוביות Ktuvit', 'The Ktuvit subtitle site', 'Сайт субтитров Ktuvit'),
     'sub_wizdom': ('אתר הכתוביות Wizdom', 'The Wizdom subtitle site', 'Сайт субтитров Wizdom'),
@@ -131,6 +131,15 @@ def about(key):
 
 
 # ------------------------------------------------------------------ rules (no Kodi)
+def _failed(chk):
+    """4.2.8 (display review): a check that answered "http 400" with no clear yes / no showed a green
+    "active" next to the error"""
+    if not chk:
+        return False
+    ok, detail = chk[0], str(chk[1] or '')
+    return ok is False or (ok is not True and detail.lower().startswith(('http', 'error', 'timeout')))
+
+
 def services_state(f):
     """facts -> {key: (state, detail)}. A fact that is missing counts as "not there"."""
     g = f.get
@@ -153,14 +162,14 @@ def services_state(f):
         out['stremthru'] = ('login', 'Real-Debrid')
     else:
         chk = g('st_check')
-        out['stremthru'] = ('error', chk[1]) if chk and chk[0] is False else ('on', (chk or (None, ''))[1])
+        out['stremthru'] = ('error', chk[1]) if _failed(chk) else ('on', (chk or (None, ''))[1])
     if not g('os_enabled'):
         out['opensubs'] = ('off', '')
     elif not g('os_key'):
         out['opensubs'] = ('key', '')
     else:
         chk = g('os_check')
-        out['opensubs'] = ('error', chk[1]) if chk and chk[0] is False else ('on', (chk or (None, ''))[1])
+        out['opensubs'] = ('error', chk[1]) if _failed(chk) else ('on', (chk or (None, ''))[1])
     if not g('ktuvit_own'):
         out['ktuvit_own'] = ('off', '')
     elif not (g('ktuvit_email') and g('ktuvit_enc')):
@@ -304,7 +313,7 @@ def screen(handle, url):
         li.setArt({'icon': icon})
         xbmcplugin.addDirectoryItem(handle, url(a='svc', do=do), li, False)
 
-    row('[B]%s[/B]' % (s('summary') % summary_counts(states)), 'refresh', s('title'), 'DefaultIconInfo.png')
+    row('%s' % (s('summary') % summary_counts(states)), 'refresh', s('title'), 'DefaultIconInfo.png')
     row(label(s('backup'), sync_state, sync_detail).replace(s(sync_state), s('sync_on') if sync_state == 'on' else
                                                            s('sync_off') if sync_state == 'off' else s('login')),
         'backup', cloudsync.s('explain'), 'DefaultAddonProgram.png')
@@ -314,7 +323,7 @@ def screen(handle, url):
     for key, name, grp, _ in ROWS:
         if grp != group:
             group = grp
-            row('[COLOR gold][B]%s[/B][/COLOR]' % s(grp), 'refresh', '', 'DefaultFolder.png')
+            row('[COLOR gold]%s[/COLOR]' % s(grp), 'refresh', '', 'DefaultFolder.png')
         st, detail = states[key]
         row('    ' + label(name, st, detail), key, '%s\n\n%s' % (about(key), detail or ''))
     for do, key in (('preset_unlock', 'unlock'), ('preset_create', 'create')):

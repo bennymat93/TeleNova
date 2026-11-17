@@ -347,20 +347,20 @@ def listing(handle, url):
         add(s('no_report'), url(a='sysupdate'))
     else:
         rows = rep['rows']
-        add('[B][COLOR FFE8BE5A]%s  ·  %s[/COLOR][/B]' % (s('report'), rep['when']), url(a='noop'), summary(rep))
-        add('[B]%s[/B]   [COLOR grey]%s[/COLOR]' % (summary(rep), rep['when']), url(a='noop'), summary(rep))
+        add('[COLOR FFE8BE5A]%s  ·  %s[/COLOR]' % (s('report'), rep['when']), url(a='noop'), summary(rep))
+        add('%s   [COLOR grey]%s[/COLOR]' % (summary(rep), rep['when']), url(a='noop'), summary(rep))
         if any(r['ok'] is False for r in rows):
-            add('[B][COLOR gold]» %s[/COLOR][/B]' % s('fix_all'), url(a='sysfix', id='*'))
+            add('[COLOR gold]» %s[/COLOR]' % s('fix_all'), url(a='sysfix', id='*'))
         section = None
         for r in rows:
             if r['section'] != section:
                 section = r['section']
-                add('[B][COLOR FFE8BE5A]%s[/COLOR][/B]' % s('sec_' + section), url(a='noop'))
+                add('[COLOR FFE8BE5A]%s[/COLOR]' % s('sec_' + section), url(a='noop'))
             star = '  [COLOR FF5AB4E8]↑[/COLOR]' if r.get('changed') else ''
             add('%s  %s%s   [COLOR grey]%s[/COLOR]' % (_mark(r['ok']), r['name'], star, r['detail']),
                 url(a='sysfix', id=r['id']) if r['ok'] is False else url(a='noop'), r['detail'])
             if r['ok'] is False:
-                add('        [B][COLOR gold]» %s[/COLOR][/B]  [COLOR grey]%s[/COLOR]' % (s('fix'), r['name']),
+                add('        [COLOR gold]» %s[/COLOR]  [COLOR grey]%s[/COLOR]' % (s('fix'), r['name']),
                     url(a='sysfix', id=r['id']), r['detail'])
     from .common import PROFILE
     if rep and any(r['ok'] is False for r in rep['rows']) and os.path.exists(os.path.join(PROFILE, 'pre_update.zip')):
