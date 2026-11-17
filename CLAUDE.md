@@ -2,6 +2,19 @@
 
 Read `src/HANDOFF.md` section "התחל כאן" first, then `docs/PROGRESS.md`. Answer the owner in Hebrew.
 
+## "תמשיך" - the start command (from any account)
+When the owner's message is the word **תמשיך** (alone, or with this folder's path, e.g.
+`C:\My Projects\novaTV Addon תמשיך`), do this at once, without asking anything:
+1. Work in this folder (if the session started elsewhere, change to the path given and read this file first).
+2. Sync: `git status` (keep local changes), `git pull origin gh-pages` if a remote is newer; note the published
+   version (`src/plugin.video.nova/addon.xml`) and the last 10 commits (`git log --oneline -10`).
+3. Read `src/HANDOFF.md` "התחל כאן" (state, where things are, traps, release recipe, open tasks) and
+   `docs/PROGRESS.md` ("Next", pending bugs). Check what is live on this PC: which Kodi listens on 9090, whether
+   the subtitle server answers `http://127.0.0.1:8765/health`.
+4. Tell the owner in 3-5 Hebrew lines where things stand and which task you start with (the first open task on the
+   HANDOFF list that does not need the owner), put the whole list on the task list with estimates.
+5. Start working immediately and follow the iron rule below.
+
 ## Iron rule - work to the finish
 - Work without stopping until EVERY open task, step and phase in `docs/PROGRESS.md` ("Next") and in the HANDOFF
   "open tasks" list is done, tested, and released as a new version (bump, package, push, verify the site serves it).
