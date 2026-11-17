@@ -28,7 +28,7 @@ DOC_DEVICE = 'sync-v2'           # the engine keeps one file per "device" name: 
 FILES = ('iptv.json', 'providers.json', 'services.json', 'profiles.json')
 ADDONS = ('plugin.video.nova', 'plugin.video.telescope', 'service.subtitles.All_Subs')
 # settings that belong to one device or change by themselves: never synced
-LOCAL = re.compile(r'^(debug|port|deps_zip|wizard_shown|sub_server|lite_done|depov_done|wizard_fix|tune_done|'
+LOCAL = re.compile(r'^(debug|port|device_profile|deps_zip|wizard_shown|sub_server|lite_done|depov_done|wizard_fix|tune_done|'
                    r'\w+_done|last_\w+|\w+_ts|\w+_time|kodion\..*|.*\.port)$')
 
 

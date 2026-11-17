@@ -237,6 +237,36 @@ def label(profile, lang='he'):
     return LABELS.get(profile, ('—', '—', '—'))[{'he': 0, 'en': 1, 'ru': 2}.get(lang, 1)]
 
 
+# 4.2.3: the profiles a platform can have. A device profile copied from another device (a backup of the
+# computer restored on an iPad, or an older sync) made an iPad a "pc": touch mode off, no list could be
+# scrolled or selected with a finger.
+FITS = {'ios': ('ios', 'tablet', 'phone'), 'tvos': ('tv64',)}          # an iPad / iPhone is always a touch device
+DEFAULT_FOR = {'ios': 'ios', 'tvos': 'tv64'}
+
+
+def repair(log=None):
+    """every start: the profile must suit this platform, and the skin's touch mode must match the profile (a
+    restored skin setting can switch it). -> the profile applied again, or '' """
+    import xbmc
+    prof, plat = current(), platform()
+    if prof and plat in FITS and prof not in FITS[plat]:
+        if log:
+            log('device profile %s does not suit %s: %s applied' % (prof, plat, DEFAULT_FOR[plat]))
+        apply(DEFAULT_FOR[plat])
+        return DEFAULT_FOR[plat]
+    if prof in PROFILES:
+        want = PROFILES[prof]['touch']
+        if bool(xbmc.getCondVisibility('Skin.HasSetting(touchmode)')) != want:
+            if log:
+                log('skin touch mode set back to %s (profile %s)' % (want, prof))
+            xbmc.executebuiltin('Skin.%s(touchmode)' % ('SetBool' if want else 'Reset'))
+        if PROFILES[prof]['mouse']:
+            r = _rpc('Settings.GetSettingValue', setting='input.enablemouse')
+            if (r.get('result') or {}).get('value') is False:
+                _rpc('Settings.SetSettingValue', setting='input.enablemouse', value=True)
+    return ''
+
+
 def current():
     from .common import flag
     return flag('device_profile')

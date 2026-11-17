@@ -1245,7 +1245,9 @@ def main():
                 # shorter guide ...). A viewer's own later changes in Kodi's settings are not touched again.
                 profiles.apply(profiles.current())
                 ADDON.setSetting('tune_done', '3.3.1')
-            elif profiles.current():
+            if profiles.current():
+                profiles.repair(log)        # 4.2.3: a profile copied from another device, touch mode switched off
+            if profiles.current():
                 # 1.4.0/1.4.1 touch / car / phone profiles zoomed the skin: Kodi then cut off the clock and logo
                 r = profiles._rpc('Settings.GetSettingValue', setting='lookandfeel.skinzoom')
                 if (r.get('result') or {}).get('value'):
