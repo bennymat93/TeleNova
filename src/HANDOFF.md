@@ -1,8 +1,81 @@
 # TeleNova – Handoff
 
-עודכן: 2026-11-12 (לילה). המסמך הזה מספיק כדי להמשיך את העבודה מסשן חדש בלי ההיסטוריה.
+## התחל כאן (עודכן 2026-11-17 13:00, אחרי 4.2.8) – כל מה שצריך כדי להמשיך מכל חשבון / מחשב
 
-## 0. עדכון אחרון (2026-11-12 00:35) – לקרוא קודם
+**חוקי העבודה** נמצאים ב-`CLAUDE.md` בשורש הריפו (נטען אוטומטית בכל סשן): חוק ברזל – לעבוד בלי לעצור עד שכל
+המשימות שלמטה בוצעו, נבדקו ושוחררו בגרסה חדשה; לעצור רק בשביל מה שרק הבעלים יכול לעשות (סיסמה, 2FA, מכשיר פיזי,
+החלטה שלו) – ובינתיים להמשיך בכל השאר.
+
+### המצב עכשיו
+- **גרסה מפורסמת: 4.2.8** – כל ארבעת התוספים (`plugin.video.nova`, `plugin.video.telescope`,
+  `plugin.program.novawizard`, `repository.telenova`) באותו מספר. בילד מלא `build/TeleNova-4.2.8.zip.part0/1`
+  (100.3MB), `build.json`, `repo/`, `repository.telenova-4.2.8.zip` בשורש. האתר מגיש 4.2.8 (נבדק).
+- **QA אחרון (17/11)**: `final_checks` עבר; סריקה 167 מסכים / 3,182 פריטים / 0 שגיאות; עומס 0 כשלים; ניגון 10/11
+  (זרם רדיו חיצוני); כל בדיקות היחידה עוברות; סקירת תצוגה מצילומי מסך – התיקונים אומתו בצילום.
+- **מה נכנס היום** (פירוט ב-README "TeleNova 4.2.1 - 4.2.8" ובסעיפים 4.2.x למטה): הודעה בחיפוש כשטלגרם לא מחובר;
+  StremThru פועל כברירת מחדל; תיקון מגע באייפד (`profiles.repair`); TMDb דרך כתובת חלופית / DNS over HTTPS
+  (`netfix.py`); שרת כתוביות AI שעוקב אחרי הצופה; שחזור שלא מוחק מפתחות (`backup.keep_filled`); BUG-012/014;
+  זיהוי פרקים/חבילות + סינון זבל (`parser.py`); איחוד כפילויות (`sources.union_dedup`); תיקוני סקין ותצוגה
+  (`skinpatch.expr_fixes`, `skinpatch.focus_label`, בלי `[B]` בתוויות של רשימות).
+
+### איפה הכול נמצא
+| מה | איפה |
+|---|---|
+| קוד התוספים | `src/plugin.video.nova`, `src/plugin.video.telescope`, `src/plugin.program.novawizard`, `src/repository.telenova` |
+| בדיקות | `src/qa/` (`t_*.py`, `agentC/test_all.py`, `test_rd.py`, `final_checks.py`, `crawl.py`, `playtest.py`, `stress.py`, `qa_live.ps1`) |
+| אריזה | `src/tools/bump.py`, `src/tools/package.py`, `src/tools/build_config.py`, `src/qa/Clean-Build.ps1`, `src/qa/addonsdb.py` |
+| מסמכים | `README.md`, `guide.html` (מדריך בעברית), `docs/PROGRESS.md` (לוח מצב + באגים), `docs/RESEARCH-*.md`, `docs/DESIGN_PRINCIPLES.md` |
+| שרת כתוביות AI (מחוץ לריפו, רק במחשב ה-ASUS) | `C:\Users\benny\kodi-build\server\nova_subs.py`, `live_restream.py`, `supervisor.py`; venv `C:\Users\benny\kodi-build\.venv11`; לוגים `server\logs\` (`crash.log`); גיבויים `*.before-load-20261117`, `*.before-crashfix-20261117` |
+| IPA לאייפון | `ios/Kodi-21.3.ipa.part0-2` (נבנה מה-deb הרשמי; 21.3 היא היציבה העדכנית, 22.0 עדיין RC2) |
+
+### מלכודות שחייבים לדעת (נלמדו ב-17/11)
+1. **שני Kodi במחשב**: `C:\Program Files\Kodi` (הראשי, פרופיל `%APPDATA%\Kodi`, אליו `deploy_local.py` כותב) ועותק
+   בדיקה נייד `C:\Users\benny\kodi-build\work\wintest\kodi.exe`. שניהם על פורט 9090 – לבדוק איזה רץ
+   (`Get-NetTCPConnection -LocalPort 9090`) לפני בדיקה חיה, אחרת בודקים קוד ישן.
+2. **heredoc ב-Bash של הסביבה הזו משבש לוכסנים הפוכים** (`\n`, `\s`, `\\`): עריכות עם regex / escape – לכתוב
+   סקריפט לקובץ עם Write ולהריץ אותו, או Edit.
+3. **החלפת טקסט גורפת** (`str.replace` על כל הקובץ) שינתה ב-4.2.2 שלושה תיאורים במקום אחד – להחליף לפי מפתח.
+4. **קבצי `services.py` / `service.py`** – לפעמים כתיבה נחסמת לרגע (`OSError 22`); לנסות שוב אחרי 2 שניות.
+5. **צילומי מסך מ-Kodi**: `Settings.SetSettingValue debug.screenshotpath` + `Input.ExecuteAction screenshot`, ולחכות
+   שהקובץ יפסיק לגדול לפני שמזיזים אותו (אחרת 0 בייט). אין `ReloadSkin` ב-JSON-RPC – לשינוי סקין להפעיל מחדש את Kodi.
+6. **`qa_live.ps1`** – מחכה עכשיו לשורת "service ready" של ההפעלה החדשה (לפני כן רץ על פורט סגור).
+7. **שחזור גיבוי** ברשימת "ייבוא מקובץ": "גיבוי אוטומטי" הוא הגיבוי השבועי של המכשיר – ישן ככל שיהיה.
+
+### מתכון שחרור (מה שעבד ב-4.2.8)
+```powershell
+$S = "<תיקייה זמנית>"; $R = "C:\My Projects\novaTV Addon"
+python "$R\src\tools\bump.py" X.Y.Z "news"
+# stage: לחלץ את הבילד הקודם (build\TeleNova-<prev>.zip.part0+part1, לחבר) לתוך $S\stage
+& "$R\src\qa\Clean-Build.ps1" -Root "$S\stage" -Src "$R\src"
+python "$R\src\tools\build_config.py" "$S\stage"; python "$R\src\qa\addonsdb.py" "$S\stage" --fix
+python "$R\src\tools\package.py" "$S\stage"
+git add -A; git commit; git push origin gh-pages   # ואז לוודא את repo/addons.xml באתר
+```
+לתיקון קטן בתוסף אחד בלי בילד מלא: zip לתוסף ל-`repo/<id>/<id>-<ver>.zip` + עדכון הבלוק שלו ב-`repo/addons.xml` ו-`addons.xml.md5`
+(כך נעשו 4.2.1–4.2.7) – אבל החוק מ-4.2.8: מספר אחד לכולם, אז עדיף `bump.py` + בילד.
+
+### בדיקות לפני כל שחרור
+```powershell
+cd "C:\My Projects\novaTV Addon\src"
+python -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read(),f,feature_version=(3,8)) for f in glob.glob(r'plugin.*\**\*.py',recursive=True)]; print('ok')"
+python qa\undef.py "C:\My Projects\novaTV Addon\src"
+foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_skinxml','t_epg_xml'){ python "qa\$t.py" }
+cd qa\agentC; python test_all.py; python test_rd.py; cd ..\..; python qa\t_profiles.py plugin.video.nova\resources\lib
+python qa\deploy_local.py; & qa\qa_live.ps1      # על Kodi הראשי, כשהוא לא מנגן
+```
+
+### משימות פתוחות – לפי סדר (לעדכן כאן וב-PROGRESS בכל התקדמות)
+1. **מחכה לבעלים – מכשירים**: לאמת באייפד שהגלילה/בחירה במגע עובדת (4.2.3); במכשיר ה-CarPlay ברכב שרשימות הסרטים
+   נטענות (4.2.4); העברת הגדרות בין שני מכשירים פיזיים כולל שלב סיסמת 2FA (4.2.0). בינתיים – להמשיך בשאר.
+2. **ערוצי טלוויזיה**: הבעלים רוצה ~70 ערוצים (היום 29 מנגנים) ממקורות מורשים – מחקר + הוספה + בדיקת ניגון.
+3. **קישורים, פריטים 5 ו-9** ב-`docs/RESEARCH-sources.md` (חיפוש גלובלי עם דפדוף; tail probe / DV flags).
+4. **Phase 0**: מפת ארכיטקטורה `docs/ARCHITECTURE.md`. Phases 3–5 (חולשות, מסכים, עיצוב מחדש) לפי PROGRESS.
+5. **BUG-014**: הסיבה שהפתיחה הראשונה של ערוץ נכשלת בדמוקסר לא נמצאה (צריך לוג של מקרה אמיתי).
+6. **שרת התרגום**: לאשר שאין קריסות חדשות ב-`logs\crash.log` אחרי שימוש אמיתי.
+7. **החלטות הבעלים**: TorBox (3$/חודש), מפתח OpenSubtitles (כרגע מחזיר http 400 – לבדוק את המפתח איתו).
+8. כל שינוי → בדיקות → `bump.py` → בילד → push → אימות באתר → עדכון הרשימה הזו.
+
+## 0. עדכון ישן (2026-11-12 00:35) – היסטוריה
 
 כל מה שמתואר בסעיף 4 **נפרס, נארז ועבר QA** (מחליף את סעיף 2 ואת צעדים 1–6 שבסעיף 5):
 
