@@ -977,6 +977,9 @@ class Finder(object):
         if heavy or heavy2:
             job.stats = dict(job.stats or {}, too_heavy=heavy + heavy2)
             self.log('%d source(s) left out: data rate above what the source can deliver' % (heavy + heavy2))
+        accepted, crossed = self.union_dedup(accepted)    # 4.2.7: one row per release across sources
+        if crossed:
+            self.log('%d copy(ies) of the same release in another source folded' % crossed)
         result = [self._public(c) for c in self.order_groups(accepted)]
         if result:
             self.cache.set(store_key, result, 1800)
@@ -1506,6 +1509,71 @@ class Finder(object):
         }
 
     GROUP = {'tg': 0, 'telemedia': 0, 'rd': 1}
+
+    @staticmethod
+    def _release_name(c):
+        """4.2.7: file name without extension / punctuation, lower case ('' when too short to trust)"""
+        n = re.sub(r'\.(mkv|mp4|avi|m4v|ts|webm|mov|wmv)$', '', (c.get('file') or '').strip().lower())
+        n = re.sub(r'[^0-9a-z֐-׿]+', '', n)
+        return n if len(n) >= 8 else ''
+
+    @staticmethod
+    def _plays_best(c):
+        """4.2.7: lower is better - tested Telegram, Telegram, cached Real-Debrid, Real-Debrid, the rest"""
+        b = c.get('backend') or 'tg'
+        if b in ('tg', 'telemedia'):
+            return 0 if c.get('probe') == 'ok' else 1
+        if b == 'rd':
+            return 2 if c.get('rd_cached') or c.get('probe') == 'rd' else 3
+        return 4
+
+    @classmethod
+    def union_dedup(cls, cands, tol=0.01):
+        """4.2.7: the same release found in Telegram, Real-Debrid and Stremio servers is listed once: same
+        normalized name, sizes within ~1% and durations (when both are known) within 2%. The copy that plays best
+        stays (its rank place is the best of the group); the others are noted in 'also'. -> (rows, folded)"""
+        groups = []                          # [rows], first row = list order
+        index = {}                           # name -> group numbers
+        for c in cands:
+            name, size = cls._release_name(c), int(c.get('size') or 0)
+            hit = None
+            if name and size > 0:
+                for gi in index.get(name, []):
+                    g = groups[gi][0]
+                    gs, gd, d = int(g.get('size') or 0), g.get('duration') or 0, c.get('duration') or 0
+                    if abs(gs - size) > tol * max(gs, size):
+                        continue
+                    if gd and d and abs(gd - d) > 0.02 * max(gd, d):
+                        continue
+                    hit = gi
+                    break
+            if hit is None:
+                if name and size > 0:
+                    index.setdefault(name, []).append(len(groups))
+                groups.append([c])
+            else:
+                groups[hit].append(c)
+        out, folded = [], 0
+        for g in groups:
+            if len(g) == 1:
+                out.append(g[0])
+                continue
+            best = min(g, key=cls._plays_best)              # min keeps the earlier (better ranked) on ties
+            best['score'] = max(x.get('score') or 0 for x in g)
+            also = best.setdefault('also', [])
+            for x in g:
+                if x is best:
+                    continue
+                folded += 1
+                also.append(x.get('backend') or 'tg')
+                if (x.get('backend') or 'tg') == 'tg' and not x.get('url') and x.get('chat_id') \
+                        and (best.get('backend') or 'tg') == 'tg':
+                    mirrors = best.setdefault('mirrors', [])
+                    m = [x['chat_id'], x['msg_id']]
+                    if m not in mirrors:
+                        mirrors.append(m)
+            out.append(best)
+        return out, folded
 
     def order_groups(self, cands, limit=None):
         """3.3.4: Telegram first, then Real-Debrid, then every other source. Inside a group the order of the

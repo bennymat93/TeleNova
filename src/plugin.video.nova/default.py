@@ -795,9 +795,10 @@ def refresh():
 if __name__ == '__main__':
     try:
         router(dict(parse_qsl(sys.argv[2][1:])))
-    except (KeyError, TypeError):
+    except (KeyError, TypeError, ValueError, IndexError):
         # 3.3: a link without one of its parameters (an old skin button, a widget saved by another version): logged,
         # no "Error: 'm'" message on the screen, the directory is closed as failed
+        # 4.2.7: also a broken number (page=abc, season=x -> ValueError) or a short list (IndexError)
         import traceback
         xbmc.log('[NovaTV] bad link %s: %s' % (sys.argv[2][:200], traceback.format_exc()), xbmc.LOGWARNING)
         if HANDLE >= 0:

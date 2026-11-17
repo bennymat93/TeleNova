@@ -58,6 +58,25 @@ _PACK = re.compile(u'complete|full[\\s._-]*season|כל[\\s]*הפרקים|'
 
 _YEAR = re.compile(r'(?<![0-9])(19[2-9]\d|20[0-4]\d)(?![0-9]|p|i)')
 
+# 4.2.7: chained / ranged episodes the main patterns stop short of (S01E01E02E03, E01-E05, Ep 01-05)
+_EP_CHAIN = re.compile(r'(?<![a-z0-9])s\d{1,2}[\s._-]*e\d{1,4}((?:[\s._-]*e\d{1,4})+)(?!\d)', re.I)
+_EP_RANGE = re.compile(r'(?<![a-z0-9])(?:episodes?|eps?|e)[\s._:-]*(\d{1,4})[\s._]*-[\s._]*e?(\d{1,4})(?!\d|p)', re.I)
+# 4.2.7: season ranges - S01-S03, Season 1-3, Seasons 1 - 3, עונות 1-3, 1-3 сезон / сезоны 1-3
+_SEASON_RANGE = [
+    re.compile(r'(?<![a-z0-9])s(\d{1,2})[\s._]*-[\s._]*s?(\d{1,2})(?![0-9e])', re.I),
+    re.compile(r'seasons?[\s._-]*(\d{1,2})[\s._]*-[\s._]*(\d{1,2})(?!\d)', re.I),
+    re.compile(u'עונות[\\s._:\\-]*(\\d{1,2})\\s*-\\s*(\\d{1,2})(?!\\d)'),
+    re.compile(u'(?<!\\d)(\\d{1,2})\\s*-\\s*(\\d{1,2})[\\s._-]*сезон', re.I),
+    re.compile(u'сезон\\S*[\\s._:\\-]*(?<!\\d)(\\d{1,2})\\s*-\\s*(\\d{1,2})(?!\\d)', re.I),
+]
+# 4.2.7: extras that are never the movie / episode itself (the title word "Extras" at the start is a show name)
+_JUNK_NAME = re.compile(u'(?<![a-z0-9])(?:featurettes?|extras|behind[\\s._-]*the[\\s._-]*scenes|deleted[\\s._-]*scenes|'
+                        u'making[\\s._-]*of|bloopers|gag[\\s._-]*reel)(?![a-z0-9])|'
+                        u'מאחורי[\\s]*הקלעים|סצנות[\\s]*שנמחקו|за[\\s]*кадром|бонус', re.I)
+_RELEASE_MARK = re.compile(r'(?<![0-9])(?:19|20)\d{2}(?![0-9])|[Ss]\d{1,2}[ ._-]?[Ee]\d{1,3}|\d{1,2}x\d{2}|'
+                           r'(?<![0-9])(?:480|576|720|1080|2160)[pi]', re.I)
+JUNK_EXT = {'nfo', 'txt', 'srt', 'sub', 'idx', 'ass', 'jpg', 'jpeg', 'png', 'sfv', 'md5', 'url', 'exe', 'lnk'}
+
 _QUALITY = [
     (2160, re.compile(r'2160p|\b4k\b|\buhd\b', re.I)),
     (1080, re.compile(r'1080[pi]|\bfhd\b|full[\s._-]?hd', re.I)),
@@ -172,6 +191,48 @@ def find_se(text):
     return None, None, None
 
 
+def find_episode_end(text, s, e):
+    """4.2.7: last episode of a chained / ranged name, or None."""
+    t = _dot_space(text or '')
+    end = None
+    m = _EP_CHAIN.search(t)
+    if m and s is not None:
+        nums = [int(x) for x in re.findall(r'\d+', m.group(1))]
+        end = nums[-1] if nums else None
+    else:
+        m = _EP_RANGE.search(t)
+        if m and e is not None and int(m.group(1)) == e:
+            end = int(m.group(2))
+    if end is not None and e is not None and (end <= e or end - e > 30):
+        end = None
+    return end
+
+
+def find_season_range(text):
+    """4.2.7: (first, last) of a multi-season pack, or (None, None)."""
+    t = _dot_space(text or '')
+    for rx in _SEASON_RANGE:
+        m = rx.search(t)
+        if m:
+            a, b = int(m.group(1)), int(m.group(2))
+            if 0 <= a < b < 60:
+                return a, b
+    return None, None
+
+
+def is_junk_name(name, ext=''):
+    """4.2.7: featurettes / extras / text side files - never the wanted video."""
+    if (ext or '').lower() in JUNK_EXT:
+        return True
+    # review 17/11: a junk word inside the TITLE is a title ("The Interview", "Extras", "The Making of a Lady"):
+    # it counts only AFTER the release marker - the year, SxxEyy or the quality tag that ends the title part
+    t = _dot_space(name or '')
+    marker = _RELEASE_MARK.search(t)
+    if not marker:
+        return False
+    return bool(_JUNK_NAME.search(t, marker.end()))
+
+
 def find_episode_only(text):
     t = _dot_space(text or '')
     for rx in _EP_ONLY:
@@ -265,6 +326,16 @@ def parse(filename, caption='', chat_title=''):
             e = ep_only
             s = season_only  # may be None -> resolved by matcher with chat title
     year = find_year(name) or find_year(caption)
+    # 4.2.7: S01E01E02E03 / E01-E05 ranges the main patterns cut short
+    if e is not None:
+        more = find_episode_end(name, s, e)
+        if more is not None and (e_end is None or more > e_end):
+            e_end = more
+    s_first, s_last = find_season_range(name)
+    if s_first is None:
+        s_first, s_last = find_season_range(caption)
+    if e is None and season_only is None and s_first is not None:
+        season_only = s_first     # 4.2.7: "עונות 1-3" alone still says season 1 onward
 
     titles = []
     for src in (name, first_line):
@@ -293,6 +364,10 @@ def parse(filename, caption='', chat_title=''):
         'is_trailer': bool(_TRAILER.search(name)),
         'trailer_caption': bool(_TRAILER.search(caption)),
         'is_archive': ext in ARCHIVE_EXT,
+        'is_junk': is_junk_name(name, ext),     # 4.2.7
+        'is_cam': False,                        # 4.2.7: filled below from 'source'
+        'season_end': s_last if e is None else None,   # 4.2.7: S01-S03 multi-season pack
         'chat_season': find_season_only(chat_title) if chat_title else None,
     }
+    res['is_cam'] = res['source'] == 'cam'
     return res

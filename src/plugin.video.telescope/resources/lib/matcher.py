@@ -107,6 +107,8 @@ def evaluate(cand, target, strict=True):
         return 'reject', 0, ['not a video']
     if p.get('is_trailer'):
         return 'reject', 0, ['trailer/sample']
+    if p.get('is_junk'):      # 4.2.7: featurette / extras / behind the scenes
+        return 'reject', 0, ['extras/junk']
     size = cand.get('size') or 0
     duration = cand.get('duration') or 0
     if caption_trailer(p, size, duration):

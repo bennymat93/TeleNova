@@ -15,7 +15,10 @@ MENU_LABEL = 'כתוביות BN'
 def apply(xml):
     """'AI Subtitle Generation' next to the subtitle buttons of every player style and in the subtitle window.
     Returns how many skin files were changed (0 = already there)."""
-    n = 0
+    try:
+        n = expr_fixes(xml)     # 4.2.7: first, so a skin file that changed shape below does not stop it
+    except Exception:           # review 17/11: an unreadable skin file never stops the other patches
+        n = 0
     item = ('\n\t<item>\n\t\t<label>%s</label>\n\t\t<icon>osd/fullscreen/buttons/subs3.png</icon>\n'
             '\t\t<onclick>%s</onclick>\n\t\t<visible>!VideoPlayer.Content(LiveTV)</visible>\n\t</item>') % (AI_LABEL, AI_RUN)
     # item-list players (advanced, netflix): right after "search subtitles"
@@ -245,6 +248,48 @@ def keyboard_complete(xml):
     t = t[:m.end()] + '\t\t' + AC_MARK + nl + '\t\t' + AC_VALUE + nl + t[m.end():]
     open(p, 'w', encoding='utf-8', newline='').write(t)
     return 1
+
+
+# ------------------------------------------------------------------ 4.2.7: stock FENtastic conditions Kodi cannot parse
+# Kodi logged on every start "Misplaced ]" / "Error parsing boolean expression [] + [...]" (InfoWallMovieLayout used
+# by the home widgets without its icon* / imagevisible / noneepisodefocus params -> an empty <visible>) and
+# "unmatched parentheses in string.isempty(listitem.art(fanart)" (Variables.xml). A condition that fails to parse
+# is false, so defaulting the params to false keeps what the screen showed.
+WALL_PARAMS = ('iconfocused', 'iconnofocused', 'iconfocusedfolder', 'imagevisible', 'noneepisodefocus')
+
+
+def _close_parens(m):
+    """a condition that only lacks closing ')' at its end gets them (brackets untouched)"""
+    c = m.group(2)
+    miss = c.count('(') - c.count(')')
+    if miss > 0 and c.count('[') == c.count(']') and not c.rstrip().endswith((']', '|', '+')):
+        c = c.rstrip() + ')' * miss
+    return m.group(1) + c + m.group(3)
+
+
+def expr_fixes(xml):
+    """-> how many skin files were changed (0 = already fixed or not this skin)"""
+    n = 0
+    p = os.path.join(xml, 'Variables.xml')
+    if os.path.exists(p):
+        t = open(p, encoding='utf-8', newline='').read()
+        t2 = re.sub(r'(<value condition=")([^"]*)(")', _close_parens, t)
+        if t2 != t:
+            open(p, 'w', encoding='utf-8', newline='').write(t2)
+            n += 1
+    p = os.path.join(xml, 'View_54_InfoWall.xml')
+    if os.path.exists(p):
+        t = open(p, encoding='utf-8', newline='').read()
+        m = re.search(r'(<include name="InfoWallMovieLayout">[ \t]*\r?\n)(.*?)([ \t]*<definition>)', t, re.S)
+        if m:
+            nl = '\r\n' if '\r\n' in m.group(1) else '\n'
+            add = ''.join('\t\t<param name="%s">false</param>%s' % (k, nl) for k in WALL_PARAMS
+                          if '<param name="%s"' % k not in m.group(2))
+            if add:
+                t = t[:m.start(3)] + add + t[m.start(3):]
+                open(p, 'w', encoding='utf-8', newline='').write(t)
+                n += 1
+    return n
 
 
 # ------------------------------------------------------------------ 3.3.3: slim notification at the top of the screen

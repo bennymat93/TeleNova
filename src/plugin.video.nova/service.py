@@ -834,7 +834,13 @@ class Player(xbmc.Player):
         self.tv_retry = (path, time.time())
 
         def again():
-            if monitor().waitForAbort(2):       # 3.3: never sleeps through Kodi's exit
+            # 4.2.7: no fixed 2 s - retry as soon as the failed player is torn down (its connection is then
+            # closed), checked every 0.1 s; 0.3 s grace after that, 2 s at most as before
+            m, t0 = monitor(), time.time()
+            while xbmc.getCondVisibility('Player.HasMedia') and time.time() - t0 < 1.7:
+                if m.waitForAbort(0.1):         # 3.3: never sleeps through Kodi's exit
+                    return
+            if m.waitForAbort(0.3):
                 return
             if not self.isPlaying():
                 log('TV channel failed to open - one more try: %s' % path)
