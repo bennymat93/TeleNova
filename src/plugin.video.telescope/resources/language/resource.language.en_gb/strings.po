@@ -907,3 +907,11 @@ msgstr ""
 msgctxt "#30179"
 msgid "The Telegram login is not in the file: every device needs a login of its own. On the other device log in from Account & Status - or use TeleNova > Backup & sync > Send my setup to another device."
 msgstr ""
+
+msgctxt "#30180"
+msgid "Telegram is not connected on this device - search without Telegram. Tap to log in"
+msgstr ""
+
+msgctxt "#30181"
+msgid "Telegram search failed on this device: %s - tap for status"
+msgstr ""

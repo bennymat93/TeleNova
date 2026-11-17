@@ -1466,6 +1466,12 @@ def _plain_label(s, title):
     return ' | '.join(b for b in bits if b)
 
 
+def _hub_notice(text, target):
+    li = common.make_listitem('[COLOR orange]%s[/COLOR]' % text, path=target)
+    li.setArt({'icon': 'DefaultIconWarning.png', 'thumb': 'DefaultIconWarning.png'})
+    xbmcplugin.addDirectoryItem(HANDLE, target, li, isFolder=True)
+
+
 def hub(p):
     """Non-interactive listing for hubs that read this add-on as a directory (Files.GetDirectory):
     ?mode=hub&q=<free text>                       -> Telegram files for the text (episode text is matched exactly)
@@ -1528,7 +1534,21 @@ def hub(p):
             want_year = int(ym.group(1)) if ym and len(q) > 6 else None
             if want_year:
                 q = q[:ym.start()].strip()
-            files = rpc.call('raw_search', query=q, limit=60, timeout=20)
+            # 4.2.1: a device whose Telegram is not logged in (or whose login Telegram ended) used to return an
+            # empty folder - the viewer saw search results without Telegram and no reason. Now one row says so.
+            try:
+                st = rpc.call('status', timeout=10)
+            except Exception:
+                st = {}
+            if st.get('authorized') is False and st.get('connected') and not st.get('telemedia_bridge'):   # absent = still starting
+                _hub_notice(L(30180), url(mode='login'))
+                return end('videos', cache=False)
+            try:
+                files = rpc.call('raw_search', query=q, limit=60, timeout=20)
+            except Exception as exc:
+                common.log('hub: raw_search: %s' % exc)
+                _hub_notice(Lf(30181, str(exc)[:60]), url(mode='status'))
+                return end('videos', cache=False)
             seen, rows = set(), []
             for c in files:
                 key = (c['chat_id'], c['msg_id'])
