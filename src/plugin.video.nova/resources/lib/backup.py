@@ -140,6 +140,29 @@ def stale(member, _known={}):
     return not _known[aid]
 
 
+def keep_filled(backup_xml, current_xml):
+    """settings.xml of a backup with every value it has EMPTY taken from this device's file when that one is set.
+    -> (xml, number of values kept). Pure (tested outside Kodi)."""
+    import re
+    rx = re.compile(r'(<setting id="([^"]+)"[^>]*?)(/>|>([^<]*)</setting>)')
+    have = dict((m.group(2), m.group(4)) for m in rx.finditer(current_xml) if (m.group(4) or '').strip())
+    kept = [0]
+
+    def fix(m):
+        sid, val = m.group(2), m.group(4)
+        if (val or '').strip() or sid not in have:
+            return m.group(0)
+        kept[0] += 1
+        head = re.sub(r'\s+default="true"', '', m.group(1))
+        return '%s>%s</setting>' % (head, have[sid])
+    out = rx.sub(fix, backup_xml)
+    for sid, val in have.items():          # a setting the old backup did not know at all
+        if ('id="%s"' % sid) not in out and '</settings>' in out:
+            out = out.replace('</settings>', '    <setting id="%s">%s</setting>\n</settings>' % (sid, val), 1)
+            kept[0] += 1
+    return out, kept[0]
+
+
 def extract(z):
     """restore the members of an open backup zip into userdata; returns (restored, skipped as stale)"""
     import json
@@ -167,6 +190,22 @@ def extract(z):
         if stale(m) and not (m.split('/')[1] in wanted and shipped):
             skipped += 1
             continue
+        dest = os.path.join(USERDATA, *m.split('/'))
+        if m.endswith('/settings.xml') and os.path.exists(dest):
+            # 4.2.6: a restore never puts an empty value over one this device has (an old automatic backup made
+            # before Telegram was set up wiped the working api id / hash on the owner's PC, 17/11)
+            try:
+                with open(dest, encoding='utf-8') as f:
+                    mine = f.read()
+                merged, kept = keep_filled(z.read(m).decode('utf-8'), mine)
+                with open(dest, 'w', encoding='utf-8') as f:
+                    f.write(merged)
+                if kept:
+                    log('restore %s: kept %d value(s) of this device that the backup had empty' % (m.split('/')[1], kept))
+                done += 1
+                continue
+            except (OSError, UnicodeDecodeError, ValueError) as e:
+                log('restore merge %s: %s' % (m, e), xbmc.LOGWARNING)
         z.extract(m, USERDATA)
         done += 1
     if new_addons:                               # Kodi enables them at its next start (enable_restored)
