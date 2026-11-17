@@ -1,6 +1,6 @@
 # TeleNova - QA / upgrade programme: progress
 
-Updated 2026-11-17 01:15, after TeleNova 4.2.0. Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
+Updated 2026-11-17 11:15, after TeleNova 4.2.7. Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -19,10 +19,10 @@ Extra tracks asked for by the owner
 ✅ Set up once, restore everywhere          100%  (4.1.0: users + continuous sync, verified live with a second
                                                    stand-in device against the real account)
 ▶️ Finding / checking / verifying links      65%  (4.0.4: StremThru + OpenSubtitles ID, off by default, not run
-                                                   with real keys; shortlist 1-4, 6, 7 done; 5, 8-10 open)
+                                                   with real keys; shortlist 1-4, 6-8, 10 done; 5, 9 partly)
 ✅ One screen for every service             100%  (4.0.4)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FIXES IDENTIFIED: 22  |  Fixed: 19 |  Pending: 3
+FIXES IDENTIFIED: 27  |  Fixed: 26 |  Pending: 1
   Critical: 0          High: 11 (11 fixed)
   Medium:  9 (8 fixed) Low:  2 (0 fixed)
 ```
@@ -54,13 +54,18 @@ FIXES IDENTIFIED: 22  |  Fixed: 19 |  Pending: 3
 | BUG-009 | Medium | Burned-in Hebrew subtitles not recognised: a second subtitle was fetched on top | `hardsub.py` | fixed 4.0.1, verified in Kodi |
 | BUG-010 | High | The configuration export carries the Telegram session: two devices online with it can lose the login on both (AUTH_KEY_DUPLICATED) | `configio.py`, `service.config_export` | fixed 4.2.0: no session in the file, an old file's session is ignored; pairing gives each device its own login |
 | BUG-011 | Medium | Kodi is slow to exit right after a Telegram film when the AI subtitle server is reading it (the server cannot cancel a job) | `kodi-build\server\nova_subs.py` (outside this repository) | fixed 4.0.2 on our side: the stream server releases its connections, the hub's wait for the server watches the abort flag; exit after a Telegram film = exit when idle (18-20 s) |
-| BUG-012 | Medium | A broken request parameter shows a raw error notification to the viewer | `plugin.video.nova/default.py` | pending |
+| BUG-012 | Medium | A broken request parameter shows a raw error notification to the viewer | `plugin.video.nova/default.py` | fixed 4.2.7 (ValueError / IndexError quiet too; `qa/t_bug012.py`) |
 | BUG-013 | Low | First request into a far, never-read region of a very large Telegram file can take 7-15 s (Telegram's side); a second request is sent after 3 s | `tgclient.py` | mitigated |
-| BUG-014 | Low | TV channels: the first open of a stream sometimes fails in the demuxer and the retry adds 8-10 s | `service.py` tv retry / stream sources | pending (seen 2026-11-13 01:10) |
+| BUG-014 | Low | TV channels: the first open of a stream sometimes fails in the demuxer and the retry adds 8-10 s | `service.py` tv retry / stream sources | improved 4.2.7: the retry waits for the failed player (0.3 s instead of a fixed 2 s); the first-open failure itself not reproduced |
 | BUG-015 | High | Kodi never closed after Telegram playback (server threads in a socket read Windows does not wake) | \stream.App.shutdown\, \service._post_wait\ | fixed 4.0.2, verified in Kodi |
 | BUG-016 | High | Files too heavy for the account's real rate were offered and stalled | \sources.playable\, setting \max_mbit\ | fixed 4.0.2 |
 | BUG-021 | High | After "Log out" the engine could not connect again until Kodi restarted (Telethon client reused after log_out closed its session) | `tgclient.logout`, `reconnect` | fixed 4.2.0, found in the live pairing test |
 | BUG-022 | High | QR login could hang (the accepted-update fell between short waits) or fail with LoginTokenMigrateTo (account in another data centre) | `tgclient.qr_wait`, `_qr_settle` | fixed 4.2.0, found in the live pairing test |
+| BUG-023 | High | A restore wrote empty values over working keys (an automatic backup from before Telegram was set up wiped api id / hash) | `backup.keep_filled` | fixed 4.2.6 |
+| BUG-024 | High | iPad lost touch scrolling / selection: the computer's device profile and skin touch mode came over by backup / sync | `profiles.repair` | fixed 4.2.3 (not yet seen on the iPad) |
+| BUG-025 | High | Car box: TMDb unreachable on its network, every list empty | `netfix.py` | fixed 4.2.4 (not yet seen on the box) |
+| BUG-026 | Medium | AI subtitle server kept transcribing after the viewer left; crashed once (0xC0000409) at an idle unload | `kodi-build/server/nova_subs.py` (outside) | fixed 4.2.5 / 4.2.7 |
+| BUG-027 | Low | Search said nothing when Telegram was not logged in on a device | `router.hub` | fixed 4.2.1 |
 | BUG-019 | High | First version of the guide filler replaced real guide ids while one guide source was down (found by the 4.1.2 review) | `iptv.fill_unserved` | fixed before release: ids are never replaced |
 | BUG-020 | Medium | First version of the guide filler built ids from Hebrew names that kept only digits: two channels could share a row (review) | `iptv.fill_unserved` | fixed before release: sha1 of the full name |
 | BUG-018 | Medium | The free-guide refresh rewrote the TV guide without the build's own rows: 13 channels showed an empty guide again | `iptv.py` free guide apply | fixed 4.1.2 (`livefail.own_rows`, test in `t_epg_xml.py`) |
@@ -81,5 +86,6 @@ FIXES IDENTIFIED: 22  |  Fixed: 19 |  Pending: 3
 0. Owner asked to come back to the TV channels after the release: more licensed sources (target ~70 channels); 29 play today.
 1. ~~Device pairing~~ done in 4.2.0. Left: a test between two physical devices on a real home network.
 2. Link shortlist items 1-4 (`docs/RESEARCH-sources.md`): Real-Debrid refusals, Wizdom signal, Wikidata aliases, runtime gate.
-3. Phase 0 leftovers: architecture map, XML checker for the skin (also Phase 4's tool).
-4. Owner's decisions: TorBox, StremThru, OpenSubtitles key (see `docs/RESEARCH-sources.md`).
+3. Phase 0 leftovers: architecture map. XML checker done in 4.2.7 (`qa/skin_expr_check.py`; the stock skin's unparsable conditions fixed by `skinpatch.expr_fixes`).
+4. Owner's decisions: TorBox, OpenSubtitles key (see `docs/RESEARCH-sources.md`). StremThru: on by default since 4.2.2.
+5. Needs the owner's devices: iPad touch repair (4.2.3), car box TMDb route (4.2.4), two physical devices pairing + the 2FA step (4.2.0).

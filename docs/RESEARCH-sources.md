@@ -67,9 +67,9 @@ MediaFusion's junk gate (empty title, hash-like names, no release evidence) [V, 
 | 5 | Paged global search + de-duplication by document id | medium | deep in-chat search done in 4.0.0 |
 | 6 | StremThru file-level cache check | medium | done 4.0.4, off by default |
 | 7 | OpenSubtitles moviehash for certain identification | medium | done 4.0.4, off by default |
-| 8 | PTT episode / pack patterns in `re` + junk-name gate | medium | open |
+| 8 | PTT episode / pack patterns in `re` + junk-name gate | medium | done 4.2.7 (`qa/t_ptt.py`; junk words count only after the release marker) |
 | 9 | Tail probe (moov / Cues), mid-file throughput, DV / passthrough flags | medium | head probe + speed exist |
-| 10 | Union de-duplication with size buckets across Telegram / RD / Stremio | medium | open |
+| 10 | Union de-duplication with size buckets across Telegram / RD / Stremio | medium | done 4.2.7 (`sources.union_dedup`, `qa/t_dedup.py`) |
 
 ## Questions for the owner
 
