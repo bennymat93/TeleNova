@@ -397,6 +397,8 @@ class Service(xbmc.Monitor):
             if 'setup.zip' not in files:
                 raise RuntimeError('damaged')
             return {'data': base64.b64encode(files['setup.zip']).decode('ascii')}
+        if method == 'send_saved':                       # the web pairing link, to the account's own Saved Messages
+            return self.tg.run(self.tg.send_saved(str(p.get('text') or '')), 30)
         if method == 'cloud_delete':
             return {'removed': self.tg.run(self.tg.cloud_delete(p.get('ids') or []), 60)}
         raise RuntimeError('unknown method %s' % method)
@@ -561,7 +563,7 @@ class Service(xbmc.Monitor):
                 ok, detail = self.osub.check_key()
                 return {'ok': ok, 'detail': detail}
             raise RuntimeError('unknown service')
-        if method.startswith('cloud_'):                  # 4.0.4: the setup kept in the account's Saved Messages
+        if method.startswith('cloud_') or method == 'send_saved':  # 4.0.4: the setup kept in the account's Saved Messages
             return self._cloud(method, p)
         if method == 'config_export':
             return self.config_export(p.get('password') or '')

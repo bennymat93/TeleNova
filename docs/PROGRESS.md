@@ -1,6 +1,6 @@
 # TeleNova - QA / upgrade programme: progress
 
-Updated 2026-11-17 12:40, after TeleNova 4.2.8 (QA + display review). Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
+Updated 2026-11-17 23:30, after TeleNova 4.2.9 (web pairing by QR, resume points in the sync document, login QR drawn on the device, web modules + EPG job committed). Earlier: 4.2.8 (QA + display review). Per-version detail: README.md; defects: docs/BUGS.md; coverage: docs/QA_MATRIX.md.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

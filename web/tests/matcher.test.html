@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Matcher tests</title>
+<style>:root{--bg:#fff;--fg:#111}@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee}}body{background:var(--bg);color:var(--fg);font:14px system-ui;margin:16px}pre{white-space:pre-wrap}</style>
+</head><body>
+<h1>web/matcher.js + web/epmatch.js vs the Python build</h1>
+<p>Fixtures: <code>python src/qa/web/gen_tg_fixtures.py</code>. The same checks run in node: <code>node src/qa/web/t_matcher.js</code>.</p>
+<pre id="out">running...</pre>
+<script src="../matcher.js"></script>
+<script src="../epmatch.js"></script>
+<script>
+'use strict';
+(async () => {
+  const M = self.TNMatcher, E = self.TNEpmatch, out = document.getElementById('out');
+  const C = await (await fetch('tg_cases.json')).json();
+  let n = 0, bad = 0; const log = [];
+  const same = (a, b) => (typeof a === 'number' && typeof b === 'number') ? Math.abs(a - b) < 1e-9
+    : Array.isArray(a) && Array.isArray(b) ? a.length === b.length && a.every((x, i) => same(x, b[i]))
+    : a && b && typeof a === 'object' && typeof b === 'object' ? same(Object.keys(a).sort(), Object.keys(b).sort()) && Object.keys(a).every((k) => same(a[k], b[k]))
+    : a === b;
+  const check = (w, g, x) => { n++; if (!same(g, x)) { bad++; if (log.length < 30) log.push('FAIL ' + w + '\n  got  ' + JSON.stringify(g) + '\n  want ' + JSON.stringify(x)); } };
+  for (const c of C.parse) check('parse ' + c.args[0], M.parse(...c.args), c.out);
+  for (const c of C.normalize) check('normalize ' + c.in, M.normalize(c.in), c.out);
+  for (const c of C.clean) check('clean ' + c.in, M.cleanQuery(c.in), c.out);
+  for (const c of C.sim) check('sim ' + c.args, M.titleSimilarity(...c.args), c.out);
+  for (const c of C.evaluate) check('evaluate ' + c.cand.file, M.evaluate(c.cand, c.target, c.strict), c.out);
+  for (const c of C.lang) check('lang', M.languageBonus(...c.args), c.out);
+  for (const c of C.plan) check('plan', M.planQueries(c.target, {max_aliases: 4, max_queries: 6}), c.out);
+  for (const c of C.dedup) check('dedup', M.unionDedup(JSON.parse(JSON.stringify(c.in))), [c.out, c.folded]);
+  const F = {parse: E.parse, matches: E.matches, mentions: E.mentions, query_for: E.queryFor, wanted: E.wanted};
+  for (const c of C.ep) check('ep.' + c.f + ' ' + JSON.stringify(c.args), F[c.f](...c.args), c.out);
+  out.textContent = `${n} cases, ${bad} failures\n` + log.join('\n');
+  document.title = bad ? 'FAIL' : 'PASS';
+})().catch((e) => { document.getElementById('out').textContent = 'CRASH ' + e; });
+</script>
+</body></html>

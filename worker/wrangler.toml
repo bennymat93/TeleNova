@@ -1,0 +1,14 @@
+# TeleNova optional helper Worker - see README.md
+name = "telenova-helper"
+main = "index.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[vars]
+# Comma separated. Only these web origins may call the helper.
+ALLOW_ORIGINS = "https://bennymat93.github.io"
+# Comma separated extra https hosts (for example your own StremThru instance). Leave empty if not needed.
+ALLOW_HOSTS = ""
+
+[observability]
+enabled = false

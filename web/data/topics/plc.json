@@ -1,0 +1,251 @@
+{
+ "_help": "בקרה תעשייתית - one category per manufacturer: the maker's own channel + teachers (a 'filter' channel keeps only titles matching the category's 'match').",
+ "min_seconds": 300,
+ "search_scope": "all",
+ "categories": [
+  {
+   "id": "plc_siemens",
+   "he": "SIEMENS",
+   "en": "SIEMENS",
+   "ru": "SIEMENS",
+   "icon": "plc_siemens",
+   "channels": [
+    {
+     "id": "UCaEEm-0s0x3MHg9jzFcHuQQ",
+     "name": "Siemens Knowledge Hub"
+    },
+    {
+     "id": "UC1P4ACs0hsr7AWcl-mWKQbQ",
+     "name": "Hegamurl"
+    },
+    {
+     "id": "UCnNRfwZvfEevTHvBYYoac_g",
+     "name": "TIA Portal Tutorial"
+    },
+    {
+     "id": "UCUKKQwBQZczpYzETkZNxi-w",
+     "name": "RealPars",
+     "filter": true
+    }
+   ],
+   "queries": [
+    "TIA Portal S7-1500 tutorial",
+    "Siemens S7-1200 PLC programming",
+    "WinCC Unified tutorial",
+    "SINAMICS G120 commissioning"
+   ],
+   "match": "(?i)siemens|tia|s7-|simatic|wincc|sinamics|step ?7|profinet"
+  },
+  {
+   "id": "plc_rockwell",
+   "he": "Rockwell / Allen-Bradley",
+   "en": "Rockwell / Allen-Bradley",
+   "ru": "Rockwell / Allen-Bradley",
+   "icon": "plc_rockwell",
+   "channels": [
+    {
+     "id": "UC0q6j_EisHf1o_olWCvUHdA",
+     "name": "Rockwell Automation"
+    },
+    {
+     "id": "UC_YccYdH0DBFp2ah0QuJ1lQ",
+     "name": "Tim Wilborne"
+    },
+    {
+     "id": "UCs3AEdsXBG3-HYvghcjhdfA",
+     "name": "SolisPLC"
+    },
+    {
+     "id": "UCUKKQwBQZczpYzETkZNxi-w",
+     "name": "RealPars",
+     "filter": true
+    }
+   ],
+   "queries": [
+    "Studio 5000 Logix Designer tutorial",
+    "ControlLogix programming",
+    "PowerFlex drive setup"
+   ],
+   "match": "(?i)rockwell|allen.?bradley|studio 5000|logix|rslogix|powerflex|factorytalk|micro8"
+  },
+  {
+   "id": "plc_schneider",
+   "he": "Schneider Electric",
+   "en": "Schneider Electric",
+   "ru": "Schneider Electric",
+   "icon": "plc_schneider",
+   "channels": [
+    {
+     "id": "UCnpqjEw2RHDBNVGDe8pI7tw",
+     "name": "Schneider Electric"
+    }
+   ],
+   "queries": [
+    "EcoStruxure Machine Expert tutorial",
+    "Modicon M221 programming",
+    "Altivar drive setup"
+   ]
+  },
+  {
+   "id": "plc_abb",
+   "he": "ABB",
+   "en": "ABB",
+   "ru": "ABB",
+   "icon": "plc_abb",
+   "channels": [
+    {
+     "id": "UCJ5pEhYNHTmAaTb2S_DeIuA",
+     "name": "ABB Electrification"
+    }
+   ],
+   "queries": [
+    "ABB RobotStudio tutorial",
+    "ABB ACS580 drive commissioning",
+    "ABB AC500 PLC programming"
+   ]
+  },
+  {
+   "id": "plc_mitsubishi",
+   "he": "Mitsubishi Electric",
+   "en": "Mitsubishi Electric",
+   "ru": "Mitsubishi Electric",
+   "icon": "plc_mitsubishi",
+   "channels": [
+    {
+     "id": "UCpOnjzYxZgxijk4eS4_ye6g",
+     "name": "Mitsubishi Electric FA"
+    }
+   ],
+   "queries": [
+    "GX Works3 tutorial",
+    "Mitsubishi FX5U programming"
+   ]
+  },
+  {
+   "id": "plc_omron",
+   "he": "OMRON",
+   "en": "OMRON",
+   "ru": "OMRON",
+   "icon": "plc_omron",
+   "channels": [
+    {
+     "id": "UCVyfpE3OJNg0WhMZE4BCEcw",
+     "name": "Omron EMEA"
+    },
+    {
+     "id": "UCjRXmrLirV8SmPDSbJOUQjQ",
+     "name": "Omron Americas"
+    }
+   ],
+   "queries": [
+    "Sysmac Studio tutorial",
+    "Omron NX1P programming"
+   ]
+  },
+  {
+   "id": "plc_beckhoff",
+   "he": "Beckhoff / CODESYS",
+   "en": "Beckhoff / CODESYS",
+   "ru": "Beckhoff / CODESYS",
+   "icon": "plc_beckhoff",
+   "channels": [
+    {
+     "id": "UCzXmGvm1ami9yKhEcbREdaQ",
+     "name": "Beckhoff Automation"
+    },
+    {
+     "id": "UC2hQMrlITlc-JpVanRnuYdA",
+     "name": "CODESYS Group"
+    }
+   ],
+   "queries": [
+    "TwinCAT 3 tutorial",
+    "CODESYS programming tutorial"
+   ]
+  },
+  {
+   "id": "plc_unitronics",
+   "he": "Unitronics",
+   "en": "Unitronics",
+   "ru": "Unitronics",
+   "icon": "plc_unitronics",
+   "channels": [
+    {
+     "id": "UCn3hbVcNg0DXzMsi1xgE7fA",
+     "name": "Unitronics"
+    }
+   ],
+   "queries": [
+    "UniLogic tutorial",
+    "VisiLogic tutorial"
+   ]
+  },
+  {
+   "id": "plc_scada",
+   "he": "SCADA, HMI ותקשורת",
+   "en": "SCADA, HMI & networks",
+   "ru": "SCADA, HMI и сети",
+   "icon": "plc_scada",
+   "channels": [
+    {
+     "id": "UCs-a_tI2AYkUSWKKZLH3yPQ",
+     "name": "Inductive Automation"
+    },
+    {
+     "id": "UCgRFY6TGWi55EHfT5PQQP2A",
+     "name": "The Automation School"
+    },
+    {
+     "id": "UC0w4cHMm7dy6UTjduwA1H6w",
+     "name": "Phoenix Contact"
+    },
+    {
+     "id": "UCsU_3M_d9wmuzlIxwJxCKSA",
+     "name": "WAGO"
+    }
+   ],
+   "queries": [
+    "Ignition SCADA tutorial",
+    "Modbus TCP explained",
+    "OPC UA explained"
+   ]
+  },
+  {
+   "id": "plc_drives",
+   "he": "ממירי תדר ומנועים",
+   "en": "Drives & motion",
+   "ru": "Приводы и двигатели",
+   "icon": "plc_drives",
+   "channels": [
+    {
+     "id": "UCCyIoXGHVFRzLA_pkE6RFug",
+     "name": "Danfoss Drives"
+    },
+    {
+     "id": "UCHn6sgbOb_cq_oGtyGv9E8g",
+     "name": "Festo"
+    }
+   ],
+   "queries": [
+    "VFD programming tutorial",
+    "servo motor tuning tutorial"
+   ]
+  },
+  {
+   "id": "plc_new",
+   "he": "חידושים בבקרה",
+   "en": "Latest in automation",
+   "ru": "Новое в автоматизации",
+   "icon": "plc_new",
+   "channels": [],
+   "queries": [
+    "new PLC 2026",
+    "industrial automation trends 2026",
+    "Siemens automation news 2026",
+    "Rockwell Automation Fair 2026",
+    "Hannover Messe 2026 automation"
+   ],
+   "search_any": true
+  }
+ ]
+}

@@ -1,7 +1,8 @@
 'use strict';
 // The Telegram side of BN Stream Web: login, the account's shared document in "Saved Messages", and the sync loop.
 // Loaded by app.js only when the viewer chooses to connect (or was connected before); everything else in the app
-// works without it. NOT covered by automatic tests - it needs a real account (see README.md, "How to test").
+// works without it. The sign-in screen is tglogin.js (page #/tglogin); other modules get the signed-in client from
+// TG.client() (WP-1 interface, see MODULES.md). The browser signs in as its own device: Kodi's session is never used. NOT covered by automatic tests - it needs a real account (see README.md, "How to test").
 //
 // Libraries, fetched here on first use:
 //   vendor/gramjs-2.26.21.min.js  GramJS, the MTProto client (window.GramJS) - our own bundle, see src/qa/web/build_gramjs.py
@@ -15,9 +16,9 @@
 // Nothing here is ever written to the console, put into an address, or shown: errors show Telegram's error CODE only.
 (function (root) {
   const LIBS = [
-    ['GramJS', 'vendor/gramjs-2.26.21.min.js', ''],
+    ['GramJS', 'vendor/gramjs-2.26.21.min.js', 'sha384-vLpLXTCvkXKJ+0bVYmKOYufkvr49+ItiV6bVYF6xfsSg3iFTAv2CJyTGGDL9Z747'],
     ['fflate', 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js', 'sha384-DT0Ls0mO7JmjTnT+oBuMhEJzYJO1zUqzuuMXNdnOmOQRIpN2BgSjvBV/j50NngIT'],
-    ['Sealed', 'sealed.js', ''],
+    ['Sealed', 'sealed.js', 'sha384-3QiOYAjKOjUimzokSr13TVO6o8T7mwjpx2sVoXcfFSLnX+slMlEH14GsyFCW1hgC'],
     ['qrcode', 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js', 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k'],
   ];
   const PERIOD = 45000, DEBOUNCE = 3000, MAX_DOC = 16 * 1024 * 1024;
@@ -28,6 +29,7 @@
   let memSession = '';                           // a login the viewer did not ask to keep: this tab only
   let panelEl = null, loginUi = null, cancelLogin = null, releaseLock = null;
   let timer = null, debounce = null, running = false, again = false, wired = false, loginGen = 0;
+  let listeners = [];                            // TG.on(fn): fn(state) after every change of state or login step
 
   const G = () => root.GramJS;
   const creds = () => { const c = A.get('tg_api', null); return c && /^\d{3,12}$/.test(String(c.id)) && /^[0-9a-f]{32}$/.test(String(c.hash)) ? c : null; };
@@ -68,12 +70,12 @@
     });
   }
   function unlock() { if (releaseLock) { releaseLock(); releaseLock = null; } }
-  async function open() {
+  async function open(fresh) {               // fresh: a new login, a new (empty) session
     const c = creds();
     if (!c) throw new Error('no api');
     await libs();
     if (client) return client;
-    client = new (G().TelegramClient)(new (G().sessions.StringSession)(savedSession()), Number(c.id), c.hash,
+    client = new (G().TelegramClient)(new (G().sessions.StringSession)(fresh ? '' : savedSession()), Number(c.id), c.hash,
                                       {connectionRetries: 3, useWSS: true, deviceModel: 'BN Stream Web', appVersion: A.version, systemVersion: 'Browser'});
     client.setLogLevel('none');
     await client.connect();
@@ -86,7 +88,7 @@
   }
   async function signedIn(keep) {
     const user = await client.getMe();
-    me = {id: String(user.id), name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || ''};
+    me = {id: String(user.id), name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || '', username: user.username || ''};
     key = root.Sealed.cloudKey(me.id);           // the document's password is made of the account's id, as the build makes it
     const s = client.session.save();
     if (keep) { A.put('tg_session', s); memSession = ''; } else if (!A.get('tg_session', '')) memSession = s;
@@ -131,17 +133,83 @@
   }
 
   // ---------------------------------------------------------------- login
-  // each step of a login asks the panel for one answer; "cancel" rejects the waiting step and closes the connection
+  // A login runs as a chain of steps; each step that needs the viewer publishes `loginUi` ({step, ...}) and waits for
+  // answer(). The page that draws it (tglogin.js) only reads step() and calls
+  // answer / resend / back / cancel. Steps: wait | qr {url, expires} | phone | code {phone, via, length, next, timeout,
+  // canResend} | password {hint}.
+  // The browser always signs in as a NEW device (its own authorization): the session of Kodi is never used here.
+  const RESEND = {resend: true}, BACK = {back: true};
   function ask(step, extra) {
     return new Promise((answer, reject) => { loginUi = Object.assign({step, answer, reject}, extra || {}); draw(); });
   }
+  // '054-123 4567' -> '+972541234567', as tgauth.normalize_phone; '' when it cannot be a number
+  function normalizePhone(text, cc) {
+    const raw = String(text || '').trim();
+    let d = raw.replace(/\D/g, '');
+    cc = cc || '972';
+    if (raw.startsWith('+')) { /* already international */ } else if (d.startsWith('00')) d = d.slice(2);
+    else if (d.startsWith('0')) d = cc + d.slice(1);
+    else if (d.length <= 9) d = cc + d;
+    return d.length >= 8 && d.length <= 15 ? '+' + d : '';
+  }
+  // auth.SentCode -> where the code went (tgauth.sent_info)
+  function sentInfo(sent) {
+    const kind = (o) => {
+      const n = String((o && (o.className || (o.constructor && o.constructor.name))) || '').toLowerCase();
+      if (!n) return '';
+      for (const [k, v] of [['app', 'app'], ['sms', 'sms'], ['flashcall', 'call'], ['missedcall', 'call'], ['call', 'call'], ['email', 'email']]) if (n.includes(k)) return v;
+      return 'other';
+    };
+    const t = sent && sent.type;
+    return {via: kind(t) || 'other', length: Number(t && t.length) || 0, next: kind(sent && sent.nextType),
+            timeout: Number(sent && sent.timeout) || 0, canResend: !!(sent && sent.nextType)};
+  }
+  const isCls = (o, name) => !!(o && (o.className === name || (G().Api.auth[name.replace(/^auth\./, '')] && o instanceof G().Api.auth[name.replace(/^auth\./, '')])));
+
+  async function phoneFlow(apiCreds, password, onError) {
+    const Api = G().Api;
+    for (;;) {
+      const raw = await ask('phone', {});
+      const phone = normalizePhone(raw);
+      if (!phone) { info.error = A.X('e_phone'); continue; }
+      let sent;
+      try {
+        sent = await client.invoke(new Api.auth.SendCode({phoneNumber: phone, apiId: apiCreds.apiId, apiHash: apiCreds.apiHash, settings: new Api.CodeSettings({})}));
+      } catch (e) { if (await onError(e)) throw new Error('AUTH_USER_CANCEL'); continue; }
+      if (isCls(sent, 'auth.SentCodeSuccess')) return;
+      let hash = sent.phoneCodeHash, where = sentInfo(sent);
+      for (;;) {
+        const code = await ask('code', Object.assign({phone}, where));
+        if (code === BACK) break;
+        if (code === RESEND) {
+          try {
+            const r = await client.invoke(new Api.auth.ResendCode({phoneNumber: phone, phoneCodeHash: hash}));
+            if (isCls(r, 'auth.SentCodeSuccess')) return;
+            hash = r.phoneCodeHash; where = sentInfo(r); info.error = '';
+          } catch (e) { if (await onError(e)) throw new Error('AUTH_USER_CANCEL'); }
+          continue;
+        }
+        try {
+          const r = await client.invoke(new Api.auth.SignIn({phoneNumber: phone, phoneCodeHash: hash, phoneCode: String(code)}));
+          if (isCls(r, 'auth.AuthorizationSignUpRequired')) { info.error = A.X('e_signup'); break; }
+          return;
+        } catch (e) {
+          const m = e && e.errorMessage;
+          if (m === 'SESSION_PASSWORD_NEEDED') { await client.signInWithPassword(apiCreds, {password, onError}); return; }
+          if (await onError(e)) throw new Error('AUTH_USER_CANCEL');
+          if (m === 'PHONE_CODE_EXPIRED' || m === 'PHONE_NUMBER_INVALID') break;      // back to the number
+        }
+      }
+    }
+  }
   async function login(how, keep) {
+    if (state === 'login' || state === 'on') return;
+    if (!creds()) return set('off', {error: A.X('e_api')});
     if (!(await lock())) return set('other_tab');
     let cancelled = false;
     const gen = ++loginGen;                      // a cancelled login may end much later (GramJS waits out its QR timer): it must not touch a newer one
-    set('login', {error: '', note: ''});
     loginUi = {step: 'wait'};
-    draw();
+    set('login', {error: '', note: ''});
     cancelLogin = async () => {
       cancelled = true; loginGen++; cancelLogin = null;
       const ui = loginUi;
@@ -151,21 +219,21 @@
       unlock();
       set('off', {error: ''});
     };
-    const onError = async (e) => { if (!cancelled) { info.error = say(e); draw(); } return cancelled || dead(e); };   // true = stop asking
+    const onError = async (e) => { if (!cancelled && gen === loginGen) { info.error = say(e); draw(); } return cancelled || gen !== loginGen || dead(e); };   // true = stop asking
     const password = (hint) => ask('password', {hint: typeof hint === 'string' ? hint : ''});
     try {
-      await open();
-      const api = {apiId: Number(creds().id), apiHash: creds().hash};
+      if (client) await close();                 // a fresh connection for a fresh login
+      await open(true);
+      const apiCreds = {apiId: Number(creds().id), apiHash: creds().hash};
       if (how === 'qr') {
-        await client.signInUserWithQrCode(api, {
-          qrCode: async (code) => { if (!cancelled) { loginUi = {step: 'qr', url: 'tg://login?token=' + b64url(code.token)}; info.error = ''; draw(); } },
+        await client.signInUserWithQrCode(apiCreds, {
+          qrCode: async (code) => {
+            if (cancelled || gen !== loginGen) return;
+            loginUi = {step: 'qr', url: 'tg://login?token=' + b64url(code.token), expires: Number(code.expires) || 0};
+            info.error = ''; draw();
+          },
           password, onError});
-      } else {
-        await client.start({
-          phoneNumber: () => ask('phone'),
-          phoneCode: (viaApp) => ask('code', {viaApp: viaApp !== false}),
-          password, onError});
-      }
+      } else await phoneFlow(apiCreds, password, onError);
       if (gen !== loginGen) return;
       loginUi = null; cancelLogin = null;
       await signedIn(keep);
@@ -174,7 +242,7 @@
       loginUi = null; cancelLogin = null;
       await close();
       unlock();
-      set('off', {error: cancelled || (e && e.message === 'AUTH_USER_CANCEL') ? '' : say(e)});
+      set('off', {error: cancelled || (e && e.message === 'AUTH_USER_CANCEL') ? info.error : say(e)});
     }
   }
   const b64url = (buf) => G().Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -187,6 +255,21 @@
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#000';
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) ctx.fillRect(pad + c * cell, pad + r * cell, cell, cell);
+  }
+  // the pairing link of the build (webpair.py): <site>/web/#pair=<id>.<hash>, or just "<id>.<hash>" / "<id> <hash>"
+  function parsePair(text) {
+    const s = String(text || '').trim();
+    const m = /(?:#pair=|^)(\d{3,12})[.\s:]+([0-9a-f]{32})(?:$|[&\s])/i.exec(s);
+    return m ? {id: m[1], hash: m[2].toLowerCase()} : null;
+  }
+  function setApi(id, hash) {
+    id = String(id || '').trim(); hash = String(hash || '').trim().toLowerCase();
+    if (!/^\d{3,12}$/.test(id) || !/^[0-9a-f]{32}$/.test(hash)) return false;
+    const was = creds();
+    if (was && (was.id !== id || was.hash !== hash) && state !== 'off') return false;      // not under a running login
+    A.put('tg_api', {id, hash});
+    info.error = ''; draw();
+    return true;
   }
 
   // ---------------------------------------------------------------- the account's document (tgclient.py cloud_list / cloud_get / cloud_put)
@@ -262,26 +345,22 @@
   }
   function stopLoop() { clearInterval(timer); clearTimeout(debounce); timer = null; }
 
-  // ---------------------------------------------------------------- the panel in Settings
+
+  // ---------------------------------------------------------------- the panel in Settings (the login itself is the page #/tglogin)
   function el(tag, cls, text) { const e = root.document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function field(label, type, name, attrs) {
-    const l = el('label', '', label), i = el('input');
-    i.type = type; i.name = name; i.autocomplete = 'off'; i.dir = 'ltr';
-    Object.assign(i, attrs || {});
-    l.append(i);
-    return l;
-  }
+  const loginLink = (cls, text) => { const a = el('a', cls, text); a.href = '#/tglogin'; return a; };
   function draw() {
+    for (const fn of listeners.slice()) { try { fn(state); } catch (e) {} }
     const box = panelEl;
     if (!box || !box.isConnected) return;
     const hadFocus = box.contains(root.document.activeElement) && root.document.activeElement.tagName === 'INPUT';
-    if (hadFocus && state !== 'login' && !loginUi) return;        // not under the viewer's fingers
+    if (hadFocus) return;                        // not under the viewer's fingers
     const X = A.X, parts = [];
     const err = () => { const p = el('p', 'tgerr', info.error || ''); p.setAttribute('role', 'alert'); return p; };
     if (state === 'offline') parts.push(el('p', 'hint', X('tg_offline')), err(), A.button('btn', X('tg_connect'), () => resume()));
     else if (state === 'other_tab') parts.push(el('p', 'hint', X('tg_other_tab')), A.button('btn ghost', X('tg_connect'), () => { state = 'off'; if (savedSession()) resume(); else draw(); }));
     else if (state === 'connecting') parts.push(el('p', 'hint', X('tg_wait')));
-    else if (state === 'login') parts.push(...loginParts(), err());
+    else if (state === 'login') parts.push(el('p', 'hint', X('tg_wait')), err(), loginLink('btn', X('tg_connect')));
     else if (state === 'on') {
       const st = el('div', 'tgstate ' + (info.error ? 'err' : 'on'));
       st.append(el('i'), el('span', '', A.fmt('tg_on', me ? me.name : '')));
@@ -296,72 +375,82 @@
         if (e.target.dataset.sure) disconnect(); else { e.target.dataset.sure = '1'; e.target.textContent = X('tg_disconnect_q'); }
       }));
       parts.push(row);
-    } else if (!creds()) {                       // step 1: the API details
-      const f = el('form');
-      f.append(el('p', 'hint', X('tg_api_about')), field(X('tg_api_id'), 'text', 'id', {inputMode: 'numeric'}), field(X('tg_api_hash'), 'password', 'hash'), err(), A.button('btn', X('tg_continue'), null));
-      f.onsubmit = (e) => {
-        e.preventDefault();
-        const id = f.elements.id.value.trim(), hash = f.elements.hash.value.trim().toLowerCase();
-        if (!/^\d{3,12}$/.test(id) || !/^[0-9a-f]{32}$/.test(hash)) { info.error = X('tg_api_bad'); f.querySelector('.tgerr').textContent = info.error; return; }
-        A.put('tg_api', {id, hash});
-        info.error = '';
-        panelEl.replaceChildren(); draw();
-      };
-      parts.push(f);
-    } else {                                     // step 2: how to log in, and whether the login is kept here
+    } else {
       if (info.note) parts.push(el('p', 'hint', info.note));
-      const keep = el('label', 'check'), tick = el('input');
-      tick.type = 'checkbox'; tick.id = 'tg_keep';
-      keep.append(tick, el('span', '', X('tg_keep')));
-      const row = el('div', 'links');
-      row.append(A.button('btn', X('tg_qr'), () => login('qr', tick.checked)), A.button('btn ghost', X('tg_phone'), () => login('phone', tick.checked)),
-                 A.button('btn ghost', X('tg_forget'), () => { A.drop('tg_api'); info.error = ''; info.note = ''; draw(); }));
-      parts.push(keep, el('p', 'hint', X('tg_keep_warn')), err(), row);
+      parts.push(el('p', 'hint', X('tg_api_about')), err(), loginLink('btn', X('tg_connect')));
     }
     box.replaceChildren(...parts);
-    if (state === 'login' && loginUi) { const i = box.querySelector('input'); if (i) i.focus(); }
   }
-  function loginParts() {
-    const X = A.X, ui = loginUi || {step: 'wait'}, out = [];
-    const cancel = () => A.button('btn ghost', X('tg_cancel'), (e) => { e.preventDefault(); if (cancelLogin) cancelLogin(); });
-    if (ui.step === 'qr') {
-      const box = el('div', 'qrbox'), canvas = el('canvas');
-      canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'QR');
-      try { drawQr(canvas, ui.url); } catch (e) {}
-      box.append(canvas);
-      out.push(el('p', 'hint', X('tg_qr_how')), box, cancel());
-    } else if (ui.step === 'phone' || ui.step === 'code' || ui.step === 'password') {
-      const f = el('form');
-      const label = ui.step === 'phone' ? X('tg_phone_label') : ui.step === 'code' ? X(ui.viaApp ? 'tg_code_label' : 'tg_code_sms') : X('tg_pass_label');
-      f.append(field(label, ui.step === 'phone' ? 'tel' : ui.step === 'code' ? 'text' : 'password', 'v', ui.step === 'code' ? {inputMode: 'numeric'} : {}));
-      if (ui.step === 'password' && ui.hint) f.append(el('p', 'hint', A.fmt('tg_pass_hint', ui.hint)));
-      const row = el('div', 'links');
-      row.append(A.button('btn', X('tg_send'), null), cancel());
-      f.append(row);
-      f.onsubmit = (e) => {
-        e.preventDefault();
-        const v = ui.step === 'password' ? f.elements.v.value : f.elements.v.value.replace(/\s+/g, '');
-        if (!v) return;
-        loginUi = {step: 'wait'}; info.error = '';
-        draw();
-        ui.answer(v);
-      };
-      out.push(f);
-    } else out.push(el('p', 'hint', X('tg_wait')), cancel());
+
+  // the client for the other modules (search, playback...): connected and signed in, or an Error with message
+  // TG_NO_LOGIN | TG_OTHER_TAB | TG_LOGIN_RUNNING | TG_OFFLINE
+  let resuming = null;
+  async function getClient() {
+    if (!A) throw new Error('TG_NO_LOGIN');
+    if (state === 'on' && client) {
+      if (!client.connected) await client.connect();
+      return client;
+    }
+    if (state === 'login') throw new Error('TG_LOGIN_RUNNING');
+    if (!creds() || !savedSession()) throw new Error('TG_NO_LOGIN');
+    if (!resuming) resuming = resume().finally(() => { resuming = null; });
+    await resuming;
+    if (state === 'on' && client) return client;
+    throw new Error(state === 'other_tab' ? 'TG_OTHER_TAB' : state === 'offline' ? 'TG_OFFLINE' : 'TG_NO_LOGIN');
+  }
+  const publicStep = () => {
+    if (!loginUi) return state === 'login' ? {step: 'wait'} : null;
+    const out = {};
+    for (const [k, v] of Object.entries(loginUi)) if (typeof v !== 'function') out[k] = v;
     return out;
+  };
+  function answer(v) {
+    const ui = loginUi;
+    if (!ui || !ui.answer) return false;
+    loginUi = {step: 'wait'}; info.error = '';
+    draw();
+    ui.answer(v);
+    return true;
   }
 
   const api = {
     ready: false,
     init(app) { A = app; api.ready = true; },
-    // draws the panel into `box` (and keeps it up to date while it is on the page)
+    // the small panel in Settings (state, sync, disconnect; "Connect" leads to #/tglogin)
     panel(box, paired) {
       panelEl = box;
-      if (paired) info.note = A.X('tg_paired');
+      if (paired) {
+        info.note = A.X('tg_paired');
+        if (state === 'off' && !savedSession()) { root.location.hash = '#/tglogin'; return; }      // straight to the sign-in
+      }
       if (state === 'off' && creds() && savedSession()) resume(); else draw();
     },
     resume, status: () => ({state, sync: info.sync, last: info.last, name: me ? me.name : ''}),
     syncNow: () => round('asked'),
+    // ---- for the other modules
+    client: getClient,
+    connected: () => state === 'on' && !!client,
+    me: () => (me ? {id: me.id, name: me.name, username: me.username || ''} : null),
+    on(fn) { listeners.push(fn); return () => { listeners = listeners.filter((f) => f !== fn); }; },
+    // ---- for the login page (tglogin.js)
+    state: () => state,
+    error: () => info.error || '',
+    note: () => info.note || '',
+    step: publicStep,
+    hasApi: () => !!creds(),
+    apiId: () => (creds() ? creds().id : ''),
+    setApi, parsePair,
+    forgetApi() { if (state === 'off' || state === 'offline') { A.drop('tg_api'); info.error = ''; info.note = ''; draw(); return true; } return false; },
+    hasSession: () => !!savedSession(),
+    login,
+    answer,
+    resend: () => answer(RESEND),
+    back: () => answer(BACK),
+    cancel: () => (cancelLogin ? cancelLogin() : Promise.resolve()),
+    logout: () => disconnect(),
+    drawQr,
+    loadLibs: () => libs(),
+    normalizePhone, sentInfo,
   };
   root.TG = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

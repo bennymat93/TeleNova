@@ -197,8 +197,15 @@ const CONTENT_LANG = {1: 'he-IL', 2: 'en-US', 3: 'ru-RU'};      // the build's "
 const IMG = 'https://image.tmdb.org/t/p/';
 const RADIO = 'https://de1.api.radio-browser.info/json';
 const KODI = 'plugin://plugin.video.nova/?';
-const MENU = [['movies', '🎬'], ['tv', '📺'], ['live', '📡'], ['radio', '📻'], ['favs', '♥'], ['history', '🕘'], ['users', '👤'], ['bn', '★'], ['settings', '⚙']];
-const WEB_VERSION = '4.2.8';
+// 5.x: the main menu in the Kodi root order (plan row 1). [page key, icon]. Labels are I18N 'm_<key>' / 'ms_<key>'.
+// Kodi settings and System update have no browser meaning: 'about' (version, update app, clear cache) replaces them.
+const MENU = [['hub', '🔎'], ['searchhist', '↺'], ['movies', '🎬'], ['tv', '📺'], ['live', '📡'], ['radio', '📻'], ['telegram', '✈'],
+              ['history', '🕘'], ['favs', '♥'], ['library', '📚'], ['users', '👤'], ['services', '🔑'], ['backup', '💾'], ['gdrive', '☁'],
+              ['status', '📶'], ['help', '❓'], ['device', '🖥'], ['settings', '⚙'], ['bn', '★'], ['about', 'ℹ']];
+const NAV = ['hub', 'movies', 'tv', 'live', 'radio', 'telegram', 'favs', 'history', 'settings'];     // the short bar at the top
+// a TV browser by its user agent: the device profile 'auto' (applyCfg) follows it
+const IS_TV = /\b(TV|Tizen|Web0S|WebOS|AFT[A-Z]|BRAVIA|GoogleTV|Android TV|CrKey|HbbTV|NetCast|Viera|AppleTV)\b/i.test(navigator.userAgent);
+const WEB_VERSION = self.WEB_VERSION || '0';           // version.js (the one place it is written)
 
 // ---------------------------------------------------------------- per-browser storage (never required)
 const mem = new Map();                         // a browser that refuses storage (private mode, blocked cookies): this visit only
@@ -214,6 +221,11 @@ const cfg = Object.assign({lang: (navigator.language || 'he').slice(0, 2), theme
 try { const old = localStorage.getItem('bn_lang'); if (old && !get('cfg', null)) cfg.lang = old; } catch (e) {}
 if (!L[cfg.lang]) cfg.lang = 'he';
 const t = (k) => L[cfg.lang][k];
+// the 5.x texts (i18n.js); falls back to the tables above, so TN.t() reads every text of the app
+const I18N = self.I18N;
+I18N.setLang(cfg.lang);
+I18N.setFallback((k) => { const a = X4[cfg.lang] || X4.en, b = X3[cfg.lang] || X3.en, c = L[cfg.lang]; return k in a ? a[k] : k in b ? b[k] : (typeof c[k] === 'string' ? c[k] : null); });
+const N = (k, ...a) => I18N.t(k, ...a);
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const view = $('#view');
@@ -227,6 +239,32 @@ let hls = null, hasTmdb = true;
 // syncdoc.js; `synced` is what the account's document lets a browser read (the TMDb key, the metadata language).
 const SD = window.SyncDoc, WS = window.WebSync.make(SD), store = window.Store.make(safeStore, SD);
 store.migrate();                               // the 3.x favourites of this browser become the first user's
+// resume points (player.js / sources.js keep them in 'player_resume') travel inside the active user's history entries
+// as Kodi's 'progress' field (syncdoc with_progress / progress_points), so "continue watching" crosses devices.
+// The device profile, providers_off and tg_pins stay in this browser: Kodi has no such synced fields.
+{
+  const rawData = store.data, rawPut = store.putData, RES = 'player_resume';
+  store.data = (uid) => {
+    const d = rawData(uid);
+    if (uid === store.current()) d.history = SD.with_progress(d.history, get(RES, {}) || {});
+    return d;
+  };
+  store.putData = (uid, d, silent) => {
+    if (d && uid === store.current()) {
+      const mine = get(RES, {}) || {}, from = SD.progress_points(d.history);
+      let n = 0;
+      for (const k of Object.keys(from)) {
+        const cur = mine[k], p = from[k];
+        if (cur && Number(cur.at) >= p.at) continue;
+        if (p.d && p.t >= p.d * 0.95) { if (cur) { delete mine[k]; n++; } continue; }
+        mine[k] = p;
+        n++;
+      }
+      if (n) put(RES, mine);
+    }
+    return rawPut(uid, d, silent);
+  };
+}
 let synced = get('synced', {}) || {};
 // a picture address that came from a list (maybe from another device): https or this site only, safe inside url("")
 function cssUrl(u) {
@@ -444,6 +482,7 @@ async function openTitle(type, id) {
     noteHistory({key: type === 'movie' ? 'movie:' + id : 'tv:' + id, label: title, thumb: poster, plot: d.overview || '',
                  fanart: d.backdrop_path ? IMG + 'w1280' + d.backdrop_path : '',
                  play: type === 'movie' ? KODI + new URLSearchParams({a: 'play', m: 'movie', id: String(id), q: title}) : ''});
+    runHooks('title', $('#acts'), {type, id: String(id), title, detail: d, poster});      // e.g. WP-5's "Play" button
     $('#iaBtn').onclick = async () => {
       const docs = await archive({q: d.original_title || d.original_name || title, rows: 12});
       const box = $('#iaRes');
@@ -514,9 +553,9 @@ function pageHome() {
   view.innerHTML = '<div class="menu"></div>';
   MENU.forEach(([k, ic]) => {
     const a = document.createElement('a');
-    a.className = 'tile';
+    a.className = 'tile' + (PAGES[k] && PAGES[k].stub ? ' soon' : '');
     a.href = '#/' + k;
-    a.innerHTML = `<span class="ic">${ic}</span><b>${esc(t(k))}</b><small>${esc(t('sub')[k])}</small>`;
+    a.innerHTML = `<span class="ic">${ic}</span><b>${esc(N('m_' + k))}</b><small>${esc(N('ms_' + k))}</small>`;
     view.firstChild.append(a);
   });
 }
@@ -645,6 +684,7 @@ function histTarget(h) {
 }
 function openHistory(h, tg) {
   const label = String(h.label || h.key), pic = picOf(h);
+  for (const fn of HOOKS.history) { try { if (fn(h, tg)) return; } catch (e) {} }     // a module took it (e.g. resume a web play)
   if (tg.type === 'title') return openTitle(tg.media, tg.id);
   if (tg.type === 'ia') return openArchive({identifier: tg.id, title: label});
   if (tg.type === 'radio') return playRadio({stationuuid: tg.id, name: label, url_resolved: h.play, favicon: pic});
@@ -722,7 +762,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-4.2.8.zip">${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-4.2.9.zip">${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
@@ -754,7 +794,8 @@ function loadTg() {
 // the pairing link the build shows as a QR code: <site>/web/#pair=<api id>.<api hash>. A fragment never leaves the
 // browser; it is taken out of the address bar and the history at once and kept in this browser only.
 function takePair() {
-  const m = /^#pair=(\d{3,12})\.([0-9a-f]{32})$/i.exec(location.hash);
+  // optional extras after '&' (k=, lang=, ...) are allowed and dropped with the fragment
+  const m = /^#pair=(\d{3,12})\.([0-9a-f]{32})(?:&.*)?$/i.exec(location.hash);
   if (!m) return false;
   put('tg_api', {id: m[1], hash: m[2].toLowerCase()});
   paired = true;
@@ -910,17 +951,205 @@ $('#q').addEventListener('input', refreshSug);
 $('#search').addEventListener('focusout', (e) => { if (!$('#search').contains(e.relatedTarget)) setTimeout(() => { if (!$('#search').contains(document.activeElement)) hideSug(); }, 200); });
 $('#search').addEventListener('keydown', (e) => { if (e.key === 'Escape') hideSug(); });
 
+// ---------------------------------------------------------------- 5.x: module registry (see MODULES.md)
+// Each package's file is a plain script (no build step) that calls TN.registerPage / TN.registerProvider. A module is
+// loaded the first time one of its pages is opened, or when its providers are asked for (TN.providers(kind)). A module
+// file that does not exist yet simply leaves the 'coming soon' page (or the page app.js already had).
+// name -> {pages: page keys it draws, kinds: provider kinds it registers}. Module names are file names without '.js'.
+const MODULES = {
+  tglogin: {pages: ['tglogin'], kinds: []},                                     // WP-1
+  matcher: {pages: [], kinds: []}, epmatch: {pages: [], kinds: []},             // WP-2 (libraries)
+  tgsearch: {pages: [], kinds: ['search', 'source']}, telegram: {pages: ['telegram'], kinds: []},
+  tgplay: {pages: [], kinds: ['service']},                                      // WP-3
+  catalog: {pages: ['movies', 'tv', 'catalog'], kinds: []},                     // WP-4
+  sources: {pages: [], kinds: ['service']}, player: {pages: [], kinds: ['service']}, rd: {pages: [], kinds: ['source']},     // WP-5
+  srt: {pages: [], kinds: []}, subs: {pages: [], kinds: ['subs']},             // WP-6
+  iptv: {pages: ['live'], kinds: ['search']}, epg: {pages: [], kinds: ['service']}, radio: {pages: ['radio'], kinds: ['search']},   // WP-7
+  yt: {pages: ['youtube'], kinds: ['search', 'source']}, topics: {pages: ['topics'], kinds: []}, hub: {pages: ['hub', 'search'], kinds: ['search']},   // WP-8
+  services: {pages: ['services', 'device'], kinds: []}, library: {pages: ['library'], kinds: []}, backup: {pages: ['backup'], kinds: []},            // WP-9
+  gdrive: {pages: ['gdrive'], kinds: ['service']}, help: {pages: ['help'], kinds: []}, status: {pages: ['status'], kinds: []},
+};
+const MODULE_OF = {};
+for (const [m, d] of Object.entries(MODULES)) for (const p of d.pages) MODULE_OF[p] = m;
+const PAGES = {}, PROVIDERS = new Map(), HOOKS = {title: [], history: []}, LISTENERS = {};
+const modState = {};                                   // name -> promise of its load
+let routeSeq = 0, rerouteTimer = null;
+function rerouteSoon(key) {                            // a page arrived late: draw it, if it is the one on the screen
+  clearTimeout(rerouteTimer);
+  rerouteTimer = setTimeout(() => { if ((location.hash.split('/')[1] || '') === key) route(true); }, 0);
+}
+function registerPage(key, render, opts = {}) {
+  if (!/^[a-z][a-z0-9_]*$/.test(key) || typeof render !== 'function') throw new Error('registerPage: bad key or render');
+  const was = PAGES[key];
+  PAGES[key] = {render, stub: false, tried: true, title: opts.title || ''};
+  if (was && was.stub) rerouteSoon(key);
+}
+function registerProvider(name, impl) {
+  if (!/^[a-z][a-z0-9_]*$/.test(name) || !impl || typeof impl !== 'object') throw new Error('registerProvider: bad name or impl');
+  impl.name = name;
+  impl.kinds = [].concat(impl.kinds || impl.kind || []);
+  PROVIDERS.set(name, impl);
+  emit('provider', impl);
+}
+function loadModule(name) {
+  if (!MODULES[name]) return Promise.reject(new Error('unknown module ' + name));
+  if (!modState[name]) {
+    modState[name] = loadScript(name + '.js');
+    modState[name].catch(() => {});
+  }
+  return modState[name];
+}
+const providerOn = (name) => !(cfg.providers_off || []).includes(name);
+async function providers(kind) {
+  await Promise.all(Object.entries(MODULES).filter(([, d]) => d.kinds.includes(kind)).map(([m]) => loadModule(m).catch(() => {})));
+  return [...PROVIDERS.values()].filter((p) => p.kinds.includes(kind) && providerOn(p.name));
+}
+async function provider(name) {
+  if (!PROVIDERS.has(name) && MODULES[name]) await loadModule(name).catch(() => {});
+  return PROVIDERS.get(name) || null;
+}
+function on(ev, fn) { (LISTENERS[ev] = LISTENERS[ev] || []).push(fn); return () => { LISTENERS[ev] = LISTENERS[ev].filter((f) => f !== fn); }; }
+function emit(ev, data) { for (const fn of LISTENERS[ev] || []) { try { fn(data); } catch (e) {} } }
+function runHooks(name, ...args) { for (const fn of HOOKS[name]) { try { fn(...args); } catch (e) {} } }
+function failPage(key, e) {
+  view.insertAdjacentHTML('beforeend', `<p class="msg">${esc(N('core_load_fail'))}</p>`);
+  view.append(button('btn ghost', N('core_retry'), () => route(true)));
+}
+function stubPage(key) {
+  return () => {
+    page('', N('m_' + key));
+    view.insertAdjacentHTML('beforeend', `<div class="panel soonpanel"><span class="tag">${esc(N('core_soon'))}</span><p>${esc(N('core_soon_txt'))}</p>` +
+      `<div class="links"><a class="btn ghost" href="#/bn">${esc(N('m_bn'))}</a></div></div>`);
+  };
+}
+// the pages app.js draws itself; a module's registerPage replaces them
+const builtin = (key, render) => { PAGES[key] = {render, stub: false, tried: false}; };
+builtin('movies', (a) => pageMovies(a)); builtin('tv', (a) => pageSeries(a)); builtin('live', (a) => pageLive(a)); builtin('radio', (a) => pageRadio(a));
+builtin('favs', () => pageFavs()); builtin('history', () => pageHistory()); builtin('users', () => pageUsers()); builtin('bn', () => pageBn());
+builtin('settings', () => pageSettings()); builtin('search', (a) => pageSearch(a)); builtin('hub', () => pageHub());
+builtin('searchhist', () => pageSearchHist()); builtin('about', () => pageAbout());
+for (const k of [...MENU.map((m) => m[0]), ...Object.keys(MODULE_OF)]) if (!PAGES[k]) PAGES[k] = {render: stubPage(k), stub: true, tried: false};
+// a built-in page that a module may replace: the module is tried once, on the first visit
+function needsModule(p) { const m = MODULE_OF[p]; return m && !modState[m] && PAGES[p] && !PAGES[p].tried; }
+
+// hub search (until WP-8's hub.js replaces it): a search box, the latest searches, then the all-sources results page
+function pageHub() {
+  page('', N('m_hub'));
+  const f = document.createElement('form');
+  f.className = 'hubform';
+  f.innerHTML = `<input type="search" autocomplete="off" dir="auto" aria-label="${esc(N('m_hub'))}" placeholder="${esc(t('search'))}">`;
+  f.append(button('btn', N('core_search_go'), null));
+  f.onsubmit = (e) => { e.preventDefault(); doSearch(f.firstChild.value); };
+  view.append(f);
+  view.insertAdjacentHTML('beforeend', `<p class="hint">${esc(N('core_hub_txt'))}</p>`);
+  const recent = store.searches().slice(0, 12);
+  if (recent.length) chips(recent.map((q) => [q, '↺ ' + q]), '', (q) => doSearch(q));
+}
+// search history (the build's searchhist.py): every search, remove one, clear all
+function pageSearchHist() {
+  page('', N('m_searchhist'));
+  const all = store.searches();
+  if (!all.length) { view.insertAdjacentHTML('beforeend', `<p class="msg">${esc(N('core_sh_none'))}</p>`); return; }
+  const box = document.createElement('div');
+  box.className = 'hlist';
+  all.forEach((q) => {
+    const row = document.createElement('div');
+    row.className = 'shrow';
+    const go = button('hrow', '↺ ' + q, () => doSearch(q));
+    go.dir = 'auto';
+    const x = button('btn ghost', N('core_sh_remove'), () => { store.removeSearch(q); pageSearchHist(); });
+    x.setAttribute('aria-label', N('core_sh_remove') + ': ' + q);
+    row.append(go, x);
+    box.append(row);
+  });
+  view.append(box);
+  const row = document.createElement('div');
+  row.className = 'links';
+  row.append(button('btn ghost', N('core_sh_clear'), (e) => {
+    if (e.target.dataset.sure) { store.clearSearches(); pageSearchHist(); } else { e.target.dataset.sure = '1'; e.target.textContent = N('core_sh_clear_q'); }
+  }));
+  view.append(row);
+}
+// about / version / update app / clear cache (replaces Kodi settings + System update, plan rows 1, 46, 48)
+async function clearCaches() {
+  try { for (const k of await caches.keys()) await caches.delete(k); } catch (e) {}
+  emit('clearcache', null);
+}
+function pageAbout() {
+  page('', N('m_about'));
+  const swOn = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+  view.insertAdjacentHTML('beforeend', `<div class="panel settings"><p>${esc(N('core_about_txt'))}</p>
+    <div class="row"><b>${esc(N('core_version', WEB_VERSION))}</b><span>${esc(N('core_sw', N(swOn ? 'core_sw_on' : 'core_sw_off')))}</span></div>
+    <div class="links" id="ab_acts"></div><span id="ab_done" class="hint" role="status"></span>
+    <div class="links"><a class="btn ghost" href="${SITE}guide.html">${esc(N('core_guide'))}</a></div></div>`);
+  const say = (k) => { $('#ab_done').textContent = N(k); };
+  $('#ab_acts').append(button('btn', N('core_update'), async () => {
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration().catch(() => null);
+    if (!reg) { say('core_update_none'); return; }
+    await reg.update().catch(() => {});
+    if (reg.installing || reg.waiting) { say('core_update_got'); setTimeout(() => location.reload(), 1200); } else say('core_update_none');
+  }), button('btn ghost', N('core_clear_cache'), async () => { await clearCaches(); say('core_cleared'); setTimeout(() => location.reload(), 800); }));
+}
+
+// the one object every module uses (frozen: modules add to it only through the functions)
+const TN = Object.freeze({
+  version: WEB_VERSION,
+  // registry
+  registerPage, registerProvider, providers, provider, providerOn,
+  setProviderOn(name, onOff) { const off = new Set(cfg.providers_off || []); if (onOff) off.delete(name); else off.add(name); cfg.providers_off = [...off]; put('cfg', cfg); emit('providers', null); },
+  load: loadModule,
+  addTitleAction(fn) { HOOKS.title.push(fn); },
+  addHistoryHandler(fn) { HOOKS.history.push(fn); },
+  on, emit,
+  // texts
+  i18n: I18N, t: N, lang: () => cfg.lang, rtl: () => cfg.lang === 'he',
+  // storage: per browser (bn_ prefix, JSON); the user's synced lists are in store
+  get, put, drop, store, SyncDoc: SD, WebSync: WS,
+  // settings: this browser's (cfg) and the account's synced ones (read only here)
+  settings: Object.freeze({
+    get: (k, d) => (k in cfg ? cfg[k] : d),
+    set(k, v) { cfg[k] = v; put('cfg', cfg); applyCfg(); emit('settings', k); },
+    synced: () => Object.assign({}, synced),
+    helper: () => httpsOnly(String(cfg.helper || '').replace(/\/+$/, '')),        // the optional Worker (WP-10)
+  }),
+  // HTML / UI helpers
+  esc, $, button, card, section, page, chips, skeleton, empty, modal, closeModal, favButton, cssUrl, paint, httpsOnly, kodiOnly,
+  view: () => view,
+  loadScript,
+  // router
+  go(hash) { location.hash = hash.startsWith('#') ? hash : '#/' + hash; },
+  route: () => route(true),
+  here() { const [, p = '', ...rest] = location.hash.split('/'); let a = rest.join('/'); try { a = decodeURIComponent(a); } catch (e) {} return {key: p, arg: a, rest}; },
+  params: (arg) => Object.fromEntries(new URLSearchParams(arg || '')),
+  link: (key, params) => '#/' + key + (params ? '/' + (typeof params === 'string' ? encodeURIComponent(params) : new URLSearchParams(params)) : ''),
+  // catalogue
+  tmdb, tmdbLang, tmdbImg: (p, size = 'w342') => (p ? IMG + size + p : ''), hasTmdbKey: () => !!String(cfg.tmdb || synced.tmdb_key || synced.tmdb_token || '').trim(),
+  openTitle, openArchive, openChannel, playRadio, stopRadio, archive, channels, stations, doSearch,
+  noteHistory,
+  // Telegram (tg.js is loaded on demand: TN.tg() -> window.TG)
+  tg: () => loadTg(),
+  clearCaches,
+});
+self.TN = TN;
+
 // ---------------------------------------------------------------- shell
 function applyCfg() {
   if (cfg.theme === 'auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', cfg.theme);
+  I18N.setLang(cfg.lang);
+  document.documentElement.lang = cfg.lang;
+  document.documentElement.dir = cfg.lang === 'he' ? 'rtl' : 'ltr';
+  // device profile (plan row 49): 'auto' goes back to what the browser says (IS_TV); never synced (Kodi 4.2.3 rule)
+  const dev = ['tv', 'phone', 'desktop'].includes(cfg.device) ? cfg.device : '';
+  for (const c of ['phone', 'desktop']) document.documentElement.classList.toggle(c, dev === c);
+  document.documentElement.classList.toggle('tv', dev ? dev === 'tv' : IS_TV);
 }
 function shell() {
   document.documentElement.lang = cfg.lang;
   document.documentElement.dir = cfg.lang === 'he' ? 'rtl' : 'ltr';
   $('#q').placeholder = t('search');
   $('#foot').textContent = t('foot');
-  $('#nav').innerHTML = `<a href="#/" data-p="">${esc(t('home'))}</a>` + MENU.map(([k]) => `<a href="#/${k}" data-p="${k}">${esc(t(k))}</a>`).join('');
+  $('#nav').innerHTML = `<a href="#/" data-p="">${esc(t('home'))}</a>` + NAV.map((k) => `<a href="#/${k}" data-p="${k}">${esc(N('m_' + k))}</a>`).join('');
 }
 function markNav(p) { document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('on', a.dataset.p === p)); }
 function route(keep) {
@@ -931,9 +1160,23 @@ function route(keep) {
   try { a = decodeURIComponent(a); } catch (e) {}
   markNav(p);
   if (p !== 'search') $('#q').value = '';
-  ({movies: () => pageMovies(a), tv: () => pageSeries(a), live: () => pageLive(a), radio: () => pageRadio(a), favs: pageFavs,
-    history: pageHistory, users: () => pageUsers(), bn: pageBn, settings: pageSettings, search: () => pageSearch(a)}[p] || pageHome)();
+  const seq = ++routeSeq;
+  const ctx = {key: p, arg: a, rest: rest.slice(), view, keep: keep === true, current: () => seq === routeSeq};
+  const pg = PAGES[p];
+  if (!p || !pg) pageHome();
+  else if (needsModule(p)) {                  // first visit: its module may draw (or replace) this page - load it, then draw
+    page('', N('m_' + p));
+    skeleton(4);
+    pg.tried = true;
+    loadModule(MODULE_OF[p]).catch(() => {}).then(() => { if (seq === routeSeq) rerouteSoon(p); });
+  } else {
+    try {
+      const r = pg.render(a, ctx);
+      if (r && r.catch) r.catch((e) => { if (seq === routeSeq) failPage(p, e); });
+    } catch (e) { failPage(p, e); }
+  }
   if (keep !== true) window.scrollTo(0, 0);
+  emit('route', ctx);
 }
 $('#search').onsubmit = (e) => {
   e.preventDefault();
@@ -949,9 +1192,7 @@ if (get('tg_session', '') && get('tg_api', null)) setTimeout(() => loadTg().then
 // TV remotes and keyboards: the arrows move the focus to the nearest item in that direction, Enter opens it,
 // Back / Escape closes the open sheet or goes one page back. Touch and mouse are untouched.
 (function () {
-  const ua = navigator.userAgent;
-  const isTv = /\b(TV|Tizen|Web0S|WebOS|AFT[A-Z]|BRAVIA|GoogleTV|Android TV|CrKey|HbbTV|NetCast|Viera|AppleTV)\b/i.test(ua);
-  if (isTv) document.documentElement.classList.add('tv');
+  const isTv = IS_TV;                              // the 'tv' class itself is set by applyCfg()
   const SEL = 'a[href],button:not([disabled]),input,select,[tabindex]:not([tabindex="-1"])';
   const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && !el.closest('[hidden]'); };
   const scope = () => ($('#modal').hidden ? document : $('#modal'));

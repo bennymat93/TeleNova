@@ -1,0 +1,95 @@
+{
+ "_help": "סדרות אסיה - official channels of the studios / platforms only (they upload full, subtitled episodes legally). min_seconds: episodes only, no clips or trailers. Edit freely.",
+ "min_seconds": 1200,
+ "search_scope": "all",
+ "categories": [
+  {
+   "id": "china",
+   "he": "סדרות סיניות",
+   "en": "Chinese dramas",
+   "ru": "Китайские сериалы",
+   "icon": "cn",
+   "channels": [
+    {
+     "id": "UCZrZaZM9IfX-uB-9yWf5gfQ",
+     "name": "iQIYI English"
+    },
+    {
+     "id": "UCUhpu5MJQ_bjPkXO00jyxsw",
+     "name": "iQIYI 爱奇艺"
+    },
+    {
+     "id": "UCI70JGG0hJS306Q-hGWfB7Q",
+     "name": "YOUKU English"
+    },
+    {
+     "id": "UCQatgKoA7lylp_UzvsLCgcw",
+     "name": "腾讯视频 Tencent Video"
+    },
+    {
+     "id": "UCiu3bj4rR8KOYcUA4KNkOAA",
+     "name": "WeTV English"
+    },
+    {
+     "id": "UCsPn92hQrq4VXJZc8e7fjoQ",
+     "name": "MangoTV English"
+    },
+    {
+     "id": "UCmalSiRq25rjrpycAsS5ocA",
+     "name": "MangoTV C-Theatre"
+    },
+    {
+     "id": "UCKYiWoviYMMzKXYdyUpOylQ",
+     "name": "Croton Media English"
+    },
+    {
+     "id": "UCAMrnDQlsPnrScHun5PgrXw",
+     "name": "China Huace TV Official"
+    }
+   ]
+  },
+  {
+   "id": "korea",
+   "he": "סדרות קוריאניות",
+   "en": "Korean dramas",
+   "ru": "Корейские сериалы",
+   "icon": "kr",
+   "channels": [
+    {
+     "id": "UC5BMQOsAB8hKUyHu9KI6yig",
+     "name": "KBS WORLD TV"
+    }
+   ],
+   "queries": [
+    "KBS WORLD TV [Full] EP.1",
+    "KBS WORLD [Full] drama EP",
+    "KBS drama full episode ENG sub",
+    "KBS WORLD [Full] EP.2",
+    "KBS WORLD [Full] romance drama"
+   ]
+  },
+  {
+   "id": "japan",
+   "he": "יפן – אנימה וסדרות",
+   "en": "Japan – anime & dramas",
+   "ru": "Япония – аниме и сериалы",
+   "icon": "jp",
+   "channels": [
+    {
+     "id": "UC6pGDc4bFGD1_36IKv3FnYg",
+     "name": "Crunchyroll"
+    },
+    {
+     "id": "UCsj_CYajUSQ2ca8bYCMan9g",
+     "name": "It's Anime (REMOW)"
+    }
+   ],
+   "queries": [
+    "Crunchyroll Episode 1 SUB/DUB",
+    "Crunchyroll full episode",
+    "REMOW It's Anime full episode",
+    "REMOW complete season anime"
+   ]
+  }
+ ]
+}

@@ -980,12 +980,32 @@ def _rpc_fail(exc):
 
 
 class QRWindow(xbmcgui.WindowDialog):
+    """4.2.9: the login QR is drawn on this device (qr.py). It used to be a picture from an outside QR service, which
+    received the login token itself."""
+    _seq = [0]
+
     def __init__(self, qr_url):
         super(QRWindow, self).__init__()
-        img = 'https://api.qrserver.com/v1/create-qr-code/?size=500x500&margin=20&data=' + quote(qr_url, safe='')
-        self.addControl(xbmcgui.ControlImage(390, 100, 500, 500, img))
+        import os
+        from . import qr
+        QRWindow._seq[0] += 1
+        # a new name for each token: Kodi keeps a picture it has shown under its path
+        self.img = os.path.join(common.PROFILE, 'login_qr_%d_%d.png' % (int(time.time()), QRWindow._seq[0]))
+        try:
+            qr.write_png(qr.encode(qr_url, 'M'), self.img, scale=10, border=4)
+        except Exception as exc:
+            common.log('login QR: %s' % type(exc).__name__)
+        self.addControl(xbmcgui.ControlImage(390, 100, 500, 500, self.img))
         self.addControl(xbmcgui.ControlLabel(140, 620, 1000, 60, L(30061), alignment=2))
         self.closed = False
+
+    def close(self):
+        super(QRWindow, self).close()
+        try:
+            import os
+            os.remove(self.img)                     # the picture holds a login token: it is not kept
+        except Exception:
+            pass
 
     def onAction(self, action):
         if action.getId() in (9, 10, 92, 216, 247, 257, 275, 61467, 61448):

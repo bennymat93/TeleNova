@@ -177,6 +177,14 @@ class TG(object):
             raise TGError('setup file too large')
         return await self.client.download_media(m, bytes)
 
+    async def send_saved(self, text):
+        """sends a plain text message to the account's own Saved Messages ('me') only. The text is never logged."""
+        text = str(text or '').strip()
+        if not text:
+            raise TGError('empty message')
+        msg = await self.client.send_message('me', text[:4000], link_preview=False, silent=True)
+        return {'ok': True, 'id': getattr(msg, 'id', 0)}
+
     async def cloud_delete(self, ids):
         own = set(x['id'] for x in await self.cloud_list(100))
         ids = [int(i) for i in ids if int(i) in own]         # only setup files, never another message

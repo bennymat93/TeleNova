@@ -242,6 +242,41 @@
     }
     return [...best.values()].sort(desc((x, y) => cmpTuple([hts(x), when(get(x, 'when')), x.key], [hts(y), when(get(y, 'when')), y.key]))).slice(0, MAX_HISTORY);
   }
+  // resume points live inside the history entry they belong to: 'progress': {t: seconds, d: seconds} (syncdoc.py header)
+  const isBool = (x) => typeof x === 'boolean';
+  function progress_of(h) {                        // [position, duration] of a history entry's resume point, or null
+    const p = isDict(h) ? get(h, 'progress') : undefined;
+    if (!isDict(p) || isBool(get(p, 't')) || isBool(get(p, 'd'))) return null;
+    const t = Math.trunc(num(get(p, 't'))), d = Math.trunc(num(get(p, 'd')));
+    return t > 0 ? [t, Math.max(d, 0)] : null;
+  }
+  function with_progress(history, points) {        // history + {key: {t, d, at (ms)}} -> entries carrying the newer points
+    const out = [];
+    for (let h of asList(history)) {
+      const k = isDict(h) ? get(h, 'key') : undefined;
+      const r = isDict(points) && typeof k === 'string' ? get(points, k) : undefined;
+      if (isDict(r) && !isBool(get(r, 't'))) {
+        const at = Math.trunc(Math.floor(num(get(r, 'at')) / 1000)), t = Math.trunc(num(get(r, 't'))), d = Math.trunc(num(get(r, 'd')));
+        if (t > 0 && at > hts(h)) {
+          const c = dict();
+          for (const x of Object.keys(h)) c[x] = h[x];
+          c.progress = {t, d: Math.max(d, 0)};
+          c.ts = at;
+          h = c;
+        }
+      }
+      out.push(h);
+    }
+    return out;
+  }
+  function progress_points(history) {              // the resume points of a history list: {key: {t, d, at (ms)}}
+    const out = dict();
+    for (const h of asList(history)) {
+      const p = progress_of(h);
+      if (p && typeof get(h, 'key') === 'string') out[h.key] = {t: p[0], d: p[1], at: Math.trunc(hts(h) * 1000)};
+    }
+    return out;
+  }
   function merge_removed(a, b) {
     const best = new Map();
     for (const r of asList(a).concat(asList(b))) {
@@ -370,7 +405,7 @@
   }
 
   const api = {VERSION, MAX_HISTORY, MAX_SEARCHES, MAX_REMOVED, PyFloat, parse, canon, copy, cmpStr, when, num, strip, dict, get,
-               merge_users, live_users, merge_history, merge_removed, merge_favourites, merge_searches, merge_marks, merge_user_data,
+               merge_users, live_users, merge_history, progress_of, with_progress, progress_points, merge_removed, merge_favourites, merge_searches, merge_marks, merge_user_data,
                merge_stamped, stamp_changes, empty, merge, same, changed_settings};
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.SyncDoc = api;

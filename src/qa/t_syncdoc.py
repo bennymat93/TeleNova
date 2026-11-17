@@ -134,6 +134,21 @@ for round_ in range(60):
         bad.append('round %d: merging in pairs gives another result' % round_)
         break
 
+# ---- resume points ride on the history entry (web 5.x): the newer point wins and travels with the entry
+hist = [H('movie:1', 100), H('tv:2:1:3', 200), {'key': 'x'}]
+pts = {'movie:1': {'t': 600, 'd': 5400, 'at': 150500}, 'tv:2:1:3': {'t': 90, 'd': 0, 'at': 150000}, 'nokey': {'t': 5, 'at': 9e9}}
+hp = sd.with_progress(hist, pts)
+check(hp[0]['progress'] == {'t': 600, 'd': 5400} and hp[0]['ts'] == 150, 'a newer resume point is folded into its entry')
+check('progress' not in hp[1] and hp[1]['ts'] == 200, 'an older resume point never overwrites a later watch')
+check('progress' not in hist[0], 'with_progress does not change its input')
+check(sd.with_progress(hp, pts) == hp, 'folding the same points again changes nothing')
+check(sd.progress_points(hp) == {'movie:1': {'t': 600, 'd': 5400, 'at': 150000}}, 'progress_points reads them back')
+check(sd.with_progress(hp, sd.progress_points(hp)) == hp, 'points read back from the document are not newer than it')
+check(sd.progress_of({'progress': {'t': True}}) is None and sd.progress_of({'progress': {'t': 0}}) is None, 'no point')
+m = dict((h['key'], h) for h in sd.merge_history([H('movie:1', 120)], hp))
+check(m['movie:1'].get('progress') == {'t': 600, 'd': 5400}, 'the point wins the merge with its time')
+
+
 for b in bad:
     print('FAIL', b)
 print('SYNCDOC TESTS OK' if not bad else 'SYNCDOC TESTS: %d problems' % len(bad))

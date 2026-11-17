@@ -1,0 +1,131 @@
+{
+ "_help": "חדשות - official news channels only, newest first. Shorts removed.",
+ "min_seconds": 60,
+ "search_scope": "all",
+ "categories": [
+  {
+   "id": "news_il",
+   "he": "חדשות בארץ",
+   "en": "Israel news",
+   "ru": "Новости Израиля",
+   "icon": "news_il",
+   "channels": [
+    {
+     "id": "UC_HwfTAcjBESKZRJq6BTCpg",
+     "name": "כאן חדשות"
+    },
+    {
+     "id": "UCFhbonoFqxg2b9FMRzYAwog",
+     "name": "חדשות 12"
+    },
+    {
+     "id": "UCO8d9hKcfOPYJSwdm53bXCQ",
+     "name": "N12 - כתבות מלאות"
+    },
+    {
+     "id": "UCvQmPpU20hw1Trss_CVwaew",
+     "name": "חדשות 13"
+    },
+    {
+     "id": "UCisowXt5wZkp2sR3rFh9lnQ",
+     "name": "i24NEWS עברית"
+    },
+    {
+     "id": "UCpSSzrovhI4fA2PQNItecUA",
+     "name": "ynet"
+    }
+   ]
+  },
+  {
+   "id": "news_world",
+   "he": "חדשות מהעולם",
+   "en": "World news",
+   "ru": "Мировые новости",
+   "icon": "news_world",
+   "channels": [
+    {
+     "id": "UC16niRr50-MSBwiO3YDb3RA",
+     "name": "BBC News"
+    },
+    {
+     "id": "UCknLrEdhRCp1aegoMqRaCZg",
+     "name": "DW News"
+    },
+    {
+     "id": "UCNye-wNBqNL5ZzHSJj3l8Bg",
+     "name": "Al Jazeera English"
+    },
+    {
+     "id": "UCoMdktPbSTixAyNGwb-UYkQ",
+     "name": "Sky News"
+    },
+    {
+     "id": "UCQfwfsi5VrQ8yKZ-UWmAEFg",
+     "name": "FRANCE 24 English"
+    },
+    {
+     "id": "UChqUTb7kYRX8-EiaN3XFrSQ",
+     "name": "Reuters"
+    },
+    {
+     "id": "UC52X5wxOL_s5yw0dQk7NtgA",
+     "name": "Associated Press"
+    },
+    {
+     "id": "UCvHDpsWKADrDia0c99X37vg",
+     "name": "i24NEWS English"
+    }
+   ]
+  },
+  {
+   "id": "news_fin",
+   "he": "חדשות פיננסיות",
+   "en": "Financial news",
+   "ru": "Финансовые новости",
+   "icon": "news_fin",
+   "channels": [
+    {
+     "id": "UCIALMKvObZNtJ6AmdCLP7Lg",
+     "name": "Bloomberg Television"
+    },
+    {
+     "id": "UCrp_UI8XtuYfpiqluWLD7Lw",
+     "name": "CNBC Television"
+    },
+    {
+     "id": "UCEAZeUIeJs0IjQiqTCdVSIg",
+     "name": "Yahoo Finance"
+    },
+    {
+     "id": "UCoUxsWakJucWg46KW5RsvPw",
+     "name": "Financial Times"
+    },
+    {
+     "id": "UCK7tptUDHh-RYDsdxO1-5QQ",
+     "name": "The Wall Street Journal"
+    },
+    {
+     "id": "UCnl6VjqWdAIqbuhPb7XR7LA",
+     "name": "כלכליסט"
+    }
+   ]
+  },
+  {
+   "id": "news_tech",
+   "he": "חדשות טכנולוגיה",
+   "en": "Tech news",
+   "ru": "Новости технологий",
+   "icon": "news_tech",
+   "channels": [
+    {
+     "id": "UCddiUEpeqJcYeBxX1IVBKvQ",
+     "name": "The Verge"
+    },
+    {
+     "id": "UCvJJ_dzjViJCoLf5uKUTwoA",
+     "name": "CNBC"
+    }
+   ]
+  }
+ ]
+}

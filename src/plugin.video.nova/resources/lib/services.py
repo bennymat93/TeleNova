@@ -319,6 +319,12 @@ def screen(handle, url):
         'backup', cloudsync.s('explain'), 'DefaultAddonProgram.png')
     row(s('export'), 'export', '', 'DefaultAddonProgram.png')
     row(s('import'), 'import', '', 'DefaultAddonProgram.png')
+    from . import webpair                          # 4.2.9: open TeleNova Web with the API details filled in
+    if webpair.available():
+        li = xbmcgui.ListItem(webpair.s('title'))
+        li.getVideoInfoTag().setPlot('%s[CR][CR]%s' % (webpair.s('scan'), webpair.s('note')))
+        li.setArt({'icon': 'DefaultNetwork.png'})
+        xbmcplugin.addDirectoryItem(handle, url(a='web_pair'), li, False)
     group = None
     for key, name, grp, _ in ROWS:
         if grp != group:

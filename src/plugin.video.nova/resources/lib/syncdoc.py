@@ -10,6 +10,10 @@ the same time both keep their changes and always end with the same result (whate
   searches     union by text, the later use wins; removed / cleared ones stay gone
   settings     per setting: the value that was changed last wins (every value carries the time of its change)
   files        whole small files (IPTV sources, source choices): the copy changed last wins
+  resume       a resume point is part of the history entry it belongs to: 'progress': {'t': seconds, 'd': seconds}
+               (d 0 = unknown), so "continue watching" travels with the entry (the later watch wins, as above).
+               A device that keeps its own resume points folds them in with with_progress() and takes the account's
+               out with progress_points(). Device-only things (the device profile, ...) are never in the document.
 
 A value this device has never changed carries time 0 - so a freshly installed device takes everything from the
 account and never pushes its empty defaults over a configured one.
@@ -83,6 +87,43 @@ def merge_history(a, b, cleared=0):
         if cur is None or (_history_ts(h), _when(h.get('when')), canon(h)) > (_history_ts(cur), _when(cur.get('when')), canon(cur)):
             best[k] = h
     return sorted(best.values(), key=lambda h: (_history_ts(h), _when(h.get('when')), h['key']), reverse=True)[:MAX_HISTORY]
+
+
+def progress_of(h):
+    """(position, duration) of a history entry's resume point, or None"""
+    p = h.get('progress') if isinstance(h, dict) else None
+    if not isinstance(p, dict) or isinstance(p.get('t'), bool) or isinstance(p.get('d'), bool):
+        return None
+    t, d = int(_num(p.get('t'))), int(_num(p.get('d')))
+    return (t, max(d, 0)) if t > 0 else None
+
+
+def with_progress(history, points):
+    """history + {key: {'t': s, 'd': s, 'at': ms}} -> history whose entries carry the newer resume points; an entry that
+    takes one gets the point's time (whole seconds), so the point wins the merge on every device. Entries with no
+    point, and points with no entry, are left alone."""
+    out = []
+    for h in history or []:
+        k = h.get('key') if isinstance(h, dict) else None
+        r = points.get(k) if isinstance(points, dict) and isinstance(k, str) else None
+        if isinstance(r, dict) and not isinstance(r.get('t'), bool):
+            at, t, d = int(_num(r.get('at')) // 1000), int(_num(r.get('t'))), int(_num(r.get('d')))
+            if t > 0 and at > _history_ts(h):
+                h = dict(h)
+                h['progress'] = {'t': t, 'd': max(d, 0)}
+                h['ts'] = at
+        out.append(h)
+    return out
+
+
+def progress_points(history):
+    """the resume points of a history list: {key: {'t': s, 'd': s, 'at': ms}} (the entry's time as 'at')"""
+    out = {}
+    for h in history or []:
+        p = progress_of(h)
+        if p and isinstance(h.get('key'), str):
+            out[h['key']] = {'t': p[0], 'd': p[1], 'at': int(_history_ts(h) * 1000)}
+    return out
 
 
 def merge_removed(a, b):
