@@ -414,3 +414,7 @@ python "$s\t_profiles.py" "$R\src\plugin.video.nova\resources\lib"; python "$s\t
 2. ⬜ עריכת המדריך למשתמש למצב החדש, עם צילומי מסך, והרחבה על מקסום תוכן מטלגרם.
 3. ⬜ QA קיצוני סופי על הכול, מטרה: ~0 באגים. לקצר זמני ריצה: להריץ crawl/playtest/stress ברצף אחד ברקע, לא בנפרד.
 4. ⬜ בסוף: רשימת כל השינויים + מה כל אחד תורם (חומר הגלם בסעיפים 3–4).
+
+## TeleNova 4.2.1-4.2.5 (2026-11-17)
+- 4.2.1 search shows a row when Telegram is not logged in on the device; 4.2.2 StremThru on by default (one-time switch-on of untouched devices); 4.2.3 iOS profile/touch-mode repair at every start, `device_profile` not synced; 4.2.4 `netfix.py` (TMDb: api.tmdb.org, then DNS over HTTPS) + one short network message; 4.2.5 the AI job poll sends `pos`.
+- **PC subtitle server** (`C:\Users\benny\kodi-build\server`, outside the repo, backups `*.before-load-20261117`): job heartbeat (pause after 90 s without polls, end after 30 min, `.part` kept, state `stopped` re-POSTed by Kodi), at most 20 min ahead of the viewer, backfill only while polled, beam 5->2, ffmpeg `-map 0:a:0 -threads 2` + reconnect at below-normal priority, NLLB on the CPU, models unloaded after 10 idle minutes, one job per key under a lock, supervisor starts the server below normal. Checked: speech test file (120 Hebrew cues), gate simulation (ahead / pause / resume / stop). int8_float16 not supported on the GTX 1050 (checked).

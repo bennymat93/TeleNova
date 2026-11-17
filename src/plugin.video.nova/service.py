@@ -410,7 +410,13 @@ class Flow:
         os.makedirs(ai_dir, exist_ok=True)
         while self.alive() and not mon.abortRequested():
             try:
-                r = requests.get('%s/jobs/%s' % (base, job_id), timeout=10)
+                # 4.2.5: the position travels with every poll - the server transcribes just ahead of it and pauses
+                # when the polls stop (it used to work through the whole film after the viewer had left)
+                pos = p.getTime() if self.alive() else 0
+                r = requests.get('%s/jobs/%s' % (base, job_id), params={'pos': '%.0f' % pos}, timeout=10)
+                if r.status_code == 200 and (r.json() or {}).get('state') == 'stopped':
+                    job['position'] = pos
+                    r = requests.post(base + '/jobs', json=job, timeout=10)     # an old job the server let go of
                 if r.status_code == 404:        # server restarted: hand the job over again (it resumes)
                     job['position'] = p.getTime() if self.alive() else job['position']
                     r = requests.post(base + '/jobs', json=job, timeout=10)
