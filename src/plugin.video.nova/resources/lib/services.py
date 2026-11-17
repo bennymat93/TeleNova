@@ -66,17 +66,17 @@ ABOUT = {
            'Real-Debrid (paid, your own account): fast direct links to files already on its servers.',
            'Real-Debrid (платный, ваш аккаунт): быстрые прямые ссылки на файлы на его серверах.'),
     'stremthru': ('StremThru (חינמי, קוד פתוח): בודק אילו קבצים באמת זמינים ב-Real-Debrid לפני שהם מוצגים. '
-                  'שים לב: מפתח ה-Real-Debrid נשלח לשרת StremThru. כבוי כברירת מחדל.',
+                  'שים לב: מפתח ה-Real-Debrid נשלח לשרת StremThru. פועל כברירת מחדל (4.2.2).',
                   'StremThru (free, open source): checks which files really are available at Real-Debrid before they '
-                  'are listed. Note: the Real-Debrid key is sent to the StremThru server. Off by default.',
+                  'are listed. Note: the Real-Debrid key is sent to the StremThru server. On by default (4.2.2).',
                   'StremThru (бесплатно, открытый код): проверяет, какие файлы действительно доступны в Real-Debrid. '
-                  'Внимание: ключ Real-Debrid отправляется на сервер StremThru. По умолчанию выключен.'),
-    'opensubs': ('זיהוי ודאי של קובץ לפי טביעת האצבע שלו ב-OpenSubtitles (חינמי, דורש מפתח API אישי). כבוי כברירת מחדל.',
+                  'Внимание: ключ Real-Debrid отправляется на сервер StremThru. По умолчанию включён (4.2.2).'),
+    'opensubs': ('זיהוי ודאי של קובץ לפי טביעת האצבע שלו ב-OpenSubtitles (חינמי, דורש מפתח API אישי). פועל כברירת מחדל (4.2.2).',
                  'Certain identification of a file by its OpenSubtitles fingerprint (free, needs your own API key). '
-                 'Off by default.',
+                 'On by default (4.2.2).',
                  'Точное опознание файла по отпечатку OpenSubtitles (бесплатно, нужен свой ключ API). По умолчанию выключено.'),
-    'ktuvit_own': ('כתוביות מ-Ktuvit עם החשבון האישי שלך במקום החשבון המשותף של התוסף. כבוי כברירת מחדל.',
-                   'Ktuvit subtitles through your own account instead of the add-on\'s shared one. Off by default.',
+    'ktuvit_own': ('כתוביות מ-Ktuvit עם החשבון האישי שלך במקום החשבון המשותף של התוסף. פועל כברירת מחדל (4.2.2).',
+                   'Ktuvit subtitles through your own account instead of the add-on\'s shared one. On by default (4.2.2).',
                    'Субтитры Ktuvit через ваш аккаунт вместо общего аккаунта дополнения. По умолчанию выключено.'),
     'sub_ktuvit': ('אתר הכתוביות Ktuvit', 'The Ktuvit subtitle site', 'Сайт субтитров Ktuvit'),
     'sub_wizdom': ('אתר הכתוביות Wizdom', 'The Wizdom subtitle site', 'Сайт субтитров Wizdom'),

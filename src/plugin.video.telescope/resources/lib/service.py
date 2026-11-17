@@ -26,7 +26,28 @@ def _foreign(addon_id, key):
         return ''
 
 
+def _stremthru_on_once():
+    """4.2.2: StremThru is part of the build (owner's decision 17/11). A device that never touched the switch still
+    holds the old default (off) - Kodi stores it as value "false" marked default="true". Turned on once; a device
+    whose owner switched it off later keeps it off (the flag file says this was done)."""
+    flag = os.path.join(common.PROFILE, 'st_default_422')
+    if os.path.exists(flag):
+        return
+    try:
+        import re
+        path = os.path.join(common.PROFILE, 'settings.xml')
+        xml = open(path, encoding='utf-8').read() if os.path.exists(path) else ''
+        m = re.search(r'<setting id="st_enabled"([^>]*)>([^<]*)<', xml)
+        if not m or ('default="true"' in m.group(1) and m.group(2).strip() == 'false'):
+            common.ADDON.setSetting('st_enabled', 'true')
+        os.makedirs(common.PROFILE, exist_ok=True)
+        open(flag, 'w').close()
+    except Exception as exc:
+        common.log('stremthru default: %s' % exc)
+
+
 def load_settings():
+    _stremthru_on_once()
     s = _load_settings()
     # embedded in the NovaTV build: keys entered once in NovaTV / POV are used here as well
     if not s['tmdb_key']:
@@ -77,7 +98,7 @@ def _load_settings():
         'rd_cloud': gb('rd_cloud', True), 'rd_max': gi('rd_max', 15),
         'max_mbit': gi('max_mbit', 40),             # 4.0.2: heavier files are not listed (0 = no limit)
         # 4.0.4: optional services, off by default
-        'st_enabled': gb('st_enabled', False), 'st_url': g('st_url').strip(),
+        'st_enabled': gb('st_enabled', True), 'st_url': g('st_url').strip(),
         'os_enabled': gb('os_enabled', False), 'os_key': g('os_key').strip(),
     }
 
