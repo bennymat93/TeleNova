@@ -5,11 +5,19 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
-- 2026-11-18 ~21:00 UTC. Released IPA on the site: build 4 (helper built in). Build 5 (run 44381189327, commit
-  e6a081f: name BN Stream, Telegram stopgap + "confirm in Telegram" button, in-app Safari sheet, keyboard handling)
-  was still running - CHECK IT FIRST: green? then `selftest-*.json` keys `helperPing.ok`, `helperRelay.status` 200,
-  `helperRefused.status` 403, `helperPathRule` 403, `tnHelperHas`, `rdDeviceCode.hasDeviceCode`, `tgShims`, and
-  the three screenshots (artifact `simulator-run`).
+- OWNER'S BUDGET RULE (2026-11-18, all sessions): 15 USD loaded - finish the iOS app first, in the cheapest way
+  (no agent fan-out, no long polling, short answers), then the APK if money is left; everything else is STOPPED
+  until he connects another account.
+- 2026-11-18 ~21:45 UTC. On the site: IPA of build 4 (helper built in). Builds 5 and 6 "failed" only because GitHub
+  had no free macOS runner ("job was not acquired by Runner") - not a code error. Run 44382943591 (commit 396aecc,
+  holds everything: name BN Stream, Telegram stopgap + "confirm in Telegram" button, in-app Safari sheet, keyboard
+  handling, menu button moved to the bottom-left strip under the tab bar) was RE-RUN (attempt 2, in progress).
+  If it fails the same way: `timeout 50 gh api -X POST repos/bennymat93/TeleNova/actions/runs/44382943591/rerun > x`.
+- WHEN IT IS GREEN: read `selftest-*.json` from artifact `simulator-run` (keys `helperPing.ok`,
+  `helperRelay.status` 200, `helperRefused.status` 403, `helperPathRule` 403, `tnHelperHas`,
+  `rdDeviceCode.hasDeviceCode`, `tgShims`), look at `phone-live.png` (the "..." button must sit in the bottom-left
+  corner under the tab bar, not over content), check the site serves the new IPA, send the IPA to the owner.
+  The owner HAS the app installed on a real iPhone (his screenshot, build 3 or 4) - so signing and install work.
 - Owner's requests since the first release and their state:
   1. Telegram sign-in: ROOT CAUSE FIXED IN WEB (commit 6ba19d5, live): `web/tg.js` called `dropPending()` /
      `setFlood()` that were never defined. iOS also carries a stopgap in `bridge.js` and a native button that opens
