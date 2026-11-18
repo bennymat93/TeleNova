@@ -97,6 +97,7 @@ def _load_settings():
         'rd_torrentio_on': gb('rd_torrentio_on', True), 'rd_torrentio_key': gb('rd_torrentio_key', True),
         'rd_cloud': gb('rd_cloud', True), 'rd_max': gi('rd_max', 15),
         'max_mbit': gi('max_mbit', 40),             # 4.0.2: heavier files are not listed (0 = no limit)
+        'link_probe': True,                         # 5.0: files are also judged against this connection's speed (linkspeed.py)
         # 4.0.4: optional services, off by default
         'st_enabled': gb('st_enabled', True), 'st_url': g('st_url').strip(),
         'os_enabled': gb('os_enabled', False), 'os_key': g('os_key').strip(),

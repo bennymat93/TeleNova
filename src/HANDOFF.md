@@ -9,21 +9,23 @@
 החלטה שלו) – ובינתיים להמשיך בכל השאר.
 
 <!-- IN-PROGRESS:START -->
-### IN PROGRESS – עודכן 2026-11-18 20:05 (להמשיך מכאן)
-**הנחיות הבעלים שנאמרו ב-18/11 (מחייבות את מי שממשיך):** לעבוד חסכוני (בלי ריבוי סוכנים, בדיקות ממוקדות); לעדכן את הבלוק הזה כל כמה דקות (`python <scratch>/ho.py` או עריכה ידנית בין הסימונים); לשחרר קודם את ה-APK וה-IPA; **בסוף הכול** – לעלות ל-**גרסה 5.0** (`bump.py 5.0.0`) ולעדכן את כל המדריכים (`guide.html`, `README.md`, `web/data/help/*.json`, `web/README.md`).
+### IN PROGRESS – עודכן 2026-11-18 20:45 (להמשיך מכאן)
+**הנחיות הבעלים שנאמרו ב-18/11 (מחייבות את מי שממשיך):** לעבוד חסכוני (בלי ריבוי סוכנים, בדיקות ממוקדות); לעדכן את הבלוק הזה כל כמה דקות (`python src/tools/handoff_block.py "<תאריך שעה>" <קובץ טקסט>` או עריכה ידנית בין הסימונים); לשחרר קודם את ה-APK וה-IPA; **בסוף הכול** – לעלות ל-**גרסה 5.0** (`bump.py 5.0.0`) ולעדכן את כל המדריכים (`guide.html`, `README.md`, `web/data/help/*.json`, `web/README.md`).
 
-**סדר העבודה שנותר:**
-1. **נגן הרשת – כל סוגי הקבצים (באמצע, רוב העבודה נעשתה).** `web/compat.js` (חדש) + `web/vendor/avplayer-1.3.1/` (libmedia AVPlayer 1.3.1, LGPL, 33 קבצים, hash אומת מול jsDelivr). `player.js`: `tryCompat()` נכנס אוטומטית כש-`fail('media')` מסווג codec או כש-`softCheck` מוצא "אין תמונה / אין קול"; `dropCompat()` בניקוי וב-`start()`. `compat.attach(v, url)` גורם ל-`<video>` של הנגן לענות בשם המנוע (currentTime / duration / play / pause / אירועים), כך שכל הכפתורים נשארים. CSP ב-`index.html`: נוספו `'wasm-unsafe-eval'` ו-`blob:` ל-script-src (ה-AudioWorklet של הספרייה הוא blob – בלי זה נכשל). מפענחי WASM נמשכים מ-jsDelivr (`gh/zhaohappy/libmedia@1.3.1/dist`). `web/version.js` = 5.1.0.
-   - **נבדק בדפדפן (Chromium, localhost):** MKV עם HEVC + AC3 מתנגן, קפיצה ל-40 ש', השהיה, משך – תקין.
-   - **לא גמור:** (א) MKV עם DTS ו-AVI (XviD + MP3) – המנוע נכנס והמפענחים ירדו, אבל הניגון לא התחיל בבדיקה; ייתכן שזה רק כי חלון הדפדפן המובנה היה מוסתר (דף ברקע) – לבדוק שוב כשהחלון גלוי. (ב) `detach()` תוקן ל-`stop(true)` ואז `destroy()` (מופעים ישנים נשארו תקועים) – לאמת. (ג) כתוביות עברית שבתוך הקובץ (`pickSubtitle`) לא אומתו בעין. (ד) לא נבדק עם קובץ טלגרם אמיתי דרך `/tgstream/`. (ה) בדיקת node ל-helpers של `compat.js` (`toMs`, `activeCues`, `cueHtml`, `pickSubtitle`) – לכתוב `src/qa/web/t_compat.js` ולהוסיף ל-`run_web_tests.py`.
-   - קובצי בדיקה: `web/_t/` (לא בקומיט, למחוק לפני שחרור). ליצירה: ffmpeg lavfi testsrc2 + sine ל-`hevc_ac3.mkv`, `h264_dts.mkv`, `xvid_mp3.avi`. שרת מקומי: `.claude/launch.json` (`telenova-web`, פורט 8123).
-2. **גודל תצוגה (נעשה, נבדק):** `cfg.zoom` (50–200, ברירת מחדל 100), `applyZoom()` / `zoomControl()` ב-`app.js` – בקר − / אחוזים / + / 100% בראש מסך "עוד" ובהגדרות › כללי; `maximum-scale=1` ב-viewport ו-font-size ≥ 16px לשדות בטלפון / טאבלט (מבטל זום אוטומטי בהקלדה). האפליקציות טוענות את האתר החי ולכן מקבלות את זה ברענון.
-3. **רשת = כמו במחשב** (בקשת הבעלים): להשלים שירותים / הרחבות שחסרים בדפדפן לפי `docs/web-audit/kodi-features.md` סעיף 17 ו-`web-features.md`. הרבה תלוי ב-helper Worker (`worker/`) שלא פרוס – פריסה דורשת חשבון Cloudflare של הבעלים (לשאול אותו). לא התחיל.
-4. **ניגון בחיבור איטי** (Kodi + רשת): לא התחיל. כיוונים: בחירת איכות לפי מהירות נמדדת (`sources.playable`, `max_mbit`), חוצץ גדול יותר (`advancedsettings` cache), ב-HLS התחלה ברמה נמוכה + ABR שמרני (hls.js `startLevel`, `abrBandWidthFactor`, `maxBufferLength`), ניסיונות חוזרים ארוכים, ירידת איכות במקום עצירה.
-5. **אפליקציות (סשנים נפרדים, אותו checkout):** Android – תיקיות `android/` + `apk/`; iOS – `ios-app/` + `.github/workflows/ios-app.yml` + `ios/TeleNova-Web-*.ipa` (נבנה ב-GitHub Actions, לא חתום). שניהם קיבלו הנחיה: לטעון את האתר החי, לשחרר קובץ ראשון מהר. אם הסשנים נקטעו – לבדוק `git log -- android apk ios-app ios` ואת ה-README בכל תיקייה.
-6. **שחרור 5.0:** מחיקת `web/_t`, כל הבדיקות (`run_web_tests.py` + רשימת היחידה), `bump.py 5.0.0`, בילד, push, אימות באתר, עדכון כל המדריכים.
+**נעשה ונבדק מאז 4.3.0 (הכול בקומיט ונדחף; גרסת הרשת באתר 5.1.0, התוספים עדיין 4.3.0):**
+1. **נגן הרשת מנגן כל סוג קובץ** – `web/compat.js` + `web/vendor/avplayer-1.3.1/` (libmedia AVPlayer 1.3.1, LGPL; hash של 33 הקבצים אומת מול jsDelivr). `player.js`: `tryCompat()` נכנס אוטומטית כש-`fail('media')` מסווג codec או כש-`softCheck` מוצא "אין תמונה / אין קול"; `dropCompat()` בניקוי וב-`start()`. `compat.attach(v, url)` גורם ל-`<video>` של הנגן לענות בשם המנוע, כך שכל הכפתורים, נקודת ההמשך ו"הפרק הבא" נשארים. CSP: `'wasm-unsafe-eval'` + `blob:` ב-script-src (ה-AudioWorklet של הספרייה הוא blob). מפענחי WASM מ-jsDelivr (`gh/zhaohappy/libmedia@1.3.1/dist`).
+   **נבדק ב-Chromium על localhost (חלון גלוי!):** MKV HEVC+AC3, MKV H.264+DTS, AVI XviD+MP3 – מתנגנים; קפיצה, השהיה, משך, מעבר בין קבצים (המופע הקודם נהרס). בדיקה: `src/qa/web/t_compat.js` (23). **מלכודת:** כשחלון הדפדפן המובנה מוסתר הדף רץ ברקע והמנוע לא מתחיל לנגן – לבדוק רק כשהחלון גלוי (`show_pane preview`).
+   **לא נבדק:** כתוביות עברית שבתוך הקובץ (`pickSubtitle` – הקוד קיים, לא נראה בעין); קובץ טלגרם אמיתי דרך `/tgstream/`; 4K HEVC במכשיר חלש (פענוח תוכנה איטי – צפוי); Safari / iOS.
+2. **גודל תצוגה** – `cfg.zoom` (50–200, ברירת מחדל 100), `zoomControl()` ב-`app.js`: − / אחוזים / + / 100% בראש מסך "עוד" ובהגדרות › כללי; `maximum-scale=1` + font-size ≥ 16px לשדות בטלפון / טאבלט (בלי זום אוטומטי בהקלדה). נבדק בדפדפן. האפליקציות טוענות את האתר החי ומקבלות את זה ברענון.
+3. **חיבור איטי – חלק א' (נעשה):**
+   - מנוע הטלגרם: `plugin.video.telescope/resources/lib/linkspeed.py` (חדש) – מודד את מהירות החיבור (הורדה קצרה מ-speed.cloudflare.com, עד 4 ש', נשמר 10 דקות; קו של 24 Mbit ומעלה = בלי מגבלה). `sources.rate_caps()` מצמצם את המגבלות ל-75% מהקו; `sources.playable()` → `linkspeed.fit()`: קבצים כבדים מהקו לא מוצגים, עותק קל מקבל עדיפות, ואם כלום לא מתאים נשארים 3 הקלים ביותר עם סימון `heavy`. הגדרה `link_probe` (True). בדיקה: `qa/t_linkspeed.py`. מדידה אמיתית במחשב הזה: 421 Mbit (בלי מגבלה). **לא נבדק ב-Kodi חי על קו איטי אמיתי.**
+   - רשת: `hlsCfg()` / `hlsWatch()` ב-`app.js` (ערוצים חיים, `iptv.js`) ואותם ערכים ב-`player.js`: פתיחה לפי המהירות מהפעם הקודמת (`net_bw`), עלייה זהירה, חוצץ 60–180 ש', 8 ניסיונות למקטע, ירידת רמה אחרי 3 עצירות בדקה (`pl_slow_down`), 6 ניסיונות חיבור מחדש עם המתנה גדלה. נבדק: כאן 11 מנגן, המהירות נשמרת.
+   **חלק ב' (לא נעשה):** (א) Kodi: כשהנגן נתקע שוב ושוב (`Player.Caching` / buffering) – לקרוא ל-`linkspeed.note_slow()` ולהציע / לעבור לעותק קל יותר (צריך לקרוא את `service.py` של ה-hub ואת `stream.py`); (ב) ערוצים חיים ב-Kodi: הגדרות inputstream.adaptive לקו איטי (היום רק ל-`tv32` ב-`profiles.py`); (ג) קבצי MP4 ישירים ברשת (לא HLS) – אין ירידת איכות, רק מעבר לקישור אחר; (ד) להוסיף `t_linkspeed` לרשימת הבדיקות ב"בדיקות לפני כל שחרור".
 
-**מצב git:** 4.3.0 מפורסמת ומאומתת באתר (קומיט c315ab4). השינויים של סעיפים 1–2 בקומיט מקומי / נדחפים עם העדכון הזה (גרסת הרשת באתר תהיה 5.1.0).
+**נשאר, לפי הסדר:**
+4. **רשת = כמו במחשב** (בקשת הבעלים): לפי `docs/web-audit/kodi-features.md` סעיף 17 ו-`web-features.md`. הרבה תלוי ב-helper Worker (`worker/`) שלא פרוס – פריסה דורשת חשבון Cloudflare של הבעלים (**לשאול אותו**; חלופה לבדוק: פונקציית Edge ב-Vercel – מחבר Vercel מחובר בסשן). בלי helper אפשר: תיקוני הפגמים מ-`web-features.md` סעיף 3 שעוד לא טופלו (לבדוק אחד-אחד מול הקוד של 5.0), שדות הגדרה חסרים. לא התחיל.
+5. **אפליקציות (סשנים נפרדים, אותו checkout):** Android – `android/` + `apk/`; iOS – `ios-app/` + `.github/workflows/ios-app.yml` + `ios/TeleNova-Web-*.ipa` (GitHub Actions, לא חתום; קומיט ראשון bff5472). שניהם קיבלו הנחיה: לטעון את האתר החי, לשחרר קובץ ראשון מהר. אם נקטעו – `git log -- android apk ios-app ios` + ה-README בכל תיקייה.
+6. **שחרור 5.0:** מחיקת `web/_t`, `python src/qa/web/run_web_tests.py` + רשימת היחידה (+ `t_linkspeed`), `python src/qa/deploy_local.py` ובדיקת `final_checks` ב-Kodi, `bump.py 5.0.0`, בילד (מתכון למטה; stage מהבילד 4.3.0), push, אימות באתר, עדכון כל המדריכים.
 <!-- IN-PROGRESS:END -->
 
 ### המצב עכשיו
@@ -93,7 +95,7 @@ git add -A; git commit; git push origin gh-pages   # ואז לוודא את repo
 cd "C:\My Projects\novaTV Addon\src"
 python -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read(),f,feature_version=(3,8)) for f in glob.glob(r'plugin.*\**\*.py',recursive=True)]; print('ok')"
 python qa\undef.py "C:\My Projects\novaTV Addon\src"
-foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs'){ python "qa\$t.py" }
+foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs','t_linkspeed'){ python "qa\$t.py" }
 cd qa\agentC; python test_all.py; python test_rd.py; cd ..\..; python qa\t_profiles.py plugin.video.nova\resources\lib
 python qa\web\run_web_tests.py   # כל בדיקות הרשת + ה-Worker
 python qa\deploy_local.py; & qa\qa_live.ps1      # על Kodi הראשי, כשהוא לא מנגן (deploy_local מעתיק גם json מ-resources)

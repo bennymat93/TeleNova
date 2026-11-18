@@ -156,6 +156,7 @@
       pl_why_audio: 'קידוד הקול: %s', pl_why_container: 'סוג הקובץ: %s', pl_err_net: 'החיבור למקור נותק.', pl_err_dead: 'הקישור כבר לא עונה.',
       pl_nopicture: 'רק הקול מתנגן: הדפדפן לא תומך בקידוד התמונה הזה (%s).', pl_nosound: 'אין קול: הדפדפן לא תומך בקידוד הקול הזה (%s).',
       pl_compat: 'הדפדפן לא מנגן את הקובץ הזה – עובר לנגן המובנה…', pl_compat_on: 'מתנגן בנגן המובנה (MKV / HEVC / AC3 / DTS)',
+      pl_slow_down: 'החיבור איטי – עוברים לאיכות נמוכה יותר כדי שהניגון לא ייעצר',
       pl_keep: 'להמשיך לצפות', pl_retry: 'נסה שוב', pl_next_link: 'הקישור הבא', pl_next_try: 'הקישור לא עבד, מנסה את הבא...',
       pl_elsewhere: 'פתיחה בנגן אחר', pl_copy: 'העתק קישור', pl_copied: 'הקישור הועתק', pl_copy_manual: 'סמנו והעתיקו את הקישור:',
       pl_vlc: 'פתח ב-VLC', pl_kodi: 'פתח ב-Kodi', pl_m3u: 'קובץ רשימת ניגון (.m3u)', pl_share: 'שיתוף לאפליקציה',
@@ -179,6 +180,7 @@
       pl_why_audio: 'Sound format: %s', pl_why_container: 'File type: %s', pl_err_net: 'The connection to the source was lost.', pl_err_dead: 'The link does not answer any more.',
       pl_nopicture: 'Only the sound plays: this browser does not support this picture format (%s).', pl_nosound: 'No sound: this browser does not support this sound format (%s).',
       pl_compat: 'The browser cannot play this file - switching to the built-in engine…', pl_compat_on: 'Playing with the built-in engine (MKV / HEVC / AC3 / DTS)',
+      pl_slow_down: 'Slow connection - switching to a lower quality so playback does not stop',
       pl_keep: 'Keep watching', pl_retry: 'Try again', pl_next_link: 'Next link', pl_next_try: 'That link did not work, trying the next one...',
       pl_elsewhere: 'Open in another player', pl_copy: 'Copy link', pl_copied: 'Link copied', pl_copy_manual: 'Select and copy the link:',
       pl_vlc: 'Open in VLC', pl_kodi: 'Open in Kodi', pl_m3u: 'Playlist file (.m3u)', pl_share: 'Share to an app',
@@ -202,6 +204,7 @@
       pl_why_audio: 'Формат звука: %s', pl_why_container: 'Тип файла: %s', pl_err_net: 'Соединение с источником потеряно.', pl_err_dead: 'Ссылка больше не отвечает.',
       pl_nopicture: 'Играет только звук: браузер не поддерживает этот формат изображения (%s).', pl_nosound: 'Нет звука: браузер не поддерживает этот формат звука (%s).',
       pl_compat: 'Браузер не воспроизводит этот файл - включается встроенный плеер…', pl_compat_on: 'Воспроизводит встроенный плеер (MKV / HEVC / AC3 / DTS)',
+      pl_slow_down: 'Медленное соединение - качество снижено, чтобы воспроизведение не прерывалось',
       pl_keep: 'Смотреть дальше', pl_retry: 'Повторить', pl_next_link: 'Следующая ссылка', pl_next_try: 'Ссылка не сработала, пробуем следующую...',
       pl_elsewhere: 'Открыть в другом плеере', pl_copy: 'Скопировать ссылку', pl_copied: 'Ссылка скопирована', pl_copy_manual: 'Выделите и скопируйте ссылку:',
       pl_vlc: 'Открыть в VLC', pl_kodi: 'Открыть в Kodi', pl_m3u: 'Файл плейлиста (.m3u)', pl_share: 'Поделиться с приложением',
@@ -817,12 +820,41 @@
         ensureHls().then((Hls) => {
           if (!alive() || s.url !== url) return;
           if (Hls && Hls.isSupported()) {
-            const h = new Hls({enableWorker: true});
+            // 5.1, weak connections: start from what this device's line gave last time (1 Mbit/s when nothing is known,
+            // never the top level first), go up carefully and down quickly, hold a long buffer, and keep asking for a
+            // segment that did not arrive instead of giving up on the film
+            let lastBw = 0;
+            try { lastBw = Number(TN.get('net_bw', 0)) || 0; } catch (e) { /* no saved value */ }
+            const h = new Hls({enableWorker: true, capLevelToPlayerSize: true, startLevel: -1,
+              abrEwmaDefaultEstimate: Math.max(300000, Math.min(lastBw || 1000000, 8000000)), abrBandWidthFactor: 0.8, abrBandWidthUpFactor: 0.6,
+              maxBufferLength: 60, maxMaxBufferLength: 180, backBufferLength: 30, maxBufferHole: 0.5, nudgeMaxRetry: 12,
+              fragLoadingMaxRetry: 8, fragLoadingRetryDelay: 800, fragLoadingMaxRetryTimeout: 16000,
+              manifestLoadingMaxRetry: 6, manifestLoadingRetryDelay: 800, levelLoadingMaxRetry: 6, levelLoadingRetryDelay: 800});
             s.hls = h;
-            let netTries = 0, mediaTries = 0;
+            let netTries = 0, mediaTries = 0, stalls = [];
+            const keepBw = () => { try { const b = Math.round(h.bandwidthEstimate || 0); if (b > 50000) TN.put('net_bw', b); } catch (e) { /* not kept */ } };
+            h.on(Hls.Events.FRAG_BUFFERED, () => { if ((h._tnN = (h._tnN || 0) + 1) % 5 === 0) keepBw(); });
             h.on(Hls.Events.ERROR, (ev, d) => {
-              if (!d || !d.fatal || !alive()) return;
-              if (d.type === Hls.ErrorTypes.NETWORK_ERROR && netTries++ < 2) { try { h.startLoad(); return; } catch (e) { /* give up */ } }
+              if (!alive()) return;
+              // the picture stopped to wait three times within a minute: one level lower for the rest of this video
+              // (a lower picture that keeps playing is better than a sharp one that stops)
+              if (d && !d.fatal && d.details === 'bufferStalledError') {
+                const now = Date.now();
+                stalls = stalls.filter((x) => now - x < 60000); stalls.push(now);
+                if (stalls.length >= 3 && h.levels && h.levels.length > 1 && h.autoLevelEnabled) {
+                  const cur = h.currentLevel >= 0 ? h.currentLevel : h.loadLevel;
+                  if (cur > 0) { h.autoLevelCapping = cur - 1; stalls = []; flash(t('pl_slow_down')); }
+                }
+                return;
+              }
+              if (!d || !d.fatal) return;
+              // a dropped connection: asked again after 1, 2, 4 ... seconds (six times) before the error card
+              if (d.type === Hls.ErrorTypes.NETWORK_ERROR && netTries < 6) {
+                const wait = Math.min(16000, 1000 * Math.pow(2, netTries++));
+                spin.hidden = false;
+                setTimeout(() => { if (alive() && s.hls === h) { try { h.startLoad(); } catch (e) { fail('media', {hls: 'network'}); } } }, wait);
+                return;
+              }
               if (d.type === Hls.ErrorTypes.MEDIA_ERROR && mediaTries++ < 2) { try { h.recoverMediaError(); return; } catch (e) { /* give up */ } }
               fail('media', {hls: d.type === Hls.ErrorTypes.NETWORK_ERROR ? 'network' : 'media'});
             });

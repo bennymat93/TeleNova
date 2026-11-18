@@ -1033,19 +1033,26 @@ class Finder(object):
             tg = int(4.5 * 1048576 * 0.8)
         if other and tg:
             tg = min(tg, other)
-        return tg or other, other
+        tg, other = tg or other, other
+        # 5.0: a weak connection is a limit of its own (linkspeed.py): three quarters of what the line gives now.
+        # 0 = a fast line or nothing known - then only the source's own limits count, as before.
+        self._link_rate = self.link_rate()
+        from . import linkspeed
+        return linkspeed.caps(tg, other, self._link_rate)
+
+    def link_rate(self):
+        if not self.s.get('link_probe', True):
+            return 0
+        try:
+            from . import linkspeed
+            return linkspeed.shared(self.log).current()
+        except Exception:
+            return 0
 
     def playable(self, cands, runtime):
+        from . import linkspeed
         tg_cap, other_cap = self.rate_caps()
-        keep, dropped = [], 0
-        for c in cands:
-            cap = tg_cap if (c.get('backend') or 'tg') in ('tg', 'telemedia') else other_cap
-            dur = c.get('duration') or runtime
-            if cap and dur and c.get('size') and c['size'] / float(dur) > cap:
-                dropped += 1
-                continue
-            keep.append(c)
-        return keep, dropped
+        return linkspeed.fit(cands, tg_cap, other_cap, runtime, slow=bool(getattr(self, '_link_rate', 0)))
 
     # ------------------------------------------------------------------ 4.3: the device
     def _caps(self):

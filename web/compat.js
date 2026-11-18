@@ -100,7 +100,7 @@
     v.parentNode.insertBefore(cues, box.nextSibling);
 
     const st = {t: Number(opts.at) || 0, dur: NaN, paused: true, ended: false, vol: v.volume, muted: v.muted, rate: 1, ready: 0, seeking: false,
-                err: null, w: 0, h: 0, dead: false, info: {}};
+                err: null, w: 0, h: 0, dead: false, info: {}, seekAt: 0};
     const fire = (name) => { if (!st.dead) { try { v.dispatchEvent(new Event(name)); } catch (e) { /* closed */ } } };
     const player = new AV({container: box, enableHardware: true, enableWebCodecs: true, enableWorker: true, isLive: !!opts.live,
       // the browser's own pipeline whenever it can take every stream (MKV with H.264 + AAC): least CPU, real <video>
@@ -119,11 +119,16 @@
       const html = list.map(cueHtml).join('<br>');
       if (cues._html !== html) { cues._html = html; cues.innerHTML = html ? '<span dir="auto" style="background:rgba(0,0,0,.45);padding:.08em .4em;border-radius:.2em;box-decoration-break:clone;-webkit-box-decoration-break:clone">' + html + '</span>' : ''; }
     }
-    player.on(E.TIME || 'time', (pts) => { if (st.seeking) return; st.t = fromMs(pts); drawCues(); fire('timeupdate'); });
+    // while a jump is in flight the engine still reports the old place; a jump that never reports back (asked for
+    // while the file was still opening) must not freeze the clock, so after 4 s the engine's time counts again
+    player.on(E.TIME || 'time', (pts) => {
+      if (st.seeking) { if (Date.now() - st.seekAt < 4000) return; st.seeking = false; fire('seeked'); }
+      st.t = fromMs(pts); drawCues(); fire('timeupdate');
+    });
     player.on(E.PLAYED || 'played', () => { st.paused = false; st.ended = false; fire('play'); fire('playing'); });
     player.on(E.PAUSED || 'paused', () => { st.paused = true; fire('pause'); });
     player.on(E.ENDED || 'ended', () => { st.ended = true; st.paused = true; fire('pause'); fire('ended'); });
-    player.on(E.SEEKING || 'seeking', () => { st.seeking = true; fire('seeking'); fire('waiting'); });
+    player.on(E.SEEKING || 'seeking', () => { st.seeking = true; st.seekAt = Date.now(); fire('seeking'); fire('waiting'); });
     player.on(E.SEEKED || 'seeked', () => { st.seeking = false; fire('seeked'); if (!st.paused) fire('playing'); });
     player.on(E.ERROR || 'error', (e) => fail(e));
     player.on(E.TIMEOUT || 'timeout', () => fail(new Error('timeout')));
@@ -132,7 +137,7 @@
     const def = (name, d) => { saved[name] = Object.getOwnPropertyDescriptor(v, name); Object.defineProperty(v, name, Object.assign({configurable: true, enumerable: true}, d)); };
     def('currentTime', {get: () => st.t, set: (x) => {
       const to = Math.max(0, Number(x) || 0);
-      st.t = to; st.seeking = true; drawCues(); fire('seeking');
+      st.t = to; st.seeking = true; st.seekAt = Date.now(); drawCues(); fire('seeking');
       run(() => player.seek(toMs(to))).then(() => { if (st.seeking) { st.seeking = false; fire('seeked'); } });
     }});
     def('duration', {get: () => st.dur});

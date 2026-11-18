@@ -546,7 +546,8 @@
         if (!(Hls && Hls.isSupported())) return failed();
         const viaHelper = (useHelper) => {
           try { if (hls) hls.destroy(); } catch (e) {}
-          hls = new Hls(useHelper && H ? helperHls(Hls, H.url()) : {});
+          hls = new Hls(TN.hlsCfg(useHelper && H ? helperHls(Hls, H.url()) : {}));      // 5.1: tuned for weak connections (app.js)
+          TN.hlsWatch(hls);
           let retried = false;
           hls.on(Hls.Events.ERROR, (ev, d) => {
             if (!d || !d.fatal || v !== mine) return;

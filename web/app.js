@@ -942,7 +942,8 @@ function openChannel(c) {
     wait.hidden = false;
     if (hls) { try { hls.destroy(); } catch (e) {} hls = null; }
     if (window.Hls && window.Hls.isSupported()) {
-      hls = new window.Hls();
+      hls = new window.Hls(hlsCfg());
+      hlsWatch(hls);
       hls.on(window.Hls.Events.ERROR, (ev, data) => { if (data && data.fatal) next(); });
       hls.loadSource(urls[at]);
       hls.attachMedia(v);
@@ -1957,7 +1958,36 @@ function go(hash) {
   if (sheetOpen && history.state && history.state.sheet) { pendingNav = hash; closeModal(); return; }
   location.hash = hash;
 }
+// 5.1, weak connections - one tuning for every HLS stream of the site (live channels here and in iptv.js; the film
+// player has the same values): start from what this device's line gave last time (1 Mbit/s when nothing is known,
+// never the top level first), go up carefully and down quickly, hold a long buffer, ask again for a segment that did
+// not arrive. hlsWatch keeps the measured speed and, after three waits within a minute, caps the picture one level
+// lower for that stream - a lower picture that keeps playing is better than a sharp one that stops.
+function hlsCfg(extra) {
+  let last = 0;
+  try { last = Number(get('net_bw', 0)) || 0; } catch (e) { /* nothing kept */ }
+  return Object.assign({enableWorker: true, capLevelToPlayerSize: true, startLevel: -1,
+    abrEwmaDefaultEstimate: Math.max(300000, Math.min(last || 1000000, 8000000)), abrBandWidthFactor: 0.8, abrBandWidthUpFactor: 0.6,
+    maxBufferLength: 60, maxMaxBufferLength: 180, backBufferLength: 30, maxBufferHole: 0.5, nudgeMaxRetry: 12,
+    fragLoadingMaxRetry: 8, fragLoadingRetryDelay: 800, fragLoadingMaxRetryTimeout: 16000,
+    manifestLoadingMaxRetry: 4, manifestLoadingRetryDelay: 800, levelLoadingMaxRetry: 6, levelLoadingRetryDelay: 800}, extra || {});
+}
+function hlsWatch(h, onLower) {
+  const Hls = window.Hls;
+  if (!h || !Hls) return;
+  let n = 0, stalls = [];
+  h.on(Hls.Events.FRAG_BUFFERED, () => { if (++n % 5) return; try { const b = Math.round(h.bandwidthEstimate || 0); if (b > 50000) put('net_bw', b); } catch (e) { /* not kept */ } });
+  h.on(Hls.Events.ERROR, (ev, d) => {
+    if (!d || d.fatal || d.details !== 'bufferStalledError') return;
+    const now = Date.now();
+    stalls = stalls.filter((x) => now - x < 60000); stalls.push(now);
+    if (stalls.length < 3 || !h.levels || h.levels.length < 2 || !h.autoLevelEnabled) return;
+    const cur = h.currentLevel >= 0 ? h.currentLevel : h.loadLevel;
+    if (cur > 0) { h.autoLevelCapping = cur - 1; stalls = []; if (onLower) { try { onLower(); } catch (e) { /* the note is optional */ } } }
+  });
+}
 const TN = Object.freeze({
+  hlsCfg, hlsWatch,
   version: WEB_VERSION,
   // registry
   registerPage, registerProvider, providers, provider, providerOn,
