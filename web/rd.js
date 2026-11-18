@@ -29,6 +29,8 @@
       rd_none: 'לא מחובר. התחברו עם קוד, או הדביקו טוקן מ-real-debrid.com/apitoken', rd_bad: 'הטוקן לא נראה תקין', rd_user: 'מחובר: %s · פרימיום עד %s',
       rd_nohelper: 'הדפדפן לא מצליח לפנות ל-Real-Debrid ישירות. הגדירו את העוזר (Worker) במסך השירותים, או השתמשו במצב המפתח של Torrentio.',
       rd_wait: 'Real-Debrid מכין את הקובץ... %s%', rd_fail: 'Real-Debrid לא הצליח: %s',
+      rd_checking: 'בודק את הטוקן…', rd_token_bad: 'Real-Debrid דחה את הטוקן הזה. בדקו שהעתקתם את כולו, או התחברו עם קוד.', rd_unchecked: '(לא נבדק: %s)',
+      rd_code_old: 'הקוד פג בלי שאושר.', rd_newcode: 'קוד חדש',
       rd_device: 'התחבר עם קוד', rd_device_go: 'פתחו את %s והקלידו את הקוד:', rd_device_wait: 'מחכה לאישור באתר Real-Debrid...',
       rd_device_ok: 'התחברת ל-Real-Debrid', rd_device_fail: 'ההתחברות לא הושלמה: %s', rd_cancel: 'ביטול', rd_or: 'או הדבקת טוקן:',
       rd_keymode: 'לשאול את Torrentio עם המפתח שלי (מסמן אילו קישורים מוכנים, כמו ב-Kodi)',
@@ -39,6 +41,8 @@
       rd_none: 'Not signed in. Sign in with a code, or paste a token from real-debrid.com/apitoken', rd_bad: 'That does not look like a token', rd_user: 'Signed in: %s · premium until %s',
       rd_nohelper: 'This browser cannot reach Real-Debrid directly. Set the helper (Worker) on the Services page, or use the Torrentio key mode.',
       rd_wait: 'Real-Debrid is preparing the file... %s%', rd_fail: 'Real-Debrid failed: %s',
+      rd_checking: 'Checking the token…', rd_token_bad: 'Real-Debrid refused this token. Check that all of it was copied, or sign in with a code.', rd_unchecked: '(not checked: %s)',
+      rd_code_old: 'The code expired before it was approved.', rd_newcode: 'New code',
       rd_device: 'Sign in with a code', rd_device_go: 'Open %s and type this code:', rd_device_wait: 'Waiting for the approval on the Real-Debrid site...',
       rd_device_ok: 'Signed in to Real-Debrid', rd_device_fail: 'The sign-in did not finish: %s', rd_cancel: 'Cancel', rd_or: 'Or paste a token:',
       rd_keymode: 'Ask Torrentio with my key (marks which links are ready, as in Kodi)',
@@ -49,6 +53,8 @@
       rd_none: 'Вход не выполнен. Войдите по коду или вставьте токен с real-debrid.com/apitoken', rd_bad: 'Это не похоже на токен', rd_user: 'Вход: %s · премиум до %s',
       rd_nohelper: 'Браузер не может обратиться к Real-Debrid напрямую. Укажите помощник (Worker) на странице сервисов или включите режим ключа Torrentio.',
       rd_wait: 'Real-Debrid готовит файл... %s%', rd_fail: 'Real-Debrid не смог: %s',
+      rd_checking: 'Проверяю токен…', rd_token_bad: 'Real-Debrid отклонил этот токен. Проверьте, что он скопирован целиком, или войдите по коду.', rd_unchecked: '(не проверено: %s)',
+      rd_code_old: 'Код истёк без подтверждения.', rd_newcode: 'Новый код',
       rd_device: 'Войти по коду', rd_device_go: 'Откройте %s и введите код:', rd_device_wait: 'Ждём подтверждения на сайте Real-Debrid...',
       rd_device_ok: 'Вход в Real-Debrid выполнен', rd_device_fail: 'Вход не завершён: %s', rd_cancel: 'Отмена', rd_or: 'Или вставьте токен:',
       rd_keymode: 'Спрашивать Torrentio с моим ключом (отмечает готовые ссылки, как в Kodi)',
@@ -116,7 +122,9 @@
     const r = await call(OAUTH + '/device/code?' + form({client_id: CLIENT, new_credentials: 'yes'}), {});
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.device_code || !j.user_code) throw fail('device', 'HTTP ' + r.status);
-    return {device_code: String(j.device_code), user_code: String(j.user_code), url: 'https://real-debrid.com/device',
+    const direct = String(j.direct_verification_url || '');
+    return {device_code: String(j.device_code), user_code: String(j.user_code),
+      url: /^https:\/\/real-debrid\.com\//.test(direct) ? direct : 'https://real-debrid.com/device',
       interval: Math.max(3, Number(j.interval) || 5), expires: Date.now() + (Number(j.expires_in) || 600) * 1000};
   }
   // -> true when signed in, false while the viewer has not approved yet
@@ -244,7 +252,15 @@
       const inp = el.querySelector('#rd_in');
       if (!inp.value.trim() || !setToken(inp.value.trim())) { st.textContent = t('rd_bad'); return; }
       inp.value = '';
-      settingsPanel(el);
+      st.textContent = t('rd_checking');
+      // 5.1.2: the token is asked for its account before it is called signed in (a wrong one used to read "saved")
+      user().then(() => { settingsPanel(el); TN.emit('settings', 'rd'); }, (e) => {
+        const refused = /^(bad_token|http_401|http_403)$/.test(String(e && e.code));
+        if (refused) setToken('');
+        settingsPanel(el);
+        const s2 = el.querySelector('#rd_st');
+        if (s2) s2.textContent = refused ? t('rd_token_bad') : t('rd_saved') + ' ' + t('rd_unchecked', clean(e));
+      });
     };
     el.querySelector('#rd_km').onchange = (e) => TN.put('rd_torrentio', !!e.target.checked);
     const cl = el.querySelector('#rd_cl');
@@ -259,14 +275,25 @@
           `<button class="btn ghost" id="rd_cp">${esc(t('rd_copy'))}</button><button class="btn ghost" id="rd_cx">${esc(t('rd_cancel'))}</button></div>` +
           `<p class="hint" role="status">${esc(t('rd_device_wait'))}</p>`;
         box.querySelector('#rd_cx').onclick = () => { pollRun++; box.innerHTML = ''; };
+        const site = box.querySelector('a.btn');
+        if (site) site.addEventListener('click', () => { try { navigator.clipboard.writeText(d.user_code).catch(() => {}); } catch (e) { /* no clipboard */ } });
         box.querySelector('#rd_cp').onclick = (ev) => {
           const done = () => { ev.target.textContent = t('rd_copied'); };
           if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(d.user_code).then(done, () => {});
         };
-        while (my === pollRun && document.body.contains(box) && Date.now() < d.expires) {
-          await sleep(d.interval * 1000);
-          if (my !== pollRun || !document.body.contains(box)) return;
-          if (await devicePoll(d.device_code)) {
+        let wake = null;
+        const onVis = () => { if (!document.hidden && wake) wake(); };      // back from the Real-Debrid tab: ask at once
+        document.addEventListener('visibilitychange', onVis);
+        const nap = (ms) => new Promise((r) => { const id = setTimeout(r, ms); wake = () => { clearTimeout(id); r(); }; });
+        const live = () => my === pollRun && document.body.contains(box);
+        while (live() && Date.now() < d.expires) {
+          await nap(d.interval * 1000);
+          if (!live()) { document.removeEventListener('visibilitychange', onVis); return; }
+          let okNow = false;
+          // a dropped connection or one odd answer is not the end: the code stays good until it expires
+          try { okNow = await devicePoll(d.device_code); } catch (e) { if (e && e.code === 'needs_helper') throw e; }
+          if (okNow) {
+            document.removeEventListener('visibilitychange', onVis);
             settingsPanel(el);
             const s2 = el.querySelector('#rd_st'); if (s2) s2.textContent = t('rd_device_ok');
             if (TN.toast) TN.toast(t('rd_device_ok'));
@@ -274,7 +301,11 @@
             return;
           }
         }
-        if (my === pollRun && document.body.contains(box)) box.innerHTML = `<p class="hint">${esc(t('rd_device_fail', 'timeout'))}</p>`;
+        document.removeEventListener('visibilitychange', onVis);
+        if (my === pollRun && document.body.contains(box)) {
+          box.innerHTML = `<p class="hint" role="alert">${esc(t('rd_code_old'))}</p><div class="links"><button class="btn" id="rd_again">${esc(t('rd_newcode'))}</button></div>`;
+          box.querySelector('#rd_again').onclick = () => el.querySelector('#rd_dev').click();
+        }
       } catch (e) {
         if (my === pollRun) box.innerHTML = `<p class="hint" role="alert">${esc(e.code === 'needs_helper' ? e.message : t('rd_device_fail', clean(e)))}</p>`;
       }
