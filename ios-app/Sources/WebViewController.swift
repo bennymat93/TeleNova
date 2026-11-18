@@ -544,7 +544,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         b.layer.cornerRadius = 19
         b.layer.borderWidth = 1
         b.layer.borderColor = UIColor(white: 1, alpha: 0.18).cgColor
-        b.alpha = 0.8
+        b.alpha = 0.7
         b.accessibilityLabel = "תפריט האפליקציה"
         b.showsMenuAsPrimaryAction = true
         func item(_ title: String, _ icon: String, _ run: @escaping () -> Void) -> UIAction {
@@ -559,6 +559,11 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
                 guard let self = self else { return }
                 if self.mode == .local || self.webView.url == nil { self.loadSite() } else { self.webView.reload() }
             },
+            item("החזרת הכפתור לפינה התחתונה", "arrow.down.left") { [weak self] in
+                UserDefaults.standard.removeObject(forKey: "menuPosX")
+                UserDefaults.standard.removeObject(forKey: "menuPosY")
+                self?.view.setNeedsLayout()
+            },
             item("הסתרת הכפתור עד ההפעלה הבאה", "eye.slash") { [weak self] in self?.menuButton.isHidden = true }
         ])
         b.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(dragMenu(_:))))
@@ -566,29 +571,40 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         view.addSubview(b)
     }
 
+    // Where the button may sit. Its home is the bottom corner, inside the strip under the page's tab bar (beside the
+    // home indicator), where the page draws nothing - so it never covers content. It can be dragged anywhere.
+    private let menuSize: CGFloat = 32
+    private func menuBounds() -> (minX: CGFloat, maxX: CGFloat, minY: CGFloat, maxY: CGFloat) {
+        let safe = view.safeAreaInsets, size = menuSize
+        let minX = safe.left + 8, maxX = max(minX + 1, view.bounds.width - safe.right - size - 8)
+        let minY = safe.top + 6
+        // with a home indicator (bottom inset of 20 or more) the button goes into that strip; else just above the edge
+        let bottomGap: CGFloat = safe.bottom >= 20 ? max(1, (safe.bottom - size) / 2) : 6
+        let maxY = max(minY + 1, view.bounds.height - size - bottomGap)
+        return (minX, maxX, minY, maxY)
+    }
+
     private func placeMenuButton() {
-        let size: CGFloat = 38, safe = view.safeAreaInsets
-        let d = UserDefaults.standard
-        let fx = d.object(forKey: "menuX") as? Double ?? 0.0, fy = d.object(forKey: "menuY") as? Double ?? 0.62
-        let minX = safe.left + 6, maxX = max(minX, view.bounds.width - safe.right - size - 6)
-        let minY = safe.top + 6, maxY = max(minY, view.bounds.height - safe.bottom - size - 6)
-        menuButton.frame = CGRect(x: minX + CGFloat(fx) * (maxX - minX), y: minY + CGFloat(fy) * (maxY - minY), width: size, height: size)
+        let d = UserDefaults.standard, r = menuBounds()
+        // "menuPosX/Y" (not the keys of builds 1-5, whose default was the middle of the side edge)
+        let fx = d.object(forKey: "menuPosX") as? Double ?? 0.0, fy = d.object(forKey: "menuPosY") as? Double ?? 1.0
+        menuButton.frame = CGRect(x: r.minX + CGFloat(fx) * (r.maxX - r.minX), y: r.minY + CGFloat(fy) * (r.maxY - r.minY),
+                                  width: menuSize, height: menuSize)
+        menuButton.layer.cornerRadius = menuSize / 2
     }
 
     @objc private func dragMenu(_ g: UIPanGestureRecognizer) {
-        let size: CGFloat = 38, safe = view.safeAreaInsets
-        let minX = safe.left + 6, maxX = max(minX + 1, view.bounds.width - safe.right - size - 6)
-        let minY = safe.top + 6, maxY = max(minY + 1, view.bounds.height - safe.bottom - size - 6)
+        let r = menuBounds()
         let t = g.translation(in: view)
         g.setTranslation(.zero, in: view)
         var f = menuButton.frame
-        f.origin.x = min(max(f.origin.x + t.x, minX), maxX)
-        f.origin.y = min(max(f.origin.y + t.y, minY), maxY)
+        f.origin.x = min(max(f.origin.x + t.x, r.minX), r.maxX)
+        f.origin.y = min(max(f.origin.y + t.y, r.minY), r.maxY)
         menuButton.frame = f
         if g.state == .ended || g.state == .cancelled {
             let fx = f.midX < view.bounds.midX ? 0.0 : 1.0               // rests on the nearer side edge
-            UserDefaults.standard.set(fx, forKey: "menuX")
-            UserDefaults.standard.set(Double((f.origin.y - minY) / (maxY - minY)), forKey: "menuY")
+            UserDefaults.standard.set(fx, forKey: "menuPosX")
+            UserDefaults.standard.set(Double((f.origin.y - r.minY) / (r.maxY - r.minY)), forKey: "menuPosY")
             UIView.animate(withDuration: 0.2) { self.placeMenuButton() }
         }
     }
@@ -625,7 +641,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     // while typing: no floating button over a field, and no accidental pull-to-refresh that would wipe a half-typed code
     @objc private func keyboardChanged(_ n: Notification) {
         keyboardUp = n.name == UIResponder.keyboardWillShowNotification
-        menuButton.alpha = keyboardUp ? 0 : 0.8
+        menuButton.alpha = keyboardUp ? 0 : 0.7
         menuButton.isUserInteractionEnabled = !keyboardUp
         webView.scrollView.refreshControl?.isEnabled = !keyboardUp
         webView.scrollView.alwaysBounceVertical = !keyboardUp
