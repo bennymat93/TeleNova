@@ -2005,7 +2005,8 @@ const TN = Object.freeze({
     get: (k, d) => (k in cfg ? cfg[k] : d),
     set(k, v) { cfg[k] = v; put('cfg', cfg); applyCfg(); emit('settings', k); },
     synced: () => Object.assign({}, synced),
-    helper: () => httpsOnly(String(cfg.helper || '').replace(/\/+$/, '')),        // the optional Worker (WP-10)
+    // the helper Worker is built in: the project's own deployment (worker/) unless the viewer typed another address
+    helper: () => httpsOnly(String(cfg.helper || 'https://telenova-helper.hmi-analyzer.workers.dev').replace(/\/+$/, '')),
   }),
   // HTML / UI helpers
   esc, $, button, card, section, page, chips, skeleton, empty, modal, closeModal, favButton, cssUrl, paint, httpsOnly, kodiOnly,

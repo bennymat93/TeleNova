@@ -41,6 +41,13 @@
   const G = () => root.GramJS;
   const creds = () => { const c = A.get('tg_api', null); return c && /^\d{3,12}$/.test(String(c.id)) && /^[0-9a-f]{32}$/.test(String(c.hash)) ? c : null; };
   const savedSession = () => memSession || String(A.get('tg_session', '') || '');
+  // a phone login that waits for its code, and the time Telegram asked to wait (see the header): this tab's
+  // sessionStorage only. Called when a sign-in succeeds and when the login is wiped; storage that refuses must
+  // never break a sign-in. (Both were called but not defined: every sign-in failed at its last step.)
+  function dropPending() { try { sessionStorage.removeItem('bn_tg_pending'); } catch (e) { /* no storage */ } }
+  function setFlood(until) {
+    try { if (until) sessionStorage.setItem('bn_tg_flood', String(Number(until) || 0)); else sessionStorage.removeItem('bn_tg_flood'); } catch (e) { /* no storage */ }
+  }
   function set(s, patch) { state = s; Object.assign(info, patch || {}); draw(); }
 
   async function libs() {
