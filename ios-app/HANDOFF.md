@@ -52,4 +52,8 @@ He also asked that this file is kept current so another account can continue smo
   (replacing the previous one) and fixes the file name inside `ios/README-app.md`.
 
 ## Log
+- 18:20 UTC run 44362841328 sat queued 25+ min (macOS runner queue) and was cancelled; a pre-compile review found
+  2 compile errors (dictionary literals passed as Any?) + 1 crash path (JS dialog while another sheet closes) + the
+  simulator pick; all fixed, pull-to-refresh added, pushed again. Owner (via main session): release the IPA FIRST.
+  `ios/README-app.md` is drafted locally, pushed once the IPA exists (verification section still to write).
 - 17:49 UTC first push, run 44362841328.

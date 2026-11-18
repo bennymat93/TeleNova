@@ -55,15 +55,16 @@ jobs:
       - name: Pick simulators
         run: |
           xcrun simctl list devices available -j > /tmp/devs.json
-          python3 - <<'EOF' >> "$GITHUB_ENV"
-          import json, re
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-version)" python3 - <<'EOF' >> "$GITHUB_ENV"
+          import json, os, re
+          sdk = tuple(int(x) for x in (os.environ['SDK'].split('.') + ['0'])[:2])
           d = json.load(open('/tmp/devs.json'))['devices']
           def ver(k):
               m = re.search(r'iOS-(\d+)-(\d+)', k)
               return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
           for kind, var in (('iPhone', 'SIM_PHONE'), ('iPad', 'SIM_PAD')):
               for k in sorted(d, key=ver, reverse=True):
-                  hit = [x for x in d[k] if x['name'].startswith(kind) and ver(k) != (0, 0)]
+                  hit = [x for x in d[k] if x['name'].startswith(kind) and (0, 0) != ver(k) <= sdk]
                   if hit:
                       print('%s=%s' % (var, hit[0]['udid']))
                       print('%s_NAME=%s (%s)' % (var, hit[0]['name'], k.split('.')[-1]))

@@ -68,7 +68,12 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         webView.backgroundColor = WebViewController.background
         webView.scrollView.backgroundColor = WebViewController.background
         webView.scrollView.contentInsetAdjustmentBehavior = .never     // the page handles the notch (viewport-fit=cover)
-        webView.scrollView.bounces = false
+        // pull down at the top of the page = reload (a new web version shows after a reload, no new IPA needed)
+        let pull = UIRefreshControl()
+        pull.tintColor = .white
+        pull.addTarget(self, action: #selector(pulled(_:)), for: .valueChanged)
+        webView.scrollView.refreshControl = pull
+        webView.scrollView.alwaysBounceVertical = true
         webView.allowsBackForwardNavigationGestures = true            // edge swipe = the page's own back (hash history)
         webView.allowsLinkPreview = false
         view.addSubview(webView)
@@ -102,6 +107,11 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         mode = .live
         let url = URL(string: WebViewController.site.absoluteString + hash) ?? WebViewController.site
         webView.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 25))
+    }
+
+    @objc private func pulled(_ sender: UIRefreshControl) {
+        if mode == .local || webView.url == nil { if !forceOffline { loadSite() } } else { webView.reload() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { sender.endRefreshing() }
     }
 
     private func goLocal() {
@@ -286,6 +296,12 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         return t
     }
 
+    // a page dialog whose answer is never given crashes the web view, so it is shown only when it really can be
+    private var canPresentNow: Bool {
+        let t = top
+        return t.viewIfLoaded?.window != nil && t.presentedViewController == nil && !t.isBeingPresented && !t.isBeingDismissed
+    }
+
     private func show(_ c: UIViewController) {
         if let pop = c.popoverPresentationController, pop.sourceView == nil {
             pop.sourceView = menuButton.isHidden ? view : menuButton
@@ -296,7 +312,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
                  initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
-        if selftest { completionHandler(); return }
+        if selftest || !canPresentNow { completionHandler(); return }
         let a = UIAlertController(title: nil, message: message, preferredStyle: .alert)
         a.addAction(UIAlertAction(title: "אישור", style: .default) { _ in completionHandler() })
         show(a)
@@ -305,6 +321,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
                  initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
         if selftest { completionHandler(true); return }
+        if !canPresentNow { completionHandler(false); return }
         let a = UIAlertController(title: nil, message: message, preferredStyle: .alert)
         a.addAction(UIAlertAction(title: "ביטול", style: .cancel) { _ in completionHandler(false) })
         a.addAction(UIAlertAction(title: "אישור", style: .default) { _ in completionHandler(true) })
@@ -314,6 +331,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?,
                  initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (String?) -> Void) {
         if selftest { completionHandler(defaultText); return }
+        if !canPresentNow { completionHandler(nil); return }
         let a = UIAlertController(title: nil, message: prompt, preferredStyle: .alert)
         a.addTextField { $0.text = defaultText }
         a.addAction(UIAlertAction(title: "ביטול", style: .cancel) { _ in completionHandler(nil) })
@@ -352,7 +370,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             let dst = FileStore.destination(for: s.name)
             do {
                 try FileManager.default.moveItem(at: s.tmp, to: dst)
-                replyHandler(["ok": true, "path": FileStore.shortPath(dst)], nil)
+                replyHandler(["ok": true, "path": FileStore.shortPath(dst)] as [String: Any], nil)
                 saved(dst)
             } catch {
                 try? FileManager.default.removeItem(at: s.tmp)
@@ -364,7 +382,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             let data = head.hasSuffix(";base64") ? Data(base64Encoded: payload) : (payload.removingPercentEncoding ?? payload).data(using: .utf8)
             let dst = FileStore.destination(for: (body["name"] as? String) ?? "file")
             guard let d = data, (try? d.write(to: dst)) != nil else { replyHandler(nil, "cannot save"); return }
-            replyHandler(["ok": true, "path": FileStore.shortPath(dst)], nil)
+            replyHandler(["ok": true, "path": FileStore.shortPath(dst)] as [String: Any], nil)
             saved(dst)
         case "files": showFiles(); replyHandler(true, nil)
         case "import": importFiles(); replyHandler(true, nil)
