@@ -110,13 +110,64 @@ def own_guide(rows, now=None, days=3, hours=6):
 
 
 def own_rows(m3u_lines):
-    """the playlist lines -> [(guide id, names)] of the channels that carry the build's own guide id (bn.<key>)"""
-    rows, seen = [], set()
+    """the playlist lines -> [(guide id, names)] of the channels that carry the build's own guide id (bn.<key>,
+    and bn.w.<id> of a world channel)"""
+    rows, seen, by_id = [], set(), None
     for line in m3u_lines:
         m = re.search(r'tvg-id="bn\.([^"]+)"', line) if line.startswith('#EXTINF') else None
-        if m and m.group(1) in CHANNELS and m.group(1) not in seen:
+        if not m or m.group(1) in seen:
+            continue
+        if m.group(1) in CHANNELS:
             seen.add(m.group(1))
             rows.append(('bn.' + m.group(1), CHANNELS[m.group(1)][0]))
+        elif m.group(1).startswith('w.'):
+            if by_id is None:
+                by_id = {w['id']: w for w in world()}
+            w = by_id.get(m.group(1)[2:])
+            if w:
+                seen.add(m.group(1))
+                rows.append(('bn.' + m.group(1), [w['name']]))
+    return rows
+
+
+# ------------------------------------------------------------ world channels
+# resources/channels_world.json: free channels from the broadcasters' own public streams (news, documentary, music,
+# kids, Russian-language), each one played to its first segment by qa/check_channels.py before it is listed.
+# {"channels": [{"id", "name", "group" (one of iptv.BLOCKS, not Israel), "lang", "url" (https HLS), "logo", "source"}]}
+WORLD_GROUPS = ('News', 'Movies', 'Series', 'Kids', 'Sport', 'Documentary', 'Music', 'Russian', 'Other')
+WORLD_GUIDE = 'bn.w.'            # + id: the guide id of a world channel that no guide lists
+_world = {}
+
+
+def world(path=None):
+    """the rows of channels_world.json that are fit to list (id, name, an https stream, a known group; an id or a
+    name only once); a missing or broken file is an empty list - the Israeli channels never depend on it"""
+    import io
+    import json
+    import os
+    if path is None:
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'channels_world.json')
+    if path in _world:
+        return _world[path]
+    rows, ids, names = [], set(), set()
+    try:
+        with io.open(path, encoding='utf-8') as f:
+            data = json.load(f).get('channels') or []
+    except Exception:
+        data = []
+    for w in data:
+        try:
+            cid, name, url = w['id'], w['name'].strip(), w['url']
+            ok = (re.match(r'^[a-z0-9_]+$', cid) and name and url.startswith('https://') and '|' not in url
+                  and '"' not in name and ',' not in name
+                  and w.get('group') in WORLD_GROUPS and cid not in ids and name.lower() not in names)
+        except Exception:
+            ok = False
+        if ok:
+            ids.add(cid)
+            names.add(name.lower())
+            rows.append(w)
+    _world[path] = rows
     return rows
 
 

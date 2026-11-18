@@ -26,6 +26,7 @@ except ImportError:                     # only the injected `http` can be used t
 
 API = 'https://api.opensubtitles.com/api/v1'
 USER_AGENT = 'TeleNova v4.0'            # the API refuses requests without "<app name> v<version>"
+CHECK_HASH = '8e245d9679d31e12'          # a well-formed hash for the key test (the API's own documentation example)
 BLOCK = 65536
 _MASK = 0xFFFFFFFFFFFFFFFF
 _WORDS = struct.Struct('<%dQ' % (BLOCK // 8))
@@ -178,7 +179,9 @@ class OpenSubs(object):
         Uses a tiny /subtitles search: the /infos/* endpoints answer without a valid key."""
         if not self.key:
             return None, 'no key'
-        code, _ = self._get('/subtitles', {'moviehash': '0000000000000000', 'moviehash_match': 'only'}, force=True)
+        # 4.3.0: not sixteen zeros - the API answers 400 ("moviehash must be 16 hex characters") to that value
+        # before it looks at the key, so a good key was reported as "http 400"
+        code, _ = self._get('/subtitles', {'moviehash': CHECK_HASH, 'moviehash_match': 'only'}, force=True)
         if code == 200:
             return True, 'ok'
         if code in (401, 403):

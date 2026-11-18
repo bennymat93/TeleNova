@@ -399,12 +399,14 @@ def _merge(notify):
         if len(urls) > 1:
             alt_urls[k] = urls
             best[k]['url'], best[k]['opts'] = 'plugin://plugin.video.nova/?a=live&alt=' + k, []
+    add_world(best, alt_urls, livefail.world())
     save('alternates.json', alt_urls)
     have, extra = set(), {}
     for c in best.values():
         # an Israeli channel unless the list marks it as another country's (the Russian 'Channel12.ru' is not Keshet 12)
         cc = ALIAS.get(country(c['attrs']), country(c['attrs'])) or ''
-        key = livefail.key_for(c['name']) if (c['group'] == 'Israel' or cc in ('', 'IL')) and c['group'] != 'Russian' else None
+        key = livefail.key_for(c['name']) if ((c['group'] == 'Israel' or cc in ('', 'IL')) and c['group'] != 'Russian'
+                                              and not c.get('world')) else None
         if key and key not in have:
             # 4.0.2: the streams the free lists carry for this channel stay in use, between the broadcaster's own
             # stream and Idan+ (a channel that played from its list keeps playing from it)
@@ -480,6 +482,9 @@ def _merge(notify):
             # guide says what it is instead of staying empty
             gid = 'bn.' + c['key']
             own_rows.append((gid, livefail.CHANNELS[c['key']][0]))
+        if not gid and c.get('world'):                           # a world channel no guide lists: the same kind of row
+            gid = livefail.WORLD_GUIDE + c['world']
+            own_rows.append((gid, [c['name']]))
         if gid:
             a['tvg-id'] = gid
         if c.get('key'):                                         # 4.1.2: the build's own logo for its own channels
@@ -509,6 +514,35 @@ def _merge(notify):
         else:
             xbmcgui.Dialog().notification('TeleNova', msg, xbmcgui.NOTIFICATION_INFO, 4000)
     return len(best), errors
+
+
+def add_world(best, alt_urls, rows):
+    """the build's own world channels (livefail.world(): the broadcasters' public streams, each played by
+    qa/check_channels.py) join the merged list, in the group their row names. A channel a free list also carries
+    under the same name becomes ONE channel: the tested stream first, the list's streams as its automatic
+    fallbacks (?a=live&alt=<name>, livefail.live). The Israeli rows are not touched: they are added after this,
+    by their own keys. best: {normalised name: channel}, alt_urls: {normalised name: [streams]} - both changed"""
+    shown = {}                      # the lists name a channel 'France 24 English (1080p)': compared as it is shown
+    for key, c in best.items():
+        shown.setdefault(norm(display_name(c['name'])), []).append(key)
+    for w in rows:
+        k = norm(w['name'])
+        if not k:
+            continue
+        c = {'attrs': {}, 'name': w['name'], 'opts': [], 'src': 'BN', 'q': 3, 'group': w['group'], 'world': w['id'],
+             'url': w['url']}
+        if w.get('logo'):
+            c['attrs']['tvg-logo'] = w['logo']
+        urls = [with_headers(c)]
+        for key in shown.get(k, []):
+            old = best.pop(key)
+            for u in alt_urls.pop(key, None) or ([with_headers(old)] if old.get('url', '').startswith('http') else []):
+                if u.split('|')[0] not in [x.split('|')[0] for x in urls]:
+                    urls.append(u)
+        if len(urls) > 1:
+            alt_urls[k] = urls
+            c['url'] = 'plugin://plugin.video.nova/?a=live&alt=' + k
+        best[k] = c
 
 
 FREE_GUIDE = os.path.join(PROFILE, 'free_guide.json.gz')     # last built guide: {'ids': {name: id}, 'parts': [...]}

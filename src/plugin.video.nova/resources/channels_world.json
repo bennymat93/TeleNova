@@ -1,0 +1,511 @@
+{
+ "about": "World channels of the build: free channels from the broadcasters' own public streams or their own free ad-supported feeds. No restream servers, no paid channels, no tokens. Every row is played to its first segment by src/qa/check_channels.py before it is listed; read by resources/lib/livefail.py world() and merged into the TV list by resources/lib/iptv.py add_world().",
+ "checked": "2026-11-18",
+ "checked_from": "Israel",
+ "channels": [
+  {
+   "id": "france24_en",
+   "name": "France 24 English",
+   "group": "News",
+   "lang": "en",
+   "url": "https://live.france24.com/hls/live/2037218/F24_EN_HI_HLS/master_5000.m3u8",
+   "source": "the broadcaster's own public stream (live.france24.com)"
+  },
+  {
+   "id": "dw_en",
+   "name": "DW English",
+   "group": "News",
+   "lang": "en",
+   "url": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/master.m3u8",
+   "source": "the broadcaster's own public stream (Deutsche Welle, Akamai)",
+   "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Deutsche_Welle_symbol_2012.svg/960px-Deutsche_Welle_symbol_2012.svg.png"
+  },
+  {
+   "id": "euronews_en",
+   "name": "Euronews English",
+   "group": "News",
+   "lang": "en",
+   "url": "https://cdn-euronews.akamaized.net/live/eds/euronews-en/25002/index.m3u8",
+   "source": "the broadcaster's own public stream (Euronews, Akamai)"
+  },
+  {
+   "id": "nhk_world",
+   "name": "NHK World-Japan",
+   "group": "News",
+   "lang": "en",
+   "url": "https://masterpl.hls.nhkworld.jp/hls/w/live/smarttv.m3u8",
+   "source": "the broadcaster's own public stream (nhkworld.jp)",
+   "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/NHK_World-Japan_TV.svg/960px-NHK_World-Japan_TV.svg.png"
+  },
+  {
+   "id": "bloomberg_us",
+   "name": "Bloomberg TV US",
+   "group": "News",
+   "lang": "en",
+   "url": "https://bloomberg.com/media-manifest/streams/us.m3u8",
+   "source": "the broadcaster's own public stream (bloomberg.com)"
+  },
+  {
+   "id": "bloomberg_eu",
+   "name": "Bloomberg TV Europe",
+   "group": "News",
+   "lang": "en",
+   "url": "https://bloomberg.com/media-manifest/streams/eu.m3u8",
+   "source": "the broadcaster's own public stream (bloomberg.com)"
+  },
+  {
+   "id": "cgtn",
+   "name": "CGTN",
+   "group": "News",
+   "lang": "en",
+   "url": "https://english-livebkali.cgtn.com/live/encgtn.m3u8",
+   "source": "the broadcaster's own public stream (cgtn.com)",
+   "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/CGTN.svg/960px-CGTN.svg.png"
+  },
+  {
+   "id": "trt_world",
+   "name": "TRT World",
+   "group": "News",
+   "lang": "en",
+   "url": "https://tv-trtworld.medya.trt.com.tr/master.m3u8",
+   "source": "the broadcaster's own public stream (trt.com.tr)",
+   "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/TRT_World.svg/960px-TRT_World.svg.png"
+  },
+  {
+   "id": "abc_news_au",
+   "name": "ABC News Australia",
+   "group": "News",
+   "lang": "en",
+   "url": "https://abc-news-dmd-streams-1.akamaized.net/out/v1/701126012d044971b3fa89406a440133/index.m3u8",
+   "source": "the broadcaster's own public stream (ABC Australia, Akamai)"
+  },
+  {
+   "id": "cbs_news",
+   "name": "CBS News 24/7",
+   "group": "News",
+   "lang": "en",
+   "url": "https://cbsn-us.cbsnstream.cbsnews.com/out/v1/55a8648e8f134e82a470f83d562deeca/master.m3u8",
+   "source": "the broadcaster's own public stream (cbsnews.com)"
+  },
+  {
+   "id": "nbc_news_now",
+   "name": "NBC News NOW",
+   "group": "News",
+   "lang": "en",
+   "url": "https://xumo-drct-nbcnn-ir8ze.fast.nbcuni.com/live/master.m3u8",
+   "source": "the broadcaster's own free ad-supported (FAST) feed (nbcuni.com)"
+  },
+  {
+   "id": "arirang",
+   "name": "Arirang TV",
+   "group": "News",
+   "lang": "en",
+   "url": "https://amdlive-ch01-ctnd-com.akamaized.net/arirang_1ch/smil:arirang_1ch.smil/playlist.m3u8",
+   "source": "the broadcaster's own public stream (Arirang, Akamai)"
+  },
+  {
+   "id": "ndtv",
+   "name": "NDTV 24x7",
+   "group": "News",
+   "lang": "en",
+   "url": "https://web-ndtv24x7-uk.akamaized.net/hls/live/2109290/ndtv24x7uk/master.m3u8",
+   "source": "the broadcaster's own public stream (NDTV, Akamai)"
+  },
+  {
+   "id": "africanews_en",
+   "name": "Africanews English",
+   "group": "News",
+   "lang": "en",
+   "url": "https://cdn-euronews.akamaized.net/live/eds/africanews-en/25049/index.m3u8",
+   "source": "the broadcaster's own public stream (Euronews group, Akamai)"
+  },
+  {
+   "id": "gb_news",
+   "name": "GB News",
+   "group": "News",
+   "lang": "en",
+   "url": "https://live-gbnews.simplestreamcdn.com/s3/gbnews_subs/index.m3u8",
+   "source": "the broadcaster's own public stream (GB News player CDN)",
+   "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/35/GB_News_Logo.svg/960px-GB_News_Logo.svg.png"
+  },
+  {
+   "id": "newsmax",
+   "name": "Newsmax TV",
+   "group": "News",
+   "lang": "en",
+   "url": "https://nmx1ota.akamaized.net/hls/live/2107010/Live_1/index.m3u8",
+   "source": "the broadcaster's own public stream (Newsmax, Akamai)"
+  },
+  {
+   "id": "scripps_news",
+   "name": "Scripps News",
+   "group": "News",
+   "lang": "en",
+   "url": "https://content.uplynk.com/channel/4bb4901b934c4e029fd4c1abfc766c37.m3u8",
+   "source": "the broadcaster's own public stream (Scripps, Uplynk)"
+  },
+  {
+   "id": "alarabiya_en",
+   "name": "Al Arabiya English",
+   "group": "News",
+   "lang": "en",
+   "url": "https://live.alarabiya.net/alarabiapublish/english/playlist_dvr.m3u8",
+   "source": "the broadcaster's own public stream (alarabiya.net)"
+  },
+  {
+   "id": "un_web_tv",
+   "name": "UN Web TV",
+   "group": "News",
+   "lang": "en",
+   "url": "https://cdnapi.kaltura.com/p/2503451/sp/250345100/playManifest/entryId/1_gb6tjmle/protocol/https/format/applehttp/a.m3u8",
+   "source": "the broadcaster's own public stream (United Nations, Kaltura)"
+  },
+  {
+   "id": "france24_fr",
+   "name": "France 24 French",
+   "group": "News",
+   "lang": "fr",
+   "url": "https://live.france24.com/hls/live/2037179/F24_FR_HI_HLS/master_5000.m3u8",
+   "source": "the broadcaster's own public stream (live.france24.com)"
+  },
+  {
+   "id": "tv5monde_info",
+   "name": "TV5Monde Info",
+   "group": "News",
+   "lang": "fr",
+   "url": "https://ott.tv5monde.com/Content/HLS/Live/channel(info)/variant.m3u8",
+   "source": "the broadcaster's own public stream (tv5monde.com)"
+  },
+  {
+   "id": "france24_ar",
+   "name": "France 24 Arabic",
+   "group": "News",
+   "lang": "ar",
+   "url": "https://live.france24.com/hls/live/2037222/F24_AR_HI_HLS/master_5000.m3u8",
+   "source": "the broadcaster's own public stream (live.france24.com)"
+  },
+  {
+   "id": "dw_ar",
+   "name": "DW Arabic",
+   "group": "News",
+   "lang": "ar",
+   "url": "https://dwamdstream103.akamaized.net/hls/live/2015526/dwstream103/master.m3u8",
+   "source": "the broadcaster's own public stream (Deutsche Welle, Akamai)",
+   "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Deutsche_Welle_symbol_2012.svg/960px-Deutsche_Welle_symbol_2012.svg.png"
+  },
+  {
+   "id": "bbc_arabic",
+   "name": "BBC News Arabic",
+   "group": "News",
+   "lang": "ar",
+   "url": "https://vs-hls-pushb-ww-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_arabic_tv/pc_hd_abr_v2.m3u8",
+   "source": "the broadcaster's own public stream (BBC World Service, worldwide feed)"
+  },
+  {
+   "id": "skynews_ar",
+   "name": "Sky News Arabia",
+   "group": "News",
+   "lang": "ar",
+   "url": "https://live-stream.skynewsarabia.com/c-horizontal-channel/horizontal-stream/index.m3u8",
+   "source": "the broadcaster's own public stream (skynewsarabia.com)"
+  },
+  {
+   "id": "alaraby",
+   "name": "Al Araby TV",
+   "group": "News",
+   "lang": "ar",
+   "url": "https://live.kwikmotion.com/alaraby1live/alaraby_abr/playlist.m3u8",
+   "source": "the broadcaster's own public stream (Al Araby player CDN)"
+  },
+  {
+   "id": "current_time",
+   "name": "Настоящее Время",
+   "group": "Russian",
+   "lang": "ru",
+   "url": "https://rfe-ingest.akamaized.net/hls/live/2033043/tvmc05/master.m3u8",
+   "source": "the broadcaster's own public stream (RFE/RL, Akamai)"
+  },
+  {
+   "id": "euronews_ru",
+   "name": "Euronews по-русски",
+   "group": "Russian",
+   "lang": "ru",
+   "url": "https://cdn-euronews.akamaized.net/live/eds/euronews-ru/25071/index.m3u8",
+   "source": "the broadcaster's own public stream (Euronews, Akamai)"
+  },
+  {
+   "id": "tvrain",
+   "name": "Дождь",
+   "group": "Russian",
+   "lang": "ru",
+   "url": "https://wl.tvrain.tv/transcode/ngrp:ses_all/playlist.m3u8",
+   "source": "the broadcaster's own public stream (tvrain.tv)"
+  },
+  {
+   "id": "rbc",
+   "name": "РБК",
+   "group": "Russian",
+   "lang": "ru",
+   "url": "https://online-video.rbc.ru/spb/rbctv_spb.m3u8",
+   "source": "the broadcaster's own public stream (rbc.ru)"
+  },
+  {
+   "id": "shanson",
+   "name": "Шансон ТВ",
+   "group": "Russian",
+   "lang": "ru",
+   "url": "https://hls-shansontv.cdnvideo.ru/shansontv/smil:shansontv.smil/playlist.m3u8",
+   "source": "the broadcaster's own public stream (Shanson TV site CDN)"
+  },
+  {
+   "id": "soyuz",
+   "name": "Союз",
+   "group": "Russian",
+   "lang": "ru",
+   "url": "https://hls-tvsoyuz.cdnvideo.ru/tvsoyuz/soyuz/playlist.m3u8",
+   "source": "the broadcaster's own public stream (tv-soyuz.ru CDN)"
+  },
+  {
+   "id": "kanal24_ua",
+   "name": "24 Канал",
+   "group": "Russian",
+   "lang": "uk",
+   "url": "https://streamvideol1.luxnet.ua/news24/smil:news24.stream.smil/playlist.m3u8",
+   "source": "the broadcaster's own public stream (24tv.ua, Luxnet)"
+  },
+  {
+   "id": "bloomberg_originals",
+   "name": "Bloomberg Originals",
+   "group": "Documentary",
+   "lang": "en",
+   "url": "https://bloomberg.com/media-manifest/streams/qt.m3u8",
+   "source": "the broadcaster's own public stream (bloomberg.com)"
+  },
+  {
+   "id": "cgtn_doc",
+   "name": "CGTN Documentary",
+   "group": "Documentary",
+   "lang": "en",
+   "url": "https://english-livebkali.cgtn.com/live/doccgtn.m3u8",
+   "source": "the broadcaster's own public stream (cgtn.com)"
+  },
+  {
+   "id": "classic_arts",
+   "name": "Classic Arts Showcase",
+   "group": "Documentary",
+   "lang": "en",
+   "url": "https://classicarts.akamaized.net/hls/live/1024257/CAS/master.m3u8",
+   "source": "the broadcaster's own public stream (free non-profit arts channel)"
+  },
+  {
+   "id": "deluxe_music",
+   "name": "Deluxe Music",
+   "group": "Music",
+   "lang": "de",
+   "url": "https://sdn-global-live-streaming-packager-cache.3qsdn.com/13456/13456_264_live.m3u8",
+   "source": "the broadcaster's own public stream (deluxemusic.tv player CDN)"
+  },
+  {
+   "id": "trt_muzik",
+   "name": "TRT Muzik",
+   "group": "Music",
+   "lang": "tr",
+   "url": "https://tv-trtmuzik.medya.trt.com.tr/master.m3u8",
+   "source": "the broadcaster's own public stream (trt.com.tr)"
+  },
+  {
+   "id": "stingray_classica",
+   "name": "Stingray Classica",
+   "group": "Music",
+   "lang": "en",
+   "url": "https://lotus.stingray.com/manifest/classica-cla008-montreal/samsungtvplus/master.m3u8",
+   "source": "the broadcaster's own free ad-supported (FAST) feed (stingray.com)"
+  },
+  {
+   "id": "stingray_djazz",
+   "name": "Stingray DJAZZ",
+   "group": "Music",
+   "lang": "en",
+   "url": "https://lotus.stingray.com/manifest/djazz-djaads-montreal/samsungtvplus/master.m3u8",
+   "source": "the broadcaster's own free ad-supported (FAST) feed (stingray.com)",
+   "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Stingray_Djazz.png/960px-Stingray_Djazz.png"
+  },
+  {
+   "id": "stingray_hitlist",
+   "name": "Stingray Hit List",
+   "group": "Music",
+   "lang": "en",
+   "url": "https://lotus.stingray.com/manifest/ose-107ads-montreal/samsungtvplus/master.m3u8",
+   "source": "the broadcaster's own free ad-supported (FAST) feed (stingray.com)"
+  },
+  {
+   "id": "stingray_classic_rock",
+   "name": "Stingray Classic Rock",
+   "group": "Music",
+   "lang": "en",
+   "url": "https://lotus.stingray.com/manifest/ose-101ads-montreal/samsungtvplus/master.m3u8",
+   "source": "the broadcaster's own free ad-supported (FAST) feed (stingray.com)"
+  },
+  {
+   "id": "stingray_80s",
+   "name": "Stingray Remember the 80s",
+   "group": "Music",
+   "lang": "en",
+   "url": "https://lotus.stingray.com/manifest/ose-128ads-montreal/samsungtvplus/master.m3u8",
+   "source": "the broadcaster's own free ad-supported (FAST) feed (stingray.com)"
+  },
+  {
+   "id": "qello_concerts",
+   "name": "Qello Concerts by Stingray",
+   "group": "Music",
+   "lang": "en",
+   "url": "https://lotus.stingray.com/manifest/qello-qello001-montreal/samsungtvplus/master.m3u8",
+   "source": "the broadcaster's own free ad-supported (FAST) feed (stingray.com)"
+  },
+  {
+   "id": "pbs_kids",
+   "name": "PBS Kids",
+   "group": "Kids",
+   "lang": "en",
+   "url": "https://livestream.pbskids.org/out/v1/14507d931bbe48a69287e4850e53443c/est.m3u8",
+   "source": "the broadcaster's own public stream (pbskids.org)"
+  },
+  {
+   "id": "kika",
+   "name": "KiKA",
+   "group": "Kids",
+   "lang": "de",
+   "url": "https://kikahls.akamaized.net/hls/live/2022690/livetvkika_ww/master.m3u8",
+   "source": "the broadcaster's own public stream (ARD/ZDF children channel, worldwide feed)"
+  },
+  {
+   "id": "redbull_tv",
+   "name": "Red Bull TV",
+   "group": "Sport",
+   "lang": "en",
+   "url": "https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8",
+   "source": "the broadcaster's own public stream (Red Bull Media House, Akamai)"
+  },
+  {
+   "id": "bein_xtra",
+   "name": "beIN SPORTS XTRA",
+   "group": "Sport",
+   "lang": "en",
+   "url": "https://bein-xtra-bein.amagi.tv/playlist.m3u8",
+   "source": "the broadcaster's own free ad-supported (FAST) feed (beIN free channel, Amagi)"
+  },
+  {
+   "id": "sportitalia_solocalcio",
+   "name": "Sportitalia Solocalcio",
+   "group": "Sport",
+   "lang": "it",
+   "url": "https://distribution.sportitalialive.it/sportitalia/sisolocalcio_abr/playlist.m3u8",
+   "source": "the broadcaster's own public stream (sportitalialive.it)"
+  },
+  {
+   "id": "africa24_en",
+   "name": "Africa 24 English",
+   "group": "News",
+   "lang": "en",
+   "url": "https://edge20.vedge.infomaniak.com/livecast/ik:africa24english/manifest.m3u8",
+   "source": "the broadcaster's own public stream (Africa 24 player CDN)"
+  },
+  {
+   "id": "fox_weather",
+   "name": "Fox Weather",
+   "group": "News",
+   "lang": "en",
+   "url": "https://247wlive.foxweather.com/stream/index.m3u8",
+   "source": "the broadcaster's own public stream (foxweather.com)"
+  },
+  {
+   "id": "tagesschau24",
+   "name": "Tagesschau 24",
+   "group": "News",
+   "lang": "de",
+   "url": "https://tagesschau.akamaized.net/hls/live/2020115/tagesschau/tagesschau_1/master.m3u8",
+   "source": "the broadcaster's own public stream (ARD, Akamai)"
+  },
+  {
+   "id": "rtve_24h",
+   "name": "Canal 24 Horas",
+   "group": "News",
+   "lang": "es",
+   "url": "https://rtvelivestream.rtve.es/rtvesec/24h/24h_main_dvr.m3u8",
+   "source": "the broadcaster's own public stream (rtve.es)"
+  },
+  {
+   "id": "das_erste",
+   "name": "Das Erste",
+   "group": "Other",
+   "lang": "de",
+   "url": "https://daserste-live.ard-mcdn.de/daserste/live/hls/int/master.m3u8",
+   "source": "the broadcaster's own public stream (ARD, international feed)",
+   "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/ARD_Dachmarke_2014.svg/960px-ARD_Dachmarke_2014.svg.png"
+  },
+  {
+   "id": "court_tv",
+   "name": "Court TV",
+   "group": "Other",
+   "lang": "en",
+   "url": "https://content.uplynk.com/channel/6c0bd0f94b1d4526a98676e9699a10ef.m3u8",
+   "source": "the broadcaster's own public stream (Scripps, Uplynk)"
+  },
+  {
+   "id": "law_crime",
+   "name": "Law & Crime",
+   "group": "Other",
+   "lang": "en",
+   "url": "https://cdn.lawandcrime.net/rewind/playlist.m3u8",
+   "source": "the broadcaster's own public stream (lawandcrime.net)"
+  },
+  {
+   "id": "pbs_create",
+   "name": "PBS Create",
+   "group": "Documentary",
+   "lang": "en",
+   "url": "https://create.lls.pbs.org/index.m3u8",
+   "source": "the broadcaster's own public stream (pbs.org)"
+  },
+  {
+   "id": "pbs_world",
+   "name": "PBS World Channel",
+   "group": "Documentary",
+   "lang": "en",
+   "url": "https://world.lls.pbs.org/index.m3u8",
+   "source": "the broadcaster's own public stream (pbs.org)"
+  },
+  {
+   "id": "deluxe_dance",
+   "name": "Deluxe Dance",
+   "group": "Music",
+   "lang": "de",
+   "url": "https://sdn-global-live-streaming-packager-cache.3qsdn.com/64733/64733_264_live.m3u8",
+   "source": "the broadcaster's own public stream (deluxemusic.tv player CDN)"
+  },
+  {
+   "id": "deluxe_rap",
+   "name": "Deluxe Rap",
+   "group": "Music",
+   "lang": "de",
+   "url": "https://sdn-global-live-streaming-packager-cache.3qsdn.com/65183/65183_264_live.m3u8",
+   "source": "the broadcaster's own public stream (deluxemusic.tv player CDN)"
+  },
+  {
+   "id": "radost_moya",
+   "name": "Радость моя",
+   "group": "Russian",
+   "lang": "ru",
+   "url": "https://radm.mediacdn.ru/cdn/radost/playlist.m3u8",
+   "source": "the broadcaster's own public stream (children and family channel, its site CDN)"
+  },
+  {
+   "id": "muz_soyuz",
+   "name": "Муз Союз",
+   "group": "Russian",
+   "lang": "ru",
+   "url": "https://hls-tvsoyuz.cdnvideo.ru/tvsoyuz2/muzsoyuz.6fw0-58xp-acts-esy0/playlist.m3u8",
+   "source": "the broadcaster's own public stream (tv-soyuz.ru CDN)"
+  }
+ ]
+}
