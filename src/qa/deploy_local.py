@@ -11,7 +11,7 @@ for a in ('plugin.video.nova', 'plugin.video.telescope'):
     for dp, dn, fn in os.walk(base):
         dn[:] = [d for d in dn if d != '__pycache__']
         for f in fn:
-            if not f.endswith(('.py', '.xml', '.po')) or f == 'addon.xml':
+            if not (f.endswith(('.py', '.xml', '.po')) or f == 'channels_world.json') or f == 'addon.xml':
                 continue
             s = os.path.join(dp, f)
             d = os.path.join(KODI, a, os.path.relpath(s, base))

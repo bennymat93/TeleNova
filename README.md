@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.2.9.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-4.3.0.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -23,8 +23,8 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 - TV remotes and keyboards: the arrows move between items, Enter opens, Back / Escape returns.
 - Installable as an app (manifest + service worker); the shell opens without a connection.
 - Optional own TMDb key in Settings for the full movie and series catalogue with no server; without it the
-  catalogue comes from the Internet Archive. Live TV: the build's own Israeli channel table + iptv-org; radio:
-  radio-browser. The web version has no Telegram video sources - those need the Kodi build.
+  catalogue comes from Cinemeta and the Internet Archive. Live TV: the build's own Israeli channel table + iptv-org;
+  radio: radio-browser. Since web 5.0 a connected Telegram account is also a source of films and episodes.
 - Since 4.1.2: the same users, history, favourites and search history as the Kodi build; connecting the household's
   Telegram account (the build shows a pairing QR code) keeps the browser in the build's continuous sync. Details
   and the verified hash of the bundled Telegram client: [`web/README.md`](web/README.md).
@@ -33,13 +33,51 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.2.9 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.2.9 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.2.9 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 4.3.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 4.3.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 4.3.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.2.9 | This repository |
+| `repository.telenova` | 4.3.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 4.3.0 (2026-11-18) - web version 5.0, more channels, deeper Telegram search
+
+**Web version 5.0** ([`web/`](https://bennymat93.github.io/TeleNova/web/)) - rebuilt after an audit of what the browser
+version really did (`docs/web-audit/`):
+
+- New interface: a side rail on computers and televisions, a bottom bar on phones, a Home screen made of rows
+  (continue watching, favourites, live now with channel logos, trending, radio, recent searches), a title sheet with Play / Trailer,
+  one focus style for remote / keyboard / touch, light loading states instead of empty boxes.
+- The catalogue opens without any key (Cinemeta); a TMDb key adds Hebrew texts, Israeli lists and languages.
+- Player of its own (not a sheet): keyboard and remote keys, speed, audio tracks, subtitles with their own settings
+  (sources, language, size / colour, offset), next episode, resume points shared with Kodi.
+- Live TV: the build's channel table with logos and the guide (now / next + a guide sheet), favourites, a stream check;
+  radio with favourites and "recently played".
+- Telegram in the browser: sign-in by QR / phone / pairing, file search with paging, playback through the service
+  worker; a film or episode played from Telegram is marked watched and gets "next episode" like any other source.
+- Accounts & services on one screen (Telegram, Real-Debrid token, TMDb, Gemini, OpenSubtitles, helper), backup /
+  restore in the Kodi shape, Google Drive, status, help in Hebrew / English / Russian.
+- Tests: every module test and the helper Worker's test now run from `python src/qa/web/run_web_tests.py`
+  (was: the sync core only). New `t_shell.js` (92 checks) found that Favourites / History lit the wrong tab on phones.
+
+**Kodi build**
+
+- **62 more TV channels**, each tested by downloading a real segment (`resources/channels_world.json`, `qa/check_channels.py`):
+  news in English / French / German / Spanish / Arabic, Russian-language, music, documentary, sport, kids. With the 29
+  Israeli channels 91 play. Only the broadcasters' own free streams; they join the existing channel list by group.
+- OpenSubtitles: a good key was reported as "http 400" - the key test sent a file hash the API refuses. Fixed.
+- Telegram search goes further back (`docs/RESEARCH-sources.md` item 5): when a title has fewer than 8 good files, the
+  global search is paged (2 pages x 3 queries, 4 s at most, stops at a flood wait) - `tgclient.search_more`,
+  `sources.Finder._older`.
+- Files are judged by what their header says (item 9, `mediaflags.py`): an MP4 whose index is promised at the end
+  and is not there (a cut file) is dropped; Dolby Vision profile 5 and AV1 are hidden on a device that cannot show
+  them; direct HTTP sources get one mid-file read. Not yet run against real files / the real account.
+- BUG-014 (a TV channel sometimes fails on its first open): from now on what Kodi's log says about the failed open
+  is classified (expired address, connection limit, network, plugin, adaptive, demuxer) and the last 30 cases are
+  kept in `tv_fail.json` in the add-on's profile - addresses reduced to scheme://host, no path, query or header.
+  The cause itself is still open; the file is what will name it. Test: `qa/t_tvfail.py`.
+- `docs/ARCHITECTURE.md` rewritten for this version (components, flows, data files, release pipeline, test map).
 
 ## TeleNova 4.2.1 - 4.2.8 (2026-11-17) - fixes from real use
 

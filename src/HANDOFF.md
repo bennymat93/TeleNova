@@ -1,6 +1,6 @@
 # TeleNova – Handoff
 
-## התחל כאן (עודכן 2026-11-17 23:30, אחרי 4.2.9) – כל מה שצריך כדי להמשיך מכל חשבון / מחשב
+## התחל כאן (עודכן 2026-11-18 19:40, אחרי 4.3.0) – כל מה שצריך כדי להמשיך מכל חשבון / מחשב
 
 **להמשך מחשבון אחר:** לפתוח סשן של Claude Code בתיקייה `C:\My Projects\novaTV Addon` ולכתוב **תמשיך** (או להדביק את הנתיב ואחריו "תמשיך"). הפרוטוקול ב-`CLAUDE.md`: סנכרון git, קריאת הסעיף הזה ו-PROGRESS, דיווח קצר, ומיד התחלת עבודה על המשימה הפתוחה הראשונה.
 
@@ -9,7 +9,20 @@
 החלטה שלו) – ובינתיים להמשיך בכל השאר.
 
 ### המצב עכשיו
-- **4.2.9** (חדש): חיבור גרסת הרשת בקוד QR מ-Kodi (`webpair.py`, `qr.py` – ה-QR מצויר במכשיר, גם לכניסה לטלגרם), נקודות המשך נוסעות עם ההיסטוריה (`syncdoc.with_progress`), מודולי הרשת (`web/*.js`) ו-`.github/workflows/epg.yml` נכנסו לריפו. כל בדיקות היחידה ו-WEB TESTS עברו; **לא נבדק חי ב-Kodi** (`qa_live.ps1`) – לבדוק כשה-Kodi לא מנגן.
+- **4.3.0** (18/11, פורסם): **גרסת רשת 5.0** (מעטפת חדשה, בית בשורות, נגן משלו, טלגרם בדפדפן, `web/shell_core.js`;
+  ביקורת ב-`docs/web-audit/`), **62 ערוצי עולם** שנבדקו בהורדת מקטע אמיתי (`resources/channels_world.json`,
+  `livefail.world()`, `iptv.add_world()`, בדיקה `qa/check_channels.py` + `qa/t_channels_world.py`) – יחד עם 29 הישראליים
+  91 ערוצים מנגנים, חיפוש טלגרם עם דפדוף (פריט 5) ודגלי מדיה DV / AV1 / קובץ חתוך (פריט 9, `mediaflags.py`),
+  רישום סיבת כשל פתיחת ערוץ ל-`tv_fail.json` (BUG-014, `qa/t_tvfail.py`), `docs/ARCHITECTURE.md` חדש.
+- **תיקונים מבקשות הבעלים ב-18/11**: OpenSubtitles "http 400" – בדיקת המפתח שלחה moviehash של 16 אפסים שה-API דוחה
+  ב-400 לפני שהוא בודק את המפתח (`opensubs.CHECK_HASH`); **שרת תרגום AI** (מחוץ לריפו) – מקור שה-ffmpeg לא מצליח
+  לקרוא (403 / כתובת שפגה) השאיר את העבודה תקועה 30 דקות ב-"ahead" בלי שגיאה; עכשיו שגיאה מיידית
+  (`nova_subs.py`, גיבוי `nova_subs.py.before-nosource-20261118`). עבודת תרגום מלאה נבדקה: תקין.
+- **נבדק חי ב-Kodi הראשי (18/11)**: `final_checks` עבר, הערוצים החדשים ב-`nova_channels.m3u` (1,341 שורות),
+  France 24 / Deluxe Music / Настоящее Время מנגנים. **לא הורץ** הסבב המלא (crawl / playtest / stress) – הבעלים ביקש
+  עבודה חסכונית: בדיקות ממוקדות בלבד.
+- **לא נבדק**: דפדוף החיפוש ודגלי המדיה מול החשבון האמיתי / קבצים אמיתיים; כניסה לטלגרם בדפדפן אמיתי.
+- **4.2.9**: חיבור גרסת הרשת בקוד QR מ-Kodi (`webpair.py`, `qr.py`), נקודות המשך בסנכרון (`syncdoc.with_progress`).
 - **גרסה קודמת מפורסמת: 4.2.8** – כל ארבעת התוספים (`plugin.video.nova`, `plugin.video.telescope`,
   `plugin.program.novawizard`, `repository.telenova`) באותו מספר. בילד מלא `build/TeleNova-4.2.8.zip.part0/1`
   (100.3MB), `build.json`, `repo/`, `repository.telenova-4.2.8.zip` בשורש. האתר מגיש 4.2.8 (נבדק).
@@ -62,21 +75,29 @@ git add -A; git commit; git push origin gh-pages   # ואז לוודא את repo
 cd "C:\My Projects\novaTV Addon\src"
 python -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read(),f,feature_version=(3,8)) for f in glob.glob(r'plugin.*\**\*.py',recursive=True)]; print('ok')"
 python qa\undef.py "C:\My Projects\novaTV Addon\src"
-foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_skinxml','t_epg_xml'){ python "qa\$t.py" }
+foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs'){ python "qa\$t.py" }
 cd qa\agentC; python test_all.py; python test_rd.py; cd ..\..; python qa\t_profiles.py plugin.video.nova\resources\lib
-python qa\deploy_local.py; & qa\qa_live.ps1      # על Kodi הראשי, כשהוא לא מנגן
+python qa\web\run_web_tests.py   # כל בדיקות הרשת + ה-Worker
+python qa\deploy_local.py; & qa\qa_live.ps1      # על Kodi הראשי, כשהוא לא מנגן (deploy_local מעתיק גם json מ-resources)
 ```
 
 ### משימות פתוחות – לפי סדר (לעדכן כאן וב-PROGRESS בכל התקדמות)
-1. **מחכה לבעלים – מכשירים**: לאמת באייפד שהגלילה/בחירה במגע עובדת (4.2.3); במכשיר ה-CarPlay ברכב שרשימות הסרטים
-   נטענות (4.2.4); העברת הגדרות בין שני מכשירים פיזיים כולל שלב סיסמת 2FA (4.2.0). בינתיים – להמשיך בשאר.
-2. **ערוצי טלוויזיה**: הבעלים רוצה ~70 ערוצים (היום 29 מנגנים) ממקורות מורשים – מחקר + הוספה + בדיקת ניגון.
-3. **קישורים, פריטים 5 ו-9** ב-`docs/RESEARCH-sources.md` (חיפוש גלובלי עם דפדוף; tail probe / DV flags).
-4. **Phase 0**: מפת ארכיטקטורה `docs/ARCHITECTURE.md`. Phases 3–5 (חולשות, מסכים, עיצוב מחדש) לפי PROGRESS.
-5. **BUG-014**: הסיבה שהפתיחה הראשונה של ערוץ נכשלת בדמוקסר לא נמצאה (צריך לוג של מקרה אמיתי).
-6. **שרת התרגום**: לאשר שאין קריסות חדשות ב-`logs\crash.log` אחרי שימוש אמיתי.
-7. **החלטות הבעלים**: TorBox (3$/חודש), מפתח OpenSubtitles (כרגע מחזיר http 400 – לבדוק את המפתח איתו).
-8. כל שינוי → בדיקות → `bump.py` → בילד → push → אימות באתר → עדכון הרשימה הזו.
+**הנחיית הבעלים (18/11): לעבוד חסכוני** – בלי ריבוי סוכנים, בדיקות ממוקדות במה שהשתנה, קומיט מקומי מוקדם של כל חלק גמור.
+1. **נגן הרשת – כל סוגי הקבצים** (בקשת הבעלים 18/11): היום `web/player.js` מנגן רק מה שהדפדפן מנגן (MP4 / HLS);
+   MKV / AVI / TS, HEVC, AC3 / DTS נכשלים עם הסבר. לבדוק מנוע WASM (למשל libmedia AVPlayer, או mpegts.js ל-TS / FLV)
+   כמנוע חלופי כשהנגן המובנה נכשל, ולשפר את הנגן. לא התחיל.
+2. **ניגון בחיבור איטי / קליטה גרועה** (בקשת הבעלים 18/11): סשן שיפור משמעותי בכל הגרסאות (Kodi + רשת) – בחירת
+   איכות לפי המהירות הנמדדת, חוצץ גדול יותר, ירידת איכות במקום עצירה, ניסיונות חוזרים. לא התחיל.
+3. **מחכה לבעלים – מכשירים**: לאמת באייפד שהגלילה/בחירה במגע עובדת (4.2.3); במכשיר ה-CarPlay ברכב שרשימות הסרטים
+   נטענות (4.2.4); העברת הגדרות בין שני מכשירים פיזיים כולל שלב סיסמת 2FA (4.2.0).
+4. **ערוצים – החלטות הבעלים**: אל-ג'זירה וערוצי מדינה רוסיים הושארו בחוץ בכוונה (שורה אחת כל אחד ב-`channels_world.json`);
+   7 ערוצים הם הזנות FAST (Stingray, beIN XTRA) – להסיר אם רוצים רק שידור ציבורי. סמלים רק ל-8 מ-62.
+5. **פריטים 5 ו-9**: להריץ מול החשבון האמיתי וקבצים אמיתיים; נשאר: קריאת אמצע קובץ בטלגרם, שיפוט TrueHD / DTS-HD
+   לפי מכשיר, שורות הגדרה / תוויות ברשימה.
+6. **BUG-014**: לקרוא את `tv_fail.json` בפרופיל אחרי שימוש אמיתי – הוא יגיד את הסיבה.
+7. **Phases 3–5** (חולשות, מסכים, עיצוב מחדש) לפי PROGRESS. Phase 0 הושלם (`docs/ARCHITECTURE.md`).
+8. **החלטות הבעלים**: TorBox (3$/חודש). מפתח OpenSubtitles: ה-"http 400" היה באג שלנו ותוקן – לבדוק שוב את המפתח במסך השירותים.
+9. כל שינוי → בדיקות → `bump.py` → בילד → push → אימות באתר → עדכון הרשימה הזו.
 
 ## 0. עדכון ישן (2026-11-12 00:35) – היסטוריה
 

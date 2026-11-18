@@ -1384,7 +1384,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-4.2.9.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-4.3.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest" target="_blank" rel="noopener">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
