@@ -3,7 +3,8 @@
 The app works without any of them (it was built not to need a change in `web/`). Each item is optional; none was made
 here because `web/` belongs to the web session.
 
-The app marks itself in two ways a page can test:
+The app marks itself in three ways a page can test:
+- `window.TeleNovaNative` (`{platform: 'android', helper, save, files}`) - the same name the iOS app defines;
 - `window.TNShell && TNShell.android === true` (object added by `android/app/src/main/assets/shell.js` at document start);
 - the user agent ends with `TeleNovaApp/<version>` (and has `Android TV` on TV devices, so `shell_core.js` picks the TV shell).
 
@@ -47,3 +48,28 @@ if (window.TNShell && TNShell.android && TNShell.save) return TNShell.save(blob,
 ## 4. Saved-file notice
 After `a.download` the page shows its own "file saved" text (`bk_exported`) and the app shows a dialog with the folder.
 Nothing to change; if the double notice is unwanted, skip the page's toast when `TNShell.android`.
+
+## 5. The built-in helper and Live TV (`web/iptv.js`)
+The app writes `https://helper.telenova.invalid` into the `helper` setting, so `iptv.js` thinks a general helper exists:
+`candidates(c, true)` adds a "through the helper" source for http / CORS-less streams and `helperHls()` asks it by
+`XMLHttpRequest` - which the app does not answer (only `fetch()` is), and the built-in relay serves only its seven
+fixed hosts anyway. The extra source fails at once and the page moves on, but the texts (`iptv_why_refused`) mislead.
+Fix in `web/iptv.js`: treat the app's relay as "no helper" for streams and playlists:
+
+```js
+const ownHelper = () => { const b = TN.settings.helper ? TN.settings.helper() : ''; return self.TeleNovaNative && b === self.TeleNovaNative.helper ? '' : b; };
+```
+
+and use `ownHelper()` in `helper()`, in `fetchText()` and where `iptv_why_helper` is chosen.
+
+## 6. The app's helper address in a backup (`web/app.js`, `web/backup.js`)
+The address is stored in `cfg.helper`, so a settings export made in the app carries it. Restored in a plain browser it
+is a helper that never answers. Fix in `web/app.js` (settings.helper):
+
+```js
+helper: () => { const h = httpsOnly(String(cfg.helper || '').replace(/\/+$/, '')); return h === 'https://helper.telenova.invalid' && !window.TeleNovaNative ? '' : h; },
+```
+
+## 7. Telegram sign-in (`web/tg.js` lines 145, 180)
+`dropPending()` and `setFlood(0)` are called but defined nowhere; the apps define them as globals until the page does
+(remove `sessionStorage` `bn_tg_pending`; set / remove `bn_tg_flood`). The real fix belongs in `web/tg.js`.

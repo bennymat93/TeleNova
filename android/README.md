@@ -1,4 +1,4 @@
-# TeleNova / BN Stream - Android app
+# BN Stream (TeleNova) - Android app
 
 One APK for phones, tablets, Android TV / TV boxes and Android car units: the browser version (`../web`) inside a
 native shell. Package `io.github.bennymat93.telenova`, minSdk 24 (Android 7), Java, no build step for the web part.
@@ -22,6 +22,7 @@ repository and must be backed up: an APK signed with another key cannot be insta
 | Part | Where |
 | --- | --- |
 | Shell: WebView, keys, full screen, links, file fields, messages from the page | `app/src/main/java/.../MainActivity.java` |
+| The helper Worker built into the app (same rules as `worker/index.js` and `ios-app/Sources/HelperRelay.swift`) | `HelperRelay.java` |
 | Files screen (import / export / share / move / rename / delete, also the "choose a file" screen) | `FilesActivity.java`, `Storage.java` |
 | Script added to the page at document start (downloads -> app folder, screen-on, "Files" button, `window.TNShell`) | `app/src/main/assets/shell.js` |
 | Copy of `web/` + launcher icons, made at build time | `sync_web.gradle` -> `app/build/generated/tn` |
@@ -39,6 +40,17 @@ repository and must be backed up: an APK signed with another key cannot be insta
 - **Back** = the page's own back (history); at the first page a second press exits. Long press on Back, or the Menu key
   of a remote, opens the app menu (Files, Refresh, Content source, About, Exit); the "Files & refresh" button on the backup / settings pages opens it too, and the launcher icon has Files and Refresh shortcuts. D-pad and media keys go to the page; on TV
   devices the user agent gets `Android TV`, so the page picks its TV layout.
+- **Helper built in.** `web/helper.js` sends requests for the hosts without browser CORS (Real-Debrid, StremThru,
+  Ktuvit, epgshare01, YouTube innertube) to `<helper address>/p`. In the app that address is
+  `https://helper.telenova.invalid` (the same as on iOS; never reaches the network): `shell.js` answers `fetch()` to it
+  through `HelperRelay.java`, and writes the address into the page's `helper` setting when the viewer has none. Nothing
+  is deployed or typed. Rules = the Worker's: https, allow-listed hosts, listed headers only, a secret header only to
+  its hosts, cookies only for Ktuvit, redirects reported not followed, 5 MB request / 41 MB answer / 2 minutes.
+- **Telegram sign-in.** `web/tg.js` (5.1.0) calls `dropPending()` / `setFlood()` that it does not define; `shell.js`
+  supplies them until the page has its own. While the QR step is on, a "confirm in Telegram on this device" button
+  opens the `tg://login` link in the Telegram app.
+- **Name.** The app is called "BN Stream" on screen. The package id (`io.github.bennymat93.telenova`) and the download
+  name (`apk/TeleNova.apk`) are unchanged, so existing installs update and existing links keep working.
 - **Zoom.** Text zoom is fixed at 100% and pinch / control zoom is off: the page has its own display-size control.
 - **Full screen** video: system bars hidden, landscape on phones / tablets, screen kept on while a video plays.
 - **Files.** A file the page "downloads" (`a[download]` on a `blob:` address: backups, exported settings, playlists,

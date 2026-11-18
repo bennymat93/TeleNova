@@ -100,6 +100,8 @@ public class MainActivity extends Activity {
     private String startHash = "";            // what follows BASE in the address the app was asked to open
     private int pendingTries;
     private final Map<String, Save> saves = new HashMap<>();
+    private final java.util.concurrent.ExecutorService relays = java.util.concurrent.Executors.newFixedThreadPool(4);
+    private final Map<String, HelperRelay.Call> relayCalls = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static final class Save { File tmp; File dir; String name; OutputStream out; }
 
@@ -157,6 +159,8 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         ui.removeCallbacks(liveTimeout);
+        cancelRelays();
+        relays.shutdownNow();
         abortSaves();
         if (web != null) { rootView.removeView(web); web.destroy(); web = null; }
         super.onDestroy();
@@ -303,6 +307,7 @@ public class MainActivity extends Activity {
 
         @Override public void onPageStarted(WebView v, String url, Bitmap icon) {
             pageReady = false;
+            cancelRelays();                                   // requests of the document that is gone
             abortSaves();
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             ui.removeCallbacks(liveTimeout);
@@ -412,7 +417,7 @@ public class MainActivity extends Activity {
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (ActivityNotFoundException | SecurityException e) {
-            Toast.makeText(this, getString(R.string.no_app, url), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.no_app, url.startsWith("tg:") ? "Telegram" : url), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -565,6 +570,13 @@ public class MainActivity extends Activity {
                 case "files": openFiles(); return;
                 case "menu": showMenu(); return;
                 case "refresh": refresh(); return;
+                case "relay": relay(o, k, reply); return;
+                case "relay-abort": { HelperRelay.Call c = relayCalls.remove(k); if (c != null) c.cancel(); return; }
+                case "tgqr": {                                   // the QR sign-in link, confirmed in the Telegram app of this device
+                    String u = o.optString("url");
+                    if (u.matches("^tg://login\\?token=[A-Za-z0-9_-]+$")) openExternal(u);
+                    return;
+                }
                 case "save0": {
                     if (saves.size() > 4) throw new IOException("busy");
                     Save s = new Save();
@@ -605,6 +617,46 @@ public class MainActivity extends Activity {
             if (!k.isEmpty()) { try { reply.postMessage("err:" + k); } catch (Exception x) { /* page gone */ } }
             Toast.makeText(this, R.string.save_failed, Toast.LENGTH_LONG).show();
         }
+    }
+
+    /** The built-in helper (HelperRelay): the request runs off the UI thread; the answer goes back piece by piece. */
+    private void relay(final JSONObject req, final String k, final JavaScriptReplyProxy reply) {
+        if (k.isEmpty() || relayCalls.containsKey(k)) return;
+        final HelperRelay.Call call = new HelperRelay.Call();
+        relayCalls.put(k, call);
+        relays.execute(() -> {
+            String meta = "{\"status\":502,\"headers\":{}}";
+            try {
+                final HelperRelay.Answer a = HelperRelay.handle(req, call);
+                final int step = 3 * 128 * 1024;                          // a multiple of 3: every piece is whole base64
+                for (int off = 0; off < a.body.length && !call.cancelled; off += step) {
+                    final String piece = "B:" + k + ":" + Base64.encodeToString(a.body, off, Math.min(step, a.body.length - off), Base64.NO_WRAP);
+                    final java.util.concurrent.CountDownLatch sent = new java.util.concurrent.CountDownLatch(1);
+                    ui.post(() -> {                                       // one piece at a time: nothing piles up in memory
+                        try { if (web != null && !call.cancelled) reply.postMessage(piece); } catch (Exception e) { /* the page is gone */ }
+                        sent.countDown();
+                    });
+                    if (!sent.await(30, java.util.concurrent.TimeUnit.SECONDS)) return;
+                }
+                meta = new JSONObject().put("status", a.status).put("headers", a.headers).toString();
+            } catch (InterruptedException e) {
+                return;                                                   // the activity is going away
+            } catch (Throwable t) {                                       // OutOfMemoryError included: the page gets 502
+                meta = "{\"status\":502,\"headers\":{}}";
+            } finally {
+                relayCalls.remove(k);
+            }
+            if (call.cancelled) return;
+            final String last = "R:" + k + ":" + meta;
+            ui.post(() -> {
+                try { if (web != null) reply.postMessage(last); } catch (Exception e) { /* the page is gone */ }
+            });
+        });
+    }
+
+    private void cancelRelays() {
+        for (HelperRelay.Call c : relayCalls.values()) c.cancel();
+        relayCalls.clear();
     }
 
     private void abortSaves() {
