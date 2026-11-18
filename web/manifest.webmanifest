@@ -1,18 +1,27 @@
 {
+  "id": "./",
   "name": "BN Stream Web",
   "short_name": "BN Stream",
-  "description": "Movies, series, live TV and radio in the browser - phone, tablet, computer and TV",
+  "description": "Movies, series, live TV, radio and Telegram in the browser - phone, tablet, computer and TV",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#0b0d12",
   "theme_color": "#0b0d12",
   "lang": "he",
   "dir": "auto",
+  "categories": ["entertainment", "video", "music"],
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
     {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Search", "short_name": "Search", "url": "./#/hub", "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+    {"name": "Live TV", "short_name": "Live TV", "url": "./#/live", "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+    {"name": "Favourites", "short_name": "Favourites", "url": "./#/favs", "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+    {"name": "History", "short_name": "History", "url": "./#/history", "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"}]}
   ]
 }

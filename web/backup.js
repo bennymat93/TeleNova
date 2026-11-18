@@ -1,13 +1,20 @@
 'use strict';
-// WP-9: backup / restore (plan rows 36, 43). The zip has the shape of the build's backup (backup.make_zip):
-//   bn_backup.txt                                        the marker restore_zip looks for
-//   addon_data/plugin.video.nova/users.json              the users (users.py LIST)
-//   addon_data/plugin.video.nova/<file>.json             the active user's lists (users.py FILES)
-//   addon_data/plugin.video.nova/users/<id>/<file>.json  every other user's lists
-//   web/bn_web.json                                      this browser's settings (Kodi's restore ignores it)
-// so a web backup restores in Kodi and a Kodi backup restores here (only the lists and users; the Kodi settings,
-// IPTV and add-on files in it are not for a browser). Here a restore MERGES into what the browser has (the same
-// merge as the sync), so nothing is lost. The Telegram session is never part of a backup.
+// WP-9: sync, backup / restore, export / import (Kodi K01-K03, K12, X14).
+// 1. Sync (K01): the state of the account's document, "Sync now", and - when the account has NO document yet (Kodi
+//    never ran on it) - "Create the sync document" from this browser: the users and lists of this browser, sealed
+//    exactly as the build seals them (sealed.js, websync.js caption), sent to Saved Messages. Settings stay empty in
+//    it: a browser owns no build settings; a Kodi device that joins later adds its own.
+// 2. Backup zip (K02 / K03) in the shape of the build's backup (backup.make_zip):
+//      bn_backup.txt                                        the marker restore_zip looks for
+//      addon_data/plugin.video.nova/users.json              the users (users.py LIST)
+//      addon_data/plugin.video.nova/<file>.json             the active user's lists (users.py FILES)
+//      addon_data/plugin.video.nova/users/<id>/<file>.json  every other user's lists
+//      web/bn_web.json                                      this browser's settings (Kodi's restore ignores it)
+//    so a web backup restores in Kodi and a Kodi backup restores here. A restore MERGES (the same merge as the sync).
+// 3. Settings file (K12 / T06) in the build's sealed format (.tncfg, configio.py; optional password): this browser's
+//    keys under the build's setting names, so Kodi can import it, and a file exported from Kodi imports here
+//    (TMDb / Gemini / OpenSubtitles keys, StremThru, quiet mode, bots, Stremio servers, the Real-Debrid token).
+// The Telegram session is never part of any of these, and a session inside a Kodi file is never read.
 (function (root) {
   const NOVA = 'addon_data/plugin.video.nova/';
   const FILES = [['history.json', 'history', []], ['favourites.json', 'favourites', []], ['favourites_removed.json', 'removed', []],
@@ -17,7 +24,7 @@
   // never in a backup: this device's choices and anything that signs in
   const CFG_SKIP = ['helper_token'];
 
-  // ------------------------------------------------------------ pure (node tests: src/qa/web via services tests)
+  // ------------------------------------------------------------ pure (node: src/qa/web/t_services.js)
   // store: the Store object (store.js), SD: SyncDoc, cfg: this browser's settings -> {path: text}
   function makeFiles(store, SD, cfg, now) {
     const out = {};
@@ -83,7 +90,65 @@
     }
     return n;
   }
-  const core = {makeFiles, readFiles, restoreInto, NOVA, MARK, WEB, MAX};
+
+  // ---- the settings file: this browser's setting <-> the build's setting id (telescope / nova settings.xml)
+  // [web setting, build id, kind: 's' text | 'b' switch]
+  const TWINS = [['tmdb', 'tmdb_key', 's'], ['gemini_key', 'gemini_key', 's'], ['subs_os_key', 'os_key', 's'], ['stremthru_url', 'st_url', 's'],
+                 ['stremthru_on', 'st_enabled', 'b'], ['telegram_quiet', 'tg_quiet', 'b'], ['tgsearch_bots', 'bot_request', 'b']];
+  const str = (v) => (typeof v === 'string' ? v.trim() : '');
+  const bool = (v) => v === true || v === 'true' || v === 1 || v === '1';
+  // this browser's settings -> the settings a .tncfg carries (only what is set; switches as the build writes them)
+  function webToKodi(cfg, addons) {
+    const out = {};
+    cfg = cfg || {};
+    for (const [w, k, kind] of TWINS) {
+      if (!(w in cfg)) continue;
+      if (kind === 'b') out[k] = cfg[w] ? 'true' : 'false'; else if (str(cfg[w])) out[k] = str(cfg[w]);
+    }
+    const list = (addons || []).filter((u) => /^https:\/\//i.test(u));
+    if (list.length) out.stremio_servers = list.join('\n');
+    return out;
+  }
+  // what an unpacked .tncfg gives a browser -> {cfg: {web setting: value}, rd: token | '', api: {id, hash} | null, addons: [], names: []}
+  // A web export carries the whole browser settings in extra.web.cfg; a Kodi export is read through TWINS. Files (a
+  // Telegram session among them) are never looked at.
+  function kodiToWeb(packed) {
+    const s = (packed && packed.settings) || {}, extra = (packed && packed.extra) || {};
+    const out = {cfg: {}, rd: '', api: null, addons: [], names: []};
+    const web = extra.web && typeof extra.web === 'object' && extra.web.cfg && typeof extra.web.cfg === 'object' ? extra.web.cfg : null;
+    if (web) for (const k of Object.keys(web)) if (!CFG_SKIP.includes(k) && /^[a-z][a-z0-9_]*$/.test(k)) out.cfg[k] = web[k];
+    for (const [w, k, kind] of TWINS) {
+      if (!(k in s) || w in out.cfg) continue;
+      if (kind === 'b') out.cfg[w] = bool(s[k]); else if (str(s[k])) out.cfg[w] = str(s[k]);
+    }
+    if (!out.cfg.tmdb && str(s.tmdb_token)) out.cfg.tmdb = str(s.tmdb_token);
+    if (!out.cfg.subs_os_key && str(s.opensubs_key)) out.cfg.subs_os_key = str(s.opensubs_key);
+    if (/^[A-Za-z0-9]{20,80}$/.test(str(s.rd_token))) out.rd = str(s.rd_token);
+    if (/^\d{3,12}$/.test(str(s.api_id)) && /^[0-9a-f]{32}$/i.test(str(s.api_hash))) out.api = {id: str(s.api_id), hash: str(s.api_hash).toLowerCase()};
+    out.addons = str(s.stremio_servers).split(/[\s,;]+/).filter((u) => /^(https|stremio):\/\//i.test(u)).slice(0, 12);
+    const label = {tmdb: 'TMDb', gemini_key: 'Gemini', subs_os_key: 'OpenSubtitles', stremthru_url: 'StremThru', yt_key: 'YouTube', helper: 'Worker',
+      subs_server_url: 'AI subtitles', gdrive_client: 'Google Drive'};
+    for (const k of Object.keys(label)) if (str(out.cfg[k])) out.names.push(label[k]);
+    if (out.rd) out.names.push('Real-Debrid');
+    if (out.addons.length) out.names.push('Stremio');
+    return out;
+  }
+
+  // ---- founding the account's document from a browser. deps: {WS, SD, users(), userData(uid), list() -> [{id, date, note}],
+  //      seal(text) -> bytes, send(bytes, name, caption) -> message id | 0}  -> 'exists' | 'made'
+  async function found(deps) {
+    const WS = deps.WS;
+    if (WS.mine(await deps.list())) return 'exists';
+    // merged with an empty document: the exact form every later round writes, so the first round has nothing to add
+    const doc = deps.SD.merge(WS.localDoc({users: deps.users, userData: deps.userData}), deps.SD.empty());
+    const bytes = await deps.seal(deps.SD.canon(doc));
+    // (somebody may have founded it meanwhile, a Kodi device starting up: never two documents)
+    if (WS.mine(await deps.list())) return 'exists';
+    const id = await deps.send(bytes, 'TeleNova-setup-' + WS.DOC_DEVICE + '.tnsync', WS.caption(WS.NOTE));
+    if (!id) throw Object.assign(new Error('send'), {code: 'send'});
+    return 'made';
+  }
+  const core = {makeFiles, readFiles, restoreInto, webToKodi, kodiToWeb, found, TWINS, NOVA, MARK, WEB, MAX};
   if (typeof module === 'object' && module.exports) { module.exports = core; return; }
 
   // ------------------------------------------------------------ the page
@@ -93,23 +158,67 @@
     he: {bk_intro: 'גיבוי של המשתמשים, ההיסטוריה, המועדפים והחיפושים, באותו מבנה של הגיבוי ב-Kodi: אפשר לשחזר אותו ב-Kodi, ולשחזר כאן גיבוי שנעשה ב-Kodi.',
          bk_make: 'הורדת גיבוי', bk_restore: 'שחזור מקובץ', bk_made: 'הגיבוי נשמר (%s)', bk_bad: 'זה אינו קובץ גיבוי של BN Stream',
          bk_done: 'השחזור הושלם: %s משתמשים עודכנו. מה שהיה בדפדפן נשאר, והגיבוי מוזג אליו.', bk_cfg: 'לשחזר גם את הגדרות הדפדפן מהגיבוי',
-         bk_note: 'גיבוי לא כולל את הכניסה לטלגרם: כל מכשיר מתחבר בעצמו. הגיבוי כולל את מפתח ה-TMDb של הדפדפן אם הוגדר; שמרו אותו במקום פרטי.',
-         bk_drive: 'גיבוי ל-Google Drive', bk_big: 'הקובץ גדול מדי', bk_wait: 'רגע...', bk_fail: 'לא הצליח: %s'},
+         bk_note: 'גיבוי לא כולל את הכניסה לטלגרם ואת הכניסה ל-Real-Debrid: כל מכשיר מתחבר בעצמו. הוא כן כולל את המפתחות שהוזנו בדפדפן הזה (TMDb, Gemini, YouTube, OpenSubtitles); שמרו אותו במקום פרטי.',
+         bk_drive: 'גיבוי ל-Google Drive', bk_big: 'הקובץ גדול מדי', bk_wait: 'רגע...', bk_fail: 'לא הצליח: %s',
+         bk_h_sync: 'סנכרון אוטומטי', bk_h_file: 'גיבוי לקובץ', bk_h_cfg: 'ייצוא וייבוא הגדרות',
+         bk_sync_intro: 'כשהדפדפן מחובר לטלגרם, המשתמשים והרשימות מסתנכרנים לבד עם כל מכשיר באותו חשבון (Kodi או דפדפן).',
+         bk_sync_off: 'הדפדפן לא מחובר לטלגרם.', bk_sync_connect: 'התחברות לטלגרם', bk_sync_on: 'מחובר', bk_sync_last: 'סנכרון אחרון: %s', bk_sync_now: 'סנכרון עכשיו',
+         bk_sync_ran: 'הסנכרון רץ', bk_sync_wait: 'טלגרם מתחבר...', bk_users: 'משתמשים',
+         bk_nodoc: 'בחשבון עדיין אין מסמך סנכרון. אפשר ליצור אותו מהדפדפן הזה: המשתמשים והרשימות שכאן יישמרו מוצפנים ב"הודעות שמורות", וכל מכשיר אחר שיתחבר יצטרף אליו.',
+         bk_nodoc_kodi: 'אם אתם משתמשים גם ב-Kodi, עדיף לפתוח פעם אחת את האפליקציה שם: היא יוצרת את המסמך יחד עם ההגדרות שלה.',
+         bk_found: 'יצירת מסמך הסנכרון', bk_found_q: 'ללחוץ שוב כדי ליצור את מסמך הסנכרון מהדפדפן הזה', bk_found_made: 'המסמך נוצר. הסנכרון פועל.',
+         bk_found_exists: 'בחשבון כבר יש מסמך סנכרון. הדפדפן הצטרף אליו.', bk_unreadable: 'מסמך הסנכרון בחשבון לא נקרא. הדפדפן לא יכתוב מעליו; פתחו את Kodi או נסו שוב מאוחר יותר.',
+         bk_cfg_intro: 'קובץ אחד עם ההגדרות והמפתחות של הדפדפן, באותו פורמט של "ייצוא הגדרות" ב-Kodi. קובץ שיוצא מ-Kodi מיובא כאן (המפתחות שדפדפן יכול להשתמש בהם); הכניסה לטלגרם אף פעם לא עוברת.',
+         bk_pass: 'סיסמה (לא חובה)', bk_export: 'ייצוא הגדרות', bk_import: 'ייבוא הגדרות', bk_exported: 'הקובץ נשמר (%s)', bk_imported: 'יובאו: %s', bk_imported_none: 'בקובץ אין הגדרות שדפדפן יכול להשתמש בהן',
+         bk_pass_need: 'הקובץ מוגן בסיסמה: הזינו אותה ונסו שוב', bk_pass_bad: 'סיסמה שגויה (או קובץ פגום)', bk_cfg_bad: 'זה אינו קובץ הגדרות של TeleNova', bk_api_set: 'פרטי ה-API של טלגרם',
+         bk_no_crypto: 'הדפדפן הזה לא תומך בהצפנה הדרושה (צריך https)'},
     en: {bk_intro: 'A backup of the users, history, favourites and searches, in the same shape as the Kodi backup: it restores in Kodi, and a Kodi backup restores here.',
          bk_make: 'Download a backup', bk_restore: 'Restore from a file', bk_made: 'Backup saved (%s)', bk_bad: 'This is not a BN Stream backup file',
          bk_done: 'Restored: %s users updated. What this browser had stays; the backup was merged into it.', bk_cfg: 'Also restore this browser\'s settings from the backup',
-         bk_note: 'A backup never holds the Telegram login: every device logs in by itself. It holds this browser\'s TMDb key if one is set; keep it somewhere private.',
-         bk_drive: 'Back up to Google Drive', bk_big: 'The file is too large', bk_wait: 'One moment...', bk_fail: 'Did not work: %s'},
+         bk_note: 'A backup never holds the Telegram login or the Real-Debrid login: every device signs in by itself. It does hold the keys entered in this browser (TMDb, Gemini, YouTube, OpenSubtitles); keep it somewhere private.',
+         bk_drive: 'Back up to Google Drive', bk_big: 'The file is too large', bk_wait: 'One moment...', bk_fail: 'Did not work: %s',
+         bk_h_sync: 'Automatic sync', bk_h_file: 'Backup to a file', bk_h_cfg: 'Export and import settings',
+         bk_sync_intro: 'While the browser is connected to Telegram, the users and lists sync by themselves with every device on the same account (Kodi or a browser).',
+         bk_sync_off: 'This browser is not connected to Telegram.', bk_sync_connect: 'Connect Telegram', bk_sync_on: 'Connected', bk_sync_last: 'Last sync: %s', bk_sync_now: 'Sync now',
+         bk_sync_ran: 'The sync ran', bk_sync_wait: 'Telegram is connecting...', bk_users: 'Users',
+         bk_nodoc: 'The account has no sync document yet. It can be created from this browser: the users and lists here are kept encrypted in Saved Messages, and every other device that connects joins it.',
+         bk_nodoc_kodi: 'If you also use Kodi, it is better to open the app there once: it creates the document together with its own settings.',
+         bk_found: 'Create the sync document', bk_found_q: 'Press again to create the sync document from this browser', bk_found_made: 'The document was created. Sync is running.',
+         bk_found_exists: 'The account already has a sync document. The browser joined it.', bk_unreadable: 'The account\'s sync document could not be read. The browser will not write over it; open Kodi or try again later.',
+         bk_cfg_intro: 'One file with this browser\'s settings and keys, in the format of "Export configuration" in Kodi. A file exported from Kodi imports here (the keys a browser can use); the Telegram login never travels.',
+         bk_pass: 'Password (optional)', bk_export: 'Export settings', bk_import: 'Import settings', bk_exported: 'File saved (%s)', bk_imported: 'Imported: %s', bk_imported_none: 'The file has no settings a browser can use',
+         bk_pass_need: 'The file is protected by a password: enter it and try again', bk_pass_bad: 'Wrong password (or a damaged file)', bk_cfg_bad: 'This is not a TeleNova settings file', bk_api_set: 'the Telegram API details',
+         bk_no_crypto: 'This browser lacks the encryption this needs (https is required)'},
     ru: {bk_intro: 'Резервная копия пользователей, истории, избранного и поисков в том же формате, что в Kodi: её можно восстановить в Kodi, а копию из Kodi — здесь.',
          bk_make: 'Скачать копию', bk_restore: 'Восстановить из файла', bk_made: 'Копия сохранена (%s)', bk_bad: 'Это не файл резервной копии BN Stream',
          bk_done: 'Восстановлено: обновлено пользователей — %s. Данные браузера сохранены, копия объединена с ними.', bk_cfg: 'Восстановить и настройки браузера из копии',
-         bk_note: 'Копия не содержит вход в Telegram: каждое устройство входит само. В ней есть ключ TMDb браузера, если он задан; храните её в надёжном месте.',
-         bk_drive: 'Копия в Google Drive', bk_big: 'Файл слишком большой', bk_wait: 'Минутку...', bk_fail: 'Не получилось: %s'},
+         bk_note: 'Копия не содержит вход в Telegram и вход в Real-Debrid: каждое устройство входит само. В ней есть ключи, введённые в этом браузере (TMDb, Gemini, YouTube, OpenSubtitles); храните её в надёжном месте.',
+         bk_drive: 'Копия в Google Drive', bk_big: 'Файл слишком большой', bk_wait: 'Минутку...', bk_fail: 'Не получилось: %s',
+         bk_h_sync: 'Автоматическая синхронизация', bk_h_file: 'Копия в файл', bk_h_cfg: 'Экспорт и импорт настроек',
+         bk_sync_intro: 'Пока браузер подключён к Telegram, пользователи и списки сами синхронизируются со всеми устройствами того же аккаунта (Kodi или браузер).',
+         bk_sync_off: 'Этот браузер не подключён к Telegram.', bk_sync_connect: 'Подключить Telegram', bk_sync_on: 'Подключено', bk_sync_last: 'Последняя синхронизация: %s', bk_sync_now: 'Синхронизировать',
+         bk_sync_ran: 'Синхронизация выполнена', bk_sync_wait: 'Telegram подключается...', bk_users: 'Пользователи',
+         bk_nodoc: 'В аккаунте ещё нет документа синхронизации. Его можно создать из этого браузера: пользователи и списки отсюда будут храниться зашифрованными в «Избранном», и каждое другое устройство присоединится к нему.',
+         bk_nodoc_kodi: 'Если вы пользуетесь и Kodi, лучше один раз открыть приложение там: оно создаёт документ вместе со своими настройками.',
+         bk_found: 'Создать документ синхронизации', bk_found_q: 'Нажмите ещё раз, чтобы создать документ синхронизации из этого браузера', bk_found_made: 'Документ создан. Синхронизация работает.',
+         bk_found_exists: 'В аккаунте уже есть документ синхронизации. Браузер присоединился к нему.', bk_unreadable: 'Документ синхронизации в аккаунте не прочитан. Браузер не будет писать поверх него; откройте Kodi или попробуйте позже.',
+         bk_cfg_intro: 'Один файл с настройками и ключами браузера в формате «Экспорт конфигурации» из Kodi. Файл, экспортированный из Kodi, импортируется здесь (ключи, которые может использовать браузер); вход в Telegram никогда не переносится.',
+         bk_pass: 'Пароль (необязательно)', bk_export: 'Экспорт настроек', bk_import: 'Импорт настроек', bk_exported: 'Файл сохранён (%s)', bk_imported: 'Импортировано: %s', bk_imported_none: 'В файле нет настроек, которые может использовать браузер',
+         bk_pass_need: 'Файл защищён паролем: введите его и повторите', bk_pass_bad: 'Неверный пароль (или файл повреждён)', bk_cfg_bad: 'Это не файл настроек TeleNova', bk_api_set: 'данные API Telegram',
+         bk_no_crypto: 'В этом браузере нет нужного шифрования (требуется https)'},
   });
   const t = TN.t;
   const FFLATE = ['https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js', 'sha384-DT0Ls0mO7JmjTnT+oBuMhEJzYJO1zUqzuuMXNdnOmOQRIpN2BgSjvBV/j50NngIT'];
   async function fflate() { if (!root.fflate) await TN.loadScript(FFLATE[0], FFLATE[1]); return root.fflate; }
+  async function sealed() { await fflate(); if (!root.Sealed) await TN.loadScript('sealed.js'); return root.Sealed; }
   const cfgNow = () => { const c = TN.get('cfg', {}) || {}; return typeof c === 'object' ? c : {}; };
+  const stamp = () => { const d = new Date(), p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes()); };
+  function download(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
 
   async function makeZip() {
     const F = await fflate();
@@ -118,10 +227,7 @@
     for (const [p, s] of Object.entries(files)) z[p] = F.strToU8(s);
     return new Blob([F.zipSync(z, {level: 6})], {type: 'application/zip'});
   }
-  function zipName() {
-    const d = new Date(), p = (n) => String(n).padStart(2, '0');
-    return 'bn_backup_web_' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes()) + '.zip';
-  }
+  const zipName = () => 'bn_backup_web_' + stamp() + '.zip';
   async function readZip(bytes) {
     const F = await fflate();
     let total = 0;
@@ -140,43 +246,186 @@
     if (!b.ok) throw new Error(t('bk_bad'));
     const n = restoreInto(TN.store, TN.SyncDoc, b);
     if (withCfg && b.web && b.web.cfg && typeof b.web.cfg === 'object') {
-      for (const [k, v] of Object.entries(b.web.cfg)) if (k !== 'helper_token') TN.settings.set(k, v);
+      for (const [k, v] of Object.entries(b.web.cfg)) if (!CFG_SKIP.includes(k)) TN.settings.set(k, v);
     }
     return t('bk_done', n);
   }
-  root.TNBackup = Object.assign({}, core, {makeZip, zipName, restoreBytes});
+
+  // ---- the settings file
+  async function sourcesSvc() { return TN.provider('sources').catch(() => null); }
+  async function exportCfg(password) {
+    const SL = await sealed();
+    const src = await sourcesSvc();
+    const cfg = Object.assign({}, cfgNow());
+    CFG_SKIP.forEach((k) => delete cfg[k]);
+    const addons = src && src.addons ? src.addons() : [];
+    const bytes = await SL.pack(webToKodi(cfg, addons), {}, password || '', {web: {cfg, v: TN.version}, app: 'telenova-web'});
+    return new Blob([bytes], {type: 'application/octet-stream'});
+  }
+  async function importCfg(bytes, password) {
+    const SL = await sealed();
+    const got = kodiToWeb(await SL.unpack(bytes, password || ''));
+    for (const [k, v] of Object.entries(got.cfg)) TN.settings.set(k, v);
+    const names = got.names.slice();
+    if (got.rd) { const R = await TN.provider('rd').catch(() => null); if (!(R && R.setToken && R.setToken(got.rd))) names.splice(names.indexOf('Real-Debrid'), 1); }
+    if (got.addons.length) {
+      const src = await sourcesSvc();
+      if (src && src.setAddons && src.addons) src.setAddons(src.addons().concat(got.addons)); else names.splice(names.indexOf('Stremio'), 1);
+    }
+    // the account's API details (the same two values the pairing link carries), only when this browser has none
+    if (got.api) {
+      try { const TG = await TN.tg(); if (TG && TG.hasApi && !TG.hasApi() && TG.setApi && TG.setApi(got.api.id, got.api.hash)) names.push(t('bk_api_set')); } catch (e) {}
+    }
+    return names;
+  }
+  const cfgError = (e) => {
+    const c = e && e.code;
+    return c === 'password_required' ? t('bk_pass_need') : c === 'wrong_password' ? t('bk_pass_bad') : c === 'no_webcrypto' ? t('bk_no_crypto')
+      : c === 'not_a_config_file' || c === 'unsupported_version' || c === 'damaged' ? t('bk_cfg_bad') : t('bk_fail', (e && e.message) || e);
+  };
+
+  // ---- the account's document
+  const tgSaved = () => !!(TN.get('tg_session', '') && TN.get('tg_api', null));
+  function tgStatus() { let st = null; if (root.TG && root.TG.ready) { try { st = root.TG.status(); } catch (e) {} } return st; }
+  async function foundDoc() {
+    const TG = await TN.tg();
+    if (!TG || !TG.connected || !TG.connected()) throw Object.assign(new Error(t('bk_sync_off')), {code: 'need_tg'});
+    let res;
+    if (typeof TG.foundDoc === 'function') res = await TG.foundDoc();          // tg.js's own, when it has one
+    else {
+      const SL = await sealed(), G = root.GramJS, me = TG.me && TG.me();
+      const client = await TG.client();
+      if (!G || !G.Buffer || !G.CustomFile || !me || !me.id) throw new Error('Telegram');
+      const WS = TN.WebSync;
+      res = await found({
+        WS, SD: TN.SyncDoc, users: () => TN.store.users(), userData: (uid) => TN.store.data(uid),
+        async list() {
+          const out = [];
+          for (const m of await client.getMessages('me', {search: WS.TAG, limit: 30})) {
+            const doc = m && m.media && m.media.document, note = WS.noteOf(m && m.message);
+            if (doc && note) out.push({id: m.id, date: Number(m.date) || 0, note});
+          }
+          return out;
+        },
+        seal: (text) => SL.packDoc(text, SL.cloudKey(me.id), WS.NOTE),
+        async send(bytes, name, caption) {
+          const buf = G.Buffer.from(bytes.buffer, bytes.byteOffset, bytes.length);
+          const msg = await client.sendFile('me', {file: new G.CustomFile(name, buf.length, '', buf), caption, forceDocument: true, silent: true, parseMode: false, workers: 1});
+          return (msg && msg.id) || 0;
+        },
+      });
+    }
+    try { await TG.syncNow(); } catch (e) {}
+    return res === 'exists' ? 'exists' : 'made';
+  }
+  root.TNBackup = Object.assign({}, core, {makeZip, zipName, restoreBytes, exportCfg, importCfg, foundDoc});
 
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function pageBackup() {
+  function panel(view, title, intro) {
+    view.append(el('h2', 'bk_h2', title));
+    const box = el('div', 'panel settings'); view.append(box);
+    if (intro) box.append(el('p', '', intro));
+    const msg = el('p', 'hint'); msg.setAttribute('role', 'status');
+    box.say = (s) => { msg.textContent = s || ''; };
+    box.msg = msg;
+    return box;
+  }
+  function pageBackup(arg, ctx) {
     TN.page('backup', t('m_backup'));
     const view = TN.view();
-    const box = el('div', 'panel settings'); view.append(box);
-    box.append(el('p', '', t('bk_intro')));
+    if (!document.getElementById('bk_css')) {
+      const s = el('style'); s.id = 'bk_css';
+      s.textContent = '.bk_h2{margin:22px 0 8px;font-size:18px}.bk_in{flex:1 1 220px;min-width:0;min-height:44px;background:var(--panel);color:var(--text);border:1px solid var(--muted);' +
+        'border-radius:10px;padding:9px 14px;font:inherit}.bk_in:focus-visible{outline:3px solid var(--ring)}.bk_chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0}' +
+        '.bk_chk input{width:22px;height:22px}';
+      document.head.append(s);
+    }
+
+    // ---------------- 1. sync (K01)
+    const sy = panel(view, t('bk_h_sync'), t('bk_sync_intro'));
+    const syState = el('p', ''), syActs = el('div', 'links'), syNote = el('div');
+    sy.append(syState, syNote, syActs, sy.msg);
+    let armed = false, lastSig = '';
+    function paintSync(force) {
+      const st = tgStatus(), on = !!(st && st.state === 'on');
+      const sig = [on, st && st.sync, st && st.last, tgSaved()].join('|');
+      if (!force && sig === lastSig) return;
+      lastSig = sig;
+      syActs.textContent = ''; syNote.textContent = '';
+      if (!on) {
+        syState.textContent = tgSaved() ? t('bk_sync_wait') : t('bk_sync_off');
+        syActs.append(Object.assign(el('a', 'btn' + (tgSaved() ? ' ghost' : ''), t('bk_sync_connect')), {href: '#/tglogin'}));
+      } else {
+        const when = st.last ? new Date(st.last * (st.last < 1e12 ? 1000 : 1)).toLocaleTimeString() : '';
+        syState.textContent = [t('bk_sync_on'), st.name, when ? t('bk_sync_last', when) : ''].filter(Boolean).join(' · ');
+        syActs.append(TN.button('btn', t('bk_sync_now'), async () => {
+          sy.say(t('bk_wait'));
+          try { const TG = await TN.tg(); await TG.syncNow(); sy.say(t('bk_sync_ran')); } catch (e) { sy.say(t('bk_fail', (e && e.message) || e)); }
+          paintSync(true);
+        }));
+        if (st.sync === 'nodoc') {
+          syNote.append(el('p', 'msg', t('bk_nodoc')), el('p', 'hint', t('bk_nodoc_kodi')));
+          const b = TN.button('btn', t('bk_found'), async () => {
+            if (!armed) { armed = true; sy.say(t('bk_found_q')); return; }
+            armed = false; b.disabled = true; sy.say(t('bk_wait'));
+            try { const r = await foundDoc(); sy.say(t(r === 'exists' ? 'bk_found_exists' : 'bk_found_made')); } catch (e) { sy.say(t('bk_fail', (e && e.message) || e)); }
+            b.disabled = false;
+            paintSync(true);
+          });
+          syActs.append(b);
+        } else if (st.sync === 'unreadable') syNote.append(el('p', 'msg', t('bk_unreadable')));
+      }
+      syActs.append(Object.assign(el('a', 'btn ghost', t('bk_users')), {href: '#/users'}));
+    }
+    paintSync(true);
+    // Telegram resumes a moment after the page opens, and a round takes a few seconds: follow it while the page is shown
+    const iv = setInterval(() => { if (!ctx || !ctx.current()) return clearInterval(iv); if (!armed) paintSync(false); }, 2000);
+    if (tgSaved() && !(tgStatus() && tgStatus().state === 'on')) TN.tg().then((TG) => { if (TG.resume && TG.state && TG.state() === 'off') TG.resume(); }, () => {});
+
+    // ---------------- 2. backup to a file (K02 / K03)
+    const box = panel(view, t('bk_h_file'), t('bk_intro'));
     const acts = el('div', 'links');
-    const msg = el('span', 'hint'); msg.setAttribute('role', 'status');
-    const say = (s) => { msg.textContent = s; };
     const file = el('input'); file.type = 'file'; file.accept = '.zip,application/zip'; file.hidden = true;
-    const cfgBox = el('label'); const cb = el('input'); cb.type = 'checkbox'; cfgBox.style.cssText = 'display:flex;gap:8px;align-items:center;font-weight:400';
+    const cfgBox = el('label', 'bk_chk'); const cb = el('input'); cb.type = 'checkbox';
     cfgBox.append(cb, document.createTextNode(t('bk_cfg')));
     acts.append(TN.button('btn', t('bk_make'), async () => {
-      say(t('bk_wait'));
-      try {
-        const blob = await makeZip(), name = zipName();
-        const a = el('a'); a.href = URL.createObjectURL(blob); a.download = name;
-        document.body.append(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-        say(t('bk_made', name));
-      } catch (e) { say(t('bk_fail', e && e.message || e)); }
+      box.say(t('bk_wait'));
+      try { const name = zipName(); download(await makeZip(), name); box.say(t('bk_made', name)); } catch (e) { box.say(t('bk_fail', (e && e.message) || e)); }
     }), TN.button('btn ghost', t('bk_restore'), () => file.click()));
-    const gd = el('a', 'btn ghost', t('bk_drive')); gd.href = '#/gdrive'; acts.append(gd);
+    acts.append(Object.assign(el('a', 'btn ghost', t('bk_drive')), {href: '#/gdrive'}));
     file.onchange = async () => {
       const f = file.files && file.files[0]; file.value = '';
       if (!f) return;
-      if (f.size > 200 * 1024 * 1024) return say(t('bk_big'));
-      say(t('bk_wait'));
-      try { say(await restoreBytes(new Uint8Array(await f.arrayBuffer()), cb.checked)); } catch (e) { say(t('bk_fail', e && e.message || e)); }
+      if (f.size > 200 * 1024 * 1024) return box.say(t('bk_big'));
+      box.say(t('bk_wait'));
+      try { box.say(await restoreBytes(new Uint8Array(await f.arrayBuffer()), cb.checked)); } catch (e) { box.say(t('bk_fail', (e && e.message) || e)); }
     };
-    box.append(acts, cfgBox, file, msg, el('p', 'hint', t('bk_note')));
+    box.append(acts, cfgBox, file, box.msg, el('p', 'hint', t('bk_note')));
+
+    // ---------------- 3. the settings file (K12 / T06)
+    const cf = panel(view, t('bk_h_cfg'), t('bk_cfg_intro'));
+    const pw = el('input', 'bk_in'); pw.type = 'password'; pw.autocomplete = 'new-password'; pw.placeholder = t('bk_pass'); pw.setAttribute('aria-label', t('bk_pass'));
+    const cfFile = el('input'); cfFile.type = 'file'; cfFile.accept = '.tncfg,application/octet-stream'; cfFile.hidden = true;
+    const cfActs = el('form', 'links');              // (a form, so a password manager treats the field properly; nothing is submitted anywhere)
+    const doExport = async () => {
+      cf.say(t('bk_wait'));
+      try { const name = 'telenova_web_' + stamp() + '.tncfg'; download(await exportCfg(pw.value), name); cf.say(t('bk_exported', name)); } catch (e) { cf.say(cfgError(e)); }
+    };
+    cfActs.onsubmit = (e) => { e.preventDefault(); doExport(); };
+    const exBtn = el('button', 'btn', t('bk_export')); exBtn.type = 'submit';
+    const imBtn = TN.button('btn ghost', t('bk_import'), () => cfFile.click()); imBtn.type = 'button';
+    cfActs.append(pw, exBtn, imBtn);
+    cfFile.onchange = async () => {
+      const f = cfFile.files && cfFile.files[0]; cfFile.value = '';
+      if (!f) return;
+      if (f.size > 64 * 1024 * 1024) return cf.say(t('bk_big'));
+      cf.say(t('bk_wait'));
+      try {
+        const names = await importCfg(new Uint8Array(await f.arrayBuffer()), pw.value);
+        cf.say(names.length ? t('bk_imported', names.join(', ')) : t('bk_imported_none'));
+      } catch (e) { cf.say(cfgError(e)); if (e && (e.code === 'password_required' || e.code === 'wrong_password')) pw.focus(); }
+    };
+    cf.append(cfActs, cfFile, cf.msg);
   }
   TN.registerPage('backup', pageBackup);
 })(typeof self !== 'undefined' ? self : globalThis);

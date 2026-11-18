@@ -66,6 +66,27 @@ def http_head_bytes(url, timeout=12, size=1048576, timed=False):
         r.close()
 
 
+def http_range_bytes(url, start, size, timeout=6):
+    """4.3: `size` bytes from byte `start` of an HTTP(S) stream -> (data, seconds, the server kept to the range).
+    A server that answers 200 sends the file from its beginning: the bytes are then not the ones asked for."""
+    t0 = time.time()
+    r = requests.get(url, headers={'Range': 'bytes=%d-%d' % (start, start + size - 1), 'User-Agent': 'Kodi TeleScope'},
+                     stream=True, timeout=timeout)
+    try:
+        if r.status_code not in (200, 206):
+            raise IOError('HTTP %s' % r.status_code)
+        if r.status_code == 200:
+            return b'', time.time() - t0, False
+        buf = b''
+        for chunk in r.iter_content(65536):
+            buf += chunk
+            if len(buf) >= size:
+                break
+        return buf[:size], time.time() - t0, True
+    finally:
+        r.close()
+
+
 class Job(object):
     def __init__(self):
         self.id = uuid.uuid4().hex[:12]
@@ -844,6 +865,11 @@ class Finder(object):
             return matcher.evaluate(c, t, strict=strict)[0] == 'accept'
         raw, done_n, total, took = self._collect(futs, bot_futs, job, is_good)
         self.log('search: %d/%d queries, %d files in %.1fs' % (done_n, total, len(raw), took))
+        if self.tg and logged_in and not job.cancel:
+            try:
+                raw += self._older(raw, queries, job, is_good)      # 4.3: the pages behind the newest hits
+            except Exception as exc:
+                self.log('search paging: %r' % exc)
         if self.tg and logged_in and not job.cancel and self.s.get('deep_search', True):
             try:
                 raw += self._deep(raw, t, queries, set(tg_chats[:8]), job, is_good)
@@ -900,7 +926,7 @@ class Finder(object):
         self.log('candidates: %d raw, %d unique, %d accepted, %d maybe' % (len(raw), len(cands), len(accepted), len(maybe)))
         job.stats = {'raw': len(raw), 'unique': len(cands), 'accepted': len(accepted), 'maybe': len(maybe),
                      'queries': len(queries), 'bots': bot_rows, 'bot_join': bot_join,
-                     'deep': getattr(job, 'deep', None)}
+                     'deep': getattr(job, 'deep', None), 'paging': getattr(job, 'paging', None)}
 
         # ---- AI verification
         use_ai = self.ai and self.ai.enabled and self.s.get('ai_verify', True)
@@ -968,15 +994,23 @@ class Finder(object):
         # 4.0.2: a file whose data rate is above what its source can deliver cannot play without stalls - it is not
         # listed at all (before the link test by the title's runtime, after it by the file's real length)
         accepted, heavy = self.playable(accepted, (t.get('runtime') or 0) * 60)
+        # 4.3: what this device cannot show (Dolby Vision without an HDR10 layer on a screen without Dolby Vision)
+        # is not listed - by the name before the link test, by the file's own header after it
+        accepted, unfit = self.device_fit(accepted)
+        accepted.sort(key=lambda c: -c['score'])
 
         # ---- probe
         if self.s.get('probe', True) and accepted:
             job.update(70, 'probe')
             accepted = self.probe(accepted, job, t)
         accepted, heavy2 = self.playable(accepted, (t.get('runtime') or 0) * 60)
+        accepted, unfit2 = self.device_fit(accepted)
         if heavy or heavy2:
             job.stats = dict(job.stats or {}, too_heavy=heavy + heavy2)
             self.log('%d source(s) left out: data rate above what the source can deliver' % (heavy + heavy2))
+        if unfit or unfit2:
+            job.stats = dict(job.stats or {}, device_hidden=unfit + unfit2)
+            self.log('%d source(s) left out: this device cannot show them' % (unfit + unfit2))
         accepted, crossed = self.union_dedup(accepted)    # 4.2.7: one row per release across sources
         if crossed:
             self.log('%d copy(ies) of the same release in another source folded' % crossed)
@@ -1012,6 +1046,96 @@ class Finder(object):
                 continue
             keep.append(c)
         return keep, dropped
+
+    # ------------------------------------------------------------------ 4.3: the device
+    def _caps(self):
+        caps = getattr(self, '_device_caps', None)
+        if caps is None:
+            from . import mediaflags
+            caps = self._device_caps = mediaflags.device_caps(self.s)
+        return caps
+
+    def _fit(self, c):
+        """Scores one candidate for this device (again after the header was read: only the difference is added).
+        -> True when the device cannot show the file."""
+        from . import mediaflags
+        hide, pts, note = mediaflags.judge(c.get('parsed'), self._caps())
+        c['score'] = (c.get('score') or 0) + pts - c.get('_fit_pts', 0.0)
+        c['_fit_pts'] = pts
+        why = [w for w in c.get('why') or [] if not (isinstance(w, str) and w.startswith('device: '))]
+        if note:
+            why.append('device: ' + note)
+        c['why'] = why
+        c['device_warn'] = note if hide else ''
+        return hide
+
+    def device_fit(self, cands):
+        """-> (candidates this device can show, number left out). When NOTHING would be left the files are listed
+        after all, each with its warning - a list with a warning is worth more than "nothing found"."""
+        if not cands or not self.s.get('device_filter', True):
+            return cands, 0
+        keep, hidden = [], []
+        for c in cands:
+            (hidden if self._fit(c) else keep).append(c)
+        if hidden and not keep:
+            for c in hidden:
+                c['loose'] = True
+            return hidden, 0
+        return keep, len(hidden)
+
+    # ------------------------------------------------------------------ 4.3: the pages behind the newest hits
+    def _older(self, raw, queries, job, is_good):
+        """Telegram's search over all chats answers with the newest hits. When those hold too few files that really
+        match, the next (older) pages of the first queries are read: a few pages, inside a time limit, never
+        against a flood wait (tgclient.search_more keeps all three). Messages already seen are left out; the same
+        document in another chat stays - the de-duplication turns it into a mirror."""
+        tg = self.tg
+        if self._reduced or not self.s.get('search_paging', True) or not hasattr(tg, 'search_more'):
+            return []
+        good = 0
+        for c in raw:
+            if (c.get('backend') or 'tg') != 'tg':
+                continue
+            try:
+                good += 1 if is_good(c) else 0
+            except Exception:
+                pass
+        if good >= int(self.s.get('paging_min_good', 8)):
+            return []
+        qs = [q for q in queries if tg.search_has_more(q)][:int(self.s.get('paging_queries', 3))]
+        if not qs:
+            return []
+        pages, budget = int(self.s.get('paging_pages', 2)), float(self.s.get('paging_timeout', 4))
+        t0 = time.time()
+        futs = dict((tg.submit(tg.search_more(q, pages, budget)), q) for q in qs)
+        out, st = [], {'queries': len(qs), 'pages': 0, 'files': 0, 'stopped': []}
+        pending, deadline = set(futs), t0 + budget + 1.5
+        while pending and time.time() < deadline and not job.cancel:
+            done, pending = fut_wait(pending, timeout=0.25)
+            for f in done:
+                try:
+                    res = f.result()
+                except Exception as exc:
+                    self.log('search paging %r: %s' % (futs[f], exc))
+                    continue
+                out.extend(res.get('items') or [])
+                st['pages'] += int(res.get('pages') or 0)
+                st['stopped'].append(res.get('stopped'))
+            job.update(50, 'telegram_search')
+        for f in pending:
+            f.cancel()
+        known = set((c.get('chat_id'), c.get('msg_id')) for c in raw)
+        fresh = []
+        for c in out:
+            k = (c.get('chat_id'), c.get('msg_id'))
+            if k not in known:
+                known.add(k)
+                fresh.append(c)
+        st['files'], st['seconds'] = len(fresh), round(time.time() - t0, 1)
+        job.paging = st
+        self.log('search paging: %d queries, %d older pages, %d more files in %.1fs (%s)' % (
+            len(qs), st['pages'], len(fresh), st['seconds'], ','.join(str(x) for x in st['stopped'])))
+        return fresh
 
     def _pinned(self):
         """Pinned chats of the settings: numeric ids, and - 3.3.3 - @names / t.me links of public channels, which
@@ -1131,6 +1255,11 @@ class Finder(object):
                 bot_futs.add(self._ask_bot(b, [q], rank, job))
             futs += list(bot_futs)
         raw, done_n, total, took = self._collect(futs, bot_futs, job, is_good)
+        if self.tg and logged_in and not job.cancel:
+            try:
+                raw += self._older(raw, [q], job, is_good)          # 4.3: the pages behind the newest hits
+            except Exception as exc:
+                self.log('search paging: %r' % exc)
         bot_rows, bot_join = self._bots_report(job)
         if job.cancel:
             return []
@@ -1160,12 +1289,17 @@ class Finder(object):
             c['loose'] = rel < 0.6
             rows.append(c)
         rows.sort(key=lambda c: -c['score'])
+        rows, unfit = self.device_fit(rows)                          # 4.3
+        rows.sort(key=lambda c: -c['score'])
         job.stats = {'raw': len(raw), 'unique': len(rows), 'accepted': len(rows), 'maybe': 0, 'queries': 1,
-                     'bots': bot_rows, 'bot_join': bot_join}
+                     'bots': bot_rows, 'bot_join': bot_join, 'paging': getattr(job, 'paging', None)}
         self.log('free search %r: %d raw, %d listed in %.1fs' % (q, len(raw), len(rows), took))
         if self.s.get('probe', True) and rows:
             job.update(70, 'probe')
             rows = self.probe(rows, job)
+        rows, unfit2 = self.device_fit(rows)
+        if unfit or unfit2:
+            job.stats = dict(job.stats or {}, device_hidden=unfit + unfit2)
         result = [self._public(c) for c in self.order_groups(rows, max(40, int(self.s.get('max_results', 25))))]
         if result:
             self.cache.set(key, result, 900)
@@ -1215,7 +1349,7 @@ class Finder(object):
          - the sample is read as a media header (mediainfo): real duration, picture size, audio / subtitle
            languages. A "movie" that is 4 minutes long is dropped, embedded Hebrew subtitles are marked as
            certain, and a file whose own title names another episode is moved down and marked."""
-        from . import mediainfo
+        from . import mediainfo, mediaflags
         shown = int(self.s.get('max_results', 25))
         n = min(len(cands), max(shown, 5), 40) if self.s.get('probe_all', True) else int(self.s.get('probe_count', 10))
         timeout = float(self.s.get('probe_timeout', 12))
@@ -1278,6 +1412,14 @@ class Finder(object):
                     checks['wrong'] += 1
                     continue
                 c['container'] = kind
+                # 4.3: seek index / 'moov' place / Dolby Vision record, read from the same sample
+                broken = self._apply_flags(c, mediaflags.inspect(data, 0 if c.get('url') else (c.get('size') or 0)))
+                if broken:
+                    c['probe'] = 'bad-container'
+                    checks['wrong'] += 1
+                    checks['broken'] = checks.get('broken', 0) + 1
+                    self.log('probe: %s dropped - %s' % (c['file'], broken))
+                    continue
                 info = mediainfo.inspect(data)
                 if info:
                     wrong = self._apply_media(c, info, target, pref)
@@ -1313,6 +1455,11 @@ class Finder(object):
             c['probe'] = 'untested'
             late.append(c)
             f.cancel()
+        if ok and not job.cancel:
+            try:
+                ok = self._second_reads(ok, job, checks, target, pref)     # 4.3: tail probe / mid-file throughput
+            except Exception as exc:
+                self.log('probe, second reads: %r' % exc)
         if os_on:
             ok = self._os_identify(ok, target, checks)
         if self.s.get('hide_slow', True):
@@ -1336,6 +1483,165 @@ class Finder(object):
         self.log('probe: %(tested)d tested in %(seconds)ss - %(ok)d ok, %(dead)d dead, %(wrong)d wrong file, '
                  '%(mirror)d mirror retries, %(untested)d untested' % checks)
         return ok
+
+    # ------------------------------------------------------------------ 4.3: container health beyond the first bytes
+    # The first sample says where the rest of the truth lies. An MP4 whose 'moov' box (the index of the whole file)
+    # is not in the head names the exact place it must stand at: one small read there proves the file is whole -
+    # or shows that it was cut short, and no player can open such a file. For a direct HTTP source one read from
+    # the middle of the file shows whether the server really serves ranges and how fast a far place arrives. Both
+    # are bounded: a few files, the best first, one time limit - a read that does not come back changes nothing.
+    TAIL_MAX, TAIL_TG_MAX, MID_MAX = 6, 4, 3
+    TAIL_BYTES, MID_BYTES = 262144, 2 * 1048576
+    _FLAG_KEYS = ('video', 'audio', 'hdr_type', 'dv', 'dv_profile', 'dv_fallback')
+
+    def _seek_points(self, c, pts, note):
+        """The points the container's health is worth (again after a second read: only the difference is added)"""
+        c['score'] = (c.get('score') or 0) + pts - c.get('_seek_pts', 0.0)
+        c['_seek_pts'] = pts
+        why = [w for w in c.get('why') or [] if not (isinstance(w, str) and w.startswith('container: '))]
+        if note:
+            why.append('container: ' + note)
+        c['why'] = why
+
+    def _apply_flags(self, c, flags):
+        """Folds mediaflags.inspect() of the probe sample into the candidate: Dolby Vision / HDR / sound formats go
+        into the parsed name (the header wins), the seek state into c['seek']:
+        'ok' | 'slow' (Matroska without an index) | 'tail?' (MP4 index promised behind the picture data, not seen
+        yet) | 'tail' (seen there) | 'none' (the server ignores ranges) | absent (not known).
+        -> a reason when the file certainly cannot be opened, else None."""
+        from . import mediaflags
+        if not flags:
+            return None
+        p = c.setdefault('parsed', {})
+        mediaflags.apply(p, flags)
+        c['flags'] = dict((k, flags.get(k)) for k in self._FLAG_KEYS + ('container', 'cues', 'moov'))
+        if flags.get('container') == 'mkv':
+            if flags.get('cues') is False:
+                c['seek'] = 'slow'
+                self._seek_points(c, -4.0, 'no seek index - jumps are slow')
+            elif flags.get('cues'):
+                c['seek'] = 'ok'
+        elif flags.get('container') == 'mp4':
+            moov = flags.get('moov')
+            if moov == 'missing':
+                return "MP4 without a 'moov' box - the file was cut short"
+            if moov == 'head':
+                c['seek'] = 'ok'
+            elif moov == 'tail' and flags.get('next') is not None:
+                c['seek'] = 'tail?'
+                c['_moov_at'] = int(flags['next'])
+        return None
+
+    def _read_at(self, c, at, size, seconds):
+        """`size` bytes from file offset `at` of a candidate -> (data, seconds the read took, the range was kept)"""
+        if c.get('url'):
+            return http_range_bytes(c['url'], at, size, seconds)
+        from .tgclient import CHUNK
+        t0 = time.time()
+        idx = int(at) // CHUNK
+        data = self.tg.run(self.tg.read_chunk(c['chat_id'], c['msg_id'], idx), seconds)
+        return bytes(data or b'')[int(at) - idx * CHUNK:][:size], time.time() - t0, True
+
+    def _second_reads(self, ok, job, checks, target=None, pref='any'):
+        """One more read for the few best files that need it (see above) -> the list without the broken ones."""
+        from . import mediainfo, mediaflags
+        if not self.s.get('probe_tail', True):
+            return ok
+        seconds = float(self.s.get('probe_tail_timeout', 5))
+        ranked = sorted(ok, key=lambda c: -(c.get('score') or 0))
+        jobs, n_tg, n_mid = [], 0, 0
+        for c in ranked:
+            if c.get('_moov_at') is None or len(jobs) >= self.TAIL_MAX:
+                continue
+            if not c.get('url'):
+                if not self.tg or n_tg >= self.TAIL_TG_MAX:
+                    continue
+                n_tg += 1
+            jobs.append((c, 'tail', c['_moov_at'], self.TAIL_BYTES))
+        if self.s.get('probe_mid', True):
+            busy = set(id(j[0]) for j in jobs)
+            for c in ranked:
+                size = int(c.get('size') or 0)
+                if n_mid >= self.MID_MAX:
+                    break
+                if not c.get('url') or id(c) in busy or not c.get('bitrate') or size < 64 * 1048576:
+                    continue
+                n_mid += 1
+                jobs.append((c, 'mid', (size // 2) & ~0xFFFF, self.MID_BYTES))
+        if not jobs:
+            return ok
+        t0 = time.time()
+        futs = dict((self._pool.submit(self._read_at, c, at, size, seconds), (c, what, at))
+                    for c, what, at, size in jobs)
+        pending, drop = set(futs), set()
+        st = {'tail': 0, 'tail_ok': 0, 'tail_bad': 0, 'mid': 0, 'mid_slow': 0, 'no_range': 0, 'unanswered': 0}
+        while pending and time.time() < t0 + seconds + 0.5 and not job.cancel:
+            done, pending = fut_wait(pending, timeout=0.25, return_when=FIRST_COMPLETED)
+            for f in done:
+                c, what, at = futs[f]
+                st[what] += 1
+                try:
+                    data, took, ranged = f.result()
+                except Exception as exc:
+                    st['unanswered'] += 1
+                    self.log('probe (%s) %s: %s' % (what, c['file'], type(exc).__name__))
+                    continue
+                if not ranged:
+                    # the server sends the file from its start whatever is asked for: no jump can work
+                    st['no_range'] += 1
+                    c['seek'] = 'none'
+                    self._seek_points(c, -8.0, 'the server ignores ranges - no jumps')
+                    continue
+                if what == 'mid':
+                    if len(data) >= SPEED_SAMPLE_MIN and took > 0:
+                        c['mid_speed'] = len(data) / max(0.05, took)
+                        if c['mid_speed'] < 1.5 * c['bitrate']:
+                            st['mid_slow'] += 1
+                            if c.get('smooth', True):
+                                c['score'] -= 15
+                            c['smooth'] = False
+                            c.setdefault('why', []).append('slow in the middle of the file')
+                    else:
+                        st['unanswered'] += 1
+                    continue
+                flags, cut = mediaflags.mp4_tail(data, at, 0 if c.get('url') else (c.get('size') or 0))
+                if flags.get('moov') == 'tail' and cut:
+                    st['tail_ok'] += 1
+                    c['seek'] = 'tail'
+                    c.pop('_moov_at', None)
+                    self._seek_points(c, -1.0, 'index at the end of the file')
+                    mediaflags.apply(c['parsed'], flags)
+                    c['flags'] = dict(c.get('flags') or {}, moov='tail')
+                    if flags.get('known'):
+                        c['flags'].update((k, flags.get(k)) for k in self._FLAG_KEYS)
+                    if not (c.get('media') or {}).get('duration'):
+                        info = mediainfo.inspect(cut)           # the head had no track list: here it is
+                        wrong = self._apply_media(c, info, target, pref) if info and info.get('known') else None
+                        if wrong:
+                            drop.add(id(c))
+                            c['probe'] = 'mismatch'
+                            checks['wrong'] += 1
+                            checks['ok'] -= 1
+                            self.log('probe: %s dropped - %s' % (c['file'], wrong))
+                elif flags.get('moov') == 'missing' and (data or not c.get('url')):
+                    st['tail_bad'] += 1
+                    drop.add(id(c))
+                    c['probe'] = 'bad-container'
+                    checks['wrong'] += 1
+                    checks['ok'] -= 1
+                    checks['broken'] = checks.get('broken', 0) + 1
+                    self.log("probe: %s dropped - no 'moov' box where the file promises it (cut short)" % c['file'])
+                else:
+                    st['unanswered'] += 1
+        for f in pending:
+            st[futs[f][1]] += 1
+            st['unanswered'] += 1
+            f.cancel()
+        st['seconds'] = round(time.time() - t0, 1)
+        checks['second'] = st
+        self.log('probe, second reads: %(tail)d tail (%(tail_ok)d whole, %(tail_bad)d cut short), %(mid)d middle '
+                 '(%(mid_slow)d slow), %(no_range)d without ranges, %(unanswered)d unanswered in %(seconds)ss' % st)
+        return [c for c in ok if id(c) not in drop]
 
     # 4.0.4: certain identification through the OpenSubtitles file fingerprint (off unless the viewer switched it on
     # and gave a key). The fingerprint needs the first and the last 64 KB of the file; the first is the probe's
@@ -1506,6 +1812,10 @@ class Finder(object):
             'title': p.get('title') or '',
             'rd': c.get('rd'), 'rd_cached': c.get('rd_cached'),
             'he_sub_synced': c.get('he_sub_synced') or '',          # 4.0.5
+            # 4.3: the kind of HDR, the Dolby Vision profile, sound formats, seek state, device warning
+            'hdr_type': p.get('hdr_type') or '', 'dv': bool(p.get('dv')), 'dv_profile': p.get('dv_profile'),
+            'dv_fallback': p.get('dv_fallback'), 'audio_fmt': list(p.get('audio_fmt') or []),
+            'seek': c.get('seek') or '', 'device_warn': c.get('device_warn') or '',
         }
 
     GROUP = {'tg': 0, 'telemedia': 0, 'rd': 1}

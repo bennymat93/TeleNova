@@ -39,12 +39,13 @@ def fflate():
     return path
 
 
-def run(what, cmd):
+def run(what, cmd, quiet=False):
     print('--- %s' % what)
     p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     text = p.stdout.decode('utf-8', 'replace').rstrip()
     if text:
-        print(text)
+        # quiet: the last line only (these tests print one line per check), everything when it failed
+        print(text if (p.returncode or not quiet) else text.splitlines()[-1])
     if p.returncode:
         bad.append(what)
     return p.returncode == 0
@@ -111,6 +112,11 @@ def main():
                 run('the build opens what the browser sealed (Python)', [sys.executable, os.path.join(HERE, 'check_repack.py'), tmp])
         run('users, lists and the sync loop in the browser (Node)', [node, os.path.join(HERE, 't_store.js'), lib])
         run('Kodi devices and browsers on one account (Python + Node)', [sys.executable, os.path.join(HERE, 't_mixed.py')])
+        # 4.3.0: the module tests (pure parts, fake DOM) and the helper Worker's own test ran only by hand before
+        for name in ('t_matcher', 't_sources', 't_srt', 't_texts', 't_tgsearch', 't_content', 't_live', 't_playback', 't_shell',
+                     't_player', 't_player_dom'):
+            run('%s.js (Node)' % name, [node, os.path.join(HERE, name + '.js')], quiet=True)
+        run('helper Worker (Node)', [node, os.path.join(WEB, '..', 'worker', 'test.mjs')], quiet=True)
         static_checks()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

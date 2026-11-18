@@ -438,6 +438,16 @@ class TG(object):
         async def one(entity, lim):
             async with self._search_sem:
                 try:
+                    if entity is None:
+                        # 4.3: the first page of the search over all chats is asked for by hand, so that the
+                        # place it stopped at is known and search_more() can go on from there
+                        for msg in await self._global_first(query, lim):
+                            if msg.file is None:
+                                continue
+                            c = self._to_cand(msg)
+                            if c:
+                                out.append(c)
+                        return
                     async for msg in self.client.iter_messages(entity, search=query, limit=lim):
                         if msg.file is None:
                             continue
@@ -454,6 +464,164 @@ class TG(object):
             jobs.append(one(self.ref(chat), max(20, limit // 3)))
         await asyncio.gather(*jobs)
         return out
+
+    # ------------------------------------------------------------------ 4.3: the search over all chats, page by page
+    # messages.searchGlobal answers with the newest hits and, when there are more, with a "next_rate". Asking again
+    # with that rate, the chat and the id of the last message gives the next (older) page. search() remembers where
+    # the first page of every query stopped; search_more() goes on from there - a few pages at most, inside a time
+    # budget, never against a flood wait, and without the messages an earlier page already gave.
+    SEARCH_PAGE = 100            # Telegram's maximum for one page
+    SEARCH_GAP = 0.25            # s between two pages of one query
+    SEARCH_KEEP = 600            # s a remembered place stays usable
+    SEARCH_QUERIES = 48          # remembered queries
+
+    def _pages(self):
+        st = getattr(self, '_search_pages', None)
+        if st is None:
+            st = self._search_pages = collections.OrderedDict()
+        return st
+
+    def _page_state(self, query, fresh=False):
+        st = self._pages()
+        row = st.get(query)
+        if fresh or row is None or time.time() - row['at'] > self.SEARCH_KEEP:
+            row = st[query] = {'at': time.time(), 'cur': (0, None, 0), 'more': False, 'seen': set(), 'pages': 0}
+        st.move_to_end(query)
+        while len(st) > self.SEARCH_QUERIES:
+            st.popitem(last=False)
+        return row
+
+    def search_has_more(self, query):
+        """True when the last page read for `query` said that older hits exist (and nothing forbids asking)."""
+        row = self._pages().get(query)
+        if not row or time.time() - row['at'] > self.SEARCH_KEEP:
+            return False
+        return bool(row['more']) and time.time() >= getattr(self, '_search_gate', 0.0)
+
+    async def _global_page(self, query, cur, limit):
+        """One messages.searchGlobal request. cur = (rate, chat of the last message, id of the last message).
+        -> (messages, the place to go on from or None when Telegram has nothing older)"""
+        from telethon import utils
+        from telethon.tl import functions, types
+        rate, peer, last_id = cur
+        r = await self.client(functions.messages.SearchGlobalRequest(
+            q=query or '', filter=types.InputMessagesFilterEmpty(), min_date=None, max_date=None,
+            offset_rate=int(rate or 0), offset_peer=peer or types.InputPeerEmpty(), offset_id=int(last_id or 0),
+            limit=int(limit)))
+        ents = {}
+        for x in list(getattr(r, 'users', None) or []) + list(getattr(r, 'chats', None) or []):
+            try:
+                ents[utils.get_peer_id(x)] = x
+            except Exception:
+                pass
+        out = []
+        for m in getattr(r, 'messages', None) or []:
+            if isinstance(m, types.MessageEmpty):
+                continue
+            finish = getattr(m, '_finish_init', None)      # what Telethon's own iterator does with a raw answer
+            if finish is not None:
+                finish(self.client, ents, None)
+            out.append(m)
+        nxt = None
+        next_rate = getattr(r, 'next_rate', None)
+        if out and next_rate:                              # no next_rate = this was the last page
+            last = out[-1]
+            nxt = (next_rate, getattr(last, 'input_chat', None), last.id)
+        return out, nxt
+
+    def _page_take(self, row, msgs, nxt):
+        """Books one page into the state of its query -> the messages no earlier page gave."""
+        new = []
+        for m in msgs:
+            key = (getattr(m, 'chat_id', None), m.id)
+            if key in row['seen']:
+                continue
+            row['seen'].add(key)
+            new.append(m)
+        row['pages'] += 1
+        row['at'] = time.time()
+        if nxt is None or nxt == row['cur'] or not new:
+            row['more'] = False                            # the end, or Telegram repeats itself: never asked again
+        else:
+            row['cur'], row['more'] = nxt, True
+        return new
+
+    async def _global_first(self, query, limit):
+        """The newest hits of `query` over all chats (what iter_messages(None, search=...) gives), remembered as
+        page one. Anything unexpected in the hand-made request falls back to Telethon's iterator."""
+        from telethon import errors
+        row = self._page_state(query, fresh=True)
+        try:
+            msgs, nxt = await self._global_page(query, row['cur'], min(int(limit), self.SEARCH_PAGE))
+        except errors.FloodWaitError as exc:
+            self._search_gate = time.time() + int(getattr(exc, 'seconds', 5) or 5) + 0.5
+            raise
+        except (asyncio.CancelledError, ConnectionError, asyncio.TimeoutError):
+            raise
+        except Exception as exc:
+            self.log('search %r: paged request not usable (%s) - plain search' % (query, type(exc).__name__))
+            self._pages().pop(query, None)
+            return [m async for m in self.client.iter_messages(None, search=query, limit=limit)]
+        return self._page_take(row, msgs, nxt)
+
+    async def search_more(self, query, pages=2, budget=4.0, limit=None):
+        """Older hits of `query` over all chats: up to `pages` more pages after the ones already read, within
+        `budget` seconds. Stops at the end of the results, when a page brings nothing new, when the time is up and
+        when Telegram asks to wait (the wait is remembered - no paging at all until it is over).
+        -> {'items': [candidates with a file], 'pages': read now, 'messages': new messages seen, 'more': bool,
+            'stopped': 'end' | 'pages' | 'time' | 'flood' | 'error'}"""
+        from telethon import errors
+        t_end = time.time() + float(budget)
+        limit = min(int(limit or self.SEARCH_PAGE), self.SEARCH_PAGE)
+        row = self._page_state(query)
+        res = {'items': [], 'pages': 0, 'messages': 0, 'more': False, 'stopped': 'pages'}
+        first = row['pages'] == 0
+        for n in range(max(0, int(pages))):
+            if not first and not row['more']:
+                res['stopped'] = 'end'
+                break
+            if time.time() < getattr(self, '_search_gate', 0.0):
+                res['stopped'] = 'flood'
+                break
+            left = t_end - time.time()
+            if left <= 0.3:
+                res['stopped'] = 'time'
+                break
+            try:
+                async with self._search_sem:
+                    # Telethon sleeps through a short flood wait by itself: the time limit ends that as well
+                    msgs, nxt = await asyncio.wait_for(self._global_page(query, row['cur'], limit), left)
+            except errors.FloodWaitError as exc:
+                self._search_gate = time.time() + int(getattr(exc, 'seconds', 5) or 5) + 0.5
+                getattr(self, 'info', self.log)('search: Telegram asked to wait %ss - no more pages until then' % getattr(exc, 'seconds', '?'))
+                res['stopped'] = 'flood'
+                break
+            except asyncio.TimeoutError:
+                res['stopped'] = 'time'
+                break
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self.log('search %r page failed: %s' % (query, type(exc).__name__))
+                res['stopped'] = 'error'
+                break
+            first = False
+            new = self._page_take(row, msgs, nxt)
+            res['pages'] += 1
+            res['messages'] += len(new)
+            for msg in new:
+                if msg.file is None:
+                    continue
+                c = self._to_cand(msg)
+                if c:
+                    res['items'].append(c)     # a forward of a file already seen is kept: the caller uses it as a mirror
+            if not row['more']:
+                res['stopped'] = 'end'
+                break
+            if n + 1 < int(pages):
+                await asyncio.sleep(min(self.SEARCH_GAP, max(0.0, t_end - time.time())))
+        res['more'] = bool(row['more'])
+        return res
 
     async def search_in(self, chat, query, limit=100):
         """3.3.5: the files of ONE chat that match the text. Inside a chat Telegram's search is complete; the search

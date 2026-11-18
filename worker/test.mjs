@@ -1,5 +1,5 @@
 // node test.mjs - offline checks of the Worker with a mocked upstream fetch
-import {handle, allowed} from './index.js';
+import {handle, allowed, SECRET_HOSTS} from './index.js';
 let fails = 0; const ok = (c, m) => { if (!c) { fails++; console.log('FAIL', m); } else console.log('ok  ', m); };
 const O = 'https://bennymat93.github.io', env = {ALLOW_ORIGINS: O, ALLOW_HOSTS: ''};
 let seen = null;
@@ -12,7 +12,10 @@ for (const t of ['https://api.real-debrid.com/rest/1.0/user', 'https://stremthru
   'https://www.youtube.com/youtubei/v1/search']) {
   const r = await handle(req(t, {h: {authorization: 'Bearer T'}}), env);
   ok(r.status === 200 && r.headers.get('access-control-allow-origin') === O, 'allowed ' + new URL(t).host);
-  ok(seen.init.headers.get('authorization') === 'Bearer T' && !seen.init.headers.get('origin'), '  auth passed, origin dropped');
+  // a secret header goes only to the hosts it belongs to (SECRET_HOSTS in index.js); every other host gets none
+  const mine = SECRET_HOSTS.authorization.includes(new URL(t).host);
+  ok(seen.init.headers.get('authorization') === (mine ? 'Bearer T' : null) && !seen.init.headers.get('origin'),
+     mine ? '  auth passed, origin dropped' : '  auth kept back from a host it does not belong to, origin dropped');
 }
 ok((await handle(req('https://www.ktuvit.me/x'), env)).headers.get('x-tn-set-cookie') === 'a=1', 'set-cookie exposed');
 for (const t of ['https://evil.example/', 'http://api.real-debrid.com/x', 'https://www.youtube.com/watch?v=1',

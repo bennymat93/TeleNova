@@ -663,6 +663,145 @@ def _current_sub_is(name):
         return False
 
 
+# ------------------------------------------------------------------ BUG-014: why did a TV channel fail to open?
+# 4.2.10: the cause of a failed first open was never established because Kodi's log had rotated by the time anyone
+# looked. From now on the lines Kodi wrote about the failed open are classified and kept (addresses reduced to
+# scheme://host/...ext - no path, no query, no headers, so no token or subscription login is stored) in
+# tv_fail.json in the add-on's profile: the last TV_FAIL_KEEP failures, each with its cause.
+TV_FAIL_FILE = 'tv_fail.json'
+TV_FAIL_KEEP = 30
+TV_FAIL_WINDOW = 45         # seconds of log before the error that belong to the failed open
+_TV_URL = re.compile(r'\b([a-z][a-z0-9+.\-]{1,12})://([^\s<>\'"\]\[]+)', re.I)
+_TV_EXT = re.compile(r'\.(m3u8?|ts|mpd|mp4|mkv|flv|aac|mp3|php|pvr)$', re.I)
+_TV_STAMP = re.compile(r'^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)')
+_TV_REL = re.compile(r'OpenFile|OpenInputStream|OpenDemuxStream|Error creating demuxer|CDVDDemuxFFmpeg|ffmpeg\[|'
+                     r'CCurlFile|inputstream|InputStream|Playlist Player|unplayable|failed to resolve|'
+                     r'GetResolvedPluginResult|GetPluginResult|\[NovaTV\] live |idanplus|pvr\.iptvsimple|'
+                     r'OpenLiveStream|HTTP (?:error|response)|Timeout|timed out|EXCEPTION|Traceback', re.I)
+_TV_CODE = re.compile(r'(?:Failed with code|HTTP (?:error|response)(?: code)?|returned error|status(?: code)?)[ :=]*(\d{3})\b', re.I)
+
+
+def tv_mask(text):
+    """a log line with every address reduced to scheme://host/...ext; plugin:// keeps the add-on id and, for this
+    add-on's live channels, the channel key (ch= / alt=) - never a path, a query or the '|Header=' part"""
+    def one(m):
+        scheme, rest = m.group(1).lower(), m.group(2)
+        rest = rest.split('|')[0]
+        head, _, query = rest.partition('?')
+        host, _, path = head.partition('/')
+        host = host.rsplit('@', 1)[-1]
+        if scheme == 'plugin':
+            key = re.search(r'(?:^|&)(ch|alt)=([\w\-.%]{1,40})', query)
+            return 'plugin://%s/%s' % (host, ('?%s=%s' % key.groups()) if key and host == 'plugin.video.nova' else '')
+        if scheme in ('pvr', 'special', 'file'):
+            return '%s://%s' % (scheme, head[:120])
+        ext = _TV_EXT.search(path)
+        return '%s://%s/...%s' % (scheme, host, ext.group(0).lower() if ext else '')
+    return _TV_URL.sub(one, text)[:300]
+
+
+def tv_fail_window(lines, now, window=TV_FAIL_WINDOW):
+    """the log lines of the last `window` seconds (a line without a time stamp belongs to the line before it);
+    lines whose stamp cannot be read are kept"""
+    out, keep = [], True
+    for l in lines:
+        m = _TV_STAMP.match(l)
+        if m:
+            try:
+                keep = now - time.mktime(time.strptime(m.group(1), '%Y-%m-%d %H:%M:%S')) <= window
+            except (ValueError, OverflowError):
+                keep = True
+        if keep:
+            out.append(l)
+    return out
+
+
+def tv_fail_cause(lines):
+    """Classify what Kodi's log says about a channel that failed to open. Returns
+    {'cause', 'http', 'host', 'via', 'reopen', 'lines'} - cause is one of:
+      http_denied  401 / 403 / 410: the address expired (tokenised URL) or the server refuses these headers
+      http_limit   429 / 509 / 458: too many connections (the previous channel's connection still open)
+      http_missing 404            redirect  a redirect that was not followed / too many redirects
+      http_server  5xx            network   timeout, no connection, DNS, TLS
+      plugin       the channel's plugin:// address was not resolved (Idan+ / this add-on / YouTube)
+      adaptive     inputstream.adaptive refused the manifest or a segment
+      demux        the server answered but ffmpeg found no stream in the data (empty / partial first answer)
+      unknown      nothing recognisable in the log window"""
+    rel = [l for l in lines if _TV_REL.search(l)]
+    low = '\n'.join(rel).lower()
+    code = 0
+    for m in _TV_CODE.finditer('\n'.join(rel)):
+        c = int(m.group(1))
+        if c >= 300:
+            code = c
+            break
+    if code in (401, 403, 410):
+        cause = 'http_denied'
+    elif code in (429, 458, 509):
+        cause = 'http_limit'
+    elif code == 404:
+        cause = 'http_missing'
+    elif 300 <= code < 400 or 'redirect' in low:
+        cause = 'redirect'
+    elif code >= 500:
+        cause = 'http_server'
+    elif re.search(r'timeout was reached|timed out|couldn\'t connect|could not connect|couldn\'t resolve|'
+                   r'ssl peer certificate|ssl connect error|connection (?:reset|refused)|failed sending data', low):
+        cause = 'network'
+    elif re.search(r'failed to resolve|getresolvedpluginresult|getpluginresult.*(?:fail|error)|'
+                   r'skipping unplayable item.*plugin://|error <general>: \[plugin\.video\.|idanplus.*(?:error|exception)', low) \
+            or ('plugin://' in low and ('traceback' in low or 'exception' in low)):
+        cause = 'plugin'
+    elif re.search(r'inputstream\.adaptive[^\n]*(?:fail|error|cannot|could not|unable)|'
+                   r'cinputstreamaddon[^\n]*(?:fail|error)', low):
+        cause = 'adaptive'
+    elif re.search(r'error creating demuxer|could not open|error probing|invalid data found|opendemuxstream', low):
+        cause = 'demux'
+    else:
+        cause = 'unknown'
+    host = ''
+    for l in reversed(rel):                     # the address nearest to the error: the stream that was opened
+        m = re.search(r'\bhttps?://([^\s/<>\'"|?\]]+)', l, re.I)
+        if m:
+            host = m.group(1).rsplit('@', 1)[-1]
+            break
+    via = 'adaptive' if 'inputstream.adaptive' in low else ('ffmpeg' if ('cdvddemuxffmpeg' in low or 'ffmpeg[' in low) else '')
+    opens = []
+    for l in rel:                               # two opens within 3 s: a zap or a guide-triggered second open
+        m = _TV_STAMP.match(l)
+        if m and 'OpenFile' in l:
+            try:
+                opens.append(time.mktime(time.strptime(m.group(1), '%Y-%m-%d %H:%M:%S')))
+            except (ValueError, OverflowError):
+                pass
+    reopen = any(0 <= b - a <= 3 for a, b in zip(opens, opens[1:]))
+    return {'cause': cause, 'http': code, 'host': host, 'via': via, 'reopen': reopen,
+            'lines': [tv_mask(l.strip()) for l in rel[-25:]]}
+
+
+def tv_fail_note(path, kind, log_path=None, now=None):
+    """keep what the log says about the TV channel that just failed to open ('first' open or the 'retry');
+    returns the stored record. Reads only the last 128 KB of the log; never raises."""
+    try:
+        now = now or time.time()
+        log_path = log_path or xbmcvfs.translatePath('special://logpath/kodi.log')
+        with open(log_path, 'rb') as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 131072))
+            tail = f.read().decode('utf-8', 'replace').splitlines()[1:]
+        rec = tv_fail_cause(tv_fail_window(tail, now))
+        rec.update(at=now_str(), kind=kind, channel=tv_mask(path))
+        kept = load(TV_FAIL_FILE, [])
+        kept = (kept if isinstance(kept, list) else [])[-(TV_FAIL_KEEP - 1):] + [rec]
+        save(TV_FAIL_FILE, kept)
+        log('TV channel failed to open (%s): cause=%s http=%s host=%s via=%s reopen=%s - kept in %s' % (
+            kind, rec['cause'], rec['http'] or '-', rec['host'] or '-', rec['via'] or '-', rec['reopen'], TV_FAIL_FILE))
+        return rec
+    except Exception as e:
+        log('tv failure note: %s' % e, xbmc.LOGWARNING)
+        return None
+
+
 class Player(xbmc.Player):
     """Every new video starts clean: no subtitles, pause, job or status left over from the previous one.
     Only the history ('watched') is carried over."""
@@ -832,7 +971,18 @@ class Player(xbmc.Player):
         # connections and the previous channel's connection may still be open when the viewer zaps quickly
         self.finish()
         path, last = getattr(self, 'tv_try', ''), getattr(self, 'tv_retry', ('', 0))
-        if not path or (last[0] == path and time.time() - last[1] < 30):
+        if not path:
+            return
+
+        def note(kind):
+            # 4.2.10 (BUG-014): what Kodi's log says about this failed open is classified and kept (tv_fail.json);
+            # a problem here never costs the retry
+            try:
+                tv_fail_note(path, kind)
+            except Exception as e:
+                log('tv failure note: %s' % e)
+        if last[0] == path and time.time() - last[1] < 30:
+            threading.Thread(target=note, args=('retry',), daemon=True).start()     # the second try failed too
             return
         self.tv_retry = (path, time.time())
 
@@ -848,6 +998,7 @@ class Player(xbmc.Player):
             if not self.isPlaying():
                 log('TV channel failed to open - one more try: %s' % path)
                 self.play(path)
+            note('first')           # after the retry was started: reading the log never delays it
         threading.Thread(target=again, daemon=True).start()
 
     def start_flow(self, forced):

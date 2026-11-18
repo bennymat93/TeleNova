@@ -22,6 +22,16 @@
 //   S.setOffset(video, sec) / S.offset(video)     moves every cue of the showing track (positive = later)
 //   S.style() / S.setStyle({size, color, bg})     ::cue appearance (browser settings subs_size/subs_color/subs_bg)
 //   S.menu(video, q, {container})                 an in-player panel: list, offset slider, appearance, Ktuvit login
+//   S.embedded(video, hls) / S.off(video, hls)    the file's own subtitle tracks (HLS renditions, MP4 text tracks)
+//   S.auto(video, q, {hls, key, say})             the build's order: embedded track -> best human subtitle (text
+//                                                 checked to really be in that language) -> AI; S.autoOn() = the switch
+//   S.fromFile(file) -> {label, lang, vtt}        a subtitle file from this device (.srt / .vtt / .ass / .zip)
+//   S.settingsPanel(el)                           the settings block: automatic, language, appearance + sample, source
+//                                                 switches, subs_os_key, subs_server_url (+ test), Ktuvit login.
+//                                                 Drawn on the Settings page when this file is loaded; services.js or
+//                                                 app.js may call it directly: (await TN.provider('subs')).settingsPanel(el)
+//   Browser settings: subs_auto, subs_lang, subs_size, subs_color, subs_bg, subs_os_key, subs_server_url;
+//   TN.get('subs_offsets') remembers the offset per video key.
 //   S.translate(srtOrCues, toLang, {signal, onProgress}) -> VTT
 //   S.ktuvitLogin(email, password) / S.ktuvitLogout()
 (function (G) {
@@ -35,25 +45,48 @@
       subs_failed: 'טעינת הכתוביות נכשלה: %s', subs_ai: 'תרגום AI', subs_ai_run: 'מתרגם… %s%', subs_need_key: 'צריך מפתח %s',
       subs_need_helper: 'דורש את שרת העזר (Worker)', subs_ktuvit_login: 'כניסה לכתוביות (Ktuvit)', subs_email: 'דוא״ל',
       subs_password: 'סיסמה', subs_login: 'התחברות', subs_logout: 'התנתקות', subs_logged: 'מחובר ל-Ktuvit', subs_os_key: 'מפתח OpenSubtitles',
-      subs_save: 'שמירה', subs_srv: 'שרת כתוביות AI (במחשב)', subs_srv_hint: 'כתובת https בלבד. השרת במחשב חייב להיות נגיש ב-https (למשל דרך Cloudflare Tunnel או Tailscale Funnel) - כתובת http://IP:8765 לא תעבוד מדף https.', subs_srv_bad: 'צריך כתובת https://', subs_srv_wait: 'שרת ה-AI מכין כתוביות… %s%', subs_loaded: 'נטענו כתוביות: %s', subs_close: 'סגירה'},
+      subs_save: 'שמירה', subs_srv: 'שרת כתוביות AI (במחשב)', subs_srv_hint: 'כתובת https בלבד. השרת במחשב חייב להיות נגיש ב-https (למשל דרך Cloudflare Tunnel או Tailscale Funnel) - כתובת http://IP:8765 לא תעבוד מדף https.', subs_srv_bad: 'צריך כתובת https://', subs_srv_wait: 'שרת ה-AI מכין כתוביות… %s%', subs_loaded: 'נטענו כתוביות: %s', subs_close: 'סגירה',
+      subs_auto: 'כתוביות אוטומטיות בתחילת ניגון', subs_lang: 'שפת כתוביות', subs_lang_app: 'שפת האפליקציה', subs_look: 'מראה הכתוביות',
+      subs_sz_s: 'קטן', subs_sz_m: 'רגיל', subs_sz_l: 'גדול', subs_sz_xl: 'ענק', subs_c_white: 'לבן', subs_c_yellow: 'צהוב', subs_c_cyan: 'תכלת',
+      subs_bg_none: 'בלי רקע', subs_bg_half: 'רקע שקוף למחצה', subs_bg_full: 'רקע שחור', subs_preview: 'כך ייראו הכתוביות', subs_settings: 'הגדרות כתוביות',
+      subs_embedded: 'בתוך הקובץ', subs_srv_test: 'בדיקה', subs_srv_ok: 'השרת עונה', subs_srv_fail: 'השרת לא עונה', subs_saved: 'נשמר', subs_keys: 'חשבונות ומפתחות',
+      subs_os_hint: 'מפתח API חינמי מ-opensubtitles.com (Consumers). נשמר בדפדפן הזה בלבד ונשלח רק בכותרת הבקשה.', subs_file: 'טעינת קובץ כתוביות מהמכשיר',
+      subs_auto_found: 'כתוביות: %s', subs_auto_none: 'לא נמצאו כתוביות אוטומטיות', subs_wrong_lang: 'הקובץ אינו בשפה שסומנה', subs_synced_key: 'מפתח מסונכרן מהחשבון בשימוש',
+      subs_clear: 'מחיקה', subs_src_on: 'מקורות כתוביות'},
     en: {subs_title: 'Subtitles', subs_none: 'No subtitles found.', subs_off: 'Subtitles off', subs_offset: 'Sync: %s s',
       subs_reset: 'Reset', subs_size: 'Size', subs_color: 'Color', subs_bg: 'Background', subs_loading: 'Looking for subtitles…',
       subs_failed: 'Could not load the subtitles: %s', subs_ai: 'AI translation', subs_ai_run: 'Translating… %s%', subs_need_key: 'Needs a %s key',
       subs_need_helper: 'Needs the helper (Worker)', subs_ktuvit_login: 'Subtitle login (Ktuvit)', subs_email: 'E-mail',
       subs_password: 'Password', subs_login: 'Log in', subs_logout: 'Log out', subs_logged: 'Logged in to Ktuvit', subs_os_key: 'OpenSubtitles key',
-      subs_save: 'Save', subs_srv: 'AI subtitle server (PC)', subs_srv_hint: 'https address only. The server on the PC must be reachable over https (for example through Cloudflare Tunnel or Tailscale Funnel) - http://IP:8765 does not work from an https page.', subs_srv_bad: 'Needs an https:// address', subs_srv_wait: 'AI server preparing subtitles… %s%', subs_loaded: 'Subtitles loaded: %s', subs_close: 'Close'},
+      subs_save: 'Save', subs_srv: 'AI subtitle server (PC)', subs_srv_hint: 'https address only. The server on the PC must be reachable over https (for example through Cloudflare Tunnel or Tailscale Funnel) - http://IP:8765 does not work from an https page.', subs_srv_bad: 'Needs an https:// address', subs_srv_wait: 'AI server preparing subtitles… %s%', subs_loaded: 'Subtitles loaded: %s', subs_close: 'Close',
+      subs_auto: 'Automatic subtitles when playback starts', subs_lang: 'Subtitle language', subs_lang_app: 'App language', subs_look: 'Subtitle appearance',
+      subs_sz_s: 'Small', subs_sz_m: 'Normal', subs_sz_l: 'Large', subs_sz_xl: 'Huge', subs_c_white: 'White', subs_c_yellow: 'Yellow', subs_c_cyan: 'Cyan',
+      subs_bg_none: 'No background', subs_bg_half: 'Half-transparent background', subs_bg_full: 'Black background', subs_preview: 'This is how subtitles will look', subs_settings: 'Subtitle settings',
+      subs_embedded: 'Inside the file', subs_srv_test: 'Test', subs_srv_ok: 'The server answers', subs_srv_fail: 'The server does not answer', subs_saved: 'Saved', subs_keys: 'Accounts and keys',
+      subs_os_hint: 'A free API key from opensubtitles.com (Consumers). Kept in this browser only and sent only in the request header.', subs_file: 'Load a subtitle file from this device',
+      subs_auto_found: 'Subtitles: %s', subs_auto_none: 'No automatic subtitles found', subs_wrong_lang: 'The file is not in the language it is labelled as', subs_synced_key: 'Using the key synced from the account',
+      subs_clear: 'Remove', subs_src_on: 'Subtitle sources'},
     ru: {subs_title: 'Субтитры', subs_none: 'Субтитры не найдены.', subs_off: 'Без субтитров', subs_offset: 'Сдвиг: %s с',
       subs_reset: 'Сброс', subs_size: 'Размер', subs_color: 'Цвет', subs_bg: 'Фон', subs_loading: 'Ищем субтитры…',
       subs_failed: 'Не удалось загрузить субтитры: %s', subs_ai: 'Перевод ИИ', subs_ai_run: 'Перевод… %s%', subs_need_key: 'Нужен ключ %s',
       subs_need_helper: 'Нужен помощник (Worker)', subs_ktuvit_login: 'Вход для субтитров (Ktuvit)', subs_email: 'Эл. почта',
       subs_password: 'Пароль', subs_login: 'Войти', subs_logout: 'Выйти', subs_logged: 'Вход в Ktuvit выполнен', subs_os_key: 'Ключ OpenSubtitles',
-      subs_save: 'Сохранить', subs_srv: 'Сервер ИИ-субтитров (ПК)', subs_srv_hint: 'Только адрес https. Сервер на ПК должен быть доступен по https (например через Cloudflare Tunnel или Tailscale Funnel) - http://IP:8765 со страницы https не работает.', subs_srv_bad: 'Нужен адрес https://', subs_srv_wait: 'Сервер ИИ готовит субтитры… %s%', subs_loaded: 'Субтитры загружены: %s', subs_close: 'Закрыть'},
+      subs_save: 'Сохранить', subs_srv: 'Сервер ИИ-субтитров (ПК)', subs_srv_hint: 'Только адрес https. Сервер на ПК должен быть доступен по https (например через Cloudflare Tunnel или Tailscale Funnel) - http://IP:8765 со страницы https не работает.', subs_srv_bad: 'Нужен адрес https://', subs_srv_wait: 'Сервер ИИ готовит субтитры… %s%', subs_loaded: 'Субтитры загружены: %s', subs_close: 'Закрыть',
+      subs_auto: 'Автоматические субтитры при запуске', subs_lang: 'Язык субтитров', subs_lang_app: 'Язык приложения', subs_look: 'Вид субтитров',
+      subs_sz_s: 'Мелкий', subs_sz_m: 'Обычный', subs_sz_l: 'Крупный', subs_sz_xl: 'Огромный', subs_c_white: 'Белый', subs_c_yellow: 'Жёлтый', subs_c_cyan: 'Голубой',
+      subs_bg_none: 'Без фона', subs_bg_half: 'Полупрозрачный фон', subs_bg_full: 'Чёрный фон', subs_preview: 'Так будут выглядеть субтитры', subs_settings: 'Настройки субтитров',
+      subs_embedded: 'Внутри файла', subs_srv_test: 'Проверить', subs_srv_ok: 'Сервер отвечает', subs_srv_fail: 'Сервер не отвечает', subs_saved: 'Сохранено', subs_keys: 'Аккаунты и ключи',
+      subs_os_hint: 'Бесплатный API-ключ с opensubtitles.com (Consumers). Хранится только в этом браузере и отправляется только в заголовке запроса.', subs_file: 'Загрузить файл субтитров с устройства',
+      subs_auto_found: 'Субтитры: %s', subs_auto_none: 'Автоматические субтитры не найдены', subs_wrong_lang: 'Файл не на том языке, который указан', subs_synced_key: 'Используется ключ, синхронизированный с аккаунтом',
+      subs_clear: 'Удалить', subs_src_on: 'Источники субтитров'},
   });
 
   const t = (k, ...a) => (TN ? TN.t(k, ...a) : k);
   const appLang = () => (TN ? TN.lang() : 'he');
   const synced = () => (TN && TN.settings.synced ? TN.settings.synced() || {} : {});
   const getS = (k, d) => (TN ? TN.settings.get(k, d) : d);
+  // the language subtitles are wanted in: the viewer's choice (browser setting subs_lang), else the app language
+  const prefLang = () => { const v = String(getS('subs_lang', '') || ''); return LANG3[v] ? v : appLang(); };
 
   async function srt() {
     if (G.TNSrt) return G.TNSrt;
@@ -87,7 +120,7 @@
   async function toVttText(buf, lang) {
     const T = await srt();
     const text = await bytesToText(buf, lang);
-    const cues = T.parse(text);
+    const cues = T.repair ? T.repair(T.parse(text)) : T.parse(text);
     if (!cues.length) throw new Error('empty subtitle');
     return T.toVtt(cues);
   }
@@ -137,7 +170,7 @@
       if (!osKey()) return [];
       const imdb = await imdbOf(q);
       if (!imdb) return [];
-      const langs = [...new Set([q.lang || appLang(), 'he', 'en'])].join(',');
+      const langs = [...new Set([q.lang || prefLang(), 'he', 'en'])].join(',');
       const p = new URLSearchParams({languages: langs});
       if (q.episode) { p.set('parent_imdb_id', String(parseInt(imdb.slice(2), 10))); p.set('season_number', q.season || 1); p.set('episode_number', q.episode); }
       else p.set('imdb_id', String(parseInt(imdb.slice(2), 10)));
@@ -192,7 +225,7 @@
       if (!imdb) return [];
       const r = await S._fetch(YIFY + '/movie-imdb/' + imdb, {timeout: 15000});
       if (!r.ok) throw new Error('YIFY ' + r.status);
-      const want = new Set([q.lang || appLang(), 'he', 'en']);
+      const want = new Set([q.lang || prefLang(), 'he', 'en']);
       return parseYify(await r.text()).filter((x) => want.has(x.lang)).map((x) => ({
         label: (x.name || 'YIFY').slice(0, 90), lang: x.lang, source: 'yify', score: Math.min(0.3, x.rating / 100),
         fetchVtt: memo(async () => {
@@ -406,8 +439,10 @@
   const SOURCES = {wizdom, ktuvit, opensubs, yify, subsrv};
   S.find = async function (q, opts) {
     q = Object.assign({}, q);
+    if (TN && TN.providerOn && !TN.providerOn('subs')) return [];      // the Library switch "subtitles"
     q.imdb = await imdbOf(q);
-    const lang = q.lang || appLang();
+    const lang = q.lang || prefLang();
+    q.lang = lang;
     const on = (n) => (TN ? TN.providerOn(n) : true) && (!SOURCES[n].enabled || SOURCES[n].enabled());
     const errors = {};
     const lists = await Promise.all(Object.keys(SOURCES).filter(on).map((n) =>
@@ -433,15 +468,66 @@
     el.kind = 'subtitles'; el.label = opts.label || 'TeleNova'; el.srclang = opts.lang || 'he'; el.src = url;
     el.dataset.tn = 'subs';
     video.appendChild(el);
-    const st = {el, url, track: el.track, cues: null, offset: 0, label: el.label};
+    const st = {el, url, track: el.track, cues: null, offset: 0, label: el.label, lang: el.srclang, key: String(opts.key || ''), source: opts.source || ''};
     state.set(video, st);
-    for (const tr of video.textTracks) if (tr !== el.track) tr.mode = 'disabled';
+    const tl = video.textTracks || [];
+    for (let i = 0; i < tl.length; i++) if (tl[i] !== el.track) tl[i].mode = 'disabled';
     el.track.mode = opts.select === false ? 'hidden' : 'showing';
-    const keep = Number(TN ? TN.get('subs_offset', 0) : 0) || 0;
-    el.addEventListener('load', () => { st.cues = null; if (keep) S.setOffset(video, keep); }, {once: true});
+    // every video starts clean (Kodi: forget_file_settings); only this video's own remembered offset comes back
+    const keep = st.key ? Number((offsets()[st.key] || {}).o) || 0 : 0;
+    st.offset = keep;
+    el.addEventListener('load', () => { st.cues = null; if (st.offset) S.setOffset(video, st.offset); }, {once: true});
     applyStyle();
     return el.track;
   };
+  // remembered subtitle offsets, per video key (sub_offsets.json of the build): {key: {o: seconds, at: ms}}, 200 newest
+  function offsets() { return (TN && TN.get('subs_offsets', {})) || {}; }
+  function rememberOffset(key, sec) {
+    if (!TN || !key) return;
+    const all = offsets();
+    if (sec) all[key] = {o: sec, at: Date.now()}; else delete all[key];
+    const ks = Object.keys(all);
+    if (ks.length > 200) ks.sort((a, b) => all[a].at - all[b].at).slice(0, ks.length - 200).forEach((k) => delete all[k]);
+    TN.put('subs_offsets', all);
+  }
+  // subtitle tracks that came with the video itself (HLS renditions, MP4 text tracks where the browser shows them):
+  // [{label, lang, on, select()}]. hls = the hls.js object when one plays the stream.
+  S.embedded = function (video, hls) {
+    const out = [];
+    const mine = state.get(video);
+    if (hls && hls.subtitleTracks && hls.subtitleTracks.length) {
+      hls.subtitleTracks.forEach((tr, i) => out.push({label: tr.name || tr.lang || 'Track ' + (i + 1), lang: String(tr.lang || '').slice(0, 2).toLowerCase(), embedded: true,
+        on: hls.subtitleTrack === i && hls.subtitleDisplay !== false,
+        select() { S.detach(video); hls.subtitleDisplay = true; hls.subtitleTrack = i; }}));
+      return out;
+    }
+    const tl = (video && video.textTracks) || [];
+    for (let i = 0; i < tl.length; i++) {
+      const tr = tl[i];
+      if ((mine && tr === mine.track) || !/^(subtitles|captions)$/.test(tr.kind)) continue;
+      out.push({label: tr.label || tr.language || 'Track ' + (i + 1), lang: String(tr.language || '').slice(0, 2).toLowerCase().replace('iw', 'he'), embedded: true,
+        on: tr.mode === 'showing',
+        select() { S.detach(video); for (let j = 0; j < tl.length; j++) tl[j].mode = tl[j] === tr ? 'showing' : 'disabled'; }});
+    }
+    return out;
+  };
+  // no subtitle at all: ours removed, the file's own tracks hidden
+  S.off = function (video, hls) {
+    S.detach(video);
+    if (hls && hls.subtitleTracks && hls.subtitleTracks.length) { try { hls.subtitleTrack = -1; hls.subtitleDisplay = false; } catch (e) { /* no such track */ } }
+    const tl = (video && video.textTracks) || [];
+    for (let i = 0; i < tl.length; i++) if (tl[i].mode === 'showing') tl[i].mode = 'disabled';
+  };
+  // a subtitle file the viewer picked on this device (.srt / .vtt / .ass / .zip) -> {label, lang, vtt}
+  S.fromFile = async function (file) {
+    const T = await srt();
+    const buf = await (file.arrayBuffer ? file.arrayBuffer() : new Response(file).arrayBuffer());
+    const text = await bytesToText(buf, prefLang());
+    const cues = T.repair(T.parse(text));
+    if (!cues.length) throw new Error('empty subtitle');
+    return {label: String(file.name || 'file').slice(0, 90), lang: T.scriptOf(cues) || prefLang(), source: 'file', vtt: T.toVtt(cues)};
+  };
+  S.prefLang = prefLang;
   S.detach = function (video) {
     const st = state.get(video);
     if (!st) return;
@@ -449,21 +535,22 @@
     URL.revokeObjectURL(st.url);
     state.delete(video);
   };
-  S.current = (video) => { const st = state.get(video); return st ? {label: st.label, offset: st.offset} : null; };
+  S.current = (video) => { const st = state.get(video); return st ? {label: st.label, offset: st.offset, lang: st.lang, source: st.source} : null; };
   S.offset = (video) => (state.get(video) || {}).offset || 0;
   S.setOffset = function (video, sec) {
     const st = state.get(video);
     if (!st) return 0;
     const cl = st.track.cues;
-    if (!cl || !cl.length) { st.offset = Number(sec) || 0; return st.offset; }
+    const want = Math.max(-600, Math.min(600, Math.round((Number(sec) || 0) * 10) / 10));
+    if (!cl || !cl.length) { st.offset = want; rememberOffset(st.key, want); return st.offset; }
     if (!st.cues) st.cues = Array.from(cl, (c) => ({cue: c, start: c.startTime, end: c.endTime}));
-    st.offset = Math.round((Number(sec) || 0) * 10) / 10;
+    st.offset = want;
     // set end first when moving later so start <= end holds at every step
     for (const o of st.cues) {
       const s = Math.max(0, o.start + st.offset), e = Math.max(s + 0.01, o.end + st.offset);
       if (s > o.cue.endTime) { o.cue.endTime = e; o.cue.startTime = s; } else { o.cue.startTime = s; o.cue.endTime = e; }
     }
-    if (TN) TN.put('subs_offset', st.offset);
+    rememberOffset(st.key, st.offset);
     return st.offset;
   };
 
@@ -490,18 +577,54 @@
       '.subs-panel .subs-list button[aria-pressed="true"]{outline:2px solid var(--accent,#4da3ff)}' +
       '.subs-panel .subs-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0}' +
       '.subs-panel input[type=range]{flex:1;min-width:140px}.subs-panel input[type=email],.subs-panel input[type=password],.subs-panel input[type=text]{flex:1;min-width:120px}' +
-      '.subs-panel .tag{font-size:.75rem;margin-inline-end:6px}';
+      '.subs-panel .tag{font-size:.75rem;margin-inline-end:6px}' +
+      '.subs-set{text-align:start}.subs-set h3{margin:0 0 10px}.subs-set h4{margin:16px 0 6px;font-size:.95rem;opacity:.8}' +
+      '.subs-set-row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;min-height:44px;margin:4px 0}' +
+      '.subs-set-row.sw{justify-content:flex-start}.subs-set-row.sw input{width:22px;height:22px;flex:none}' +
+      '.subs-set select,.subs-set input[type=url],.subs-set input[type=password],.subs-set input[type=email]{min-height:44px;min-width:0;flex:1 1 160px;' +
+      'background:var(--panel,#1a1d26);color:var(--text,#fff);border:1px solid var(--muted,#888);border-radius:10px;padding:8px 12px;font:inherit}' +
+      '.subs-set-row select{flex:0 1 220px}.subs-set-form{margin:12px 0}.subs-set-form label{display:block;margin-bottom:4px}' +
+      '.subs-set-line{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.subs-set-src{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0 12px}' +
+      '.subs-sample{background:#333 linear-gradient(135deg,#345,#222);border-radius:10px;padding:22px 10px;text-align:center;margin:8px 0;overflow:hidden}' +
+      '.subs-sample span{padding:2px 8px;text-shadow:0 0 4px #000,0 0 2px #000;font-family:system-ui,Arial,sans-serif;font-size:100%}';
   }
 
   // ------------------------------------------------------------ auto pick (auto_subtitles in player_menus.py)
-  S.auto = async function (video, q) {
-    const list = await S.find(q);
-    const lang = q.lang || appLang();
-    const best = list.find((x) => x.lang === lang) || list.find((x) => x.source === 'subs_ai');
-    if (!best) return null;
-    const vtt = await best.fetchVtt();
-    S.attach(video, vtt, {label: best.label, lang: best.lang});
-    return best;
+  // The order of the build's flow: (1) a track inside the file in the wanted language, (2) the best human subtitle in
+  // that language (a file labelled Hebrew whose text is not Hebrew is skipped, the next one is tried), (3) the AI
+  // paths (Gemini translation of an English subtitle, the home AI server) when they are set up.
+  // opts = {hls, key (remembers the offset per video), embeddedOnly, say(text), list (reuse a finished search)}
+  // -> {label, lang, source, embedded?} or null. S.autoOn() is the viewer's switch (browser setting subs_auto).
+  S.autoOn = () => getS('subs_auto', true) !== false;
+  S.pickAuto = function (list, lang) {
+    const human = list.filter((x) => x.lang === lang && x.source !== 'subs_ai' && x.source !== 'subsrv');
+    const ai = list.filter((x) => x.source === 'subs_ai').concat(list.filter((x) => x.source === 'subsrv'));
+    return human.slice(0, 4).concat(ai);
+  };
+  S.auto = async function (video, q, opts) {
+    opts = opts || {};
+    q = Object.assign({}, q);
+    const lang = q.lang || prefLang();
+    q.lang = lang;
+    const say = opts.say || (() => {});
+    const emb = S.embedded(video, opts.hls).find((x) => x.lang === lang);
+    if (emb) { emb.select(); return {label: emb.label, lang, source: 'embedded', embedded: true}; }
+    if (opts.embeddedOnly) return null;
+    const list = opts.list || await S.find(q);
+    const T = await srt();
+    for (const cand of S.pickAuto(list, lang)) {
+      try {
+        if (cand.source === 'subs_ai') subsAi.onProgress = (p) => say(t('subs_ai_run', p));
+        if (cand.source === 'subsrv') subsrv.onProgress = (p) => say(t('subs_srv_wait', p));
+        const vtt = await cand.fetchVtt();
+        const sc = T.scriptOf(T.parse(vtt));
+        if (sc && sc !== lang && cand.lang === lang && LANG3[lang]) continue;        // labelled wrong: not this one
+        if (opts.alive && !opts.alive()) return null;
+        S.attach(video, vtt, {label: cand.label, lang: cand.lang, key: opts.key, source: cand.source});
+        return cand;
+      } catch (e) { /* the next candidate */ }
+    }
+    return null;
   };
 
   // ------------------------------------------------------------ the in-player panel
@@ -578,7 +701,7 @@
     const sel = (key, label, opts) => {
       const s = document.createElement('select');
       s.setAttribute('aria-label', label);
-      for (const o of Object.keys(opts)) { const op = document.createElement('option'); op.value = o; op.textContent = o; s.append(op); }
+      for (const o of Object.keys(opts)) { const op = document.createElement('option'); op.value = o; op.textContent = optName(key, o); s.append(op); }
       s.value = S.style()[key];
       s.onchange = () => S.setStyle({[key]: s.value});
       const l = document.createElement('label'); l.textContent = label + ' '; l.append(s);
@@ -638,6 +761,119 @@
     return box;
   }
 
+  // ------------------------------------------------------------ settings UI (Settings / Services pages, the player)
+  const optName = (key, o) => t({size: 'subs_sz_', color: 'subs_c_', bg: 'subs_bg_'}[key] + o);
+  S.styleOptions = () => ({size: Object.keys(SIZES).map((k) => [k, optName('size', k)]), color: Object.keys(COLORS).map((k) => [k, optName('color', k)]),
+    bg: Object.keys(BGS).map((k) => [k, optName('bg', k)])});
+  S.cssOf = (st) => { st = st || S.style(); return {fontSize: SIZES[st.size] || '100%', color: COLORS[st.color] || '#fff', background: BGS[st.bg] || BGS.half}; };
+  // draws the whole subtitle settings block into el: automatic on/off, language, appearance with a live sample,
+  // the sources' switches, the OpenSubtitles key, the home AI server address, the Ktuvit login.
+  // opts.compact = true leaves out the heading (inside the player's panel).
+  S.settingsPanel = function (el, opts) {
+    if (!el || !TN) return;
+    opts = opts || {};
+    applyStyle();
+    const esc = TN.esc;
+    const draw = () => {
+      const st = S.style(), css = S.cssOf(st), so = S.styleOptions();
+      const sel = (id, label, list, cur) => `<label class="subs-set-row"><span>${esc(label)}</span><select id="${id}">` +
+        list.map(([v, n]) => `<option value="${esc(v)}"${String(cur) === String(v) ? ' selected' : ''}>${esc(n)}</option>`).join('') + '</select></label>';
+      const helper = !!(TN.settings.helper && TN.settings.helper());
+      const syncedOs = !!(synced().os_key || synced().opensubs_key);
+      el.innerHTML = `<div class="subs-set">${opts.compact ? '' : `<h3>${esc(t('subs_settings'))}</h3>`}` +
+        `<label class="subs-set-row sw"><input type="checkbox" id="subs_s_auto"${S.autoOn() ? ' checked' : ''}><span>${esc(t('subs_auto'))}</span></label>` +
+        sel('subs_s_lang', t('subs_lang'), [['', t('subs_lang_app')], ['he', 'עברית'], ['en', 'English'], ['ru', 'Русский']], getS('subs_lang', '')) +
+        `<h4>${esc(t('subs_look'))}</h4>` + sel('subs_s_size', t('subs_size'), so.size, st.size) + sel('subs_s_color', t('subs_color'), so.color, st.color) +
+        sel('subs_s_bg', t('subs_bg'), so.bg, st.bg) +
+        `<div class="subs-sample" aria-hidden="true"><span style="font-size:${css.fontSize};color:${css.color};background:${css.background}">${esc(t('subs_preview'))}</span></div>` +
+        `<h4>${esc(t('subs_src_on'))}</h4><div class="subs-set-src">` +
+        ['wizdom', 'ktuvit', 'opensubs', 'yify', 'subsrv', 'subs_ai'].map((n) => `<label class="subs-set-row sw"><input type="checkbox" data-src="${n}"${TN.providerOn(n) ? ' checked' : ''}>` +
+          `<span>${esc(n === 'subs_ai' ? t('subs_ai') : SOURCES[n].label)}${n === 'subsrv' ? ' · ' + esc(t('subs_srv')) : ''}</span></label>`).join('') + '</div>' +
+        `<h4>${esc(t('subs_keys'))}</h4>` +
+        `<form class="subs-set-form" id="subs_s_os"><label for="subs_s_osk">${esc(t('subs_os_key'))}</label><div class="subs-set-line">` +
+        `<input id="subs_s_osk" type="password" autocomplete="off" spellcheck="false" dir="ltr" placeholder="${getS('subs_os_key', '') ? '••••••••' : ''}">` +
+        `<button class="btn" type="submit">${esc(t('subs_save'))}</button>` +
+        (getS('subs_os_key', '') ? `<button class="btn ghost" type="button" id="subs_s_osx">${esc(t('subs_clear'))}</button>` : '') + '</div>' +
+        `<p class="hint">${esc(t('subs_os_hint'))}${syncedOs ? ' ' + esc(t('subs_synced_key')) : ''}</p><p class="hint" role="status"></p></form>` +
+        `<form class="subs-set-form" id="subs_s_srv"><label for="subs_s_srvu">${esc(t('subs_srv'))}</label><div class="subs-set-line">` +
+        `<input id="subs_s_srvu" type="url" inputmode="url" autocomplete="off" spellcheck="false" dir="ltr" placeholder="https://" value="${esc(getS('subs_server_url', '') || '')}">` +
+        `<button class="btn" type="submit">${esc(t('subs_save'))}</button><button class="btn ghost" type="button" id="subs_s_srvt">${esc(t('subs_srv_test'))}</button></div>` +
+        `<p class="hint">${esc(t('subs_srv_hint'))}</p><p class="hint" role="status"></p></form>` +
+        `<div class="subs-set-form" id="subs_s_kt"><b>${esc(S.ktuvitLogged() ? t('subs_logged') : t('subs_ktuvit_login'))}</b></div></div>`;
+      const $ = (id) => el.querySelector('#' + id);
+      $('subs_s_auto').onchange = (e) => TN.settings.set('subs_auto', !!e.target.checked);
+      $('subs_s_lang').onchange = (e) => TN.settings.set('subs_lang', e.target.value);
+      for (const k of ['size', 'color', 'bg']) $('subs_s_' + k).onchange = (e) => { S.setStyle({[k]: e.target.value}); const c = S.cssOf(), sp = el.querySelector('.subs-sample span'); if (sp) { sp.style.fontSize = c.fontSize; sp.style.color = c.color; sp.style.background = c.background; } };
+      el.querySelectorAll('input[data-src]').forEach((cb) => { cb.onchange = () => { if (TN.setProviderOn) TN.setProviderOn(cb.dataset.src, !!cb.checked); }; });
+      const osf = $('subs_s_os');
+      osf.onsubmit = (e) => {
+        e.preventDefault();
+        const v = $('subs_s_osk').value.trim();
+        if (!v) return;
+        TN.settings.set('subs_os_key', v);
+        $('subs_s_osk').value = '';
+        draw();
+        const s2 = el.querySelector('#subs_s_os [role=status]'); if (s2) s2.textContent = t('subs_saved');
+      };
+      if ($('subs_s_osx')) $('subs_s_osx').onclick = () => { TN.settings.set('subs_os_key', ''); draw(); };
+      const srvf = $('subs_s_srv'), srvSay = (x) => { srvf.querySelector('[role=status]').textContent = x; };
+      const srvVal = () => $('subs_s_srvu').value.trim().replace(/\/+$/, '');
+      srvf.onsubmit = (e) => {
+        e.preventDefault();
+        const v = srvVal();
+        if (v && !/^https:\/\/[^\s/?#@]+/i.test(v)) { srvSay(t('subs_srv_bad')); return; }
+        TN.settings.set('subs_server_url', v);
+        srvSay(t('subs_saved'));
+      };
+      $('subs_s_srvt').onclick = async () => {
+        const v = srvVal();
+        if (!/^https:\/\/[^\s/?#@]+/i.test(v)) { srvSay(t('subs_srv_bad')); return; }
+        srvSay('…');
+        try {
+          const r = await S._fetch(v + '/health', {via: 'direct', timeout: 8000});
+          srvSay(r.ok ? t('subs_srv_ok') : t('subs_srv_fail') + ' (' + r.status + ')');
+        } catch (e) { srvSay(t('subs_srv_fail')); }
+      };
+      const kt = $('subs_s_kt');
+      if (S.ktuvitLogged()) kt.append(' ', TN.button('btn ghost', t('subs_logout'), () => { S.ktuvitLogout(); draw(); }));
+      else if (!helper) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = t('subs_need_helper'); kt.append(p); }
+      else {
+        const f = document.createElement('form'); f.className = 'subs-set-line';
+        f.innerHTML = `<input type="email" autocomplete="username" required placeholder="${esc(t('subs_email'))}" aria-label="${esc(t('subs_email'))}" dir="ltr">` +
+          `<input type="password" autocomplete="current-password" required placeholder="${esc(t('subs_password'))}" aria-label="${esc(t('subs_password'))}" dir="ltr">` +
+          `<button class="btn" type="submit">${esc(t('subs_login'))}</button><span class="hint" role="status"></span>`;
+        f.onsubmit = async (e) => {
+          e.preventDefault();
+          const ins = f.querySelectorAll('input'), stt = f.querySelector('[role=status]');
+          stt.textContent = '…';
+          try { await S.ktuvitLogin(ins[0].value, ins[1].value); ins[1].value = ''; draw(); } catch (err) { ins[1].value = ''; stt.textContent = errMsg(err); }
+        };
+        kt.append(f);
+      }
+    };
+    draw();
+  };
+  S.servicesPanel = S.settingsPanel;
+  // The Settings page gets the block by itself when this file is loaded (and at once when the shell offers
+  // TN.addSettingsPanel); another page can call (await TN.provider('subs')).settingsPanel(el).
+  function hookSettings() {
+    if (!TN || typeof document === 'undefined') return;
+    if (typeof TN.addSettingsPanel === 'function') { try { TN.addSettingsPanel('subs', {title: t('subs_settings'), render: (el) => S.settingsPanel(el, {compact: true})}); return; } catch (e) { /* the route hook below */ } }
+    const put = (ctx) => {
+      if (!ctx || ctx.key !== 'settings') return;
+      setTimeout(() => {
+        const view = TN.view && TN.view();
+        if (!view || (TN.here && TN.here().key !== 'settings') || view.querySelector('#subs_settings_box')) return;
+        const box = document.createElement('section');
+        box.className = 'panel'; box.id = 'subs_settings_box';
+        view.append(box);
+        S.settingsPanel(box);
+      }, 60);
+    };
+    if (TN.on) TN.on('route', put);
+    try { if (TN.here) put(TN.here()); } catch (e) { /* no router yet */ }
+  }
+
   // ------------------------------------------------------------ register
   S._internal = {parseYify, parseKtuvitRows, ktIv, ktEncode, imdbOf, toVttText, SOURCES, subsAi, subsrv, srvUrl};
   G.TNSubs = S;
@@ -651,5 +887,6 @@
     TN.registerProvider('subs_ai', subsAi);
     S.kinds = ['service']; S.label = 'Subtitles';
     TN.registerProvider('subs', S);            // the object itself, so S._fetch overrides (tests) reach the providers
+    hookSettings();
   }
 })(typeof self !== 'undefined' ? self : globalThis);

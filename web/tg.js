@@ -2,7 +2,9 @@
 // The Telegram side of BN Stream Web: login, the account's shared document in "Saved Messages", and the sync loop.
 // Loaded by app.js only when the viewer chooses to connect (or was connected before); everything else in the app
 // works without it. The sign-in screen is tglogin.js (page #/tglogin); other modules get the signed-in client from
-// TG.client() (WP-1 interface, see MODULES.md). The browser signs in as its own device: Kodi's session is never used. NOT covered by automatic tests - it needs a real account (see README.md, "How to test").
+// TG.client() (WP-1 interface, see MODULES.md). The browser signs in as its own device: Kodi's session is never used.
+// The phone-number login is tested with a mocked client (src/qa/web/t_tglogin.js); a real sign-in needs a real account
+// (see README.md, "How to test").
 //
 // Libraries, fetched here on first use:
 //   vendor/gramjs-2.26.21.min.js  GramJS, the MTProto client (window.GramJS) - our own bundle, see src/qa/web/build_gramjs.py
@@ -13,6 +15,11 @@
 //   tg_session  the GramJS session string - ONLY when the viewer ticked "keep me connected" under the warning
 //   sync_meta   the mark of the document last seen, a hash of the local lists
 //   synced      the few settings a browser may read from the document (TMDb key, metadata language)
+// In sessionStorage (this tab only, gone when the tab closes):
+//   bn_tg_pending  a phone login that waits for its code: {phone, hash, where, session, keep} - the session is NOT signed
+//                  in; kept at most 10 minutes so that Cancel / "another number" / a reload do not ask Telegram for a new
+//                  code (every new request cancels the previous code). Removed on success, expiry and logout.
+//   bn_tg_flood    until when Telegram asked not to request codes (a time, nothing else)
 // Nothing here is ever written to the console, put into an address, or shown: errors show Telegram's error CODE only.
 (function (root) {
   const LIBS = [
@@ -41,13 +48,59 @@
     if (!G() || !root.Sealed || !root.fflate || !root.qrcode) throw new Error('offline');
   }
   // what the viewer may see of an error: a text of ours, or Telegram's error code (PHONE_CODE_INVALID ...) - never anything else
+  // the texts this file adds to the app's (he / en / ru, the same keys in each)
+  const TEXTS = {
+    he: {
+      tge_flood_for: 'טלגרם מבקש להמתין %s לפני ניסיון נוסף. אל תבקשו קוד שוב עד אז - כל בקשה מאריכה את החסימה. כניסה בקוד QR עדיין אפשרית.',
+      tge_flood_day: 'טלגרם חסם בקשות קוד למספר הזה לכמה שעות (יותר מדי בקשות). המתינו ואל תבקשו שוב. כניסה בקוד QR עדיין אפשרית.',
+      tge_no_more_ways: 'טלגרם לא מציע דרך אחרת לשלוח את הקוד. הקוד נמצא באפליקציית טלגרם, בצ\'אט בשם "Telegram".',
+      tge_too_early: 'אפשר לבקש משלוח נוסף בעוד %s.',
+      tge_restart: 'טלגרם איפס את תהליך הכניסה. נסו שוב.',
+      tge_w_sec: '%s שניות', tge_w_min: '%s דקות', tge_w_hour: 'כ-%s שעות',
+    },
+    en: {
+      tge_flood_for: 'Telegram asks you to wait %s before another attempt. Do not ask for a code again until then - every request makes the block longer. Signing in with the QR code still works.',
+      tge_flood_day: 'Telegram blocked code requests for this number for some hours (too many requests). Wait and do not ask again. Signing in with the QR code still works.',
+      tge_no_more_ways: 'Telegram offers no other way to send the code. The code is in the Telegram app, in the chat named "Telegram".',
+      tge_too_early: 'Another delivery can be asked for in %s.',
+      tge_restart: 'Telegram restarted the sign-in. Try again.',
+      tge_w_sec: '%s seconds', tge_w_min: '%s minutes', tge_w_hour: 'about %s hours',
+    },
+    ru: {
+      tge_flood_for: 'Telegram просит подождать %s перед новой попыткой. Не запрашивайте код до этого - каждый запрос продлевает блокировку. Вход по QR-коду по-прежнему работает.',
+      tge_flood_day: 'Telegram на несколько часов заблокировал запросы кода для этого номера (слишком много запросов). Подождите и не запрашивайте снова. Вход по QR-коду по-прежнему работает.',
+      tge_no_more_ways: 'Telegram не предлагает другого способа отправить код. Код находится в приложении Telegram, в чате «Telegram».',
+      tge_too_early: 'Запросить другую доставку можно через %s.',
+      tge_restart: 'Telegram перезапустил вход. Попробуйте ещё раз.',
+      tge_w_sec: '%s сек.', tge_w_min: '%s мин.', tge_w_hour: 'около %s ч.',
+    },
+  };
+  let textsIn = false;
+  function tx(k, a) {
+    const N = root.TN;
+    if (N && N.t) {
+      if (!textsIn && N.i18n && N.i18n.add) { N.i18n.add(TEXTS); textsIn = true; }
+      return a == null ? N.t(k) : N.t(k, a);
+    }
+    return a == null ? k : k + ':' + a;          // (no page around: the tests)
+  }
+  // 45 -> '45 seconds', 90 -> '2 minutes', 7300 -> 'about 2 hours' (tgauth.wait_text)
+  function waitText(seconds) {
+    const s = Math.max(1, Math.floor(Number(seconds) || 0));
+    if (s < 90) return tx('tge_w_sec', String(s));
+    if (s < 5400) return tx('tge_w_min', String(Math.floor((s + 59) / 60)));
+    return tx('tge_w_hour', String(Math.floor((s + 1800) / 3600)));
+  }
   function say(e) {
     const code = e && typeof e.errorMessage === 'string' && /^[A-Z0-9_]{3,60}$/.test(e.errorMessage) ? e.errorMessage : '';
-    if (e && e.seconds && /FLOOD/.test(code)) return A.fmt('e_flood', String(e.seconds));
+    if (e && e.seconds && /FLOOD/.test(code)) return tx('tge_flood_for', waitText(e.seconds));
+    if (/^(PHONE_NUMBER_FLOOD|PHONE_PASSWORD_FLOOD)$/.test(code)) return tx('tge_flood_day');
+    if (code === 'SEND_CODE_UNAVAILABLE') return tx('tge_no_more_ways');
+    if (code === 'AUTH_RESTART') return tx('tge_restart');
     if (/^PHONE_CODE_(INVALID|EMPTY)$/.test(code)) return A.X('e_code');
     if (code === 'PHONE_CODE_EXPIRED') return A.X('e_code_expired');
     if (code === 'PASSWORD_HASH_INVALID') return A.X('e_pass');
-    if (/^PHONE_NUMBER_(INVALID|BANNED|FLOOD)$/.test(code)) return A.X('e_phone');
+    if (/^PHONE_NUMBER_(INVALID|BANNED)$/.test(code)) return A.X('e_phone');
     if (code === 'PHONE_NUMBER_UNOCCUPIED') return A.X('e_signup');
     if (/^API_ID_(INVALID|PUBLISHED_FLOOD)$/.test(code)) return A.X('e_api');
     if (dead(e)) return A.X('e_session');
@@ -70,23 +123,26 @@
     });
   }
   function unlock() { if (releaseLock) { releaseLock(); releaseLock = null; } }
-  async function open(fresh) {               // fresh: a new login, a new (empty) session
+  // fresh: a new login. session: the not-yet-signed-in session a code was asked on (the code belongs to its key);
+  // without it a fresh login starts on an empty session
+  async function open(fresh, session) {
     const c = creds();
     if (!c) throw new Error('no api');
     await libs();
     if (client) return client;
-    client = new (G().TelegramClient)(new (G().sessions.StringSession)(fresh ? '' : savedSession()), Number(c.id), c.hash,
+    client = new (G().TelegramClient)(new (G().sessions.StringSession)(fresh ? (session || '') : savedSession()), Number(c.id), c.hash,
                                       {connectionRetries: 3, useWSS: true, deviceModel: 'BN Stream Web', appVersion: A.version, systemVersion: 'Browser'});
     client.setLogLevel('none');
     await client.connect();
     return client;
   }
-  async function close() {
+  async function close(keepKey) {            // keepKey: a code is waiting on this connection's key - only hang up
     const c = client;
     client = null; me = null; key = '';
-    if (c) { try { await c.destroy(); } catch (e) {} }
+    if (c) { try { if (keepKey) await c.disconnect(); else await c.destroy(); } catch (e) {} }
   }
   async function signedIn(keep) {
+    dropPending(); setFlood(0);
     const user = await client.getMe();
     me = {id: String(user.id), name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || '', username: user.username || ''};
     key = root.Sealed.cloudKey(me.id);           // the document's password is made of the account's id, as the build makes it
@@ -121,14 +177,16 @@
     await close();
     unlock();
     memSession = '';
+    dropPending(); setFlood(0);
     A.drop('tg_session'); A.drop('sync_meta'); A.drop('synced');
     A.onSettings({});
   }
-  async function disconnect() {                  // logs out at Telegram (the session stops existing) and wipes this browser
+  // logs out at Telegram (the session stops existing) and wipes the login from this browser. The API details stay:
+  // they are the app's, not the account's, and the next sign-in needs them (TG.forgetApi() deletes them).
+  async function disconnect() {
     let reached = true;
     try { if (client) await client.invoke(new (G().Api.auth.LogOut)()); else reached = false; } catch (e) { reached = false; }
     await forget();
-    A.drop('tg_api');
     set('off', {error: reached ? '' : A.X('tg_logout_fail'), sync: '', last: 0});
   }
 

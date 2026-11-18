@@ -5,16 +5,22 @@
 // WP-3 (Telegram playback): the Range proxy for /tgstream/ below; nobody else edits this file.
 importScripts('version.js');
 const CACHE = 'bn-web-' + self.WEB_VERSION;
-const SHELL = ['./', 'index.html', 'style.css', 'version.js', 'i18n.js', 'app.js', 'syncdoc.js', 'store.js', 'websync.js', 'sealed.js', 'tg.js',
-               'channels_il.json', 'icon.png', 'icon-192.png', 'manifest.webmanifest'];
+const SHELL = ['./', 'index.html', 'style.css', 'version.js', 'i18n.js', 'shell_core.js', 'app.js', 'syncdoc.js', 'store.js', 'websync.js', 'sealed.js', 'tg.js',
+               'channels_il.json', 'icon.png', 'icon-180.png', 'icon-192.png', 'manifest.webmanifest'];
 // every module file of the plan (web_plan.md section 3). Precached when it exists; a file a package has not written
 // yet is skipped without failing the install.
 const MODULES = ['tglogin.js', 'matcher.js', 'epmatch.js', 'tgsearch.js', 'telegram.js', 'tgplay.js', 'catalog.js', 'sources.js',
                  'player.js', 'rd.js', 'srt.js', 'subs.js', 'iptv.js', 'epg.js', 'radio.js', 'yt.js', 'topics.js', 'hub.js',
-                 'services.js', 'library.js', 'backup.js', 'gdrive.js', 'help.js', 'status.js'];
+                 'services.js', 'library.js', 'backup.js', 'gdrive.js', 'help.js', 'status.js', 'helper.js', 'icon-512.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).then(() => Promise.all(MODULES.map((m) => c.add(m).catch(() => {})))))
-    .then(() => self.skipWaiting()));
+  );
+  // 5.0: no skipWaiting() here. A new version waits until the page asks for it (the "new version - reload" notice of
+  // app.js posts SKIP_WAITING), so an open tab never runs old page code against new module files. A first install
+  // has nothing to wait for and takes over at once (clients.claim below).
+});
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

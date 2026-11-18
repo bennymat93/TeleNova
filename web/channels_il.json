@@ -8,8 +8,11 @@
    "כאן 11"
   ],
   "urls": [
-   "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/kan11/live.livx/playlist.m3u8"
-  ]
+   "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/kan11/live.livx/playlist.m3u8",
+   "https://r.il.cdn-redge.media/livehls/oil/kancdn-live/live/kan11/live.livx/playlist.m3u8?dvr=21600000"
+  ],
+  "site": "https://www.kan.org.il/live/",
+  "logo": "media/live/kan11.png"
  },
  {
   "key": "keshet12",
@@ -20,8 +23,19 @@
    "קשת 12",
    "Channel 12"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "mako": [
+   {
+    "link": "/stream/hls/live/2033791/k12/index.m3u8"
+   },
+   {
+    "link": "/stream/hls/live/2033791/k12n12wad/index.m3u8"
+   },
+   {
+    "link": "/stream/hls/live/2033791/k12dvr/index.m3u8"
+   }
+  ],
+  "site": "https://www.mako.co.il/mako-vod-live-tv/VOD-6540b8dcb64fd31006.htm",
+  "logo": "media/live/keshet12.png"
  },
  {
   "key": "reshet13",
@@ -35,7 +49,9 @@
   ],
   "urls": [
    "https://d198ztbnlup2iq.cloudfront.net/out/v1/850e31c0e6fa4d94a44d6ccd63e4b400/index.m3u8"
-  ]
+  ],
+  "site": "https://13tv.co.il/live/",
+  "logo": "media/live/reshet13.png"
  },
  {
   "key": "now14",
@@ -48,7 +64,9 @@
   ],
   "urls": [
    "https://r.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8"
-  ]
+  ],
+  "site": "https://www.c14.co.il/live",
+  "logo": "media/live/now14.png"
  },
  {
   "key": "kanedu",
@@ -60,7 +78,9 @@
   ],
   "urls": [
    "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/kan_edu/live.livx/playlist.m3u8"
-  ]
+  ],
+  "site": "https://www.kan.org.il/live/",
+  "logo": "media/live/kanedu.png"
  },
  {
   "key": "ch24",
@@ -71,8 +91,16 @@
    "Channel 24",
    "ערוץ 24"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "mako": [
+   {
+    "link": "/direct/hls/live/2035340/ch24live/index.m3u8?as=1"
+   },
+   {
+    "link": "/evrideo/hls/live/20001278/ch24live/index.m3u8"
+   }
+  ],
+  "site": "https://www.mako.co.il/",
+  "logo": "media/live/ch24.png"
  },
  {
   "key": "makan33",
@@ -84,7 +112,9 @@
   ],
   "urls": [
    "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/makan/live.livx/playlist.m3u8"
-  ]
+  ],
+  "site": "https://www.kan.org.il/live/",
+  "logo": "media/live/makan33.png"
  },
  {
   "key": "knesset",
@@ -96,8 +126,11 @@
    "כנסת 99"
   ],
   "urls": [
-   "https://knesetn.gostreaming.tv/Knesset/index.m3u8"
-  ]
+   "https://knesetn.gostreaming.tv/Knesset/index.m3u8",
+   "https://kneset.gostreaming.tv/p2-kneset/_definst_/myStream/index.m3u8"
+  ],
+  "site": "https://www.knesset.tv/",
+  "logo": "media/live/knesset.png"
  },
  {
   "key": "ch9",
@@ -110,7 +143,9 @@
   ],
   "urls": [
    "https://contact.gostreaming.tv/Con-11/index.m3u8"
-  ]
+  ],
+  "site": "https://www.9tv.co.il/",
+  "logo": "media/live/ch9.png"
  },
  {
   "key": "hidabroot",
@@ -123,7 +158,9 @@
   "urls": [
    "https://cdn.cybercdn.live/HidabrootIL/Live97/playlist.m3u8",
    "https://htv-live.cybercdn.live/HidabrootIL/Live97/playlist.m3u8"
-  ]
+  ],
+  "site": "https://www.hidabroot.org/live",
+  "logo": "media/live/hidabroot.png"
  },
  {
   "key": "i24he",
@@ -135,7 +172,9 @@
   ],
   "urls": [
    "https://i24newshebrew-cdn.encoders.immergo.tv/master.m3u8"
-  ]
+  ],
+  "site": "https://www.i24news.tv/he",
+  "logo": "media/live/i24he.png"
  },
  {
   "key": "i24en",
@@ -146,7 +185,9 @@
   ],
   "urls": [
    "https://i24newsenglish-cdn.encoders.immergo.tv/master.m3u8"
-  ]
+  ],
+  "site": "https://www.i24news.tv/en",
+  "logo": "media/live/i24en.png"
  },
  {
   "key": "i24fr",
@@ -157,7 +198,9 @@
   ],
   "urls": [
    "https://i24newsfrench-cdn.encoders.immergo.tv/master.m3u8"
-  ]
+  ],
+  "site": "https://www.i24news.tv/fr",
+  "logo": "media/live/i24fr.png"
  },
  {
   "key": "i24ar",
@@ -168,7 +211,9 @@
   ],
   "urls": [
    "https://i24newsarabic-cdn.encoders.immergo.tv/master.m3u8"
-  ]
+  ],
+  "site": "https://www.i24news.tv/ar",
+  "logo": "media/live/i24ar.png"
  },
  {
   "key": "kalkala10",
@@ -180,7 +225,9 @@
   ],
   "urls": [
    "https://r.il.cdn-redge.media/livehls/oil/calcala-live/live/channel10/live.livx/playlist.m3u8"
-  ]
+  ],
+  "site": "https://www.calcalist.co.il/",
+  "logo": "media/live/kalkala10.png"
  },
  {
   "key": "ch16",
@@ -192,7 +239,9 @@
   ],
   "urls": [
    "https://ch16israel-cdn.encoders.immergo.tv/2/streamPlaylist.m3u8"
-  ]
+  ],
+  "site": "https://www.ch16.co.il/",
+  "logo": "media/live/ch16.png"
  },
  {
   "key": "kab66",
@@ -205,7 +254,9 @@
   ],
   "urls": [
    "https://edge2.il.kab.tv/live/tv66-heb-high/playlist.m3u8"
-  ]
+  ],
+  "site": "https://www.kab.co.il/",
+  "logo": "media/live/kab66.png"
  },
  {
   "key": "kabru",
@@ -217,7 +268,9 @@
   ],
   "urls": [
    "https://edge3.uk.kab.tv/live/tvrus-rus-high/playlist.m3u8"
-  ]
+  ],
+  "site": "https://www.kabbalah.info/rus/tv/",
+  "logo": "media/live/kabru.png"
  },
  {
   "key": "comedy13",
@@ -227,8 +280,11 @@
    "Comedy Channel",
    "13 ערוץ הקומדיות"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "urls": [
+   "https://d15ds134q59udk.cloudfront.net/out/v1/fbba879221d045598540ee783b140fe2/index.m3u8"
+  ],
+  "site": "https://13tv.co.il/live/",
+  "logo": "media/live/comedy13.png"
  },
  {
   "key": "nofesh13",
@@ -238,8 +294,11 @@
    "Vacation Channel",
    "ערוץ הנופש"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "urls": [
+   "https://d1yd8hohnldm33.cloudfront.net/out/v1/19dee23c2cc24f689bd4e1288661ee0c/index.m3u8"
+  ],
+  "site": "https://13tv.co.il/live/",
+  "logo": "media/live/nofesh13.png"
  },
  {
   "key": "reality13",
@@ -249,8 +308,11 @@
    "Reality Channel",
    "ערוץ הריאליטי"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "urls": [
+   "https://d2dffl3588mvfk.cloudfront.net/out/v1/d8e15050ca4148aab0ee387a5e2eb46b/index.m3u8"
+  ],
+  "site": "https://13tv.co.il/live/",
+  "logo": "media/live/reality13.png"
  },
  {
   "key": "eretz",
@@ -260,8 +322,13 @@
    "Eretz Nehederet Channel",
    "ערוץ ארץ נהדרת"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "mako": [
+   {
+    "link": "/evrideo/hls/live/20001278/erets/index.m3u8"
+   }
+  ],
+  "site": "https://www.mako.co.il/",
+  "logo": "media/live/keshet12.png"
  },
  {
   "key": "savri",
@@ -271,8 +338,13 @@
    "Savri Maranan Channel",
    "ערוץ סברי מרנן"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "mako": [
+   {
+    "link": "/evrideo/hls/live/20001278/savri/index.m3u8"
+   }
+  ],
+  "site": "https://www.mako.co.il/",
+  "logo": "media/live/keshet12.png"
  },
  {
   "key": "kcomedy",
@@ -282,8 +354,13 @@
    "Keshet Comedy Channel",
    "ערוץ הקומדיה"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "mako": [
+   {
+    "link": "/evrideo/hls/live/20001278/free_comedy/index.m3u8"
+   }
+  ],
+  "site": "https://www.mako.co.il/",
+  "logo": "media/live/keshet12.png"
  },
  {
   "key": "kdrama",
@@ -293,8 +370,13 @@
    "Keshet Drama Channel",
    "ערוץ הדרמה"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "mako": [
+   {
+    "link": "/evrideo/hls/live/20001278/free_drama/index.m3u8"
+   }
+  ],
+  "site": "https://www.mako.co.il/",
+  "logo": "media/live/keshet12.png"
  },
  {
   "key": "kmusic",
@@ -304,8 +386,13 @@
    "Keshet Music Channel",
    "ערוץ המוזיקה"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "mako": [
+   {
+    "link": "/evrideo/hls/live/20001278/free_music/index.m3u8"
+   }
+  ],
+  "site": "https://www.mako.co.il/",
+  "logo": "media/live/keshet12.png"
  },
  {
   "key": "kfood",
@@ -315,8 +402,13 @@
    "Keshet Food Channel",
    "ערוץ האוכל"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "mako": [
+   {
+    "link": "/evrideo/hls/live/20001278/free_food/index.m3u8"
+   }
+  ],
+  "site": "https://www.mako.co.il/",
+  "logo": "media/live/kfood.png"
  },
  {
   "key": "kan11c",
@@ -328,7 +420,10 @@
   ],
   "urls": [
    "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/kan11_subs/live.livx/playlist.m3u8"
-  ]
+  ],
+  "site": "https://www.kan.org.il/live/",
+  "logo": "media/live/kan11c.png",
+  "guide": "Kan 11"
  },
  {
   "key": "keshet12c",
@@ -338,8 +433,16 @@
    "Keshet 12 - subtitled",
    "קשת 12 - לקויי שמיעה"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "mako": [
+   {
+    "link": "/k12cc/index.m3u8?b-in-range=0-1800",
+    "host": "https://d2249b6f08tjt0.cloudfront.net",
+    "cdn": "AWS"
+   }
+  ],
+  "site": "https://www.mako.co.il/mako-vod-live-tv/VOD-6540b8dcb64fd31006.htm",
+  "logo": "media/live/keshet12c.png",
+  "guide": "Keshet 12"
  },
  {
   "key": "reshet13c",
@@ -351,7 +454,10 @@
   ],
   "urls": [
    "https://reshet.g-mana.live/media/4607e158-e4d4-4e18-9160-3dc3ea9bc677/mainManifest.m3u8"
-  ]
+  ],
+  "site": "https://13tv.co.il/live/",
+  "logo": "media/live/reshet13c.png",
+  "guide": "Channel 13 (Israel)"
  },
  {
   "key": "knesset99c",
@@ -361,8 +467,12 @@
    "Knesset Channel - subtitled",
    "ערוץ הכנסת - לקויי שמיעה"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "urls": [
+   "https://kneset.gostreaming.tv/p2-Accessibility/_definst_/myStream/index.m3u8"
+  ],
+  "site": "https://www.knesset.tv/",
+  "logo": "media/live/knesset99c.png",
+  "guide": "Knesset Channel"
  },
  {
   "key": "kotel",
@@ -372,8 +482,10 @@
    "Western Wall Live",
    "הכותל המערבי - שידור חי"
   ],
-  "kodi_only": true,
-  "why": "youtube"
+  "yt": "UCvcdHbNAQvbe2GuIDLhlwaw",
+  "why": "youtube",
+  "site": "https://thekotel.org/he/",
+  "logo": "media/live/kotel.png"
  },
  {
   "key": "lev91",
@@ -385,7 +497,9 @@
   ],
   "urls": [
    "https://cdn.cybercdn.live/Lev_Hamedina/Video/playlist.m3u8"
-  ]
+  ],
+  "site": "https://www.91fm.co.il/",
+  "logo": "media/live/lev91.png"
  },
  {
   "key": "kolchaimusic",
@@ -397,7 +511,9 @@
   ],
   "urls": [
    "https://media.kcm.fm/rtmp-server/live/musiclip.m3u8"
-  ]
+  ],
+  "site": "https://www.kcm.fm/",
+  "logo": "media/live/kolchaimusic.png"
  },
  {
   "key": "musawa",
@@ -410,7 +526,9 @@
   ],
   "urls": [
    "https://pbc.furrera.ps/musawahd/index.m3u8"
-  ]
+  ],
+  "site": "https://musawachannel.com/live",
+  "logo": "media/live/musawa.png"
  },
  {
   "key": "radius100",
@@ -420,8 +538,11 @@
    "100FM Radius (video)",
    "100FM רדיוס"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "urls": [
+   "https://cdn.cybercdn.live/Radios_100FM/Video/playlist.m3u8"
+  ],
+  "site": "https://www.100fm.co.il/",
+  "logo": "media/live/radius100.png"
  },
  {
   "key": "pervoe891",
@@ -430,7 +551,10 @@
   "names": [
    "Первое Радио 89.1FM"
   ],
-  "kodi_only": true,
-  "why": "idanplus"
+  "urls": [
+   "https://cdn.cybercdn.live/Pervoia/Video/playlist.m3u8"
+  ],
+  "site": "https://www.891fm.co.il/",
+  "logo": "media/live/pervoe891.png"
  }
 ]

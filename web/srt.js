@@ -9,9 +9,10 @@
 //   shift(cues, seconds)         -> new cues (times never below 0)
 //   pickFile(entries)            -> the best .srt/.vtt entry of a zip
 //   releaseScore(a, b)           -> 0..1 token overlap of two release names (the Kodi subfix.match_score idea)
+//   parseAss(text) (parse() calls it for ASS / SSA), repair(cues), scriptOf(cuesOrText) -> 'he' | 'ru' | 'en' | ''
 //   isZip(bytes), cleanText(s)
 (function (root) {
-  const SUB_EXT = /\.(srt|vtt|sub|txt)$/i;
+  const SUB_EXT = /\.(srt|vtt|ass|ssa|sub|txt)$/i;
 
   function u8(b) {
     if (b instanceof Uint8Array) return b;
@@ -122,6 +123,7 @@
   }
   function parse(text) {
     const src = String(text || '').replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+    if (/^\[Script Info\]/mi.test(src.slice(0, 4000)) || /^Dialogue:\s*\d/m.test(src.slice(0, 20000))) return parseAss(src);
     const blocks = src.split(/\n[ \t]*\n+/);
     const cues = [];
     for (const blk of blocks) {
@@ -137,6 +139,53 @@
     }
     cues.sort((x, y) => x.start - y.start);
     return cues;
+  }
+  // ASS / SSA (the "Dialogue:" lines; the column order comes from the "Format:" line of [Events])
+  function parseAss(src) {
+    const cues = [];
+    let cols = ['layer', 'start', 'end', 'style', 'name', 'marginl', 'marginr', 'marginv', 'effect', 'text'];
+    let inEvents = false;
+    for (const line of String(src || '').replace(/\r\n?/g, '\n').split('\n')) {
+      const l = line.trim();
+      if (/^\[.*\]$/.test(l)) { inEvents = /^\[events\]$/i.test(l); continue; }
+      if (inEvents && /^Format:/i.test(l)) { cols = l.slice(7).split(',').map((c) => c.trim().toLowerCase()); continue; }
+      if (!/^Dialogue:/i.test(l)) continue;
+      const parts = l.slice(9).trim().split(',');
+      const n = cols.length;
+      if (parts.length < n) continue;
+      const f = parts.slice(0, n - 1).concat(parts.slice(n - 1).join(','));
+      const start = toSec(f[cols.indexOf('start')] || ''), end = toSec(f[cols.indexOf('end')] || '');
+      if (!isFinite(start) || !isFinite(end)) continue;
+      const ti = cols.indexOf('text');
+      const raw = String(f[ti < 0 ? n - 1 : ti] || '');
+      if (/\{[^}]*\\p[1-9]/.test(raw)) continue;                     // a vector drawing, not text
+      const body = cleanText(raw.replace(/\\[Nn]/g, '\n').replace(/\\h/g, ' '));
+      if (!body) continue;
+      cues.push({start, end: end > start ? end : start + 2, text: body});
+    }
+    cues.sort((x, y) => x.start - y.start);
+    return cues;
+  }
+  // subfix.repair_cues, reduced: the same line twice in a row is one cue, nothing lasts more than 20 s
+  function repair(cues) {
+    const out = [];
+    for (const c of cues || []) {
+      if (!c || !(c.end > c.start) || !String(c.text || '').trim()) continue;
+      const last = out[out.length - 1];
+      if (last && last.text === c.text && c.start - last.end < 0.05) { last.end = Math.max(last.end, c.end); continue; }
+      out.push({start: c.start, end: Math.min(c.end, c.start + 20), text: c.text});
+    }
+    return out;
+  }
+  // which script most of the letters are in: 'he' | 'ru' | 'en' | '' (a track labelled Hebrew with English text is not Hebrew)
+  function scriptOf(cuesOrText) {
+    const s = typeof cuesOrText === 'string' ? cuesOrText : (cuesOrText || []).slice(0, 400).map((c) => c.text).join(' ');
+    const txt = s.replace(/<[^>]*>/g, ' ');
+    const he = (txt.match(/[א-ת]/g) || []).length, ru = (txt.match(/[а-яА-Я]/g) || []).length,
+      en = (txt.match(/[a-zA-Z]/g) || []).length;
+    const top = Math.max(he, ru, en);
+    if (top < 8) return '';
+    return he === top ? 'he' : ru === top ? 'ru' : 'en';
   }
   function toVtt(cuesOrText) {
     const cues = typeof cuesOrText === 'string' ? parse(cuesOrText) : (cuesOrText || []);
@@ -163,7 +212,7 @@
     return hit / Math.max(A.size, B.size);
   }
 
-  const S = {decode, unzip, pickFile, parse, toVtt, toSrt, shift, releaseScore, isZip, cleanText, toSec, stamp};
+  const S = {decode, unzip, pickFile, parse, parseAss, repair, scriptOf, toVtt, toSrt, shift, releaseScore, isZip, cleanText, toSec, stamp};
   root.TNSrt = S;
   if (typeof module !== 'undefined' && module.exports) module.exports = S;
   if (root.TN && root.TN.registerProvider) root.TN.registerProvider('srt', Object.assign({kinds: ['service']}, S));

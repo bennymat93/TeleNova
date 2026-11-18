@@ -64,11 +64,11 @@ MediaFusion's junk gate (empty title, hash-like names, no release evidence) [V, 
 | 2 | Wizdom release list as "has a synced Hebrew subtitle" ranking signal + Hebrew title | small, free, no key | done 4.0.5 |
 | 3 | Wikidata Hebrew labels and variants as search aliases | small, free | done 4.0.5 |
 | 4 | Runtime gate against TMDb (per episode) + sample / fake rules | small | done 4.0.5 (per-episode length; sample rules existed) |
-| 5 | Paged global search + de-duplication by document id | medium | deep in-chat search done in 4.0.0 |
+| 5 | Paged global search + de-duplication by document id | medium | done 4.3, not yet run against the real account (`tgclient.search_more` follows `next_rate`: 2 pages x 3 queries, 4 s, stops at a flood wait; `sources.Finder._older` asks only when fewer than 8 good files; `qa/t_paging_probe.py`) |
 | 6 | StremThru file-level cache check | medium | done 4.0.4, off by default |
 | 7 | OpenSubtitles moviehash for certain identification | medium | done 4.0.4, off by default |
 | 8 | PTT episode / pack patterns in `re` + junk-name gate | medium | done 4.2.7 (`qa/t_ptt.py`; junk words count only after the release marker) |
-| 9 | Tail probe (moov / Cues), mid-file throughput, DV / passthrough flags | medium | head probe + speed exist |
+| 9 | Tail probe (moov / Cues), mid-file throughput, DV / passthrough flags | medium | done 4.3, not yet run on real files (`mediaflags.py`: Cues / moov / Dolby Vision record / HDR / AV1 from the header; `sources.Finder._second_reads`: one read where the MP4 index is promised - a cut file is dropped - and one mid-file read for direct HTTP sources; `device_fit` hides DV profile 5 and AV1 the device cannot show; `qa/t_paging_probe.py`). Left: mid-file read on Telegram (costs flood budget, BUG-013), TrueHD / DTS-HD are reported (`audio_fmt`) but not judged per device, no settings rows / list labels yet |
 | 10 | Union de-duplication with size buckets across Telegram / RD / Stremio | medium | done 4.2.7 (`sources.union_dedup`, `qa/t_dedup.py`) |
 
 ## Questions for the owner

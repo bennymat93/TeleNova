@@ -4,19 +4,31 @@
 // each section drawn as soon as its provider answers (12 s each at most), ranked like providers.rank; a "best
 // matches" row on top mixes the exact hits of all providers. "S01E02" / "עונה 1 פרק 2" in the query is parsed and
 // passed on ({season, episode, show}).
-// Providers registered here: tmdb, archive, dailymotion (+ live / radio from app.js when WP-7's modules are absent).
+// Providers registered here: tmdb (key-less: Cinemeta through catalog.js), archive, dailymotion (+ live / radio from app.js when
+// WP-7's modules are absent). Dailymotion plays in the site player from Dailymotion's own HLS description; when that does
+// not answer: its embed frame if the page policy allows it, else a link to dailymotion.com (never a dead card).
+// A link pasted into the search box (t.me, YouTube, Dailymotion, archive.org) opens directly.
 (function (TN) {
   if (!TN) return;
   TN.i18n.add({
     he: {hub_best: 'ההתאמות הטובות ביותר', hub_titles: 'סרטים וסדרות', hub_ia: 'ארכיון האינטרנט', hub_dm: 'Dailymotion', hub_live: 'ערוצים',
       hub_radio: 'רדיו', hub_topics: 'אקטואליה וידע', hub_none: 'לא נמצא כלום.', hub_ep: 'מחפש: %s', hub_wait: 'מחפש ב-%s מקורות...',
-      hub_yt_need: 'YouTube: צריך מפתח או עוזר כדי לחפש גם שם.'},
+      hub_yt_need: 'YouTube: צריך מפתח או עוזר כדי לחפש גם שם.', hub_dm_open: 'פתיחה ב-Dailymotion', hub_dm_wait: 'טוען את הסרטון...',
+      hub_dm_fail: 'הסרטון לא נפתח בנגן של האתר. אפשר לפתוח אותו ב-Dailymotion.', hub_tg: 'חיפוש בטלגרם', hub_yt: 'YouTube', hub_live_tile: 'טלוויזיה חיה',
+      hub_radio_tile: 'רדיו', hub_movies: 'סרטים', hub_series: 'סדרות', hub_more: 'עוד מקומות לחפש בהם', hub_all: 'הכול', hub_recent: 'חיפושים אחרונים',
+      hub_retry: 'חיפוש חוזר', hub_paste: 'קישור שהודבק נפתח ישר (t.me, YouTube, Dailymotion, archive.org).'},
     en: {hub_best: 'Best matches', hub_titles: 'Movies & series', hub_ia: 'Internet Archive', hub_dm: 'Dailymotion', hub_live: 'Channels',
       hub_radio: 'Radio', hub_topics: 'News & knowledge', hub_none: 'Nothing found.', hub_ep: 'Looking for: %s', hub_wait: 'Searching %s sources...',
-      hub_yt_need: 'YouTube: a key or the helper is needed to search there too.'},
+      hub_yt_need: 'YouTube: a key or the helper is needed to search there too.', hub_dm_open: 'Open on Dailymotion', hub_dm_wait: 'Loading the video...',
+      hub_dm_fail: 'The video did not open in the site player. You can open it on Dailymotion.', hub_tg: 'Telegram search', hub_yt: 'YouTube', hub_live_tile: 'Live TV',
+      hub_radio_tile: 'Radio', hub_movies: 'Movies', hub_series: 'Series', hub_more: 'More places to search', hub_all: 'All', hub_recent: 'Recent searches',
+      hub_retry: 'Search again', hub_paste: 'A pasted link opens directly (t.me, YouTube, Dailymotion, archive.org).'},
     ru: {hub_best: 'Лучшие совпадения', hub_titles: 'Фильмы и сериалы', hub_ia: 'Интернет-архив', hub_dm: 'Dailymotion', hub_live: 'Каналы',
       hub_radio: 'Радио', hub_topics: 'Новости и знания', hub_none: 'Ничего не найдено.', hub_ep: 'Ищем: %s', hub_wait: 'Поиск в %s источниках...',
-      hub_yt_need: 'YouTube: для поиска нужен ключ или помощник.'},
+      hub_yt_need: 'YouTube: для поиска нужен ключ или помощник.', hub_dm_open: 'Открыть в Dailymotion', hub_dm_wait: 'Загрузка видео...',
+      hub_dm_fail: 'Видео не открылось в плеере сайта. Его можно открыть в Dailymotion.', hub_tg: 'Поиск в Telegram', hub_yt: 'YouTube', hub_live_tile: 'Прямой эфир',
+      hub_radio_tile: 'Радио', hub_movies: 'Фильмы', hub_series: 'Сериалы', hub_more: 'Где ещё искать', hub_all: 'Все', hub_recent: 'Недавние запросы',
+      hub_retry: 'Искать снова', hub_paste: 'Вставленная ссылка открывается сразу (t.me, YouTube, Dailymotion, archive.org).'},
   });
   const PER_TIMEOUT = 12000;
 
@@ -68,15 +80,73 @@
     return out;
   }
 
+  // a result's `kind` -> the card shape. Providers say what the thing IS (live / radio / tg / yt ...); the grid knows only
+  // poster (''), wide and square - an unknown word must never become a CSS class (it drew tall empty poster cards).
+  const SHAPES = {'': '', poster: '', movie: '', tv: '', series: '', title: '', wide: 'wide', live: 'wide', channel: 'wide', tg: 'wide', telegram: 'wide',
+    video: 'wide', yt: 'wide', youtube: 'wide', dm: 'wide', square: 'square', radio: 'square', station: 'square', topic: 'square'};
+  const shapeOf = (kind) => { const k = String(kind || '').trim().split(/\s+/)[0].toLowerCase(); return Object.prototype.hasOwnProperty.call(SHAPES, k) ? SHAPES[k] : ''; };
+  // a pasted link in the search box -> where it opens ('' = an ordinary search)
+  function linkTarget(q) {
+    q = String(q || '').trim();
+    if (/\s/.test(q)) return '';
+    if (/^(?:https?:\/\/)?(?:t\.me|telegram\.me)\/\S+$/i.test(q)) return TN.link('telegram', {link: /^http/i.test(q) ? q : 'https://' + q});
+    if (/^(?:https?:\/\/)?(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be|youtube-nocookie\.com)\/\S+$/i.test(q)) return TN.link('youtube', {url: /^http/i.test(q) ? q : 'https://' + q});
+    const dm = q.match(/^(?:https?:\/\/)?(?:www\.)?(?:dailymotion\.com\/(?:embed\/)?video|dai\.ly)\/([a-zA-Z0-9]{5,12})/i);
+    if (dm) return 'dm:' + dm[1];
+    const ia = q.match(/^(?:https?:\/\/)?archive\.org\/(?:details|embed)\/([A-Za-z0-9._-]{2,120})/i);
+    if (ia) return 'ia:' + ia[1];
+    return '';
+  }
+
   // ------------------------------------------------------------ providers
   const fmt = (s) => { s = +s || 0; const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return s ? (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s % 60).padStart(2, '0') : ''; };
   const DM_ID = /^[a-zA-Z0-9]{5,12}$/;
-  function playDm(v) {
+  // Dailymotion's own player description (the address its web player and the Kodi add-on read): the HLS stream of a video
+  function pickDm(j) {
+    const q = (j && j.qualities) || {};
+    const ok = (x) => x && typeof x.url === 'string' && /^https:\/\//i.test(x.url);
+    const hls = (q.auto || []).find((x) => ok(x) && /mpegurl/i.test(x.type || ''));
+    if (hls) return {url: hls.url, mime: 'application/x-mpegURL'};
+    const sizes = Object.keys(q).filter((k) => /^\d+$/.test(k)).sort((a, b) => b - a);
+    for (const k of sizes) { const mp4 = (q[k] || []).find((x) => ok(x) && /mp4/i.test(x.type || '')); if (mp4) return {url: mp4.url, mime: 'video/mp4'}; }
+    return null;
+  }
+  // may the page put a frame of this host on the screen (the Content-Security-Policy of index.html)?
+  function frameAllowed(host, csp) {
+    if (csp == null) { const m = document.querySelector('meta[http-equiv="Content-Security-Policy"]'); csp = m ? m.getAttribute('content') || '' : ''; }
+    if (!csp) return true;
+    const dir = csp.split(';').map((x) => x.trim().split(/\s+/)).find((x) => x[0] === 'frame-src') || csp.split(';').map((x) => x.trim().split(/\s+/)).find((x) => x[0] === 'default-src');
+    if (!dir) return true;
+    return dir.slice(1).some((src) => src === 'https:' || src === '*' || src === 'https://' + host || (src.startsWith('https://*.') && host.endsWith(src.slice(9))));
+  }
+  const dmPage = (id) => 'https://www.dailymotion.com/video/' + encodeURIComponent(id);
+  async function playDm(v) {
     if (!DM_ID.test(v.id || '')) return;
-    TN.noteHistory({key: 'dm:' + v.id, label: v.title || 'Dailymotion', play: 'https://www.dailymotion.com/video/' + v.id, thumb: v.img || ''});
-    TN.modal(`<div class="player"><iframe src="https://www.dailymotion.com/embed/video/${encodeURIComponent(v.id)}?autoplay=1" ` +
-      `allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="${TN.esc(v.title || 'Dailymotion')}"></iframe></div>` +
-      `<h2 dir="auto">${TN.esc(v.title || '')}</h2><p class="hint" dir="auto">${TN.esc([v.owner, fmt(v.secs)].filter(Boolean).join(' · '))}</p>`);
+    const hist = {key: 'dm:' + v.id, label: v.title || 'Dailymotion', play: dmPage(v.id), thumb: v.img || ''};
+    const sub = TN.esc([v.owner, fmt(v.secs)].filter(Boolean).join(' · '));
+    const out = `<a class="btn ghost" target="_blank" rel="noopener" href="${TN.esc(dmPage(v.id))}">${TN.esc(TN.t('hub_dm_open'))}</a>`;
+    TN.modal(`<p class="msg" id="hub_dm" role="status">${TN.esc(TN.t('hub_dm_wait'))}</p><h2 dir="auto">${TN.esc(v.title || '')}</h2><div class="links">${out}</div>`);
+    const mine = document.getElementById('hub_dm');
+    let st = null;
+    try {
+      const r = await fetch('https://www.dailymotion.com/player/metadata/video/' + encodeURIComponent(v.id), {credentials: 'omit'});
+      if (r.ok) st = pickDm(await r.json());
+    } catch (e) {}
+    if (!mine || !mine.isConnected) return;         // the viewer closed the sheet meanwhile
+    const pl = st ? await TN.provider('player').catch(() => null) : null;
+    if (pl && typeof pl.open === 'function') {
+      return pl.open({url: st.url, mime: st.mime, title: v.title || 'Dailymotion', poster: v.img || '', resumeKey: hist.key, history: hist});
+    }
+    TN.noteHistory(hist);
+    if (frameAllowed('www.dailymotion.com')) {
+      TN.modal(`<div class="player"><iframe src="https://www.dailymotion.com/embed/video/${encodeURIComponent(v.id)}?autoplay=1" ` +
+        `allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="${TN.esc(v.title || 'Dailymotion')}"></iframe></div>` +
+        `<h2 dir="auto">${TN.esc(v.title || '')}</h2><p class="hint" dir="auto">${sub}</p><div class="links">${out}</div>`);
+      return;
+    }
+    mine.textContent = TN.t('hub_dm_fail');
+    const a = mine.parentNode.querySelector('.links a');
+    if (a) { a.className = 'btn'; a.focus(); }
   }
   TN.addHistoryHandler((e) => {
     const m = String((e && e.key) || '').match(/^dm:([a-zA-Z0-9]{5,12})$/);
@@ -89,7 +159,7 @@
       secs: +x.duration || 0, owner: x['owner.screenname'] || ''}));
   }
   TN.registerProvider('dailymotion', {
-    kinds: ['search'], label: 'Dailymotion', parse: parseDm, play: playDm,
+    kinds: ['search'], label: 'Dailymotion', parse: parseDm, play: playDm, pick: pickDm,
     async search(q, {signal, limit = 20} = {}) {
       const qs = new URLSearchParams({search: q, fields: 'id,title,thumbnail_360_url,duration,owner.screenname', limit: Math.min(limit, 50),
         sort: 'relevance', family_filter: 'true'});
@@ -101,10 +171,20 @@
   TN.registerProvider('tmdb', {
     kinds: ['search'], label: TN.t('hub_titles'),
     async search(q, {want} = {}) {
-      if (!TN.hasTmdbKey()) return [];
-      const d = await TN.tmdb('/search/multi', {query: (want && want.show) || q, include_adult: 'false'});
+      const text = (want && want.show) || q;
+      const se = want && want.season != null ? ' · ' + seLabel(want) : '';
+      if (!TN.hasTmdbKey()) {                    // no key: the key-less catalogue (Cinemeta), films and series
+        const C = await TN.provider('catalog');
+        if (!C || !C.cineSearch) return [];
+        const both = await Promise.all(['movie', 'tv'].map((m) => C.cineSearch(m, text).catch(() => [])));
+        const out = [];
+        for (let i = 0; i < Math.max(both[0].length, both[1].length) && out.length < 40; i++) for (const l of both) if (l[i]) out.push(l[i]);
+        return out.map((x) => ({title: x.title || x.name, sub: (x.release_date || x.first_air_date || '') + (x.media_type === 'tv' ? se : ''), img: x.poster || 'icon.png', kind: '',
+          open: () => (x.media_type === 'tv' ? TN.go(C.link({m: 'tv', v: 'cseasons', id: x.id})) : C.openCine(x))}));
+      }
+      const d = await TN.tmdb('/search/multi', {query: text, include_adult: 'false'});
       return (d.results || []).filter((x) => x.media_type === 'movie' || x.media_type === 'tv').map((x) => ({
-        title: x.title || x.name, sub: (x.release_date || x.first_air_date || '').slice(0, 4) + (x.media_type === 'tv' && want && (want.season != null) ? ' · ' + seLabel(want) : ''),
+        title: x.title || x.name, sub: (x.release_date || x.first_air_date || '').slice(0, 4) + (x.media_type === 'tv' ? se : ''),
         img: x.poster_path ? TN.tmdbImg(x.poster_path) : 'icon.png', kind: '', open: () => TN.openTitle(x.media_type, x.id)}));
     },
   });
@@ -127,6 +207,17 @@
       img: s.favicon || 'icon.png', kind: 'square', open: () => TN.playRadio(s)})), 'radio'],
   ];
 
+  // the stored search history is rows {q, ts} (store.js, the build's search_history.json): -> the texts, newest first
+  function recentSearches(list, limit) {
+    const out = [];
+    for (const h of list || []) {
+      const q = String(h && typeof h === 'object' ? h.q || '' : h || '').trim();
+      if (q && !out.includes(q)) out.push(q);
+      if (out.length >= (limit || 12)) break;
+    }
+    return out;
+  }
+
   // ------------------------------------------------------------ pages
   function box(q) {
     const f = document.createElement('form');
@@ -138,16 +229,29 @@
     TN.view().append(f);
     return f;
   }
+  function go(q) {
+    const tgt = linkTarget(q);
+    if (!tgt) return TN.doSearch(q);
+    if (tgt.startsWith('dm:')) return playDm({id: tgt.slice(3), title: 'Dailymotion'});
+    if (tgt.startsWith('ia:')) return TN.openArchive({identifier: tgt.slice(3), title: tgt.slice(3)});
+    TN.go(tgt);
+  }
   TN.registerPage('hub', () => {
     TN.page('', TN.t('m_hub'));
-    box('').firstChild.focus();
-    TN.view().insertAdjacentHTML('beforeend', `<p class="hint">${TN.esc(TN.t('core_hub_txt'))}</p>`);
-    const recent = TN.store.searches().slice(0, 12);
-    if (recent.length) TN.chips(recent.map((q) => [q, '↺ ' + q]), '', (q) => TN.doSearch(q));
-    const g = TN.section('', null);
-    g.previousElementSibling.remove();
-    g.append(TN.card('data/topics/img/topic_tech.png', TN.t('hub_topics'), null, () => TN.go('#/topics'), 'square'),
-      TN.card('data/topics/img/topic_news_world.png', 'YouTube', null, () => TN.go('#/youtube'), 'square'));
+    const f = box('');
+    f.onsubmit = (e) => { e.preventDefault(); go(f.firstChild.value); };
+    f.firstChild.focus();
+    TN.view().insertAdjacentHTML('beforeend', `<p class="hint">${TN.esc(TN.t('core_hub_txt'))} ${TN.esc(TN.t('hub_paste'))}</p>`);
+    const recent = recentSearches(TN.store.searches(), 12);
+    if (recent.length) {
+      const c = TN.chips(recent.map((q) => [q, '↺ ' + q]), '', (q) => TN.doSearch(q));
+      if (c && c.setAttribute) c.setAttribute('aria-label', TN.t('hub_recent'));
+    }
+    const g = TN.section(TN.t('hub_more'), null);
+    const tiles = [['topics', 'data/topics/img/topic_tech.png', 'hub_topics'], ['youtube', 'data/topics/img/topic_news_world.png', 'hub_yt'],
+      ['telegram', 'data/topics/img/topic_control.png', 'hub_tg'], ['movies', 'media/cats/genre_28.png', 'hub_movies'], ['tv', 'media/cats/genre_18.png', 'hub_series'],
+      ['live', 'data/topics/img/topic_news_il.png', 'hub_live_tile'], ['radio', 'media/cats/genre_10402.png', 'hub_radio_tile']];
+    for (const [key, img, label] of tiles) g.append(TN.card(img, TN.t(label), null, () => TN.go('#/' + key), 'square'));
   });
 
   TN.registerPage('search', async (q, ctx) => {
@@ -156,6 +260,8 @@
     if (qi) qi.value = q;
     TN.page('', `${TN.t('results')} “${q}”`);
     if (!q) return;
+    const direct = linkTarget(q);                 // a link typed into the search box opens, it is not searched for
+    if (direct) { box(q); return go(q); }
     const view = TN.view();
     const want = parseQuery(q);
     if (want.season != null || want.episode != null) view.insertAdjacentHTML('beforeend', `<p class="hint" dir="auto">${TN.esc(TN.t('hub_ep', (want.show + ' ' + seLabel(want)).trim()))}</p>`);
@@ -177,7 +283,8 @@
       const tp = TN.providerOn('topics') ? await TN.provider('topics') : null;
       if (tp && tp.searchLoaded) jobs.push({label: TN.t('hub_topics'), name: 'topics', run: async (o) => {
         const Y = await TN.provider('yt');
-        return tp.searchLoaded(o.query).slice(0, 30).map((v) => ({title: v.title, sub: v.channel, img: v.img, kind: 'wide', open: () => Y.play(v)}));
+        const found = tp.searchAll && Y && Y.ready && Y.ready() ? await tp.searchAll(o.query, {signal: o.signal}) : tp.searchLoaded(o.query);
+        return found.slice(0, 30).map((v) => ({title: v.title, sub: v.channel, img: v.img, kind: 'wide', open: () => Y.play(v)}));
       }});
     } catch (e) {}
     const yt = list.find((p) => p.name === 'yt');
@@ -207,17 +314,24 @@
       h.innerHTML = TN.esc(j.label) + ` <small>${items.length}</small>`;
       const g = document.createElement('div');
       g.className = 'grid';
-      items.forEach((it) => g.append(TN.card(it.img || 'icon.png', it.title, it.sub, () => it.open(), it.kind || '')));
+      items.forEach((it) => g.append(TN.card(it.img || 'icon.png', it.title, it.sub, () => it.open(), shapeOf(it.kind))));
       slots[i].append(h, g);
       const best = bestOf(groups.filter(Boolean), q);
       if (best.length >= 2 && groups.filter(Boolean).length > 1) {
-        bestG.replaceChildren(...best.map((it) => TN.card(it.img || 'icon.png', it.title, it.sub, () => it.open(), it.kind || '')));
+        bestG.textContent = '';
+        best.forEach((it) => bestG.append(TN.card(it.img || 'icon.png', it.title, it.sub, () => it.open(), shapeOf(it.kind))));
         bestH.hidden = bestG.hidden = false;
       }
     }));
     offRoute();
-    if (ctx.current() && !total) view.insertAdjacentHTML('beforeend', `<p class="msg">${TN.esc(TN.t('hub_none'))}</p>`);
+    if (ctx.current() && !total) {
+      const holder = document.createElement('div');
+      view.append(holder);
+      let drawn = false;
+      if (typeof TN.state === 'function') { try { TN.state(holder, {kind: 'empty', title: TN.t('hub_none'), text: '', action: {label: TN.t('hub_retry'), onClick: () => TN.route()}}); drawn = true; } catch (e) { holder.textContent = ''; } }
+      if (!drawn) { holder.innerHTML = `<p class="msg">${TN.esc(TN.t('hub_none'))}</p>`; holder.append(TN.button('btn ghost', TN.t('hub_retry'), () => TN.route())); }
+    }
   });
 
-  self.TNHub = {rank, score, parseQuery, seLabel, bestOf, parseDm};     // for the tests
+  self.TNHub = {rank, score, parseQuery, seLabel, bestOf, parseDm, pickDm, frameAllowed, shapeOf, linkTarget, recentSearches, SHAPES};     // for the tests
 })(self.TN);

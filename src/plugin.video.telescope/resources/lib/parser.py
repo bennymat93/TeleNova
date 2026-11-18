@@ -95,6 +95,26 @@ _SOURCE = [
 _CODEC = [('hevc', re.compile(r'x\.?265|h\.?265|hevc', re.I)), ('av1', re.compile(r'\bav1\b', re.I)),
           ('avc', re.compile(r'x\.?264|h\.?264|avc', re.I))]
 _HDR = re.compile(r'\bhdr(?:10)?\+?\b|dolby[\s._-]?vision|\bdv\b', re.I)
+# 4.3: what kind of HDR a name promises. Dolby Vision profile 5 has no HDR10 / SDR layer underneath: a player
+# without Dolby Vision shows it in green and purple - so the profile matters, not only the word.
+_NB, _NA = r'(?<![a-z0-9])', r'(?![a-z0-9])'
+_DV = re.compile(_NB + r'(?:dv|dovi|dolby[\s._-]?vision|dvhe|dvh1)' + _NA, re.I)
+_DV_PROFILE = [
+    re.compile(_NB + r'(?:dv|dovi|dolby[\s._-]?vision)[\s._-]*p(?:rofile)?[\s._-]*0?([4578])' + _NA, re.I),   # DV.P5, DoVi Profile 8
+    re.compile(_NB + r'dv(?:he|h1)[\s._-]*0?([4578])' + _NA, re.I),                                          # dvhe.05
+    re.compile(_NB + r'profile[\s._-]*0?([578])' + _NA, re.I),                                               # Profile 5
+    re.compile(_NB + r'p([578])' + _NA, re.I),                                                               # DV P7 (only next to DV)
+]
+_HDR10P = re.compile(_NB + r'hdr10(?:\+|[\s._-]?plus|p)' + r'(?![a-z0-9+])', re.I)
+_HDR10 = re.compile(_NB + r'hdr(?:10)?' + r'(?![a-z0-9+])', re.I)
+_HLG = re.compile(_NB + r'hlg(?:10)?' + _NA, re.I)
+_AUDIO_FMT = [
+    ('truehd', re.compile(_NB + r'true[\s._-]?hd' + _NA, re.I)),
+    ('atmos', re.compile(_NB + r'atmos' + _NA, re.I)),
+    ('dtshd', re.compile(_NB + r'dts[\s._-]?(?:hd|ma|x)(?:[\s._-]?ma)?' + _NA, re.I)),
+    ('dts', re.compile(_NB + r'dts' + _NA, re.I)),
+    ('eac3', re.compile(_NB + r'(?:e[\s._-]?ac[\s._-]?3|ddp|dd\+|dd[\s._-]?plus)(?:[\s._-]?[257][\s._]?[01])?' + _NA, re.I)),
+]
 
 _LANG_RULES = [
     ('he_dub', re.compile(u'מדובב|דיבוב|heb(?:rew)?[\\s._-]*dub', re.I)),
@@ -289,6 +309,36 @@ def find_source(text):
     return ''
 
 
+def find_video_flags(text):
+    """4.3: the HDR family and the sound format a release name states.
+    -> {'hdr_type': '' | 'hdr10' | 'hdr10+' | 'hlg' | 'dv', 'dv': bool, 'dv_profile': 4 / 5 / 7 / 8 / None,
+        'dv_fallback': True (an HDR10 / HLG layer is named, or the profile has one) / False (profile 5) / None
+        (the name does not say), 'audio_fmt': [...]}"""
+    t = text or ''
+    dv = bool(_DV.search(t))
+    profile = None
+    if dv:
+        for rx in _DV_PROFILE:
+            m = rx.search(t)
+            if m:
+                profile = int(m.group(1))
+                break
+    plus, hlg = bool(_HDR10P.search(t)), bool(_HLG.search(t))
+    hdr10 = bool(_HDR10.search(t))
+    fallback = None
+    if dv:
+        if profile == 5:
+            fallback = False
+        elif profile in (7, 8) or plus or hdr10 or hlg:
+            fallback = True
+    kind = 'dv' if dv else ('hdr10+' if plus else ('hdr10' if hdr10 else ('hlg' if hlg else '')))
+    audio = []
+    for tag, rx in _AUDIO_FMT:
+        if rx.search(t) and not (tag == 'dts' and 'dtshd' in audio):
+            audio.append(tag)
+    return {'hdr_type': kind, 'dv': dv, 'dv_profile': profile, 'dv_fallback': fallback, 'audio_fmt': audio}
+
+
 def find_langs(text):
     tags = set()
     for tag, rx in _LANG_RULES:
@@ -370,4 +420,13 @@ def parse(filename, caption='', chat_title=''):
         'chat_season': find_season_only(chat_title) if chat_title else None,
     }
     res['is_cam'] = res['source'] == 'cam'
+    # 4.3: the file name decides what kind of HDR it is; a caption is asked only when the name says nothing
+    vf = find_video_flags(name)
+    if not vf['hdr_type']:
+        cap = find_video_flags(caption)
+        if cap['hdr_type']:
+            cap['audio_fmt'] = vf['audio_fmt'] or cap['audio_fmt']
+            vf = cap
+    res.update(vf)
+    res['hdr'] = bool(res['hdr'] or vf['hdr_type'])
     return res
