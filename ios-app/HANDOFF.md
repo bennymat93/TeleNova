@@ -5,13 +5,16 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
-- 2026-11-18 17:55 UTC - sources, build script and workflow pushed (commit bff5472). First CI run 44362841328 is
-  queued/running. Nothing verified yet: the Swift code has never been compiled (no Mac on the PC).
-- NEXT: 1) get the run green (read the log: `gh run view <id> --log-failed`), fix compile errors in `Sources/`.
-  2) download artifact `simulator-run`, read `phone-live.json` / `phone-offline.json` / `pad-live.json` and LOOK at the
-  three PNG screenshots. 3) write `ios/README-app.md` (Hebrew: what it is, how to sign with Sideloadly / AltStore,
-  what is not verified on a real device). 4) check `https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-<ver>.ipa`
-  downloads. 5) final report in Hebrew.
+- 2026-11-18 18:50 UTC - RELEASED: run 44365469704 green; `ios/TeleNova-Web-5.1.0.ipa` (unsigned, 8.4 MB) is on
+  gh-pages and downloads from https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-5.1.0.ipa .
+  Simulator self-test passed on iPhone and iPad (service worker controls the page, /tgstream/ answered by the SW,
+  exports land in Documents, offline fallback loads); the three screenshots were looked at.
+- Then pushed (build 3): pinch zoom off, offline bar no longer covers the page's top bar, status bar hidden on iPad
+  (the page's logo was under the clock), `ios/README-app.md` with the "what was verified" section.
+- NEXT: 1) confirm build 3 is green and its screenshots still look right (artifact `simulator-run`; `gh` on this PC
+  prints and then hangs - redirect to a file with `timeout`, e.g. `timeout 60 gh api ... > x.json`).
+  2) Everything in README "לא נבדק" needs the owner's real iPhone / iPad after he signs the IPA; fix what he reports.
+  3) Optional, needs `web/` owner: items in `WEB_CHANGES_NEEDED.md` (Google Drive sign-in is the only missing function).
 
 ## Rules for this piece of work
 - Edit ONLY `ios-app/`, `.github/workflows/ios-app.yml`, `ios/TeleNova-Web-*.ipa`, `ios/README-app.md`.
@@ -52,6 +55,7 @@ He also asked that this file is kept current so another account can continue smo
   (replacing the previous one) and fixes the file name inside `ios/README-app.md`.
 
 ## Log
+- 18:45 UTC first green run (44365469704, build 2): compiled first time after the review fixes; IPA committed by the bot (d227051).
 - 18:20 UTC run 44362841328 sat queued 25+ min (macOS runner queue) and was cancelled; a pre-compile review found
   2 compile errors (dictionary literals passed as Any?) + 1 crash path (JS dialog while another sheet closes) + the
   simulator pick; all fixed, pull-to-refresh added, pushed again. Owner (via main session): release the IPA FIRST.

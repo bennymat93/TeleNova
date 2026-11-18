@@ -13,7 +13,7 @@ import UniformTypeIdentifiers
 //  * local: the copy of web/ inside the app, served by LocalServer on 127.0.0.1 - only when the live site cannot be
 //           reached and the service worker has nothing cached yet. Separate storage, no service worker.
 final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandlerWithReply,
-                               WKDownloadDelegate, UIDocumentPickerDelegate {
+                               WKDownloadDelegate, UIDocumentPickerDelegate, UIScrollViewDelegate {
     static let site = URL(string: "https://bennymat93.github.io/TeleNova/web/")!
     static let background = UIColor(red: 11 / 255, green: 13 / 255, blue: 18 / 255, alpha: 1)   // #0b0d12, the page's own
 
@@ -37,6 +37,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var selftestDone = false
 
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+    // iPad: the page's wide layout puts its logo in the top corner, under the clock - so no status bar there
+    override var prefersStatusBarHidden: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     // ------------------------------------------------------------------ view
     override func viewDidLoad() {
@@ -76,6 +78,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         webView.scrollView.alwaysBounceVertical = true
         webView.allowsBackForwardNavigationGestures = true            // edge swipe = the page's own back (hash history)
         webView.allowsLinkPreview = false
+        webView.scrollView.delegate = self                            // no pinch zoom: the page has its own size control
         view.addSubview(webView)
 
         setUpOfflineBar()
@@ -99,7 +102,19 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         placeMenuButton()
         let top = view.safeAreaInsets.top
         offlineBar.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: top + 34)
+        // the offline bar sits above the page, not over its top bar
+        let barHeight: CGFloat = offlineBar.isHidden ? 0 : top + 34
+        let frame = CGRect(x: 0, y: barHeight, width: view.bounds.width, height: view.bounds.height - barHeight)
+        if webView.frame != frame { webView.frame = frame }
         offlineBar.contentEdgeInsets = UIEdgeInsets(top: top, left: 12, bottom: 0, right: 12)
+    }
+
+    func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+        scrollView.pinchGestureRecognizer?.isEnabled = false
+    }
+
+    func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
+        if scrollView.zoomScale != scrollView.minimumZoomScale { scrollView.setZoomScale(scrollView.minimumZoomScale, animated: false) }
     }
 
     // ------------------------------------------------------------------ loading
@@ -121,6 +136,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             guard let p = port, let url = URL(string: "http://127.0.0.1:\(p)/") else { self.showLoadError(); return }
             self.mode = .local
             self.offlineBar.isHidden = false
+            self.view.setNeedsLayout()
             self.webView.load(URLRequest(url: url))
         }
     }
@@ -274,7 +290,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if mode == .live && webView.url?.scheme == "https" { offlineBar.isHidden = true }
+        if mode == .live && webView.url?.scheme == "https" { offlineBar.isHidden = true; view.setNeedsLayout() }
         if let h = pendingLink { pendingLink = nil; go(hash: h, reload: h.hasPrefix("#pair=")) }
         if selftest && !selftestDone { selftestDone = true; runSelftest() }
     }

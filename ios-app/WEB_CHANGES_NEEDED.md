@@ -22,3 +22,8 @@ agent ends with `TeleNovaApp/<version>`.
 5. **Large Telegram saves** (`web/tgplay.js`): `showSaveFilePicker` does not exist in WebKit, so a save builds the
    whole file in memory first. For files over a few hundred MB the page could stream pieces straight to
    `TeleNovaNative` instead (the bridge already writes piece by piece to disk).
+6. **Wide (desktop / tablet) layout and the top safe area**: on an iPad (1032 px wide, `data-shell="desktop"`) the
+   rail's logo is drawn at the very top, under the system status bar (seen in the simulator screenshot of
+   2026-11-18). The app works around it by hiding the status bar on iPad; in Safari on iPad as a home-screen web app
+   the overlap would still show. Suggested: `padding-top: env(safe-area-inset-top)` on the rail and the top bar in
+   the desktop shell too.
