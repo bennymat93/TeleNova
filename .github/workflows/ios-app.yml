@@ -1,0 +1,134 @@
+# TeleNova for iPhone / iPad: builds the UNSIGNED app from ios-app/ (a WKWebView around web/), runs it once in the
+# iOS Simulator (self-test + screenshots, uploaded as artifacts) and commits ios/TeleNova-Web-<version>.ipa.
+# No secrets and no signing: only the repository's own GITHUB_TOKEN to commit the file. The owner signs the IPA.
+name: ios-app
+on:
+  push:
+    branches: [gh-pages]
+    paths:
+      - 'ios-app/**'
+      - '.github/workflows/ios-app.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ios-app
+  cancel-in-progress: false
+env:
+  BID: io.github.bennymat93.telenova
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          xcodebuild -version
+          which xcodegen || brew install xcodegen
+      - name: Prepare (web copy, icon, project)
+        run: bash ios-app/build.sh prepare
+      - name: Build the unsigned IPA
+        run: bash ios-app/build.sh ipa
+      - name: Check the IPA
+        run: |
+          set -euo pipefail
+          V="$(bash ios-app/build.sh version)"
+          IPA="ios-app/build/TeleNova-Web-$V.ipa"
+          rm -rf ios-app/build/check && mkdir -p ios-app/build/check
+          unzip -q "$IPA" -d ios-app/build/check
+          APP="ios-app/build/check/Payload/TeleNova.app"
+          test -f "$APP/Info.plist" && test -f "$APP/TeleNova" && test -f "$APP/bridge.js"
+          test -f "$APP/web/index.html" && test -f "$APP/web/app.js" && test -f "$APP/web/sw.js" && test -f "$APP/web/version.js"
+          test ! -e "$APP/embedded.mobileprovision" && test ! -e "$APP/_CodeSignature"
+          plutil -p "$APP/Info.plist"
+          echo "--- binary"; lipo -info "$APP/TeleNova"
+          echo "--- signature (expected: not signed at all)"; codesign -dv "$APP" 2>&1 || true
+          echo "--- files: $(find "$APP" -type f | wc -l), web files: $(find "$APP/web" -type f | wc -l)"
+          ls -la "$IPA"; shasum -a 256 "$IPA"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TeleNova-Web-ipa
+          path: ios-app/build/TeleNova-Web-*.ipa
+          if-no-files-found: error
+      - name: Pick simulators
+        run: |
+          xcrun simctl list devices available -j > /tmp/devs.json
+          python3 - <<'EOF' >> "$GITHUB_ENV"
+          import json, re
+          d = json.load(open('/tmp/devs.json'))['devices']
+          def ver(k):
+              m = re.search(r'iOS-(\d+)-(\d+)', k)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          for kind, var in (('iPhone', 'SIM_PHONE'), ('iPad', 'SIM_PAD')):
+              for k in sorted(d, key=ver, reverse=True):
+                  hit = [x for x in d[k] if x['name'].startswith(kind) and ver(k) != (0, 0)]
+                  if hit:
+                      print('%s=%s' % (var, hit[0]['udid']))
+                      print('%s_NAME=%s (%s)' % (var, hit[0]['name'], k.split('.')[-1]))
+                      break
+          EOF
+      - name: Build for the simulator
+        run: bash ios-app/build.sh sim "$SIM_PHONE"
+      - name: Run in the simulator (self-test and screenshots)
+        run: |
+          OUT="$PWD/ios-app/build/out"; mkdir -p "$OUT"
+          APP="ios-app/build/sim/TeleNova.app"
+          run_case() {   # <name> <udid> <live|local> [extra launch arguments]
+            local name="$1" udid="$2" mode="$3"; shift 3
+            xcrun simctl terminate "$udid" "$BID" 2>/dev/null || true
+            local data; data="$(xcrun simctl get_app_container "$udid" "$BID" data)"
+            local f="$data/Documents/selftest-$mode.json"
+            rm -f "$f"
+            xcrun simctl launch "$udid" "$BID" -selftest "$@"
+            for i in $(seq 1 60); do [ -f "$f" ] && break; sleep 2; done
+            sleep 2
+            xcrun simctl io "$udid" screenshot "$OUT/$name.png" || true
+            if [ -f "$f" ]; then cp "$f" "$OUT/$name.json"; echo "=== $name"; cat "$f"; echo; else echo "=== $name: NO RESULT FILE"; fi
+          }
+          boot() {
+            xcrun simctl boot "$1" 2>/dev/null || true
+            xcrun simctl bootstatus "$1" -b
+            xcrun simctl install "$1" "$APP"
+          }
+          echo "phone: $SIM_PHONE_NAME, tablet: ${SIM_PAD_NAME:-none}"
+          boot "$SIM_PHONE"
+          run_case phone-live "$SIM_PHONE" live
+          run_case phone-offline "$SIM_PHONE" local -forceOffline
+          xcrun simctl spawn "$SIM_PHONE" log show --last 5m --predicate 'process == "TeleNova"' --style compact 2>/dev/null | tail -60 > "$OUT/phone-log.txt" || true
+          xcrun simctl shutdown "$SIM_PHONE" || true
+          if [ -n "${SIM_PAD:-}" ]; then
+            boot "$SIM_PAD"
+            run_case pad-live "$SIM_PAD" live
+            xcrun simctl shutdown "$SIM_PAD" || true
+          fi
+          ls -la "$OUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator-run
+          path: |
+            ios-app/build/out
+            ios-app/build/*.log
+      - name: Commit the IPA to ios/
+        if: github.ref == 'refs/heads/gh-pages'
+        run: |
+          set -euo pipefail
+          V="$(bash ios-app/build.sh version)"
+          git config user.name "telenova-ios"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for f in ios/TeleNova-Web-*.ipa; do [ -e "$f" ] && git rm -q --cached "$f" && rm -f "$f"; done
+          cp "ios-app/build/TeleNova-Web-$V.ipa" ios/
+          git add "ios/TeleNova-Web-$V.ipa"
+          # the download link in the guide follows the file name
+          if [ -f ios/README-app.md ]; then
+            sed -i '' -E "s/TeleNova-Web-[0-9][0-9.]*\.ipa/TeleNova-Web-$V.ipa/g" ios/README-app.md
+            git add ios/README-app.md
+          fi
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -q -m "iOS app: ios/TeleNova-Web-$V.ipa (unsigned, build $GITHUB_RUN_NUMBER)"
+          for i in 1 2 3 4; do
+            if git pull --rebase --autostash origin gh-pages && git push origin HEAD:gh-pages; then exit 0; fi
+            sleep 6
+          done
+          exit 1

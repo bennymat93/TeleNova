@@ -1,0 +1,92 @@
+# XcodeGen project description: `xcodegen generate` (run by build.sh) writes TeleNova.xcodeproj from this file.
+# TN_VERSION / TN_BUILD come from build.sh (the web version of web/version.js and the workflow run number).
+name: TeleNova
+options:
+  bundleIdPrefix: io.github.bennymat93
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: ${TN_VERSION}
+    CURRENT_PROJECT_VERSION: ${TN_BUILD}
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_BITCODE: NO
+targets:
+  TeleNova:
+    type: application
+    platform: iOS
+    scheme: {}
+    sources:
+      - path: Sources
+      - path: Resources/bridge.js
+        buildPhase: resources
+      - path: build/Assets.xcassets
+      - path: build/web
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.bennymat93.telenova
+        PRODUCT_NAME: TeleNova
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+    info:
+      path: build/Info.plist
+      properties:
+        CFBundleDisplayName: TeleNova
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBG
+        UIRequiredDeviceCapabilities: [arm64]
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIViewControllerBasedStatusBarAppearance: true
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # sound goes on when the app is in the background / the screen is locked
+        UIBackgroundModes: [audio]
+        # the Documents folder shows in the Files app and in Finder
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        # the only site the web view may open as its page; this is what gives it a service worker
+        WKAppBoundDomains:
+          - bennymat93.github.io
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSCameraUsageDescription: "המצלמה משמשת רק לסריקת קוד הצימוד (QR) שמציג TeleNova במכשיר אחר."
+        LSApplicationQueriesSchemes: [tg]
+        CFBundleURLTypes:
+          - CFBundleURLName: io.github.bennymat93.telenova
+            CFBundleTypeRole: Viewer
+            CFBundleURLSchemes: [telenova]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: TeleNova files
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.zip-archive
+              - public.plain-text
+              - public.xml
+              - public.data
+        UIApplicationShortcutItems:
+          - UIApplicationShortcutItemType: files
+            UIApplicationShortcutItemTitle: "קבצי האפליקציה"
+            UIApplicationShortcutItemIconSymbolName: folder
+          - UIApplicationShortcutItemType: import
+            UIApplicationShortcutItemTitle: "ייבוא קבצים"
+            UIApplicationShortcutItemIconSymbolName: square.and.arrow.down
+          - UIApplicationShortcutItemType: scan
+            UIApplicationShortcutItemTitle: "סריקת קוד צימוד"
+            UIApplicationShortcutItemIconSymbolName: qrcode.viewfinder
