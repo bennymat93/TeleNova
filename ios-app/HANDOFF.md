@@ -5,24 +5,27 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
-- RELEASED and verified: `ios/TeleNova-Web-5.1.0.ipa` build 3 (bot commit da9b160), see Log.
-- 2026-11-18 ~20:30 UTC. Owner's requests since the release (his words, Hebrew), and where each stands:
-  1. "improve the sign-in to accounts, mainly Telegram" - review DONE (findings: `WEB_CHANGES_NEEDED.md`, section
-     "Sign-in findings"; full JSON `login-map.json` in the shared notes). ROOT CAUSE FOUND: `web/tg.js` calls two
-     undefined functions, so every Telegram sign-in fails at the end. iOS stopgap + iOS-side fixes are in build 5.
-     The web fixes belong to the session that owns `web/` (it was told).
-  2. "the worker embedded in the build" - `Sources/HelperRelay.swift` + fetch hook in `bridge.js` (build 4).
-  3. "fix the Real-Debrid sign-in" - in the app it needed the helper (item 2) and not leaving the app for the
-     approval page (in-app Safari sheet, build 5). Web-side RD fixes listed in `WEB_CHANGES_NEEDED.md` 5-7.
-  4. "general fixes in the builds, iOS and APK" + "rename the iOS / APK apps to BN Stream" - iOS: display name is
-     now BN Stream (bundle id, .app and .ipa file names unchanged on purpose); APK: sent to the Android session.
-- Build 5 (pushed, NOT yet confirmed) adds: Telegram shims, native "confirm in the Telegram app" button fed by
-  `TG.step()` (tg://login link), in-app Safari sheet for outside links (universal links first), keyboard handling
-  (no floating button / pull-to-refresh while typing), tg://login accepted by scan / paste, name BN Stream.
-- NEXT: 1) check builds 4 and 5 are green; read `selftest-*.json`: `helperPing.ok`, `helperRelay.status` 200,
-  `helperRefused.status` 403, `helperPathRule` 403, `tnHelperHas` true, `rdDeviceCode.hasDeviceCode` true,
-  `tgShims` true; look at the screenshots. 2) update `ios/README-app.md` (name BN Stream, built-in helper, Telegram
-  button). 3) report to the owner; a real Telegram / Real-Debrid sign-in can only be confirmed on his device.
+- 2026-11-18 ~21:00 UTC. Released IPA on the site: build 4 (helper built in). Build 5 (run 44381189327, commit
+  e6a081f: name BN Stream, Telegram stopgap + "confirm in Telegram" button, in-app Safari sheet, keyboard handling)
+  was still running - CHECK IT FIRST: green? then `selftest-*.json` keys `helperPing.ok`, `helperRelay.status` 200,
+  `helperRefused.status` 403, `helperPathRule` 403, `tnHelperHas`, `rdDeviceCode.hasDeviceCode`, `tgShims`, and
+  the three screenshots (artifact `simulator-run`).
+- Owner's requests since the first release and their state:
+  1. Telegram sign-in: ROOT CAUSE FIXED IN WEB (commit 6ba19d5, live): `web/tg.js` called `dropPending()` /
+     `setFlood()` that were never defined. iOS also carries a stopgap in `bridge.js` and a native button that opens
+     the `tg://login?token=` link of the QR step in the Telegram app. Remaining web items: `WEB_CHANGES_NEEDED.md`.
+  2. Worker "embedded in the build, generally": (a) deployed to the owner's Cloudflare account (wrangler was
+     already signed in on this PC): https://telenova-helper.hmi-analyzer.workers.dev , tests + live checks OK;
+     (b) `web/app.js` `TN.settings.helper()` defaults to it (commit 6ba19d5); (c) iOS has its own native relay
+     (`Sources/HelperRelay.swift`, no Cloudflare needed); (d) Android did the same in its 1.1.0 (its session).
+     Redeploy after a change in `worker/`: `cd worker && npx wrangler@3 deploy`. Remove: `npx wrangler@3 delete`.
+  3. Real-Debrid sign-in: works through the helper (device code verified through the deployed Worker and, in
+     build 4+, through the native relay); approval page opens in an in-app Safari sheet (build 5). Web-side
+     polish (poll loop, direct link, token check): `WEB_CHANGES_NEEDED.md` 5-7, not done.
+  4. Name BN Stream: iOS display name (build 5); bundle id / file names unchanged on purpose. APK: Android session.
+- This session edited `web/` twice only (tg.js fix, app.js helper default), each as a HEAD-blob + one-hunk index
+  commit so the web session's uncommitted work was untouched. Everything else in `web/` stays with its owner.
+- NOT verifiable here: a real Telegram / Real-Debrid sign-in (needs the owner's accounts and device).
 - `gh` on this PC prints and then hangs: always `timeout 60 gh api ... > file`.
 
 ## Rules for this piece of work
