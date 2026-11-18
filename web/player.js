@@ -155,6 +155,7 @@
       pl_fail: 'הדפדפן לא מצליח לנגן את הקובץ הזה.', pl_err_codec: 'הדפדפן לא יודע לפענח את הקובץ הזה.', pl_why_video: 'קידוד התמונה: %s',
       pl_why_audio: 'קידוד הקול: %s', pl_why_container: 'סוג הקובץ: %s', pl_err_net: 'החיבור למקור נותק.', pl_err_dead: 'הקישור כבר לא עונה.',
       pl_nopicture: 'רק הקול מתנגן: הדפדפן לא תומך בקידוד התמונה הזה (%s).', pl_nosound: 'אין קול: הדפדפן לא תומך בקידוד הקול הזה (%s).',
+      pl_compat: 'הדפדפן לא מנגן את הקובץ הזה – עובר לנגן המובנה…', pl_compat_on: 'מתנגן בנגן המובנה (MKV / HEVC / AC3 / DTS)',
       pl_keep: 'להמשיך לצפות', pl_retry: 'נסה שוב', pl_next_link: 'הקישור הבא', pl_next_try: 'הקישור לא עבד, מנסה את הבא...',
       pl_elsewhere: 'פתיחה בנגן אחר', pl_copy: 'העתק קישור', pl_copied: 'הקישור הועתק', pl_copy_manual: 'סמנו והעתיקו את הקישור:',
       pl_vlc: 'פתח ב-VLC', pl_kodi: 'פתח ב-Kodi', pl_m3u: 'קובץ רשימת ניגון (.m3u)', pl_share: 'שיתוף לאפליקציה',
@@ -177,6 +178,7 @@
       pl_fail: 'This browser cannot play this file.', pl_err_codec: 'This browser cannot decode this file.', pl_why_video: 'Picture format: %s',
       pl_why_audio: 'Sound format: %s', pl_why_container: 'File type: %s', pl_err_net: 'The connection to the source was lost.', pl_err_dead: 'The link does not answer any more.',
       pl_nopicture: 'Only the sound plays: this browser does not support this picture format (%s).', pl_nosound: 'No sound: this browser does not support this sound format (%s).',
+      pl_compat: 'The browser cannot play this file - switching to the built-in engine…', pl_compat_on: 'Playing with the built-in engine (MKV / HEVC / AC3 / DTS)',
       pl_keep: 'Keep watching', pl_retry: 'Try again', pl_next_link: 'Next link', pl_next_try: 'That link did not work, trying the next one...',
       pl_elsewhere: 'Open in another player', pl_copy: 'Copy link', pl_copied: 'Link copied', pl_copy_manual: 'Select and copy the link:',
       pl_vlc: 'Open in VLC', pl_kodi: 'Open in Kodi', pl_m3u: 'Playlist file (.m3u)', pl_share: 'Share to an app',
@@ -199,6 +201,7 @@
       pl_fail: 'Браузер не может воспроизвести этот файл.', pl_err_codec: 'Браузер не умеет декодировать этот файл.', pl_why_video: 'Формат изображения: %s',
       pl_why_audio: 'Формат звука: %s', pl_why_container: 'Тип файла: %s', pl_err_net: 'Соединение с источником потеряно.', pl_err_dead: 'Ссылка больше не отвечает.',
       pl_nopicture: 'Играет только звук: браузер не поддерживает этот формат изображения (%s).', pl_nosound: 'Нет звука: браузер не поддерживает этот формат звука (%s).',
+      pl_compat: 'Браузер не воспроизводит этот файл - включается встроенный плеер…', pl_compat_on: 'Воспроизводит встроенный плеер (MKV / HEVC / AC3 / DTS)',
       pl_keep: 'Смотреть дальше', pl_retry: 'Повторить', pl_next_link: 'Следующая ссылка', pl_next_try: 'Ссылка не сработала, пробуем следующую...',
       pl_elsewhere: 'Открыть в другом плеере', pl_copy: 'Скопировать ссылку', pl_copied: 'Ссылка скопирована', pl_copy_manual: 'Выделите и скопируйте ссылку:',
       pl_vlc: 'Открыть в VLC', pl_kodi: 'Открыть в Kodi', pl_m3u: 'Файл плейлиста (.m3u)', pl_share: 'Поделиться с приложением',
@@ -720,6 +723,26 @@
       } catch (e) { /* unknown */ }
       return null;
     }
+    // 5.1: what the browser cannot decode (MKV / AVI / TS, HEVC, AC3 / E-AC3 / DTS) plays through compat.js - once per
+    // source, from the position reached; the <video> element then answers for that engine, so everything else stays
+    function dropCompat() { if (s.compat) { const h = s.compat; s.compat = null; try { h.detach(); } catch (e) { /* gone */ } } }
+    s.cleanup.push(dropCompat);
+    async function tryCompat(at) {
+      if (s.compatTried || !alive()) return false;
+      s.compatTried = true;
+      const url = s.url;
+      if (!url || isHlsUrl(url, s.mime)) return false;
+      try {
+        const cp = await TN.provider('compat').catch(() => null);
+        if (!cp || !cp.supported() || !alive() || s.url !== url) return false;
+        hideCard(); spin.hidden = false; say(t('pl_compat'));
+        const h = await cp.attach(v, new URL(url, location.href).href, {at: at > 0 ? at : 0, live: s.live, langs: [TN.lang()]});
+        if (!alive() || s.url !== url) { h.detach(); return true; }
+        s.compat = h; s.failed = false;
+        say(''); spin.hidden = true; flash(t('pl_compat_on'));
+        return true;
+      } catch (e) { say(''); return false; }
+    }
     // kind: 'media' (the <video> / hls.js gave up: looked into first) | 'tg' | 'login' | 'nosw' | 'open'
     async function fail(kind, info) {
       if (!alive() || s.failed) return;
@@ -736,6 +759,8 @@
         say('');
         if (probe && probe.sniff) s.sniff = probe.sniff;
         const k = errorKind({code: info.code, hls: info.hls, probe});
+        if ((k.kind === 'codec' || info.code === 4) && k.kind !== 'dead' && k.kind !== 'network' && !s.compatTried && (await tryCompat(at))) return;
+        if (!alive()) return;
         text = t(k.kind === 'dead' ? 'pl_err_dead' : k.kind === 'network' ? 'pl_err_net' : k.kind === 'codec' ? 'pl_err_codec' : 'pl_fail');
         sub = whyText(k.why);
         // a Real-Debrid / cached link that failed before anything played: the next link by itself (router.play, 3 tries)
@@ -761,7 +786,7 @@
       if (v.currentTime > 12) softDone = true;
       if (!kind) return;
       softDone = true;
-      diagnose().then((probe) => {
+      const softCard = () => diagnose().then((probe) => {
         if (!alive() || s.failed) return;
         if (probe && probe.sniff) s.sniff = probe.sniff;
         const sn = s.sniff || {};
@@ -774,6 +799,8 @@
         elsewhereButtons().forEach((b) => buttons.push(b));
         showCard({kind: 'soft', text: t(kind === 'nopicture' ? 'pl_nopicture' : 'pl_nosound', name), buttons});
       });
+      // half a film (no picture / no sound) is not playing it: the built-in engine first, the notice only if it cannot
+      if (!s.compatTried && !s.hls && !s.live) tryCompat(v.currentTime).then((ok) => { if (!ok && alive()) softCard(); }); else softCard();
     }
 
     // ---------- the source
@@ -781,6 +808,8 @@
       if (!alive()) return;
       s.url = url; s.mime = mime || '';
       s.failed = false; softDone = false;
+      dropCompat();
+      if (url !== s.compatUrl) { s.compatTried = false; s.compatUrl = url; }
       if (s.hls) { try { s.hls.destroy(); } catch (e) { /* gone */ } s.hls = null; }
       spin.hidden = false;
       const begin = () => { if (at > 0) { const set = () => { try { v.currentTime = at; } catch (e) { /* later */ } }; if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, {once: true}); } play(); };
@@ -1143,6 +1172,7 @@
       });
     }
     function audioTracks() {
+      if (s.compat) return s.compat.audios().map((a, i) => ({label: a.title || a.lang || t('pl_track', i + 1), on: a.on, pick: () => { s.compat.selectAudio(a.id); }}));
       if (s.hls && s.hls.audioTracks && s.hls.audioTracks.length) {
         return s.hls.audioTracks.map((a, i) => ({label: a.name || a.lang || t('pl_track', i + 1), on: s.hls.audioTrack === i, pick: () => { s.hls.audioTrack = i; }}));
       }

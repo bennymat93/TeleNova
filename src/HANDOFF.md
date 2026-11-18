@@ -8,6 +8,24 @@
 המשימות שלמטה בוצעו, נבדקו ושוחררו בגרסה חדשה; לעצור רק בשביל מה שרק הבעלים יכול לעשות (סיסמה, 2FA, מכשיר פיזי,
 החלטה שלו) – ובינתיים להמשיך בכל השאר.
 
+<!-- IN-PROGRESS:START -->
+### IN PROGRESS – עודכן 2026-11-18 20:05 (להמשיך מכאן)
+**הנחיות הבעלים שנאמרו ב-18/11 (מחייבות את מי שממשיך):** לעבוד חסכוני (בלי ריבוי סוכנים, בדיקות ממוקדות); לעדכן את הבלוק הזה כל כמה דקות (`python <scratch>/ho.py` או עריכה ידנית בין הסימונים); לשחרר קודם את ה-APK וה-IPA; **בסוף הכול** – לעלות ל-**גרסה 5.0** (`bump.py 5.0.0`) ולעדכן את כל המדריכים (`guide.html`, `README.md`, `web/data/help/*.json`, `web/README.md`).
+
+**סדר העבודה שנותר:**
+1. **נגן הרשת – כל סוגי הקבצים (באמצע, רוב העבודה נעשתה).** `web/compat.js` (חדש) + `web/vendor/avplayer-1.3.1/` (libmedia AVPlayer 1.3.1, LGPL, 33 קבצים, hash אומת מול jsDelivr). `player.js`: `tryCompat()` נכנס אוטומטית כש-`fail('media')` מסווג codec או כש-`softCheck` מוצא "אין תמונה / אין קול"; `dropCompat()` בניקוי וב-`start()`. `compat.attach(v, url)` גורם ל-`<video>` של הנגן לענות בשם המנוע (currentTime / duration / play / pause / אירועים), כך שכל הכפתורים נשארים. CSP ב-`index.html`: נוספו `'wasm-unsafe-eval'` ו-`blob:` ל-script-src (ה-AudioWorklet של הספרייה הוא blob – בלי זה נכשל). מפענחי WASM נמשכים מ-jsDelivr (`gh/zhaohappy/libmedia@1.3.1/dist`). `web/version.js` = 5.1.0.
+   - **נבדק בדפדפן (Chromium, localhost):** MKV עם HEVC + AC3 מתנגן, קפיצה ל-40 ש', השהיה, משך – תקין.
+   - **לא גמור:** (א) MKV עם DTS ו-AVI (XviD + MP3) – המנוע נכנס והמפענחים ירדו, אבל הניגון לא התחיל בבדיקה; ייתכן שזה רק כי חלון הדפדפן המובנה היה מוסתר (דף ברקע) – לבדוק שוב כשהחלון גלוי. (ב) `detach()` תוקן ל-`stop(true)` ואז `destroy()` (מופעים ישנים נשארו תקועים) – לאמת. (ג) כתוביות עברית שבתוך הקובץ (`pickSubtitle`) לא אומתו בעין. (ד) לא נבדק עם קובץ טלגרם אמיתי דרך `/tgstream/`. (ה) בדיקת node ל-helpers של `compat.js` (`toMs`, `activeCues`, `cueHtml`, `pickSubtitle`) – לכתוב `src/qa/web/t_compat.js` ולהוסיף ל-`run_web_tests.py`.
+   - קובצי בדיקה: `web/_t/` (לא בקומיט, למחוק לפני שחרור). ליצירה: ffmpeg lavfi testsrc2 + sine ל-`hevc_ac3.mkv`, `h264_dts.mkv`, `xvid_mp3.avi`. שרת מקומי: `.claude/launch.json` (`telenova-web`, פורט 8123).
+2. **גודל תצוגה (נעשה, נבדק):** `cfg.zoom` (50–200, ברירת מחדל 100), `applyZoom()` / `zoomControl()` ב-`app.js` – בקר − / אחוזים / + / 100% בראש מסך "עוד" ובהגדרות › כללי; `maximum-scale=1` ב-viewport ו-font-size ≥ 16px לשדות בטלפון / טאבלט (מבטל זום אוטומטי בהקלדה). האפליקציות טוענות את האתר החי ולכן מקבלות את זה ברענון.
+3. **רשת = כמו במחשב** (בקשת הבעלים): להשלים שירותים / הרחבות שחסרים בדפדפן לפי `docs/web-audit/kodi-features.md` סעיף 17 ו-`web-features.md`. הרבה תלוי ב-helper Worker (`worker/`) שלא פרוס – פריסה דורשת חשבון Cloudflare של הבעלים (לשאול אותו). לא התחיל.
+4. **ניגון בחיבור איטי** (Kodi + רשת): לא התחיל. כיוונים: בחירת איכות לפי מהירות נמדדת (`sources.playable`, `max_mbit`), חוצץ גדול יותר (`advancedsettings` cache), ב-HLS התחלה ברמה נמוכה + ABR שמרני (hls.js `startLevel`, `abrBandWidthFactor`, `maxBufferLength`), ניסיונות חוזרים ארוכים, ירידת איכות במקום עצירה.
+5. **אפליקציות (סשנים נפרדים, אותו checkout):** Android – תיקיות `android/` + `apk/`; iOS – `ios-app/` + `.github/workflows/ios-app.yml` + `ios/TeleNova-Web-*.ipa` (נבנה ב-GitHub Actions, לא חתום). שניהם קיבלו הנחיה: לטעון את האתר החי, לשחרר קובץ ראשון מהר. אם הסשנים נקטעו – לבדוק `git log -- android apk ios-app ios` ואת ה-README בכל תיקייה.
+6. **שחרור 5.0:** מחיקת `web/_t`, כל הבדיקות (`run_web_tests.py` + רשימת היחידה), `bump.py 5.0.0`, בילד, push, אימות באתר, עדכון כל המדריכים.
+
+**מצב git:** 4.3.0 מפורסמת ומאומתת באתר (קומיט c315ab4). השינויים של סעיפים 1–2 בקומיט מקומי / נדחפים עם העדכון הזה (גרסת הרשת באתר תהיה 5.1.0).
+<!-- IN-PROGRESS:END -->
+
 ### המצב עכשיו
 - **4.3.0** (18/11, פורסם): **גרסת רשת 5.0** (מעטפת חדשה, בית בשורות, נגן משלו, טלגרם בדפדפן, `web/shell_core.js`;
   ביקורת ב-`docs/web-audit/`), **62 ערוצי עולם** שנבדקו בהורדת מקטע אמיתי (`resources/channels_world.json`,

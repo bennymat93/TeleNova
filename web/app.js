@@ -1046,8 +1046,40 @@ function menuGroups(into) {
     into.append(h, box);
   }
 }
+// 5.1: display size. 100 % by default; the viewer changes it with - / + or by typing a percentage (50-200), kept in
+// the browser settings of this device (never synced). CSS zoom scales the whole interface, the player included.
+const ZOOM_MIN = 50, ZOOM_MAX = 200, ZOOM_STEP = 10;
+const zoomOf = (x) => { const n = Math.round(Number(String(x).replace('%', '').trim())); return n >= ZOOM_MIN && n <= ZOOM_MAX ? n : (n > ZOOM_MAX ? ZOOM_MAX : n > 0 ? ZOOM_MIN : 100); };
+function applyZoom() { const z = zoomOf(cfg.zoom || 100); HTML.style.zoom = z === 100 ? '' : String(z / 100); }
+function zoomControl() {
+  const box = document.createElement('div');
+  box.className = 'zoomctl';
+  box.setAttribute('role', 'group');
+  box.setAttribute('aria-label', N('set_zoom'));
+  const mk = (txt, label) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost zoombtn'; b.textContent = txt; b.setAttribute('aria-label', label); return b; };
+  const minus = mk('\u2212', N('set_zoom_out')), plus = mk('+', N('set_zoom_in')), reset = mk('100%', N('set_zoom_reset'));
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.inputMode = 'numeric'; inp.className = 'input zoominp'; inp.setAttribute('aria-label', N('set_zoom_pct')); inp.maxLength = 4; inp.dir = 'ltr';
+  const show = () => { const z = zoomOf(cfg.zoom || 100); inp.value = z + '%'; minus.disabled = z <= ZOOM_MIN; plus.disabled = z >= ZOOM_MAX; };
+  const set = (z) => { cfg.zoom = zoomOf(z); put('cfg', cfg); applyZoom(); show(); emit('settings', 'zoom'); };
+  minus.onclick = () => set(zoomOf(cfg.zoom || 100) - ZOOM_STEP);
+  plus.onclick = () => set(zoomOf(cfg.zoom || 100) + ZOOM_STEP);
+  reset.onclick = () => set(100);
+  inp.onchange = () => set(inp.value);
+  inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); set(inp.value); } };
+  inp.onfocus = () => { try { inp.select(); } catch (e) { /* not selectable */ } };
+  box.append(minus, inp, plus, reset);
+  show();
+  return box;
+}
 function pageMenu() {
   page('menu', N('nav_more'));
+  const z = document.createElement('div');
+  z.className = 'zoomrow';
+  const lab = document.createElement('b');
+  lab.textContent = N('set_zoom');
+  z.append(lab, zoomControl());
+  view.append(z);
   menuGroups(view);
 }
 const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1599,6 +1631,7 @@ function pageSettings(arg) {
     const l = list(N('set_general'));
     l.append(setRow(t('s_lang'), '', seg([['he', 'עברית'], ['en', 'English'], ['ru', 'Русский']], cfg.lang, (v) => { cfg.lang = v; put('cfg', cfg); applyCfg(); shell(); emit('settings', 'lang'); route(true); saved(); }, t('s_lang'))));
     l.append(setRow(t('s_theme'), '', seg([['auto', t('t_auto')], ['dark', t('t_dark')], ['light', t('t_light')]], cfg.theme, (v) => setCfg('theme', v), t('s_theme'))));
+    l.append(setRow(N('set_zoom'), N('set_zoom_txt'), zoomControl()));
     l.append(setRow(N('m_device'), N('set_device_txt'), seg([['auto', N('set_dev_auto')], ['tv', N('set_dev_tv')], ['phone', N('set_dev_phone')], ['desktop', N('set_dev_desktop')]],
       ['tv', 'phone', 'desktop'].includes(cfg.device) ? cfg.device : 'auto', (v) => setCfg('device', v), N('m_device'))));
     const hl = list(N('set_home_rows'));
@@ -1778,6 +1811,7 @@ const MODULES = {
   catalog: {pages: ['movies', 'tv', 'catalog'], kinds: []},                     // WP-4
   sources: {pages: [], kinds: ['service']}, player: {pages: [], kinds: ['service']}, rd: {pages: [], kinds: ['source']},     // WP-5
   srt: {pages: [], kinds: []}, subs: {pages: [], kinds: ['subs']},             // WP-6
+  compat: {pages: [], kinds: ['service']},                                      // 5.1: MKV / HEVC / AC3 / DTS through vendor/avplayer
   iptv: {pages: ['live'], kinds: ['search']}, epg: {pages: [], kinds: ['service']}, radio: {pages: ['radio'], kinds: ['search']},   // WP-7
   yt: {pages: ['youtube'], kinds: ['search', 'source']}, topics: {pages: ['topics'], kinds: []}, hub: {pages: ['hub', 'search'], kinds: ['search']},   // WP-8
   services: {pages: ['services', 'device'], kinds: []}, library: {pages: ['library'], kinds: []}, backup: {pages: ['backup'], kinds: []},            // WP-9
@@ -1974,6 +2008,7 @@ function applyCfg() {
   if (cfg.theme === 'auto') HTML.removeAttribute('data-theme');
   else HTML.setAttribute('data-theme', cfg.theme);
   I18N.setLang(cfg.lang);
+  applyZoom();
   HTML.lang = cfg.lang;
   HTML.dir = cfg.lang === 'he' ? 'rtl' : 'ltr';
   // device profile (plan row 49): 'auto' goes back to what the browser says; never synced (Kodi 4.2.3 rule)

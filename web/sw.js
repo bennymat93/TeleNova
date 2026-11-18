@@ -10,7 +10,7 @@ const SHELL = ['./', 'index.html', 'style.css', 'version.js', 'i18n.js', 'shell_
 // every module file of the plan (web_plan.md section 3). Precached when it exists; a file a package has not written
 // yet is skipped without failing the install.
 const MODULES = ['tglogin.js', 'matcher.js', 'epmatch.js', 'tgsearch.js', 'telegram.js', 'tgplay.js', 'catalog.js', 'sources.js',
-                 'player.js', 'rd.js', 'srt.js', 'subs.js', 'iptv.js', 'epg.js', 'radio.js', 'yt.js', 'topics.js', 'hub.js',
+                 'player.js', 'compat.js', 'rd.js', 'srt.js', 'subs.js', 'iptv.js', 'epg.js', 'radio.js', 'yt.js', 'topics.js', 'hub.js',
                  'services.js', 'library.js', 'backup.js', 'gdrive.js', 'help.js', 'status.js', 'helper.js', 'icon-512.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).then(() => Promise.all(MODULES.map((m) => c.add(m).catch(() => {})))))
