@@ -16,7 +16,7 @@ final class QRScannerController: UIViewController, AVCaptureMetadataOutputObject
         guard let cam = AVCaptureDevice.default(for: .video), let input = try? AVCaptureDeviceInput(device: cam),
               session.canAddInput(input) else {
             let l = UILabel()
-            l.text = "אין מצלמה זמינה, או שלא ניתנה הרשאת מצלמה (הגדרות > TeleNova)."
+            l.text = "אין מצלמה זמינה, או שלא ניתנה הרשאת מצלמה (הגדרות > BN Stream)."
             l.textColor = .white
             l.numberOfLines = 0
             l.textAlignment = .center

@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import SafariServices
 import Network
 import UniformTypeIdentifiers
 
@@ -28,6 +29,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var downloads: [ObjectIdentifier: URL] = [:]
     private let menuButton = UIButton(type: .system)
     private let offlineBar = UIButton(type: .system)
+    private let tgButton = UIButton(type: .system)          // "confirm the sign-in in the Telegram app"
+    private var tgLogin: URL?
+    private var keyboardUp = false
     private let monitor = NWPathMonitor()
     private var online = true
     private var pendingLink: String?
@@ -83,6 +87,10 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
         setUpOfflineBar()
         setUpMenuButton()
+        setUpTgButton()
+        let nc = NotificationCenter.default
+        nc.addObserver(self, selector: #selector(keyboardChanged(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
+        nc.addObserver(self, selector: #selector(keyboardChanged(_:)), name: UIResponder.keyboardWillHideNotification, object: nil)
 
         monitor.pathUpdateHandler = { [weak self] path in
             DispatchQueue.main.async {
@@ -100,6 +108,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         placeMenuButton()
+        let tgWidth = min(view.bounds.width - 32, 360)
+        tgButton.frame = CGRect(x: (view.bounds.width - tgWidth) / 2, y: view.bounds.height - view.safeAreaInsets.bottom - 132,
+                                width: tgWidth, height: 50)
         let top = view.safeAreaInsets.top
         offlineBar.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: top + 34)
         // the offline bar sits above the page, not over its top bar
@@ -143,7 +154,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     private func showLoadError() {
         if selftest { writeSelftest(["error": "load failed, no local copy"]); return }
-        let a = UIAlertController(title: "אין חיבור", message: "לא ניתן לטעון את TeleNova. בדקו את החיבור לאינטרנט.", preferredStyle: .alert)
+        let a = UIAlertController(title: "אין חיבור", message: "לא ניתן לטעון את BN Stream. בדקו את החיבור לאינטרנט.", preferredStyle: .alert)
         a.addAction(UIAlertAction(title: "ניסיון חוזר", style: .default) { [weak self] _ in self?.loadSite() })
         a.addAction(UIAlertAction(title: "סגירה", style: .cancel))
         show(a)
@@ -194,6 +205,10 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             go(hash: "#/telegram/link=" + link, reload: false)
             return true
         }
+        if t.range(of: "^tg://login\\?token=[A-Za-z0-9_-]+$", options: .regularExpression) != nil, let u = URL(string: t) {
+            UIApplication.shared.open(u, options: [:], completionHandler: nil)   // a Telegram sign-in code: Telegram confirms it
+            return true
+        }
         if t.lowercased().hasPrefix("telenova:") {
             let frag = URLComponents(string: t)?.fragment ?? ""
             go(hash: frag.isEmpty ? "#/" : "#" + frag, reload: false)
@@ -229,8 +244,24 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     }
 
     // ------------------------------------------------------------------ navigation
+    // A link that leaves the page. An app that owns the address gets it (t.me -> Telegram, YouTube -> its app);
+    // any other web page opens in a Safari sheet INSIDE the app, so the page underneath keeps running - a sign-in
+    // that waits for an approval on another site (Real-Debrid's device page) is not cut off by leaving the app.
     private func openOutside(_ url: URL) {
-        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+        let scheme = (url.scheme ?? "").lowercased()
+        guard scheme == "http" || scheme == "https" else {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            return
+        }
+        if selftest { return }
+        UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { [weak self] opened in
+            guard let self = self, !opened else { return }
+            let sheet = SFSafariViewController(url: url)
+            sheet.preferredBarTintColor = WebViewController.background
+            sheet.preferredControlTintColor = .white
+            sheet.dismissButtonStyle = .done
+            self.show(sheet)
+        }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
@@ -401,6 +432,12 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             replyHandler(["ok": true, "path": FileStore.shortPath(dst)] as [String: Any], nil)
             saved(dst)
         case "relay": HelperRelay.shared.handle(body) { replyHandler($0, nil) }
+        case "tgqr":
+            let text = (body["url"] as? String) ?? ""
+            let ok = text.range(of: "^tg://login\\?token=[A-Za-z0-9_-]+$", options: .regularExpression) != nil
+            tgLogin = ok ? URL(string: text) : nil
+            updateTgButton()
+            replyHandler(true, nil)
         case "files": showFiles(); replyHandler(true, nil)
         case "import": importFiles(); replyHandler(true, nil)
         case "scan": scanPair(); replyHandler(true, nil)
@@ -411,7 +448,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private func saved(_ url: URL) {
         if selftest { return }
         let a = UIAlertController(title: "הקובץ נשמר",
-                                  message: "קבצים › TeleNova › " + FileStore.shortPath(url).replacingOccurrences(of: "/", with: " › "),
+                                  message: "קבצים › BN Stream › " + FileStore.shortPath(url).replacingOccurrences(of: "/", with: " › "),
                                   preferredStyle: .alert)
         a.addAction(UIAlertAction(title: "שיתוף / שמירה במקום אחר", style: .default) { [weak self] _ in self?.share([url]) })
         a.addAction(UIAlertAction(title: "אישור", style: .cancel))
@@ -470,7 +507,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         let a = UIAlertController(
             title: urls.isEmpty ? "הייבוא נכשל" : "יובאו \(urls.count) קבצים",
             message: urls.isEmpty ? "לא ניתן היה להעתיק את הקובץ." :
-                "הקבצים נמצאים ב: קבצים › TeleNova › Imports.\nכדי להשתמש בהם (שחזור גיבוי, כתוביות, רשימת ערוצים) בחרו אותם מתוך המסך המתאים באפליקציה.",
+                "הקבצים נמצאים ב: קבצים › BN Stream › Imports.\nכדי להשתמש בהם (שחזור גיבוי, כתוביות, רשימת ערוצים) בחרו אותם מתוך המסך המתאים באפליקציה.",
             preferredStyle: .alert)
         a.addAction(UIAlertAction(title: "אישור", style: .cancel))
         show(a)
@@ -480,7 +517,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         let s = QRScannerController()
         s.onCode = { [weak self] code in
             guard let self = self else { return }
-            if !self.handleIncoming(code) { self.note("הקוד שנסרק אינו קישור של TeleNova או של טלגרם.") }
+            if !self.handleIncoming(code) { self.note("הקוד שנסרק אינו קישור של BN Stream או של טלגרם.") }
         }
         let nav = UINavigationController(rootViewController: s)
         nav.overrideUserInterfaceStyle = .dark
@@ -489,7 +526,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     private func pasteLink() {
         if let s = UIPasteboard.general.string, handleIncoming(s) { return }
-        note("בלוח אין קישור צימוד של TeleNova או קישור t.me.")
+        note("בלוח אין קישור צימוד של BN Stream או קישור t.me.")
     }
 
     private func note(_ text: String) {
@@ -513,7 +550,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         func item(_ title: String, _ icon: String, _ run: @escaping () -> Void) -> UIAction {
             UIAction(title: title, image: UIImage(systemName: icon)) { _ in run() }
         }
-        b.menu = UIMenu(title: "TeleNova", children: [
+        b.menu = UIMenu(title: "BN Stream", children: [
             item("קבצי האפליקציה", "folder") { [weak self] in self?.showFiles() },
             item("ייבוא קבצים לאפליקציה", "square.and.arrow.down") { [weak self] in self?.importFiles() },
             item("סריקת קוד צימוד (QR)", "qrcode.viewfinder") { [weak self] in self?.scanPair() },
@@ -554,6 +591,45 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             UserDefaults.standard.set(Double((f.origin.y - minY) / (maxY - minY)), forKey: "menuY")
             UIView.animate(withDuration: 0.2) { self.placeMenuButton() }
         }
+    }
+
+    // ------------------------------------------------------------------ Telegram sign-in on this device, keyboard
+    private func setUpTgButton() {
+        let b = tgButton
+        b.setTitle("אישור ההתחברות באפליקציית טלגרם", for: .normal)
+        b.setImage(UIImage(systemName: "paperplane.fill"), for: .normal)
+        b.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        b.titleLabel?.adjustsFontSizeToFitWidth = true
+        b.titleLabel?.minimumScaleFactor = 0.7
+        b.tintColor = .white
+        b.setTitleColor(.white, for: .normal)
+        b.backgroundColor = UIColor(red: 0.16, green: 0.58, blue: 0.87, alpha: 1)
+        b.layer.cornerRadius = 14
+        b.imageEdgeInsets = UIEdgeInsets(top: 0, left: -6, bottom: 0, right: 6)
+        b.isHidden = true
+        b.addTarget(self, action: #selector(confirmInTelegram), for: .touchUpInside)
+        view.addSubview(b)
+    }
+
+    // shown only while the page shows a sign-in QR and the Telegram app is installed
+    private func updateTgButton() {
+        let installed = URL(string: "tg://").map { UIApplication.shared.canOpenURL($0) } ?? false
+        tgButton.isHidden = !(tgLogin != nil && !keyboardUp && installed)
+    }
+
+    @objc private func confirmInTelegram() {
+        guard let u = tgLogin else { return }
+        UIApplication.shared.open(u, options: [:], completionHandler: nil)
+    }
+
+    // while typing: no floating button over a field, and no accidental pull-to-refresh that would wipe a half-typed code
+    @objc private func keyboardChanged(_ n: Notification) {
+        keyboardUp = n.name == UIResponder.keyboardWillShowNotification
+        menuButton.alpha = keyboardUp ? 0 : 0.8
+        menuButton.isUserInteractionEnabled = !keyboardUp
+        webView.scrollView.refreshControl?.isEnabled = !keyboardUp
+        webView.scrollView.alwaysBounceVertical = !keyboardUp
+        updateTgButton()
     }
 
     private func setUpOfflineBar() {
@@ -626,7 +702,12 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             const rh = await self.TNHelper.fetch('https://api.real-debrid.com/rest/1.0/time');
             out.tnHelperFetch = rh.status;
           }
+          const rd = await fetch(H + '/p', {headers: {'X-TN-Target': 'https://api.real-debrid.com/oauth/v2/device/code?client_id=X245A4XAIBGVM&new_credentials=yes'}});
+          const rj = await rd.json().catch(() => ({}));
+          out.rdDeviceCode = {status: rd.status, hasDeviceCode: !!rj.device_code, hasUserCode: !!rj.user_code};
         } catch (e) { out.helperError = String(e); }
+        out.tgShims = typeof self.dropPending === 'function' && typeof self.setFlood === 'function';
+        try { self.dropPending(); self.setFlood(0); out.tgShimsRun = true; } catch (e) { out.tgShimsRun = String(e); }
         try {
           const a = document.createElement('a');
           a.href = URL.createObjectURL(new Blob(['selftest export ok'], {type: 'application/zip'}));

@@ -12,6 +12,33 @@
   window.__tnNative = true;
   try { Object.defineProperty(navigator, 'standalone', {configurable: true, get: function () { return true; }}); } catch (e) { /* stays as it is */ }
 
+  // ---- Telegram sign-in ------------------------------------------------------------------------------------------
+  // web/tg.js (web 5.1.0) calls dropPending() and setFlood() when a sign-in succeeds and when it is wiped, but defines
+  // neither, so every sign-in stopped with an error at its last step. Until the page defines its own (its own then
+  // win: a function inside the module hides these), the app supplies them.
+  if (typeof window.dropPending !== 'function') {
+    window.dropPending = function () { try { sessionStorage.removeItem('bn_tg_pending'); } catch (e) { /* no storage */ } };
+  }
+  if (typeof window.setFlood !== 'function') {
+    window.setFlood = function (until) {
+      try { if (until) sessionStorage.setItem('bn_tg_flood', String(until)); else sessionStorage.removeItem('bn_tg_flood'); } catch (e) { /* no storage */ }
+    };
+  }
+  // The QR sign-in shows a code to scan from ANOTHER device. On the phone itself the same tg://login link can be
+  // opened in the Telegram app: the app is told the current link and offers a native "confirm in Telegram" button.
+  // The link is passed on as it is and never kept or logged.
+  var lastQr = '';
+  setInterval(function () {
+    var url = '';
+    try {
+      var st = window.TG && window.TG.step ? window.TG.step() : null;
+      if (st && st.step === 'qr' && /^tg:\/\/login\?token=[A-Za-z0-9_-]+$/.test(String(st.url || ''))) url = String(st.url);
+    } catch (e) { url = ''; }
+    if (url === lastQr) return;
+    lastQr = url;
+    try { mh.postMessage({op: 'tgqr', url: url}).catch(function () {}); } catch (e) { /* app side gone */ }
+  }, 700);
+
   var blobs = new Map();                          // blob: address -> Blob, while the address is alive
   var make = URL.createObjectURL, drop = URL.revokeObjectURL;
   URL.createObjectURL = function (o) {

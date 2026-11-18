@@ -29,13 +29,14 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.bennymat93.telenova
-        PRODUCT_NAME: TeleNova
+        PRODUCT_NAME: TeleNova          # file names stay TeleNova.app / TeleNova-Web-*.ipa; the name on screen is BN Stream
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
     info:
       path: build/Info.plist
       properties:
-        CFBundleDisplayName: TeleNova
+        CFBundleDisplayName: BN Stream
+        CFBundleName: BN Stream
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
@@ -65,14 +66,14 @@ targets:
           - bennymat93.github.io
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
-        NSCameraUsageDescription: "המצלמה משמשת רק לסריקת קוד הצימוד (QR) שמציג TeleNova במכשיר אחר."
+        NSCameraUsageDescription: "המצלמה משמשת רק לסריקת קוד הצימוד (QR) שמציג BN Stream במכשיר אחר."
         LSApplicationQueriesSchemes: [tg]
         CFBundleURLTypes:
           - CFBundleURLName: io.github.bennymat93.telenova
             CFBundleTypeRole: Viewer
             CFBundleURLSchemes: [telenova]
         CFBundleDocumentTypes:
-          - CFBundleTypeName: TeleNova files
+          - CFBundleTypeName: BN Stream files
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate
             LSItemContentTypes:

@@ -35,3 +35,37 @@ agent ends with `TeleNovaApp/<version>`.
    `TN.settings.helper()` returns `window.TeleNovaNative.helper` when the viewer set no address of their own, the
    Services row shows "built into the app" instead of a URL field, and a backup made in the app does not carry
    the `.invalid` address to a computer (there it would fail the ping and show "needs helper").
+
+## Sign-in findings (2026-11-18, read-only review of `web/`, each point checked against the code)
+
+Full text with file:line evidence: `login-map.json` in the shared notes folder of the sessions. In order of value:
+
+**Telegram**
+1. **BLOCKER - `web/tg.js:145` and `:180` call `dropPending()` and `setFlood(0)`, which are defined nowhere.**
+   `signedIn()` throws a ReferenceError before `getMe()`, so every sign-in (QR, phone, resume of a saved session)
+   fails at its last step, and `forget()` throws too. Fix: define both next to `savedSession` (sessionStorage
+   `bn_tg_pending` / `bn_tg_flood`, inside try/catch). The iOS app defines them as globals in `bridge.js` as a stopgap,
+   so the app works before this is fixed; a function inside the module hides the stopgap.
+2. A half-finished phone login is lost on any reload / app suspend (the header of `tg.js` describes
+   `bn_tg_pending` but the code is not there): store `{phone, hash, where, session, keep, t}` after SendCode and
+   resume the code step within 10 minutes.
+3. QR sign-in on the phone itself: add a real link `href = st.url` ("confirm in the Telegram app on this device")
+   above the QR canvas in `tglogin.js`, and let phones start on the QR tab. (The iOS app shows a native button for
+   it already.)
+4. Code field: drop `maxLength`, keep digits only on input, submit when `st.length` digits are present; flood wait
+   remembered and counted down; a 25 s timeout with a way out while "Connecting..."; `floodSleepThreshold: 0`
+   during a fresh login; load fflate / qrcode-generator from `web/vendor/` (today a CDN failure reads "not available
+   offline"); a pairing link must not overwrite the API details under a live session; show the normalised phone
+   number (the code assumes +972).
+
+**Real-Debrid**
+5. Device code: one failed poll ends the whole sign-in (`rd.js` poll loop) - keep polling until the code expires,
+   poll at once on `visibilitychange`, offer "New code" on expiry.
+6. Use `direct_verification_url` when RD returns it (no retyping of the code), copy the code on "Open the site".
+7. A wrong pasted token is reported as "Signed in": check it with `user()` first.
+
+**Other accounts**
+8. Google Drive cannot complete inside the apps (pop-up / embedded web view): hide the buttons when
+   `window.TeleNovaNative` exists or add the native bridge (needs a change in `gdrive_cb.js`).
+9. One-tap "Paste" for keys; a key that fails its test should not stay stored as valid; test results should say what
+   is wrong instead of a bare HTTP status; row states that say "on" for things that are not signed in.

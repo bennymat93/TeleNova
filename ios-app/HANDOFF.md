@@ -6,18 +6,23 @@ He also asked that this file is kept current so another account can continue smo
 
 ## STATE (update this block first)
 - RELEASED and verified: `ios/TeleNova-Web-5.1.0.ipa` build 3 (bot commit da9b160), see Log.
-- 2026-11-18 ~19:40 UTC, two new owner requests (his words, Hebrew):
-  A) "improve the sign-in mechanism for accounts, mainly Telegram" - IN PROGRESS: a read-only map of the sign-in
-     flows (Telegram, other accounts, behaviour inside the iOS wrapper) was started; results not yet applied.
-     iOS-side fixes go in `ios-app/`; web-side fixes belong to the session that owns `web/` (write them in
-     `WEB_CHANGES_NEEDED.md` and in the shared notes, do not edit `web/` here).
-  B) "the worker must be embedded in the build" - DONE in code, pushed as build 4, NOT yet confirmed green:
-     `Sources/HelperRelay.swift` (native copy of `worker/index.js` rules) + fetch hook in `Resources/bridge.js`
-     (`https://helper.telenova.invalid`) + self-test keys `helperPing`, `helperRelay`, `helperRefused`,
-     `helperPathRule`, `tnHelperHas`, `tnHelperFetch` in `selftest-*.json`.
-- NEXT: 1) check build 4 (green? self-test keys above: ping ok, relay 200 from api.real-debrid.com/rest/1.0/time,
-  example.com -> 403 host, youtube /watch -> 403). 2) apply the sign-in findings. 3) the Android app needs the same
-  built-in helper (its own session; note left in the shared notes folder).
+- 2026-11-18 ~20:30 UTC. Owner's requests since the release (his words, Hebrew), and where each stands:
+  1. "improve the sign-in to accounts, mainly Telegram" - review DONE (findings: `WEB_CHANGES_NEEDED.md`, section
+     "Sign-in findings"; full JSON `login-map.json` in the shared notes). ROOT CAUSE FOUND: `web/tg.js` calls two
+     undefined functions, so every Telegram sign-in fails at the end. iOS stopgap + iOS-side fixes are in build 5.
+     The web fixes belong to the session that owns `web/` (it was told).
+  2. "the worker embedded in the build" - `Sources/HelperRelay.swift` + fetch hook in `bridge.js` (build 4).
+  3. "fix the Real-Debrid sign-in" - in the app it needed the helper (item 2) and not leaving the app for the
+     approval page (in-app Safari sheet, build 5). Web-side RD fixes listed in `WEB_CHANGES_NEEDED.md` 5-7.
+  4. "general fixes in the builds, iOS and APK" + "rename the iOS / APK apps to BN Stream" - iOS: display name is
+     now BN Stream (bundle id, .app and .ipa file names unchanged on purpose); APK: sent to the Android session.
+- Build 5 (pushed, NOT yet confirmed) adds: Telegram shims, native "confirm in the Telegram app" button fed by
+  `TG.step()` (tg://login link), in-app Safari sheet for outside links (universal links first), keyboard handling
+  (no floating button / pull-to-refresh while typing), tg://login accepted by scan / paste, name BN Stream.
+- NEXT: 1) check builds 4 and 5 are green; read `selftest-*.json`: `helperPing.ok`, `helperRelay.status` 200,
+  `helperRefused.status` 403, `helperPathRule` 403, `tnHelperHas` true, `rdDeviceCode.hasDeviceCode` true,
+  `tgShims` true; look at the screenshots. 2) update `ios/README-app.md` (name BN Stream, built-in helper, Telegram
+  button). 3) report to the owner; a real Telegram / Real-Debrid sign-in can only be confirmed on his device.
 - `gh` on this PC prints and then hangs: always `timeout 60 gh api ... > file`.
 
 ## Rules for this piece of work
