@@ -17,6 +17,10 @@ He also asked that this file is kept current so another account can continue smo
   re-run it (`timeout 50 gh api -X POST repos/bennymat93/TeleNova/actions/runs/<id>/rerun > x`).
 - NEXT (only when the owner reports from his iPhone / iPad): fix what he reports. Not verifiable here: a real
   Telegram and Real-Debrid sign-in, playback, the "confirm in Telegram" button (the simulator has no Telegram).
+- 2026-11-19: owner asked for downloads in the repo with versions kept. DONE: GitHub Releases
+  (https://github.com/bennymat93/TeleNova/releases): `ios-5.1.0-b6` and `apk-1.1.0` created by hand; the iOS
+  workflow now creates `ios-<ver>-b<run>` after every green build (last step; its first real use is the NEXT
+  build - check it once). `DOWNLOADS.md` at the repo root explains it, with the one command for a new APK release.
 - Owner's requests since the first release and their state:
   1. Telegram sign-in: ROOT CAUSE FIXED IN WEB (commit 6ba19d5, live): `web/tg.js` called `dropPending()` /
      `setFlood()` that were never defined. iOS also carries a stopgap in `bridge.js` and a native button that opens
