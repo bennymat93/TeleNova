@@ -1,0 +1,33 @@
+// Copies the browser version (../web) into the APK at build time. Nothing under web/ is edited or kept in android/:
+// a new web release is picked up by simply building again (android/build.ps1).
+//   web/**                      -> assets/web/**            (served by the app on the site's own https origin)
+//   web/icon-192.png            -> launcher icon (old Android)
+//   web/icon-maskable-512.png   -> adaptive launcher icon foreground
+def webDir = new File(rootProject.projectDir, '../web')
+def genDir = layout.buildDirectory.dir('generated/tn')
+
+tasks.register('syncWeb', Sync) {
+    into genDir
+    from(webDir) {
+        into 'assets/web'
+        exclude 'tests/**', '**/*.md'
+    }
+    from(new File(webDir, 'icon-192.png')) {
+        into 'res/mipmap-xxxhdpi'
+        rename { 'ic_launcher_legacy.png' }
+    }
+    from(new File(webDir, 'icon-maskable-512.png')) {
+        into 'res/drawable-nodpi'
+        rename { 'ic_launcher_fg.png' }
+    }
+}
+
+android.sourceSets.main.assets.srcDirs += new File(projectDir, 'build/generated/tn/assets')
+android.sourceSets.main.res.srcDirs += new File(projectDir, 'build/generated/tn/res')
+tasks.named('preBuild') { dependsOn 'syncWeb' }
+
+// WEB_VERSION of the bundled copy (web/version.js): the app compares it with the site to decide which one to show.
+ext.bundledWebVersion = {
+    def m = (new File(webDir, 'version.js').getText('UTF-8') =~ /WEB_VERSION\s*=\s*'([^']+)'/)
+    return m.find() ? m.group(1) : '0'
+}

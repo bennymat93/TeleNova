@@ -1,0 +1,52 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The release key lives OUTSIDE the repository: %USERPROFILE%\.telenova-keys\keystore.properties
+// (storeFile, storePassword, keyAlias, keyPassword). Without it the release build is left unsigned.
+def keyProps = new Properties()
+def keyFile = new File(System.getProperty('user.home'), '.telenova-keys/keystore.properties')
+if (keyFile.exists()) keyFile.withInputStream { keyProps.load(it) }
+
+android {
+    namespace 'io.github.bennymat93.telenova'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'io.github.bennymat93.telenova'
+        minSdk 24            // service worker requests can be answered from the APK only from Android 7
+        targetSdk 34
+        versionCode 1
+        versionName '1.0.0'
+    }
+    signingConfigs {
+        release {
+            if (keyProps['storeFile']) {
+                storeFile new File(keyProps['storeFile'])
+                storePassword keyProps['storePassword']
+                keyAlias keyProps['keyAlias']
+                keyPassword keyProps['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (keyProps['storeFile']) signingConfig signingConfigs.release
+        }
+    }
+    buildFeatures { buildConfig true }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint { checkReleaseBuilds false }
+}
+
+apply from: '../sync_web.gradle'
+
+android.defaultConfig.buildConfigField 'String', 'WEB_VERSION', "\"${bundledWebVersion()}\""
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.14.0'
+}

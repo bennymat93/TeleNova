@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="files"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/files_title">
+        <intent
+            android:action="io.github.bennymat93.telenova.FILES"
+            android:targetPackage="io.github.bennymat93.telenova"
+            android:targetClass="io.github.bennymat93.telenova.MainActivity" />
+    </shortcut>
+</shortcuts>
