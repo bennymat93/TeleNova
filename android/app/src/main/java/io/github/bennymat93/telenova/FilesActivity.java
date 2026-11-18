@@ -145,7 +145,7 @@ public class FilesActivity extends Activity {
 
     private void click(File f) {
         if (f.isDirectory()) { cur = f; refresh(); return; }
-        if (pick) { setResult(RESULT_OK, new Intent().setData(Uri.fromFile(f))); finish(); return; }
+        if (pick) { picked(f); return; }
         actions(f);
     }
 
@@ -254,33 +254,64 @@ public class FilesActivity extends Activity {
         super.onActivityResult(req, res, data);
         if (res != RESULT_OK || data == null) return;
         if (req == REQ_IMPORT) {
-            List<Uri> uris = new ArrayList<>();
+            final List<Uri> uris = new ArrayList<>();
             if (data.getClipData() != null) for (int i = 0; i < data.getClipData().getItemCount(); i++) uris.add(data.getClipData().getItemAt(i).getUri());
             else if (data.getData() != null) uris.add(data.getData());
-            int ok = 0;
-            File last = null;
-            for (Uri u : uris) {
-                String name = nameOf(u);
-                File dir = cur.equals(root) ? new File(root, Storage.dirFor(name)) : cur;     // at the top: sorted by type
-                File dst = Storage.unique(dir, name);
-                try (InputStream in = getContentResolver().openInputStream(u); OutputStream out = new FileOutputStream(dst)) {
-                    if (in == null) throw new java.io.IOException("no stream");
-                    Storage.copy(in, out);
-                    ok++; last = dst;
-                } catch (Exception e) { dst.delete(); }
-            }
-            Toast.makeText(this, getString(R.string.f_imported, ok), Toast.LENGTH_SHORT).show();
-            if (pick && ok == 1 && uris.size() == 1) { setResult(RESULT_OK, new Intent().setData(Uri.fromFile(last))); finish(); return; }
-            if (last != null && cur.equals(root)) cur = last.getParentFile();
-            refresh();
+            if (uris.isEmpty()) return;
+            final File base = cur;
+            final boolean atRoot = cur.equals(root);
+            final AlertDialog busy = busy();
+            new Thread(() -> {                                   // a big file or a slow provider must not freeze the screen
+                int ok = 0;
+                File last = null;
+                for (Uri u : uris) {
+                    String name = nameOf(u);
+                    File dir = atRoot ? new File(root, Storage.dirFor(name)) : base;      // at the top: sorted by type
+                    dir.mkdirs();
+                    File dst = Storage.unique(dir, name), part = new File(dir, dst.getName() + ".part");
+                    boolean good = false;
+                    try (InputStream in = getContentResolver().openInputStream(u); OutputStream out = new FileOutputStream(part)) {
+                        if (in == null) throw new java.io.IOException("no stream");
+                        Storage.copy(in, out);
+                        good = true;
+                    } catch (Exception e) { /* counted below */ }
+                    if (good && part.renameTo(dst)) { ok++; last = dst; } else part.delete();
+                }
+                final int n = ok;
+                final File l = last;
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    busy.dismiss();
+                    Toast.makeText(this, getString(R.string.f_imported, n), Toast.LENGTH_SHORT).show();
+                    if (pick && n == 1 && uris.size() == 1) { picked(l); return; }
+                    if (l != null && atRoot) cur = l.getParentFile();
+                    refresh();
+                });
+            }, "tn-import").start();
         } else if (req == REQ_EXPORT && exporting != null && data.getData() != null) {
-            try (InputStream in = new FileInputStream(exporting); OutputStream out = getContentResolver().openOutputStream(data.getData())) {
-                if (out == null) throw new java.io.IOException("no stream");
-                Storage.copy(in, out);
-                toast(R.string.f_done);
-            } catch (Exception e) { toast(R.string.f_failed); }
+            final File src = exporting;
+            final Uri to = data.getData();
             exporting = null;
+            final AlertDialog busy = busy();
+            new Thread(() -> {
+                boolean good = false;
+                try (InputStream in = new FileInputStream(src); OutputStream out = getContentResolver().openOutputStream(to)) {
+                    if (out == null) throw new java.io.IOException("no stream");
+                    Storage.copy(in, out);
+                    good = true;
+                } catch (Exception e) { /* reported below */ }
+                final boolean g = good;
+                runOnUiThread(() -> { if (isFinishing() || isDestroyed()) return; busy.dismiss(); toast(g ? R.string.f_done : R.string.f_failed); });
+            }, "tn-export").start();
         }
+    }
+
+    private AlertDialog busy() { return new AlertDialog.Builder(this).setMessage(R.string.f_working).setCancelable(false).show(); }
+
+    /** The chosen file goes back to the page's file field (a file address in the app's own folder: the path tested on a device). */
+    private void picked(File f) {
+        setResult(RESULT_OK, new Intent().setData(Uri.fromFile(f)));
+        finish();
     }
 
     private final class Adapter extends BaseAdapter {

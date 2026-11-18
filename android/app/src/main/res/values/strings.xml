@@ -5,15 +5,15 @@
     <string name="pick_title">Choose a file</string>
     <string name="menu_title">App menu</string>
     <string name="menu_files">Files (backups, subtitles, settings)</string>
-    <string name="menu_reload">Reload</string>
-    <string name="menu_source_auto">Content: newest (site when newer) - tap for built-in only</string>
-    <string name="menu_source_bundled">Content: built-in only - tap for newest</string>
+    <string name="menu_reload">Refresh (newest version from the site)</string>
+    <string name="menu_source_auto">Content: the site (updates by itself) - tap for built-in only</string>
+    <string name="menu_source_bundled">Content: built-in copy only - tap to return to the site</string>
     <string name="menu_about">About</string>
     <string name="menu_exit">Exit</string>
     <string name="about_text">App %1$s\nBuilt-in web version %2$s\nSite web version %3$s\nShowing now: %4$s\nFiles folder: %5$s</string>
-    <string name="src_site">the site (newer)</string>
+    <string name="src_site">the site</string>
     <string name="src_bundled">the built-in copy</string>
-    <string name="hint_menu">App menu: hold Back or press Menu. Files: also on the Backup and Settings pages.</string>
+    <string name="hint_menu">App menu (files, refresh): hold Back, press Menu, or the button on the Backup and Settings pages.</string>
     <string name="back_again">Press Back again to exit</string>
     <string name="saved_title">File saved</string>
     <string name="saved_text">%1$s\nFolder: %2$s</string>
@@ -50,4 +50,7 @@
     <string name="dir_subtitles">Subtitles</string>
     <string name="dir_playlists">Playlists</string>
     <string name="dir_downloads">Downloads</string>
+    <string name="offline_copy">The site cannot be reached: the built-in copy is shown. \"Refresh\" in the app menu tries again.</string>
+    <string name="sc_refresh">Refresh</string>
+    <string name="f_working">Working...</string>
 </resources>

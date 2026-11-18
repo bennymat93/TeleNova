@@ -95,11 +95,11 @@
       b = document.createElement('button');
       b.id = 'tn-android-files'; b.type = 'button';
       var he = /^he/i.test(document.documentElement.lang || 'he');
-      b.textContent = '📁 ' + (he ? 'קבצים באפליקציה' : 'App files');
+      b.textContent = '\u2630 ' + (he ? '\u05E7\u05D1\u05E6\u05D9\u05DD \u05D5\u05E8\u05E2\u05E0\u05D5\u05DF' : 'Files & refresh');
       b.style.cssText = 'position:fixed;z-index:40;bottom:calc(76px + env(safe-area-inset-bottom,0px));inset-inline-end:16px;' +
         'padding:10px 16px;border-radius:24px;border:1px solid rgba(255,255,255,.28);background:#1b2030;color:#fff;' +
         'font:600 14px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.5);cursor:pointer';
-      b.addEventListener('click', function () { post({t: 'files'}); });
+      b.addEventListener('click', function () { post({t: 'menu'}); });
       document.body.appendChild(b);
     } else if (!want && b) b.remove();
   }
@@ -112,6 +112,7 @@
     android: true,
     files: function () { post({t: 'files'}); },
     menu: function () { post({t: 'menu'}); },
+    refresh: function () { post({t: 'refresh'}); },
     save: function (blob, name) { return save(blob, name); }
   };
 })();

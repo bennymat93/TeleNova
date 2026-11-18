@@ -30,13 +30,16 @@ repository and must be backed up: an APK signed with another key cannot be insta
   from the APK (`shouldInterceptRequest`, also for the service worker), so the service worker, the Telegram playback
   proxy (`/tgstream/`), IndexedDB and the CSP behave exactly as on the site. `web/data/*` (programme guide) is fetched
   from the site first, the copy in the APK is the offline fallback.
-- **Updates without a new APK.** At start the app reads `web/version.js` of the site. When the site's `WEB_VERSION` is
-  newer than the copy in the APK, the site itself is shown (same origin: same logins and data; the site's service worker
-  keeps it available offline). If the site cannot be loaded the built-in copy is used. App menu -> "Content" forces the
-  built-in copy.
+- **The site is the content.** The app loads the live site, so a web release shows after a refresh and needs no new
+  APK (the page's own "new version - reload" notice works too; on return to the app the service worker is asked to
+  look for an update). The copy inside the APK is the fallback: when the site cannot be loaded (no connection and
+  nothing cached, an error, or nothing shown after 15 seconds) the built-in copy is shown on the same origin, so
+  logins and data are the same. App menu -> "Refresh" loads the site again; "Content" forces the built-in copy.
+  `web/data/*` is fetched from the site even in built-in mode, with the APK copy as the offline answer.
 - **Back** = the page's own back (history); at the first page a second press exits. Long press on Back, or the Menu key
-  of a remote, opens the app menu (Files, Reload, Content source, About, Exit). D-pad and media keys go to the page; on TV
+  of a remote, opens the app menu (Files, Refresh, Content source, About, Exit); the "Files & refresh" button on the backup / settings pages opens it too, and the launcher icon has Files and Refresh shortcuts. D-pad and media keys go to the page; on TV
   devices the user agent gets `Android TV`, so the page picks its TV layout.
+- **Zoom.** Text zoom is fixed at 100% and pinch / control zoom is off: the page has its own display-size control.
 - **Full screen** video: system bars hidden, landscape on phones / tablets, screen kept on while a video plays.
 - **Files.** A file the page "downloads" (`a[download]` on a `blob:` address: backups, exported settings, playlists,
   small Telegram files) is saved in the app folder (`Android/data/io.github.bennymat93.telenova/files/` - Backups,

@@ -4,15 +4,15 @@
     <string name="pick_title">בחירת קובץ</string>
     <string name="menu_title">תפריט האפליקציה</string>
     <string name="menu_files">קבצים (גיבויים, כתוביות, הגדרות)</string>
-    <string name="menu_reload">טעינה מחדש</string>
-    <string name="menu_source_auto">תוכן: החדש ביותר (האתר כשהוא חדש יותר) - לחצו למובנה בלבד</string>
-    <string name="menu_source_bundled">תוכן: המובנה בלבד - לחצו לחדש ביותר</string>
+    <string name="menu_reload">רענון (הגרסה החדשה מהאתר)</string>
+    <string name="menu_source_auto">תוכן: האתר (מתעדכן לבד) - לחצו למובנה בלבד</string>
+    <string name="menu_source_bundled">תוכן: העותק המובנה בלבד - לחצו לחזרה לאתר</string>
     <string name="menu_about">אודות</string>
     <string name="menu_exit">יציאה</string>
     <string name="about_text">אפליקציה %1$s\nגרסת ווב מובנית %2$s\nגרסת ווב באתר %3$s\nמוצג עכשיו: %4$s\nתיקיית הקבצים: %5$s</string>
-    <string name="src_site">האתר (חדש יותר)</string>
+    <string name="src_site">האתר</string>
     <string name="src_bundled">העותק המובנה</string>
-    <string name="hint_menu">תפריט האפליקציה: לחיצה ארוכה על \"חזור\" או מקש התפריט. קבצים: גם בדפי הגיבוי וההגדרות.</string>
+    <string name="hint_menu">תפריט האפליקציה (קבצים, רענון): לחיצה ארוכה על \"חזור\", מקש התפריט, או הכפתור בדפי הגיבוי וההגדרות.</string>
     <string name="back_again">לחצו שוב על \"חזור\" ליציאה</string>
     <string name="saved_title">הקובץ נשמר</string>
     <string name="saved_text">%1$s\nתיקייה: %2$s</string>
@@ -49,4 +49,7 @@
     <string name="dir_subtitles">כתוביות</string>
     <string name="dir_playlists">רשימות ערוצים</string>
     <string name="dir_downloads">הורדות</string>
+    <string name="offline_copy">אין חיבור לאתר: מוצג העותק המובנה. \"רענון\" בתפריט האפליקציה ינסה שוב.</string>
+    <string name="sc_refresh">רענון</string>
+    <string name="f_working">עובד...</string>
 </resources>

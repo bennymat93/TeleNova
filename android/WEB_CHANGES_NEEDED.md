@@ -8,7 +8,7 @@ The app marks itself in two ways a page can test:
 - the user agent ends with `TeleNovaApp/<version>` (and has `Android TV` on TV devices, so `shell_core.js` picks the TV shell).
 
 ## 1. A "Files" row instead of the floating button
-Today `shell.js` adds a floating "Files" button on `#/backup`, `#/settings*`, `#/services`, `#/library`, `#/gdrive`.
+Today `shell.js` adds a floating "Files & refresh" button (it opens the app menu) on `#/backup`, `#/settings*`, `#/services`, `#/library`, `#/gdrive`.
 Cleaner: in `web/app.js` (settings, "data" group, next to the Backup row) and in `web/backup.js` (top of the page):
 
 ```js
@@ -28,6 +28,10 @@ the browser's `gdrive_cb.html` then has no `opener`, and the token never reaches
 - `app.js` / `gdrive.js`: at start, when `location.hash` begins with `#access_token=` / `#state=` (or a dedicated
   `#gdrive=` prefix), hand the fragment to the same handler that the `message` listener of `gdrive.js` uses.
 Until then Google Drive cannot be connected inside the app (everything else on that page is unaffected).
+App side already done (1.0.1): a link to `.../web/gdrive_cb.html#...` that reaches the app is loaded as it is, so the
+"sign in in this tab" flow can complete when Android hands the redirect back to the app (Android 12+: only after the
+owner enables "open supported links" for the app, or with a verified app link - `assetlinks.json` at the root of
+`bennymat93.github.io`, which is another repository). Not tested.
 
 ## 3. Large Telegram files (`web/tgplay.js`)
 `canSaveBig()` tests `window.showSaveFilePicker`, which a WebView does not have, so only the "small file" path (one

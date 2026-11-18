@@ -75,6 +75,8 @@ public class MainActivity extends Activity {
     static final String ORIGIN = "https://" + HOST;
     static final String BASE = ORIGIN + ROOT;
     static final String ACTION_FILES = "io.github.bennymat93.telenova.FILES";
+    static final String ACTION_REFRESH = "io.github.bennymat93.telenova.REFRESH";
+    private static final String SW_UPDATE = "try{navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(function(r){r&&r.update()})}catch(e){}";
     private static final int REQ_CHOOSE_DEVICE = 1, REQ_CHOOSE_APP = 2;
 
     private WebView web;
@@ -95,6 +97,7 @@ public class MainActivity extends Activity {
     private WebChromeClient.CustomViewCallback customCb;
     private ValueCallback<Uri[]> chooser;
     private String pendingLink;
+    private String startHash = "";            // what follows BASE in the address the app was asked to open
     private int pendingTries;
     private final Map<String, Save> saves = new HashMap<>();
 
@@ -119,8 +122,11 @@ public class MainActivity extends Activity {
         setContentView(rootView);
         setupWeb();
 
-        String hash = readIntent(getIntent());
-        web.loadUrl(BASE + hash);
+        // a start from Recents / after the system closed the app carries the old intent: its link is not opened again
+        boolean replay = state != null || (getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0;
+        startHash = replay ? "" : readIntent(getIntent());
+        web.loadUrl(BASE + startHash);
+        cleanParts();
         web.requestFocus();
         checkSiteVersion();
         if (!prefs.getBoolean("hint", false)) {
@@ -133,11 +139,14 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         String hash = readIntent(intent);
-        if (!hash.isEmpty()) {
-            web.loadUrl(BASE + hash);
-            if (hash.contains("pair=")) web.reload();      // the page reads a pairing link only when it starts
-        }
+        if (!hash.isEmpty()) { startHash = hash; web.loadUrl(BASE + hash); }   // a "#..." change: the page handles it itself
         deliverLink();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        // back in the app: the service worker looks for a new web version (the page shows its own "reload" notice)
+        if (web != null && pageReady) web.evaluateJavascript(SW_UPDATE, null);
     }
 
     @Override protected void onStop() {
@@ -147,29 +156,20 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
-        for (Save s : saves.values()) { try { s.out.close(); } catch (IOException e) { /* closing */ } s.tmp.delete(); }
+        ui.removeCallbacks(liveTimeout);
+        abortSaves();
         if (web != null) { rootView.removeView(web); web.destroy(); web = null; }
         super.onDestroy();
     }
 
     // ------------------------------------------------------------------ which copy is shown
     private boolean wantLive() {
-        if (liveFailed || "bundled".equals(prefs.getString("mode", "auto"))) return false;
-        return cmpVersion(prefs.getString("siteVersion", "0"), BuildConfig.WEB_VERSION) > 0;
+        // the site is the content (a web release shows after a refresh, no new APK); the copy inside the APK is for a
+        // start without a connection, or when the owner chose "built-in only" in the app menu
+        return !liveFailed && !"bundled".equals(prefs.getString("mode", "auto"));
     }
 
-    static int cmpVersion(String a, String b) {
-        String[] x = a.split("\\."), y = b.split("\\.");
-        for (int i = 0; i < Math.max(x.length, y.length); i++) {
-            int p = num(i < x.length ? x[i] : "0"), q = num(i < y.length ? y[i] : "0");
-            if (p != q) return p < q ? -1 : 1;
-        }
-        return 0;
-    }
-
-    private static int num(String s) { try { return Integer.parseInt(s.replaceAll("\\D", "")); } catch (NumberFormatException e) { return 0; } }
-
-    /** Reads WEB_VERSION of the site in the background; a change of source takes effect at once only right after start. */
+    /** Reads WEB_VERSION of the site in the background (shown in "About"). */
     private void checkSiteVersion() {
         new Thread(() -> {
             try {
@@ -180,14 +180,7 @@ public class MainActivity extends Activity {
                 Matcher m = Pattern.compile("WEB_VERSION\\s*=\\s*'([0-9][0-9A-Za-z.\\-]*)'").matcher(body);
                 if (!m.find()) return;
                 final String v = m.group(1);
-                ui.post(() -> {
-                    if (web == null) return;
-                    prefs.edit().putString("siteVersion", v).apply();
-                    boolean want = wantLive();
-                    if (want == live) return;
-                    if (SystemClock.elapsedRealtime() - createdAt < 20000) { live = want; pageReady = false; web.reload(); }
-                    else Toast.makeText(this, R.string.new_version_next, Toast.LENGTH_LONG).show();
-                });
+                prefs.edit().putString("siteVersion", v).apply();
             } catch (Exception e) { /* offline: the stored answer stays */ }
         }, "tn-version").start();
     }
@@ -203,7 +196,9 @@ public class MainActivity extends Activity {
         s.setJavaScriptCanOpenWindowsAutomatically(true);
         s.setAllowFileAccess(false);
         s.setTextZoom(100);
+        s.setSupportZoom(false);                 // the page has its own display-size control
         s.setBuiltInZoomControls(false);
+        s.setDisplayZoomControls(false);
         // "Android TV" makes the page choose its TV layout (remote-control navigation) on TV devices and boxes
         s.setUserAgentString(s.getUserAgentString() + (tv ? " Android TV" : "") + " TeleNovaApp/" + BuildConfig.VERSION_NAME);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);     // embedded players (trailers)
@@ -308,13 +303,21 @@ public class MainActivity extends Activity {
 
         @Override public void onPageStarted(WebView v, String url, Bitmap icon) {
             pageReady = false;
+            abortSaves();
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            ui.removeCallbacks(liveTimeout);
+            if (live && isApp(Uri.parse(url))) ui.postDelayed(liveTimeout, 15000);
             if (!docStartScript && isApp(Uri.parse(url))) v.evaluateJavascript(shellJs, null);
         }
 
+        @Override public void onPageCommitVisible(WebView v, String url) { ui.removeCallbacks(liveTimeout); }
+
         @Override public void onPageFinished(WebView v, String url) {
+            ui.removeCallbacks(liveTimeout);
             if (!isApp(Uri.parse(url))) return;
             if (!docStartScript) v.evaluateJavascript(shellJs, null);
             pageReady = true;
+            startHash = "";
             pendingTries = 0;
             deliverLink();
         }
@@ -328,12 +331,17 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** The site shows nothing after 15 seconds (a very slow or captive connection): the built-in copy takes over. */
+    private final Runnable liveTimeout = this::fallBack;
+
     /** The site did not answer (no connection and nothing cached): the copy inside the APK is shown instead. */
     private void fallBack() {
         ui.post(() -> {
             if (web == null || !live) return;
+            ui.removeCallbacks(liveTimeout);
             liveFailed = true; live = false;
-            web.loadUrl(BASE);
+            web.loadUrl(BASE + startHash);
+            Toast.makeText(this, R.string.offline_copy, Toast.LENGTH_LONG).show();
         });
     }
 
@@ -445,7 +453,7 @@ public class MainActivity extends Activity {
                 getString(auto ? R.string.menu_source_auto : R.string.menu_source_bundled), getString(R.string.menu_about), getString(R.string.menu_exit)};
         new AlertDialog.Builder(this).setTitle(R.string.menu_title).setItems(items, (d, which) -> {
             if (which == 0) openFiles();
-            else if (which == 1) { liveFailed = false; live = wantLive(); web.reload(); checkSiteVersion(); }
+            else if (which == 1) refresh();
             else if (which == 2) {
                 prefs.edit().putString("mode", auto ? "bundled" : "auto").apply();
                 liveFailed = false; live = wantLive(); web.reload();
@@ -457,6 +465,15 @@ public class MainActivity extends Activity {
         }).show();
     }
 
+    /** "Refresh": the page again from the site, and the service worker looks for a new web version. */
+    private void refresh() {
+        if (web == null) return;
+        liveFailed = false; live = wantLive(); pageReady = false;
+        web.evaluateJavascript(SW_UPDATE, null);
+        web.reload();
+        checkSiteVersion();
+    }
+
     private void openFiles() { startActivity(new Intent(this, FilesActivity.class)); }
 
     // ------------------------------------------------------------------ links from outside
@@ -466,10 +483,13 @@ public class MainActivity extends Activity {
         String a = in.getAction();
         Uri d = in.getData();
         if (ACTION_FILES.equals(a)) { ui.post(this::openFiles); return ""; }
+        if (ACTION_REFRESH.equals(a)) { ui.post(() -> { if (pageReady) refresh(); }); return ""; }
         if (Intent.ACTION_VIEW.equals(a) && d != null) {
             if ("telenova".equals(d.getScheme()) || isApp(d)) {
                 String f = d.getEncodedFragment();
-                return f == null || f.isEmpty() ? "" : "#" + f;
+                String tail = f == null || f.isEmpty() ? "" : "#" + f;
+                String path = d.getPath();
+                return isApp(d) && path != null && path.endsWith("/gdrive_cb.html") ? "gdrive_cb.html" + tail : tail;
             }
             pendingLink = d.toString();
         } else if (Intent.ACTION_SEND.equals(a)) {
@@ -544,6 +564,7 @@ public class MainActivity extends Activity {
                     return;
                 case "files": openFiles(); return;
                 case "menu": showMenu(); return;
+                case "refresh": refresh(); return;
                 case "save0": {
                     if (saves.size() > 4) throw new IOException("busy");
                     Save s = new Save();
@@ -583,6 +604,21 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             if (!k.isEmpty()) { try { reply.postMessage("err:" + k); } catch (Exception x) { /* page gone */ } }
             Toast.makeText(this, R.string.save_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void abortSaves() {
+        for (Save s : saves.values()) { try { s.out.close(); } catch (IOException e) { /* closing */ } s.tmp.delete(); }
+        saves.clear();
+    }
+
+    /** Parts of files a closed app left behind. */
+    private void cleanParts() {
+        File[] dirs = Storage.root(this).listFiles();
+        if (dirs == null) return;
+        for (File d : dirs) {
+            File[] in = d.isDirectory() ? d.listFiles() : null;
+            if (in != null) for (File f : in) if (f.isFile() && f.getName().endsWith(".part")) f.delete();
         }
     }
 
