@@ -10,6 +10,9 @@ Static site: `index.html`, `app.js`, `style.css`, `sw.js` (offline cache), `mani
 | `sealed.js` | opens / seals the build's sealed files (`configio.py`) |
 | `websync.js` | the continuous sync loop (the build's `autosync.cycle`) |
 | `tg.js` | Telegram connection, loaded only when the viewer connects; pairing link `#pair=` from the build's QR code |
+| `shell_core.js` | the plain-logic part of the shell (device, navigation tables, home rows, focus geometry) - tested by `src/qa/web/t_shell.js` |
+| `player.js` | the player overlay; HLS through hls.js tuned for weak connections (`hlsCfg` / `hlsWatch` in `app.js` for live channels) |
+| `compat.js` + `vendor/avplayer-1.3.1/` | fallback playback engine for what browsers cannot decode (MKV / AVI / TS, HEVC, AC3 / E-AC3 / DTS): libmedia AVPlayer 1.3.1 (LGPL-3.0, npm `@libmedia/avplayer`, files verified against the jsDelivr hashes). Decoders (WebAssembly) are fetched from jsDelivr `gh/zhaohappy/libmedia@1.3.1/dist` on first use. Needs `'wasm-unsafe-eval'` and `blob:` in the page's script-src |
 | `channels_il.json` | generated from `livefail.py` by `src/qa/web/gen_channels.py` - never edit by hand |
 | `vendor/gramjs-2.26.21.min.js` | GramJS (npm `telegram` 2.26.21, MIT) bundled by `src/qa/web/build_gramjs.py` |
 

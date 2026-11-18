@@ -76,11 +76,50 @@
   // 1080p ceiling first, like the hub), seeds, size
   const STATUS_RANK = {tg: 0, cached: 0, direct: 1, yt: 1, rd: 2, external: 3, torrent: 4};
   const probeRank = (r) => (r.dead || (r.probe && r.probe.ok === false) ? 2 : r.probe && r.probe.ok === true ? 0 : 1);
+  // 5.1: how much a link is recommended, 0-100 (the same idea as the build's recommend.py, with what a browser knows):
+  //   works 30 (tested here 30, cached 24, Telegram / direct not tested yet 15 / 14, Real-Debrid must download first 8,
+  //   opens elsewhere 3) + plays now 25 (the speed measured in the test and this connection's last speed against what
+  //   the picture quality needs) + plays in this browser 20 (the file's real codecs when read, else its name; what
+  //   only the built-in engine plays gets half) + language 15 + picture 10. Not tested = at most 60, dead = 0.
+  const NEED_MBIT = (q) => (q >= 2160 ? 18 : q >= 1080 ? 6 : q >= 720 ? 3 : q >= 480 ? 1.5 : 4);
+  function recOf(r, langPref, netBps) {
+    const p = r.probe || null;
+    if (r.dead || (p && p.ok === false)) return {pct: 0, tier: 'low', flags: ['dead']};
+    const flags = [];
+    let works;
+    if (p && p.ok === true) { works = 30; flags.push('tested'); }
+    else if (r.status === 'cached') { works = 24; flags.push('cached'); }
+    else if (r.status === 'tg') works = 15;
+    else if (r.status === 'direct' || r.status === 'yt') works = 14;
+    else if (r.status === 'rd') works = 8;
+    else works = 3;
+    const untested = !(p && p.ok === true) && r.status !== 'cached';
+    const line = netBps > 0 ? netBps * 0.75 / 1e6 : 0, src = p && p.mbit ? p.mbit : 0;
+    const have = src && line ? Math.min(src, line) : src || line;
+    let speed = 13;
+    if (have) { const k = have / NEED_MBIT(r.quality || 0); speed = k >= 2 ? 25 : k >= 1 ? 12.5 + 12.5 * (k - 1) : Math.max(0, 5 * (k - 0.6) / 0.4); }
+    const v = p && p.verdict, tg = tags(r.label || '');
+    const hard = /hevc|h265|x265|av1/i.test(tg.codec || '') || /ac3|dts|truehd|eac3/i.test(tg.audio || '') || /\.(mkv|avi|ts)$/i.test(r.label || '');
+    const plays = v ? (v.play === 'no' ? 8 : 20) : hard ? 10 : 16;
+    const sn = p && p.sniff;
+    const lang = (langPref && String(r.lang || '').split(',').includes(langPref)) || (sn && sn.he) ? 15 : 5;
+    const q = r.quality || 0, pic = q >= 2160 ? (p && p.ok === true && !(v && v.play === 'no') ? 10 : 8) : q >= 1080 ? 9 : q >= 720 ? 7 : q >= 480 ? 4 : q ? 2 : 5;
+    let pct = works + speed + plays + lang + pic;
+    if (untested) { pct = Math.min(pct, 60); flags.push('untested'); }
+    if (r.status === 'external' || r.status === 'torrent') pct = Math.min(pct, 30);
+    pct = Math.max(0, Math.min(100, Math.round(pct)));
+    return {pct, tier: pct >= 85 ? 'top' : pct >= 70 ? 'good' : pct >= 50 ? 'fair' : 'low', flags};
+  }
+  const REC_TEXT = {top: 'src_rec_top', good: 'src_rec_good', fair: 'src_rec_fair', low: 'src_rec_low'};
+  let netBps = 0;                                  // this connection's last measured speed (bits / s), 0 = unknown
+  const rec = (r, pref) => (r.rec = recOf(r, pref, netBps)).pct;
   function sortRows(rows, langPref) {
     const pref = langPref || '';
     const has = (r) => (pref && String(r.lang || '').split(',').includes(pref) ? 1 : 0);
     const q = (r) => (r.quality > 1080 ? 900 : r.quality || 0);
-    return rows.slice().sort((a, b) => probeRank(a) - probeRank(b) || (STATUS_RANK[a.status] || 0) - (STATUS_RANK[b.status] || 0) ||
+    rows.forEach((r) => rec(r, pref));               // every row carries its number, whatever the comparisons needed
+    // 5.1: best recommendation first; the old order only settles a draw
+    return rows.slice().sort((a, b) => probeRank(a) - probeRank(b) || rec(b, pref) - rec(a, pref) || (STATUS_RANK[a.status] || 0) - (STATUS_RANK[b.status] || 0) ||
       has(b) - has(a) || q(b) - q(a) || (b.seeds || 0) - (a.seeds || 0) || (Number(b.size) || 0) - (Number(a.size) || 0));
   }
   // hints.merge_same_files / Finder.union_dedup: the same release (name without punctuation, size within 1 %) is one
@@ -178,7 +217,7 @@
   const pad2 = (n) => String(n).padStart(2, '0');
   const epCode = (q) => (q.type === 'tv' ? `S${pad2(q.season)}E${pad2(q.episode)}` : '');
   function clock(s) { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return (h ? h + ':' + pad2(m) : m) + ':' + pad2(s % 60); }
-  const pure = {quality, sizeBytes, langs, sizeText, tags, ytId, parseStream, sortRows, releaseKey, dedup, filterRows, sniff, verdict, streamId,
+  const pure = {quality, sizeBytes, langs, sizeText, tags, ytId, parseStream, sortRows, recOf, releaseKey, dedup, filterRows, sniff, verdict, streamId,
     addonBase, addonName, keyOf, epCode, clock};
   if (typeof module === 'object' && module.exports) { module.exports = pure; return; }
   const TN = G.TN;
@@ -193,6 +232,7 @@
       src_addon_bad: 'הכתובת לא תקינה (https בלבד)', src_resume: 'נקודת המשך: %s', src_start: 'התחל מההתחלה', src_details: 'פרטים',
       src_loading: '%s מתוך %s מקורות ענו', src_ep: 'פרק %s', src_back: 'חזרה לרשימה',
       src_best: '▶ נגן את הטוב ביותר', src_test: 'בדוק קישורים', src_testing: 'בודק קישורים... %s/%s', src_ok: 'תקין', src_dead: 'לא עונה',
+      src_rec: 'דירוג המלצה לפי הבדיקות', src_rec_top: 'מומלץ מאוד', src_rec_good: 'מומלץ', src_rec_fair: 'סביר', src_rec_low: 'פחות מומלץ',
       src_untest: 'אי אפשר לבדוק מהדפדפן', src_speed: '%s מגה-ביט', src_nocodec: 'קידוד שהדפדפן לא מנגן', src_hesub: 'כתוביות עברית בפנים (כנראה)',
       src_dup: '+%s עותקים', src_hidden: '%s קישורים הוסתרו לפי ההגדרות.', src_show_all: 'הצג הכול', src_need_rd: 'קישור טורנט מתנגן דרך Real-Debrid. התחברו כאן:',
       src_filters: 'סינון וסדר', src_minq: 'איכות מינימלית', src_any: 'הכול', src_hidecam: 'הסתר צילומי קולנוע (CAM)', src_lang: 'שפה מועדפת',
@@ -206,6 +246,7 @@
       src_addon_bad: 'Not a valid address (https only)', src_resume: 'Resume point: %s', src_start: 'Start from the beginning', src_details: 'Details',
       src_loading: '%s of %s sources answered', src_ep: 'Episode %s', src_back: 'Back to the list',
       src_best: '▶ Play the best one', src_test: 'Test links', src_testing: 'Testing links... %s/%s', src_ok: 'Works', src_dead: 'No answer',
+      src_rec: 'Recommendation from the checks', src_rec_top: 'Highly recommended', src_rec_good: 'Recommended', src_rec_fair: 'Fair', src_rec_low: 'Less recommended',
       src_untest: 'Cannot be tested from a browser', src_speed: '%s Mbit', src_nocodec: 'A codec this browser does not play', src_hesub: 'Hebrew subtitles inside (probably)',
       src_dup: '+%s copies', src_hidden: '%s links are hidden by the settings.', src_show_all: 'Show all', src_need_rd: 'A torrent link plays through Real-Debrid. Sign in here:',
       src_filters: 'Filter and order', src_minq: 'Minimum quality', src_any: 'Any', src_hidecam: 'Hide cinema recordings (CAM)', src_lang: 'Preferred language',
@@ -219,6 +260,7 @@
       src_addon_bad: 'Неверный адрес (только https)', src_resume: 'Точка продолжения: %s', src_start: 'Начать сначала', src_details: 'Подробнее',
       src_loading: 'Ответили %s из %s источников', src_ep: 'Серия %s', src_back: 'Назад к списку',
       src_best: '▶ Включить лучший', src_test: 'Проверить ссылки', src_testing: 'Проверяем ссылки... %s/%s', src_ok: 'Работает', src_dead: 'Не отвечает',
+      src_rec: 'Рейтинг по результатам проверок', src_rec_top: 'Очень рекомендуем', src_rec_good: 'Рекомендуем', src_rec_fair: 'Нормально', src_rec_low: 'Менее рекомендуем',
       src_untest: 'Из браузера проверить нельзя', src_speed: '%s Мбит', src_nocodec: 'Кодек, который браузер не играет', src_hesub: 'Внутри субтитры на иврите (вероятно)',
       src_dup: '+%s копий', src_hidden: 'Скрыто настройками: %s ссылок.', src_show_all: 'Показать все', src_need_rd: 'Торрент-ссылка играет через Real-Debrid. Войдите здесь:',
       src_filters: 'Фильтр и порядок', src_minq: 'Минимальное качество', src_any: 'Любое', src_hidecam: 'Скрыть экранные копии (CAM)', src_lang: 'Предпочитаемый язык',
@@ -336,7 +378,9 @@
     for (const g of gs) {
       const raw = out.groups[g], kept = showAll ? raw : filterRows(raw, f);
       hidden += raw.length - kept.length;
-      all = all.concat(g === 'tgsearch' ? kept.slice().sort((a, b) => probeRank(a) - probeRank(b)) : sortRows(kept, f.lang));
+      try { netBps = Number(TN.get('net_bw', 0)) || 0; } catch (e) { netBps = 0; }
+      kept.forEach((r) => rec(r, f.lang));
+      all = all.concat(g === 'tgsearch' ? kept.slice().sort((a, b) => probeRank(a) - probeRank(b) || rec(b, f.lang) - rec(a, f.lang)) : sortRows(kept, f.lang));
     }
     const d = dedup(all);
     const by = {};
@@ -452,6 +496,8 @@
     s.textContent = '.src_box{padding:16px}.src_g{margin:16px 0 6px;font-size:15px;color:var(--muted)}' +
       '.src_row{display:grid;grid-template-columns:1fr auto;gap:6px 10px;width:100%;min-height:48px;background:var(--panel);border:0;border-radius:10px;padding:10px 12px;margin:6px 0;color:inherit;font:inherit;text-align:start;cursor:pointer}' +
       '.src_row:focus-visible,.src_row:hover{outline:2px solid var(--accent);outline-offset:1px}.src_row.dead{opacity:.55}' +
+      '.src_rec{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12.5px;font-weight:600;border:1px solid currentColor;white-space:nowrap}' +
+      '.src_rec.top{color:#3ddc84;background:rgba(61,220,132,.12)}.src_rec.good{color:#b6e36b;background:rgba(182,227,107,.10)}.src_rec.fair{color:#ffc857;background:rgba(255,200,87,.10)}.src_rec.low{color:var(--muted)}' +
       '.src_row b{overflow-wrap:anywhere;font-weight:500}.src_meta{grid-column:1/-1;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}' +
       '.src_bd{font-size:12px;border-radius:6px;padding:1px 7px;background:var(--panel2);white-space:nowrap;color:var(--text)}' +
       '.src_bd.q4{background:#7c4dff;color:#fff}.src_bd.q3{background:#1e88e5;color:#fff}.src_bd.q2{background:#2e7d32;color:#fff}.src_bd.q1{background:#6d6d6d;color:#fff}' +
@@ -470,7 +516,9 @@
     const tg = tags(r.label), q = r.quality;
     const p = r.probe;
     const v = p && p.verdict, sn = p && p.sniff;
+    const rc = r.rec || recOf(r, '', netBps);
     const bits = [
+      `<span class="src_rec ${rc.tier}" title="${esc(t('src_rec'))}"><b dir="ltr">${rc.pct}%</b> ${esc(t(REC_TEXT[rc.tier] || 'src_rec_low'))}</span>`,
       q ? bd(q >= 2160 ? '4K' : q + 'p', q >= 2160 ? 'q4' : q >= 1080 ? 'q3' : q >= 720 ? 'q2' : 'q1') : '',
       bd(sn && sn.video ? sn.video.toUpperCase() : tg.codec, v && v.play === 'no' && v.why === 'video' ? 'warn' : ''), bd(tg.hdr),
       bd(sn && sn.audio.length ? sn.audio.join('+').toUpperCase() : tg.audio, v && v.play === 'no' && v.why === 'audio' ? 'warn' : ''), bd(tg.src, tg.cam ? 'warn' : ''),

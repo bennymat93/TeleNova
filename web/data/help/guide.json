@@ -2,110 +2,245 @@
  "_help": "The WEB edition of the user guide (Help page of the browser version). One entry per section: he + en + ru (title, body). New line = \\n. This is not the Kodi guide (that one lives in plugin.video.nova/resources/help).",
  "edition": "web",
  "sections": [
-  {"id": "start",
-   "he": {"title": "התחלה: מסך הבית והתקנה כאפליקציה",
-          "body": "האתר נפתח במסך הבית. משם מגיעים לכל דבר: חיפוש בכל המקורות, סרטים, סדרות, טלוויזיה חיה, רדיו, טלגרם, YouTube, אקטואליה וידע, מועדפים והיסטוריה.\nאין צורך בהתקנה, אבל אפשר להתקין את האתר כאפליקציה: בהגדרות > \"התקנה כאפליקציה\" (ב-iPhone: שיתוף > הוספה למסך הבית).\nהאתר עובד במחשב, בטלפון, בטאבלט ובדפדפן של טלוויזיה. את שפת הממשק (עברית / English / Русский) ואת ערכת הצבעים בוחרים בהגדרות.\nרוב התוכן עובד מיד, בלי שום מפתח: קטלוג סרטים וסדרות, טלוויזיה חיה, רדיו, ארכיון האינטרנט, Dailymotion וניגון YouTube. מפתחות וחיבורים מוסיפים עוד - ראו \"שירותים וחיבורים\"."},
-   "en": {"title": "Getting started: the home screen and installing as an app",
-          "body": "The site opens on the home screen. Everything starts there: search in all sources, movies, series, live TV, radio, Telegram, YouTube, news & knowledge, favourites and history.\nNothing has to be installed, but the site can be installed as an app: Settings > \"Install as an app\" (iPhone: Share > Add to Home Screen).\nIt works on a computer, a phone, a tablet and a TV browser. The interface language (עברית / English / Русский) and the colour theme are in Settings.\nMost content works at once with no key at all: the movie and series catalogue, live TV, radio, the Internet Archive, Dailymotion and YouTube playback. Keys and connections add more - see \"Accounts & services\"."},
-   "ru": {"title": "Начало: главный экран и установка как приложения",
-          "body": "Сайт открывается на главном экране. Оттуда доступно всё: поиск по всем источникам, фильмы, сериалы, прямой эфир, радио, Telegram, YouTube, новости и знания, избранное и история.\nУстанавливать ничего не нужно, но сайт можно установить как приложение: Настройки > «Установить как приложение» (iPhone: Поделиться > На экран «Домой»).\nСайт работает на компьютере, телефоне, планшете и в браузере телевизора. Язык интерфейса (עברית / English / Русский) и тему выбирают в настройках.\nБольшая часть контента работает сразу, без ключей: каталог фильмов и сериалов, прямой эфир, радио, Интернет-архив, Dailymotion и воспроизведение YouTube. Ключи и подключения добавляют остальное - см. «Аккаунты и сервисы»."}},
-  {"id": "catalog",
-   "he": {"title": "סרטים וסדרות",
-          "body": "\"סרטים\" ו\"סדרות\" מציגים רשימות: חם השבוע, פופולרי, המדורגים ביותר, עכשיו בקולנוע, בקרוב, משודרות היום, ישראלי, טורקי, קוריאני, רוסי וסובייטי, ילדים, לפי ז'אנר, שפה ושנה.\nבלי מפתח TMDb הקטלוג פועל דרך Cinemeta (באנגלית). מפתח TMDb חינמי (מסך \"חשבונות ושירותים\") מוסיף עברית, רשימות ישראליות, שפות ומועדפים שמסתנכרנים עם Kodi.\nבחירה בסרט פותחת את דף הכותר: תקציר, טריילר, מועדפים וכפתור \"נגן\" שמציג את כל המקורות.\nבסדרה: עונה > פרק. פרק שנצפה מסומן בנקודה ירוקה. בממשק בעברית, תקציר שחסר בעברית מתורגם אוטומטית.\nבתיבת החיפוש שבראש העמוד מחפשים רק סרטים או רק סדרות, כולל קבצים מטלגרם."},
-   "en": {"title": "Movies and series",
-          "body": "\"Movies\" and \"Series\" show lists: trending, popular, top rated, now in cinemas, upcoming, airing today, Israeli, Turkish, Korean, Russian and Soviet, kids, by genre, language and year.\nWithout a TMDb key the catalogue runs on Cinemeta (in English). A free TMDb key (the Accounts & services screen) adds Hebrew texts, Israeli lists, languages and favourites that sync with Kodi.\nChoosing a film opens its title page: plot, trailer, favourite and a \"Play\" button that lists every source.\nIn a series: season > episode. A watched episode has a green dot. With the Hebrew interface a plot that has no Hebrew text is machine translated.\nThe search box at the top of the page searches only movies or only series, Telegram files included."},
-   "ru": {"title": "Фильмы и сериалы",
-          "body": "«Фильмы» и «Сериалы» показывают списки: популярное за неделю, популярное, лучшие, сейчас в кино, скоро, сегодня в эфире, израильские, турецкие, корейские, русские и советские, детские, по жанру, языку и году.\nБез ключа TMDb каталог работает через Cinemeta (на английском). Бесплатный ключ TMDb (экран «Аккаунты и сервисы») добавляет русские и ивритские тексты, израильские списки, языки и избранное, которое синхронизируется с Kodi.\nВыбор фильма открывает страницу: описание, трейлер, избранное и кнопку «Смотреть» со списком всех источников.\nВ сериале: сезон > серия. Просмотренная серия отмечена зелёной точкой.\nПоле поиска вверху страницы ищет только фильмы или только сериалы, включая файлы из Telegram."}},
-  {"id": "search",
-   "he": {"title": "חיפוש בכל המקורות והדבקת קישור",
-          "body": "\"חיפוש בכל המקורות\" שואל במקביל את כל המקורות הפעילים: סרטים וסדרות, טלגרם, YouTube, Dailymotion, ארכיון האינטרנט, ערוצי טלוויזיה, רדיו ואקטואליה וידע. כל מקור מוצג בשורה משלו, ולמעלה \"ההתאמות הטובות ביותר\".\nכותבים \"שם הסדרה S02E05\" או \"עונה 2 פרק 5\" כדי לחפש פרק מסוים.\nאפשר להדביק קישור בתיבת החיפוש (או ב\"שירותים\" > הדבקה מהלוח): קישור t.me נפתח בטלגרם, קישור YouTube / Dailymotion / archive.org מתנגן, קישור וידאו ישיר נפתח בנגן, ו-magnet נפתח דרך Real-Debrid.\n\"היסטוריית חיפושים\" שומרת את החיפושים האחרונים; אפשר למחוק אחד או את כולם.\nאילו מקורות משתתפים בחיפוש קובעים ב\"ספרייה\"."},
-   "en": {"title": "Search in all sources and pasting a link",
-          "body": "\"Search all sources\" asks every active source at once: movies and series, Telegram, YouTube, Dailymotion, the Internet Archive, TV channels, radio and news & knowledge. Each source has its own row, with \"Best matches\" on top.\nType \"show name S02E05\" or \"season 2 episode 5\" to look for one episode.\nA link can be pasted into the search box (or Services > Paste from the clipboard): a t.me link opens in Telegram, a YouTube / Dailymotion / archive.org link plays, a direct video link opens in the player, and a magnet opens through Real-Debrid.\n\"Search history\" keeps the latest searches; remove one or all.\nWhich sources take part in the search is set in the Library."},
-   "ru": {"title": "Поиск по всем источникам и вставка ссылки",
-          "body": "«Поиск по всем источникам» опрашивает сразу все включённые источники: фильмы и сериалы, Telegram, YouTube, Dailymotion, Интернет-архив, телеканалы, радио, новости и знания. У каждого источника своя строка, сверху - «Лучшие совпадения».\nНапишите «название S02E05» или «2 сезон 5 серия», чтобы найти конкретную серию.\nСсылку можно вставить в поле поиска (или Сервисы > Вставить из буфера): ссылка t.me открывается в Telegram, ссылка YouTube / Dailymotion / archive.org воспроизводится, прямая ссылка на видео открывается в плеере, magnet - через Real-Debrid.\n«История поиска» хранит последние запросы; можно удалить один или все.\nКакие источники участвуют в поиске, задаётся в «Библиотеке»."}},
-  {"id": "telegram",
-   "he": {"title": "טלגרם: חיבור, חיפוש וניגון",
-          "body": "החיבור לטלגרם נותן שני דברים: קבצי וידאו מהערוצים והקבוצות שלכם כמקור ניגון, וסנכרון של משתמשים, מועדפים, היסטוריה ונקודות המשך בין כל המכשירים.\nמתחברים ב\"טלגרם\" > התחברות: בסריקת קוד QR מאפליקציית טלגרם בטלפון, או במספר טלפון וקוד. הקוד מגיע בדרך כלל כהודעה בתוך אפליקציית טלגרם, לא ב-SMS.\nלפני ההתחברות האתר צריך API ID ו-API Hash של החשבון. הדרך הקלה: ב-Kodi, שירותים וחיבורים > חיבור גרסת הדפדפן, וסריקת הקוד. בלי Kodi: יוצרים אותם פעם אחת ב-my.telegram.org.\nכל מכשיר מתחבר בעצמו. הכניסה נשמרת רק בדפדפן הזה ואינה עוברת בגיבוי.\nאחרי החיבור: הצ'אטים שלי, סרטונים של ערוץ, חיפוש קבצים חופשי, חיפוש חכם (עם מפתח Gemini) ומקורות טלגרם בכל סרט ופרק.\nהניגון זורם ישירות מטלגרם דרך הדפדפן; צריך חיבור https (באתר הרשמי הוא תמיד כזה)."},
-   "en": {"title": "Telegram: connecting, searching and playing",
-          "body": "Connecting Telegram gives two things: video files from your channels and groups as a play source, and sync of users, favourites, history and resume points between all devices.\nConnect in Telegram > Sign in: scan a QR code with the Telegram app on a phone, or use a phone number and a code. The code usually arrives as a message inside the Telegram app, not by SMS.\nBefore signing in the site needs the account's API ID and API Hash. The easy way: in Kodi, Services and accounts > Connect web version, and scan the code. Without Kodi: create them once at my.telegram.org.\nEvery device signs in by itself. The login stays in this browser only and is never part of a backup.\nAfter connecting: my chats, a channel's videos, free file search, smart search (with a Gemini key) and Telegram sources on every film and episode.\nPlayback streams straight from Telegram through the browser; it needs an https connection (the official site always is)."},
-   "ru": {"title": "Telegram: подключение, поиск и воспроизведение",
-          "body": "Подключение Telegram даёт две вещи: видеофайлы из ваших каналов и групп как источник, и синхронизацию пользователей, избранного, истории и точек продолжения между всеми устройствами.\nПодключение: Telegram > Войти - отсканируйте QR-код приложением Telegram на телефоне или введите номер телефона и код. Код обычно приходит сообщением в приложении Telegram, а не по SMS.\nПеред входом сайту нужны API ID и API Hash аккаунта. Проще всего: в Kodi, «Сервисы и аккаунты» > «Подключить веб-версию», и отсканировать код. Без Kodi: создайте их один раз на my.telegram.org.\nКаждое устройство входит само. Вход хранится только в этом браузере и не попадает в резервную копию.\nПосле подключения: мои чаты, видео канала, свободный поиск файлов, умный поиск (с ключом Gemini) и источники Telegram у каждого фильма и серии.\nВоспроизведение идёт прямо из Telegram через браузер; нужно соединение https (на официальном сайте оно всегда такое)."}},
-  {"id": "live",
-   "he": {"title": "טלוויזיה חיה ומדריך שידורים",
-          "body": "\"טלוויזיה חיה\" מציגה את הערוצים הישראליים, רשימות לפי שפה ונושא (חדשות, ילדים, תעודה, מוזיקה) וערוצים מכל העולם לפי מדינה.\nמתחת לערוץ ישראלי מופיע מה משודר עכשיו ומה הבא; לחיצה על \"מדריך\" מציגה את לוח השידורים.\nאפשר לסנן לפי שם, להוסיף ערוץ למועדפים ולהוסיף רשימת M3U משלכם.\nערוץ שלא נפתח: לרוב השידור חסום מחוץ לישראל או שהכתובת שלו http (דפדפן באתר https לא מנגן http). נסו ערוץ אחר או את אותו ערוץ מרשימה אחרת."},
-   "en": {"title": "Live TV and the guide",
-          "body": "\"Live TV\" shows the Israeli channels, lists by language and subject (news, kids, documentary, music) and channels of the world by country.\nUnder an Israeli channel you see what is on now and next; \"Guide\" shows the schedule.\nFilter by name, add a channel to favourites, and add your own M3U list.\nA channel that does not open is usually blocked outside Israel, or its address is http (a browser on an https site cannot play http). Try another channel, or the same one from another list."},
-   "ru": {"title": "Прямой эфир и телепрограмма",
-          "body": "«Прямой эфир» показывает израильские каналы, списки по языку и теме (новости, детям, документальные, музыка) и каналы мира по странам.\nПод израильским каналом видно, что идёт сейчас и что дальше; «Программа» открывает расписание.\nМожно фильтровать по названию, добавлять канал в избранное и добавить свой список M3U.\nКанал не открывается обычно потому, что трансляция закрыта за пределами Израиля или его адрес http (браузер на сайте https не воспроизводит http). Попробуйте другой канал или тот же канал из другого списка."}},
-  {"id": "radio",
-   "he": {"title": "רדיו",
-          "body": "\"רדיו\" מציג תחנות לפי מדינה, שפה וסגנון (חדשות, פופ, רוק, קלאסי, ג'אז, מזרחי, ילדים, דת), עם חיפוש לפי שם.\nהתחנה מתנגנת בסרגל בתחתית המסך וממשיכה לנגן כשעוברים לעמוד אחר. אפשר להוסיף תחנה למועדפים.\nתחנה שכתובתה http בלבד לא מוצגת: דפדפן באתר https לא יכול לנגן אותה."},
-   "en": {"title": "Radio",
-          "body": "\"Radio\" lists stations by country, language and style (news, pop, rock, classical, jazz, oriental, kids, religious), with search by name.\nA station plays in the bar at the bottom and keeps playing while you move between pages. Stations can be added to favourites.\nA station with an http-only address is not listed: a browser on an https site cannot play it."},
-   "ru": {"title": "Радио",
-          "body": "«Радио» показывает станции по стране, языку и стилю (новости, поп, рок, классика, джаз, восточная, детям, религия), с поиском по названию.\nСтанция играет в панели внизу и продолжает играть при переходе между страницами. Станцию можно добавить в избранное.\nСтанции только с адресом http не показываются: браузер на сайте https не может их воспроизвести."}},
-  {"id": "youtube",
-   "he": {"title": "YouTube ואקטואליה וידע",
-          "body": "ניגון YouTube, פלייליסטים, קישורים מודבקים ומועדפים עובדים תמיד, בלי מפתח.\nלחיפוש, לרשימות ערוצים ולשידורים חיים צריך אחד מהשניים (מסך \"חשבונות ושירותים\"): מפתח YouTube Data API חינמי משלכם, או כתובת של עוזר (Worker).\n\"אקטואליה וידע\" הוא אוסף ערוצים נבחרים: חדשות, ידע וטכנולוגיה, בקרה תעשייתית, בית חכם, DIY, אילוף כלבים וסדרות אסיה. עם מפתח רואים רק סרטונים ארוכים, מהחדש לישן, עם \"המדורגים ביותר\" וחיפוש. בלי מפתח רואים את רשימת הערוצים, וכל ערוץ מתנגן כאן מהחדש לישן.\nבסרטון YouTube אין כתוביות של האתר; משתמשים בכפתור הכתוביות של נגן YouTube עצמו."},
-   "en": {"title": "YouTube and News & knowledge",
-          "body": "YouTube playback, playlists, pasted links and favourites always work, with no key.\nSearch, channel lists and live broadcasts need one of two things (the Accounts & services screen): your own free YouTube Data API key, or the address of a helper (Worker).\n\"News & knowledge\" is a set of chosen channels: news, knowledge & technology, industrial control, smart home, DIY, dog training and Asian dramas. With a key you see only long videos, newest first, with \"Top rated\" and search. Without one you see the channel list, and every channel plays here, newest first.\nA YouTube video has no site subtitles; use the subtitle button of the YouTube player itself."},
-   "ru": {"title": "YouTube и «Новости и знания»",
-          "body": "Воспроизведение YouTube, плейлисты, вставленные ссылки и избранное работают всегда, без ключа.\nДля поиска, списков каналов и прямых эфиров нужно одно из двух (экран «Аккаунты и сервисы»): собственный бесплатный ключ YouTube Data API или адрес помощника (Worker).\n«Новости и знания» - подборка каналов: новости, знания и технологии, промышленная автоматизация, умный дом, DIY, дрессировка собак и азиатские сериалы. С ключом видны только длинные видео, от новых к старым, с разделом «Самые популярные» и поиском. Без ключа виден список каналов, и каждый канал воспроизводится здесь, от новых к старым.\nУ видео YouTube нет субтитров сайта; используйте кнопку субтитров самого плеера YouTube."}},
-  {"id": "play",
-   "he": {"title": "מקורות, נגן ומה לעשות כשקובץ לא מתנגן",
-          "body": "\"נגן\" בדף הכותר פותח את רשימת המקורות: טלגרם, Real-Debrid, שרתי Stremio שהוספתם, ארכיון האינטרנט, YouTube ו-Dailymotion. המקורות מופיעים מיד כשכל אחד עונה; בהגדרות הרשימה קובעים איכות מינימלית, שפה מועדפת וניגון אוטומטי של המקור הטוב ביותר.\nהנגן זוכר איפה עצרתם (נקודת ההמשך מסתנכרנת עם Kodi), מציע את הפרק הבא, ומאפשר מהירות, רצועת שמע וכתוביות.\nדפדפן מנגן MP4 / WebM (H.264, AAC). קובצי MKV, HEVC או שמע AC3 / DTS לא תמיד מתנגנים בדפדפן. כשזה קורה: בחרו \"קישור אחר\" מהרשימה (עדיף קובץ MP4 או WEB-DL 1080p), או פתחו את הקובץ בנגן חיצוני (VLC) או באפליקציה ב-Kodi - הכפתורים מופיעים מתחת לנגן.\nReal-Debrid: מתחברים ב\"שירותים\" עם קוד קצר באתר real-debrid.com/device, או מדביקים טוקן. הפרטים נשמרים רק בדפדפן הזה."},
-   "en": {"title": "Sources, the player and what to do when a file does not play",
-          "body": "\"Play\" on a title page opens the source list: Telegram, Real-Debrid, the Stremio servers you added, the Internet Archive, YouTube and Dailymotion. Sources appear as each one answers; the list's settings hold the minimum quality, the preferred language and automatic play of the best source.\nThe player remembers where you stopped (the resume point syncs with Kodi), offers the next episode, and has speed, audio track and subtitles.\nA browser plays MP4 / WebM (H.264, AAC). MKV, HEVC or AC3 / DTS audio do not always play in a browser. When that happens: choose \"Another link\" from the list (an MP4 or a WEB-DL 1080p file is the safest), or open the file in an external player (VLC) or in the Kodi app - the buttons appear under the player.\nReal-Debrid: sign in on Services with a short code at real-debrid.com/device, or paste a token. The details stay in this browser only."},
-   "ru": {"title": "Источники, плеер и что делать, если файл не воспроизводится",
-          "body": "«Смотреть» на странице фильма открывает список источников: Telegram, Real-Debrid, добавленные вами серверы Stremio, Интернет-архив, YouTube и Dailymotion. Источники появляются по мере ответа; в настройках списка - минимальное качество, предпочитаемый язык и автозапуск лучшего источника.\nПлеер помнит, где вы остановились (точка продолжения синхронизируется с Kodi), предлагает следующую серию, меняет скорость, звуковую дорожку и субтитры.\nБраузер воспроизводит MP4 / WebM (H.264, AAC). MKV, HEVC или звук AC3 / DTS в браузере работают не всегда. Тогда: выберите «Другая ссылка» в списке (надёжнее всего MP4 или WEB-DL 1080p) или откройте файл во внешнем плеере (VLC) или в приложении Kodi - кнопки появляются под плеером.\nReal-Debrid: вход на экране «Сервисы» коротким кодом на real-debrid.com/device или вставкой токена. Данные хранятся только в этом браузере."}},
-  {"id": "subs",
-   "he": {"title": "כתוביות",
-          "body": "בנגן, כפתור הכתוביות מחפש כתוביות לסרט או לפרק: Wizdom (עברית, בלי שום הגדרה), OpenSubtitles (צריך מפתח API חינמי), YIFY, ו-Ktuvit (צריך עוזר וחשבון Ktuvit).\nכתוביות בעברית מוצגות ראשונות. אם אין עברית ויש מפתח Gemini, אפשר לתרגם כתובית באנגלית לעברית.\nשרת הכתוביות AI הביתי (תמלול ותרגום) עובד מהאתר רק אם יש לו כתובת https (למשל Tailscale Funnel או Cloudflare Tunnel); את הכתובת מזינים ב\"שירותים\".\nסנכרון: בתפריט הכתוביות מזיזים את התזמון בצעדים קטנים. גודל, צבע ורקע של הכתוביות - באותו תפריט.\nאפשר גם לטעון קובץ SRT מהמכשיר."},
-   "en": {"title": "Subtitles",
-          "body": "In the player the subtitle button looks for subtitles of the film or episode: Wizdom (Hebrew, nothing to set up), OpenSubtitles (needs a free API key), YIFY, and Ktuvit (needs the helper and a Ktuvit account).\nHebrew subtitles are listed first. When there is no Hebrew and a Gemini key is set, an English subtitle can be translated to Hebrew.\nThe home AI subtitle server (transcription and translation) works from the site only when it has an https address (for example Tailscale Funnel or a Cloudflare Tunnel); the address is entered on Services.\nSync: the subtitle menu shifts the timing in small steps. Size, colour and background are in the same menu.\nAn SRT file from the device can be loaded too."},
-   "ru": {"title": "Субтитры",
-          "body": "В плеере кнопка субтитров ищет субтитры к фильму или серии: Wizdom (иврит, без настройки), OpenSubtitles (нужен бесплатный ключ API), YIFY и Ktuvit (нужны помощник и аккаунт Ktuvit).\nСубтитры на предпочитаемом языке показываются первыми. Если нужного языка нет и задан ключ Gemini, английские субтитры можно перевести.\nДомашний сервер ИИ-субтитров (расшифровка и перевод) работает с сайта, только если у него есть адрес https (например Tailscale Funnel или Cloudflare Tunnel); адрес вводится на экране «Сервисы».\nСинхронизация: в меню субтитров время сдвигается малыми шагами. Размер, цвет и фон - в том же меню.\nМожно загрузить и файл SRT с устройства."}},
-  {"id": "lists",
-   "he": {"title": "משתמשים, מועדפים, היסטוריה וסנכרון",
-          "body": "\"משתמשים\": לכל בן משפחה מועדפים, היסטוריה וחיפושים משלו. מחליפים משתמש בלחיצה.\nכוכב על כותר, ערוץ, תחנה או סרטון מוסיף אותם ל\"מועדפים\". \"היסטוריה\" מציגה מה נצפה, ולחיצה ממשיכה מאותה נקודה.\nסנכרון: כשהדפדפן מחובר לטלגרם, המשתמשים והרשימות מסתנכרנים לבד עם כל מכשיר אחר שמחובר לאותו חשבון - Kodi או דפדפן. המידע נשמר כמסמך מוצפן ב\"הודעות שמורות\" שלכם.\nאם בחשבון עוד אין מסמך סנכרון (אף פעם לא הופעל Kodi), יוצרים אותו מהאתר: \"גיבוי ושחזור\" > \"יצירת מסמך הסנכרון\"."},
-   "en": {"title": "Users, favourites, history and sync",
-          "body": "\"Users\": every member of the family has their own favourites, history and searches. Switch with one press.\nThe star on a title, channel, station or video adds it to \"Favourites\". \"History\" shows what was watched; choosing a row continues from the same point.\nSync: when the browser is connected to Telegram, the users and lists sync by themselves with every other device on the same account - Kodi or a browser. The data is kept as an encrypted document in your Saved Messages.\nIf the account has no sync document yet (Kodi never ran on it), create it from the site: \"Backup and restore\" > \"Create the sync document\"."},
-   "ru": {"title": "Пользователи, избранное, история и синхронизация",
-          "body": "«Пользователи»: у каждого члена семьи своё избранное, история и поиски. Переключение одним нажатием.\nЗвезда на фильме, канале, станции или видео добавляет их в «Избранное». «История» показывает просмотренное; выбор строки продолжает с того же места.\nСинхронизация: когда браузер подключён к Telegram, пользователи и списки сами синхронизируются со всеми устройствами того же аккаунта - Kodi или браузером. Данные хранятся зашифрованным документом в вашем «Избранном» Telegram.\nЕсли в аккаунте ещё нет документа синхронизации (Kodi никогда не запускался), создайте его с сайта: «Резервная копия» > «Создать документ синхронизации»."}},
-  {"id": "services",
-   "he": {"title": "חשבונות ושירותים: כל המפתחות במסך אחד",
-          "body": "מסך \"שירותים\" מציג כל שירות, את מצבו וכפתור בדיקה:\nטלגרם - חיבור, סנכרון עכשיו, מצב שקט (השתקה וארכוב של ערוצים שהצטרפתם אליהם) וחיפוש בבוטים.\nReal-Debrid - התחברות בקוד או בטוקן. StremThru - בדיקה אילו קבצים באמת זמינים ב-Real-Debrid.\nTMDb - מפתח חינמי לקטלוג המלא. Gemini - מפתח לחיפוש חכם ולתרגום. YouTube - מפתח לחיפוש ולרשימות.\nOpenSubtitles - מפתח API. שרת כתוביות AI - כתובת https.\nעוזר (Worker) - כתובת אופציונלית של Cloudflare Worker משלכם, שמאפשר את מה שדפדפן לא יכול לבד (Ktuvit, YouTube בלי מפתח, חלק מ-Real-Debrid).\nGoogle Drive, Trakt ודפי קבלת המפתחות נפתחים מאותו מסך.\nכל מפתח נשמר רק בדפדפן הזה, נשלח רק לשירות שלו, ולעולם לא מופיע בכתובת."},
-   "en": {"title": "Accounts & services: every key on one screen",
-          "body": "The Accounts & services screen lists every service, its state and a test button:\nTelegram - connect, sync now, quiet mode (mute and archive the channels you joined) and bot search.\nReal-Debrid - sign in with a code or a token. StremThru - checks which files really are available at Real-Debrid.\nTMDb - a free key for the full catalogue. Gemini - a key for smart search and translation. YouTube - a key for search and lists.\nOpenSubtitles - an API key. AI subtitle server - an https address.\nHelper (Worker) - the optional address of your own Cloudflare Worker, for what a browser cannot do alone (Ktuvit, YouTube without a key, part of Real-Debrid).\nGoogle Drive, Trakt and the pages that issue the keys open from the same screen.\nEvery key stays in this browser only, is sent only to its own service, and never appears in an address."},
-   "ru": {"title": "Аккаунты и сервисы: все ключи на одном экране",
-          "body": "Экран «Аккаунты и сервисы» показывает каждый сервис, его состояние и кнопку проверки:\nTelegram - подключение, синхронизация, тихий режим (без звука и в архив для каналов, в которые вы вступили) и поиск через ботов.\nReal-Debrid - вход по коду или токену. StremThru - проверяет, какие файлы действительно доступны в Real-Debrid.\nTMDb - бесплатный ключ для полного каталога. Gemini - ключ для умного поиска и перевода. YouTube - ключ для поиска и списков.\nOpenSubtitles - ключ API. Сервер ИИ-субтитров - адрес https.\nПомощник (Worker) - необязательный адрес вашего Cloudflare Worker для того, что браузер не может сам (Ktuvit, YouTube без ключа, часть Real-Debrid).\nGoogle Drive, Trakt и страницы выдачи ключей открываются с того же экрана.\nКаждый ключ хранится только в этом браузере, отправляется только своему сервису и никогда не попадает в адрес."}},
-  {"id": "backup",
-   "he": {"title": "גיבוי, שחזור, ייצוא ו-Google Drive",
-          "body": "\"גיבוי ושחזור\" > הורדת גיבוי: קובץ zip עם המשתמשים, ההיסטוריה, המועדפים והחיפושים, באותו מבנה של הגיבוי ב-Kodi. גיבוי מהאתר משתחזר ב-Kodi, וגיבוי מ-Kodi משתחזר כאן. השחזור ממזג - שום דבר לא נמחק.\nייצוא הגדרות: קובץ אחד עם ההגדרות והמפתחות של הדפדפן, עם סיסמה אם רוצים. ייבוא קורא גם קובץ הגדרות שיוצא מ-Kodi (מפתחות TMDb, Gemini, OpenSubtitles ועוד). הכניסה לטלגרם אף פעם לא מיוצאת ולא מיובאת.\nGoogle Drive: התחברות עם חשבון Google, גיבוי לתיקייה \"BN Stream/Backups\", שחזור, סנכרון מועדפים והיסטוריה, העלאת סרטונים וניגון שלהם בנגן של האתר.\nלחיבור Drive מהדפדפן צריך מזהה לקוח OAuth מסוג \"Web application\" (חינם, ב-Google Cloud Console); עמוד Drive מציג בדיוק אילו כתובות להזין שם."},
-   "en": {"title": "Backup, restore, export and Google Drive",
-          "body": "\"Backup and restore\" > Download a backup: a zip with the users, history, favourites and searches, in the same shape as the Kodi backup. A site backup restores in Kodi and a Kodi backup restores here. A restore merges - nothing is deleted.\nExport settings: one file with this browser's settings and keys, with a password if you want. Import also reads a settings file exported from Kodi (TMDb, Gemini, OpenSubtitles keys and more). The Telegram login is never exported or imported.\nGoogle Drive: sign in with a Google account, back up to the \"BN Stream/Backups\" folder, restore, sync favourites and history, upload videos and play them in the site player.\nConnecting Drive from a browser needs an OAuth client id of the \"Web application\" type (free, in the Google Cloud Console); the Drive page shows exactly which addresses to enter there."},
-   "ru": {"title": "Резервная копия, восстановление, экспорт и Google Drive",
-          "body": "«Резервная копия» > Скачать копию: zip с пользователями, историей, избранным и поисками в том же формате, что и в Kodi. Копия с сайта восстанавливается в Kodi, а копия из Kodi - здесь. Восстановление объединяет данные - ничего не удаляется.\nЭкспорт настроек: один файл с настройками и ключами браузера, при желании с паролем. Импорт читает и файл настроек из Kodi (ключи TMDb, Gemini, OpenSubtitles и другие). Вход в Telegram никогда не экспортируется и не импортируется.\nGoogle Drive: вход с аккаунтом Google, копия в папку «BN Stream/Backups», восстановление, синхронизация избранного и истории, загрузка видео и их воспроизведение в плеере сайта.\nДля подключения Drive из браузера нужен идентификатор клиента OAuth типа «Web application» (бесплатно, в Google Cloud Console); страница Drive показывает, какие адреса туда ввести."}},
-  {"id": "tv",
-   "he": {"title": "טלוויזיה, שלט ומקלדת",
-          "body": "בדפדפן של טלוויזיה: החצים עוברים בין הכפתורים, OK / Enter בוחר ו-Back חוזר (או סוגר חלון פתוח).\n\"פרופיל מכשיר\" קובע את הפריסה: אוטומטי, טלוויזיה, טלפון או מחשב. בטלוויזיה הכול גדול יותר ומותאם לצפייה מרחוק.\nבמחשב: / עובר לחיפוש, Esc סוגר חלון. בנגן: רווח - הפעלה והשהיה, חצים ימינה ושמאלה - דילוג, F - מסך מלא, M - השתקה.\nבדפדפן ישן של טלוויזיה ייתכן שחלק מהקבצים לא יתנגנו; האפליקציה ב-Kodi מנגנת כל פורמט, ועמוד \"הורדת Kodi\" מסביר איך להתקין אותה."},
-   "en": {"title": "TV, remote and keyboard",
-          "body": "In a TV browser: the arrows move between buttons, OK / Enter chooses and Back goes back (or closes an open sheet).\n\"Device profile\" sets the layout: automatic, TV, phone or computer. On a TV everything is larger and made for watching from a distance.\nOn a computer: / jumps to search, Esc closes a sheet. In the player: Space - play and pause, Left and Right - seek, F - full screen, M - mute.\nAn old TV browser may not play some files; the Kodi app plays every format, and the \"Download Kodi\" page explains how to install it."},
-   "ru": {"title": "Телевизор, пульт и клавиатура",
-          "body": "В браузере телевизора: стрелки переходят между кнопками, OK / Enter выбирает, Back возвращает (или закрывает открытое окно).\n«Профиль устройства» задаёт раскладку: автоматически, телевизор, телефон или компьютер. На телевизоре всё крупнее и рассчитано на просмотр издалека.\nНа компьютере: / переходит к поиску, Esc закрывает окно. В плеере: пробел - пуск и пауза, стрелки влево и вправо - перемотка, F - полный экран, M - без звука.\nСтарый браузер телевизора может не воспроизводить часть файлов; приложение Kodi воспроизводит любой формат, а страница «Скачать Kodi» объясняет, как его установить."}},
-  {"id": "privacy",
-   "he": {"title": "פרטיות: איפה נשמר המידע",
-          "body": "האתר הוא דף סטטי: אין לו שרת משלו ואין חשבון משתמש. הכול נשמר בדפדפן שלכם.\nמפתחות (TMDb, Gemini, YouTube, OpenSubtitles), הטוקן של Real-Debrid והכניסה לטלגרם נשמרים רק בדפדפן הזה. כל אחד נשלח רק לשירות שלו, בכותרת הבקשה ולא בכתובת.\nהרשימות (משתמשים, מועדפים, היסטוריה) מסתנכרנות רק אם חיברתם טלגרם, ואז הן נשמרות מוצפנות ב\"הודעות שמורות\" של החשבון שלכם.\n\"ניקוי מטמון\" ו\"איפוס הגדרות הדפדפן\" נמצאים ב\"שירותים\" > כלים. ניתוק מטלגרם מוחק את הכניסה מהדפדפן.\nהאתר משתמש רק במקורות חוקיים וגלויים, אותם מקורות של האפליקציה ב-Kodi."},
-   "en": {"title": "Privacy: where the data lives",
-          "body": "The site is a static page: it has no server of its own and no user account. Everything is kept in your browser.\nKeys (TMDb, Gemini, YouTube, OpenSubtitles), the Real-Debrid token and the Telegram login stay in this browser only. Each one is sent only to its own service, in a request header and not in an address.\nThe lists (users, favourites, history) sync only when you connected Telegram, and then they are kept encrypted in the Saved Messages of your own account.\n\"Clear the cache\" and \"Reset this browser's settings\" are under Services > Tools. Disconnecting Telegram removes the login from the browser.\nThe site uses only legal, open sources, the same ones as the Kodi app."},
-   "ru": {"title": "Конфиденциальность: где хранятся данные",
-          "body": "Сайт - статическая страница: у него нет своего сервера и нет учётной записи. Всё хранится в вашем браузере.\nКлючи (TMDb, Gemini, YouTube, OpenSubtitles), токен Real-Debrid и вход в Telegram хранятся только в этом браузере. Каждый отправляется только своему сервису, в заголовке запроса, а не в адресе.\nСписки (пользователи, избранное, история) синхронизируются, только если вы подключили Telegram, и тогда хранятся зашифрованными в «Избранном» вашего аккаунта.\n«Очистить кэш» и «Сбросить настройки браузера» находятся в «Сервисы» > Инструменты. Отключение Telegram удаляет вход из браузера.\nСайт использует только легальные открытые источники, те же, что и приложение Kodi."}},
-  {"id": "kodi",
-   "he": {"title": "האתר מול האפליקציה ב-Kodi",
-          "body": "האתר והאפליקציה ב-Kodi חולקים את אותם משתמשים, מועדפים, היסטוריה ונקודות המשך (דרך טלגרם), ואותם מקורות.\nמה ש-Kodi עושה טוב יותר: מנגן כל פורמט (MKV, HEVC, AC3 / DTS), ערוצי Idan+ ושידורי http, הקלטה, ושרת הכתוביות הביתי בלי https.\nמה שהאתר עושה טוב יותר: נפתח בכל מכשיר בלי התקנה, מתעדכן לבד, ועובד בטלפון.\nכשמשהו לא מתנגן בדפדפן, האתר מציע פתיחה בנגן חיצוני או ב-Kodi. עמוד \"הורדת Kodi\" מוביל להתקנה."},
-   "en": {"title": "The site and the Kodi app",
-          "body": "The site and the Kodi app share the same users, favourites, history and resume points (through Telegram), and the same sources.\nWhat Kodi does better: it plays every format (MKV, HEVC, AC3 / DTS), the Idan+ channels and http streams, recording, and the home subtitle server without https.\nWhat the site does better: it opens on any device with nothing to install, updates itself, and works on a phone.\nWhen something does not play in a browser the site offers to open it in an external player or in Kodi. The \"Download Kodi\" page leads to the installation."},
-   "ru": {"title": "Сайт и приложение Kodi",
-          "body": "Сайт и приложение Kodi используют одних и тех же пользователей, избранное, историю и точки продолжения (через Telegram) и одни и те же источники.\nЧто Kodi делает лучше: воспроизводит любой формат (MKV, HEVC, AC3 / DTS), каналы Idan+ и потоки http, запись, домашний сервер субтитров без https.\nЧто сайт делает лучше: открывается на любом устройстве без установки, обновляется сам и работает на телефоне.\nКогда что-то не воспроизводится в браузере, сайт предлагает открыть это во внешнем плеере или в Kodi. Страница «Скачать Kodi» ведёт к установке."}}
+  {
+   "id": "start",
+   "he": {
+    "title": "התחלה: מסך הבית והתקנה כאפליקציה",
+    "body": "האתר נפתח במסך הבית. משם מגיעים לכל דבר: חיפוש בכל המקורות, סרטים, סדרות, טלוויזיה חיה, רדיו, טלגרם, YouTube, אקטואליה וידע, מועדפים והיסטוריה.\nאין צורך בהתקנה, אבל אפשר להתקין את האתר כאפליקציה: בהגדרות > \"התקנה כאפליקציה\" (ב-iPhone: שיתוף > הוספה למסך הבית).\nהאתר עובד במחשב, בטלפון, בטאבלט ובדפדפן של טלוויזיה. את שפת הממשק (עברית / English / Русский) ואת ערכת הצבעים בוחרים בהגדרות.\nרוב התוכן עובד מיד, בלי שום מפתח: קטלוג סרטים וסדרות, טלוויזיה חיה, רדיו, ארכיון האינטרנט, Dailymotion וניגון YouTube. מפתחות וחיבורים מוסיפים עוד - ראו \"שירותים וחיבורים\"."
+   },
+   "en": {
+    "title": "Getting started: the home screen and installing as an app",
+    "body": "The site opens on the home screen. Everything starts there: search in all sources, movies, series, live TV, radio, Telegram, YouTube, news & knowledge, favourites and history.\nNothing has to be installed, but the site can be installed as an app: Settings > \"Install as an app\" (iPhone: Share > Add to Home Screen).\nIt works on a computer, a phone, a tablet and a TV browser. The interface language (עברית / English / Русский) and the colour theme are in Settings.\nMost content works at once with no key at all: the movie and series catalogue, live TV, radio, the Internet Archive, Dailymotion and YouTube playback. Keys and connections add more - see \"Accounts & services\"."
+   },
+   "ru": {
+    "title": "Начало: главный экран и установка как приложения",
+    "body": "Сайт открывается на главном экране. Оттуда доступно всё: поиск по всем источникам, фильмы, сериалы, прямой эфир, радио, Telegram, YouTube, новости и знания, избранное и история.\nУстанавливать ничего не нужно, но сайт можно установить как приложение: Настройки > «Установить как приложение» (iPhone: Поделиться > На экран «Домой»).\nСайт работает на компьютере, телефоне, планшете и в браузере телевизора. Язык интерфейса (עברית / English / Русский) и тему выбирают в настройках.\nБольшая часть контента работает сразу, без ключей: каталог фильмов и сериалов, прямой эфир, радио, Интернет-архив, Dailymotion и воспроизведение YouTube. Ключи и подключения добавляют остальное - см. «Аккаунты и сервисы»."
+   }
+  },
+  {
+   "id": "whatsnew",
+   "he": {
+    "title": "חדש: כל סוג קובץ, גודל תצוגה, חיבור איטי, אפליקציות",
+    "body": "נגן לכל סוג קובץ: כשהדפדפן לא מסוגל לנגן קובץ (MKV / AVI, HEVC, שמע AC3 / DTS), הנגן המובנה נכנס לבד והסרט ממשיך מאותה נקודה. בפעם הראשונה לכל סוג קובץ יורד מפענח קטן. וידאו 4K כבד עלול להיות איטי במכשיר חלש – אז עדיף קישור קל יותר.\nגודל התצוגה: ברירת המחדל 100%. משנים במסך \"עוד\" או בהגדרות > כללי – לחצני − ו-+ או הקלדת אחוזים (50–200). אין הגדלה אוטומטית בזמן הקלדה.\nחיבור איטי: שידורים חיים וסרטים ב-HLS נפתחים באיכות שמתאימה למהירות שנמדדה בפעם הקודמת, מחזיקים חוצץ ארוך, ויורדים באיכות במקום להיעצר. חיבור שנפל מנסה שוב לבד כמה פעמים.\nאפליקציות: קובץ APK ל-Android (טלפון, טאבלט, טלוויזיה, רכב) וקובץ IPA לא חתום לאייפון ולאייפד נמצאים באתר הבילד. הן מציגות את האתר הזה, ולכן כל עדכון מגיע ברענון.\nדירוג המלצה: ליד כל קישור ברשימת המקורות מופיע מספר בין 0 ל-100% ותווית, והרשימה ממוינת לפיו. המספר מחושב ממה שנבדק: קישור שנבדק ועובד, ניגון חלק במהירות החיבור, האם הדפדפן מנגן את הקובץ, שפה ואיכות. קישור שלא נבדק לא יקבל יותר מ-60%."
+   },
+   "en": {
+    "title": "New: every file type, display size, slow connections, apps",
+    "body": "A player for every file type: when the browser cannot play a file (MKV / AVI, HEVC, AC3 / DTS sound) the built-in engine takes over by itself and the film goes on from the same point. The first time a kind of file is met a small decoder is downloaded. Heavy 4K video may be slow on a weak device - a lighter link is better then.\nDisplay size: 100% by default. Change it on the \"More\" page or in Settings > General - the − and + buttons or a typed percentage (50-200). Nothing zooms by itself while you type.\nSlow connections: live channels and HLS films open at the quality that fits the speed measured last time, hold a long buffer, and step the quality down instead of stopping. A dropped connection is retried several times.\nApps: an APK for Android (phone, tablet, TV, car) and an unsigned IPA for iPhone and iPad are on the build's site. They show this site, so every update arrives with a refresh.\nRecommendation: every link in the list of sources shows a number from 0 to 100% and a label, and the list is sorted by it. It comes from what was checked: a tested working link, smooth playing at the connection's speed, whether this browser plays the file, language and quality. An untested link never gets more than 60%."
+   },
+   "ru": {
+    "title": "Новое: любые файлы, размер интерфейса, медленное соединение, приложения",
+    "body": "Плеер для любых файлов: если браузер не может воспроизвести файл (MKV / AVI, HEVC, звук AC3 / DTS), встроенный плеер включается сам и фильм продолжается с того же места. При первой встрече с форматом скачивается небольшой декодер. Тяжёлое 4K-видео на слабом устройстве может идти медленно - лучше выбрать ссылку полегче.\nРазмер интерфейса: по умолчанию 100%. Меняется на странице «Ещё» или в Настройках > Общие - кнопками − и + или вводом процентов (50-200). При вводе текста ничего не увеличивается само.\nМедленное соединение: прямые каналы и HLS-фильмы стартуют с качеством под измеренную в прошлый раз скорость, держат длинный буфер и снижают качество вместо остановки. Оборванное соединение повторяется несколько раз.\nПриложения: APK для Android (телефон, планшет, ТВ, автомобиль) и неподписанный IPA для iPhone и iPad лежат на сайте сборки. Они показывают этот сайт, поэтому обновления приходят после обновления страницы.\nРейтинг: у каждой ссылки в списке источников есть число от 0 до 100% и метка, список отсортирован по нему. Оно складывается из проверенного: рабочая проверенная ссылка, воспроизведение без остановок на текущей скорости, играет ли файл этот браузер, язык и качество. Непроверенная ссылка не получает больше 60%."
+   }
+  },
+  {
+   "id": "catalog",
+   "he": {
+    "title": "סרטים וסדרות",
+    "body": "\"סרטים\" ו\"סדרות\" מציגים רשימות: חם השבוע, פופולרי, המדורגים ביותר, עכשיו בקולנוע, בקרוב, משודרות היום, ישראלי, טורקי, קוריאני, רוסי וסובייטי, ילדים, לפי ז'אנר, שפה ושנה.\nבלי מפתח TMDb הקטלוג פועל דרך Cinemeta (באנגלית). מפתח TMDb חינמי (מסך \"חשבונות ושירותים\") מוסיף עברית, רשימות ישראליות, שפות ומועדפים שמסתנכרנים עם Kodi.\nבחירה בסרט פותחת את דף הכותר: תקציר, טריילר, מועדפים וכפתור \"נגן\" שמציג את כל המקורות.\nבסדרה: עונה > פרק. פרק שנצפה מסומן בנקודה ירוקה. בממשק בעברית, תקציר שחסר בעברית מתורגם אוטומטית.\nבתיבת החיפוש שבראש העמוד מחפשים רק סרטים או רק סדרות, כולל קבצים מטלגרם."
+   },
+   "en": {
+    "title": "Movies and series",
+    "body": "\"Movies\" and \"Series\" show lists: trending, popular, top rated, now in cinemas, upcoming, airing today, Israeli, Turkish, Korean, Russian and Soviet, kids, by genre, language and year.\nWithout a TMDb key the catalogue runs on Cinemeta (in English). A free TMDb key (the Accounts & services screen) adds Hebrew texts, Israeli lists, languages and favourites that sync with Kodi.\nChoosing a film opens its title page: plot, trailer, favourite and a \"Play\" button that lists every source.\nIn a series: season > episode. A watched episode has a green dot. With the Hebrew interface a plot that has no Hebrew text is machine translated.\nThe search box at the top of the page searches only movies or only series, Telegram files included."
+   },
+   "ru": {
+    "title": "Фильмы и сериалы",
+    "body": "«Фильмы» и «Сериалы» показывают списки: популярное за неделю, популярное, лучшие, сейчас в кино, скоро, сегодня в эфире, израильские, турецкие, корейские, русские и советские, детские, по жанру, языку и году.\nБез ключа TMDb каталог работает через Cinemeta (на английском). Бесплатный ключ TMDb (экран «Аккаунты и сервисы») добавляет русские и ивритские тексты, израильские списки, языки и избранное, которое синхронизируется с Kodi.\nВыбор фильма открывает страницу: описание, трейлер, избранное и кнопку «Смотреть» со списком всех источников.\nВ сериале: сезон > серия. Просмотренная серия отмечена зелёной точкой.\nПоле поиска вверху страницы ищет только фильмы или только сериалы, включая файлы из Telegram."
+   }
+  },
+  {
+   "id": "search",
+   "he": {
+    "title": "חיפוש בכל המקורות והדבקת קישור",
+    "body": "\"חיפוש בכל המקורות\" שואל במקביל את כל המקורות הפעילים: סרטים וסדרות, טלגרם, YouTube, Dailymotion, ארכיון האינטרנט, ערוצי טלוויזיה, רדיו ואקטואליה וידע. כל מקור מוצג בשורה משלו, ולמעלה \"ההתאמות הטובות ביותר\".\nכותבים \"שם הסדרה S02E05\" או \"עונה 2 פרק 5\" כדי לחפש פרק מסוים.\nאפשר להדביק קישור בתיבת החיפוש (או ב\"שירותים\" > הדבקה מהלוח): קישור t.me נפתח בטלגרם, קישור YouTube / Dailymotion / archive.org מתנגן, קישור וידאו ישיר נפתח בנגן, ו-magnet נפתח דרך Real-Debrid.\n\"היסטוריית חיפושים\" שומרת את החיפושים האחרונים; אפשר למחוק אחד או את כולם.\nאילו מקורות משתתפים בחיפוש קובעים ב\"ספרייה\"."
+   },
+   "en": {
+    "title": "Search in all sources and pasting a link",
+    "body": "\"Search all sources\" asks every active source at once: movies and series, Telegram, YouTube, Dailymotion, the Internet Archive, TV channels, radio and news & knowledge. Each source has its own row, with \"Best matches\" on top.\nType \"show name S02E05\" or \"season 2 episode 5\" to look for one episode.\nA link can be pasted into the search box (or Services > Paste from the clipboard): a t.me link opens in Telegram, a YouTube / Dailymotion / archive.org link plays, a direct video link opens in the player, and a magnet opens through Real-Debrid.\n\"Search history\" keeps the latest searches; remove one or all.\nWhich sources take part in the search is set in the Library."
+   },
+   "ru": {
+    "title": "Поиск по всем источникам и вставка ссылки",
+    "body": "«Поиск по всем источникам» опрашивает сразу все включённые источники: фильмы и сериалы, Telegram, YouTube, Dailymotion, Интернет-архив, телеканалы, радио, новости и знания. У каждого источника своя строка, сверху - «Лучшие совпадения».\nНапишите «название S02E05» или «2 сезон 5 серия», чтобы найти конкретную серию.\nСсылку можно вставить в поле поиска (или Сервисы > Вставить из буфера): ссылка t.me открывается в Telegram, ссылка YouTube / Dailymotion / archive.org воспроизводится, прямая ссылка на видео открывается в плеере, magnet - через Real-Debrid.\n«История поиска» хранит последние запросы; можно удалить один или все.\nКакие источники участвуют в поиске, задаётся в «Библиотеке»."
+   }
+  },
+  {
+   "id": "telegram",
+   "he": {
+    "title": "טלגרם: חיבור, חיפוש וניגון",
+    "body": "החיבור לטלגרם נותן שני דברים: קבצי וידאו מהערוצים והקבוצות שלכם כמקור ניגון, וסנכרון של משתמשים, מועדפים, היסטוריה ונקודות המשך בין כל המכשירים.\nמתחברים ב\"טלגרם\" > התחברות: בסריקת קוד QR מאפליקציית טלגרם בטלפון, או במספר טלפון וקוד. הקוד מגיע בדרך כלל כהודעה בתוך אפליקציית טלגרם, לא ב-SMS.\nלפני ההתחברות האתר צריך API ID ו-API Hash של החשבון. הדרך הקלה: ב-Kodi, שירותים וחיבורים > חיבור גרסת הדפדפן, וסריקת הקוד. בלי Kodi: יוצרים אותם פעם אחת ב-my.telegram.org.\nכל מכשיר מתחבר בעצמו. הכניסה נשמרת רק בדפדפן הזה ואינה עוברת בגיבוי.\nאחרי החיבור: הצ'אטים שלי, סרטונים של ערוץ, חיפוש קבצים חופשי, חיפוש חכם (עם מפתח Gemini) ומקורות טלגרם בכל סרט ופרק.\nהניגון זורם ישירות מטלגרם דרך הדפדפן; צריך חיבור https (באתר הרשמי הוא תמיד כזה)."
+   },
+   "en": {
+    "title": "Telegram: connecting, searching and playing",
+    "body": "Connecting Telegram gives two things: video files from your channels and groups as a play source, and sync of users, favourites, history and resume points between all devices.\nConnect in Telegram > Sign in: scan a QR code with the Telegram app on a phone, or use a phone number and a code. The code usually arrives as a message inside the Telegram app, not by SMS.\nBefore signing in the site needs the account's API ID and API Hash. The easy way: in Kodi, Services and accounts > Connect web version, and scan the code. Without Kodi: create them once at my.telegram.org.\nEvery device signs in by itself. The login stays in this browser only and is never part of a backup.\nAfter connecting: my chats, a channel's videos, free file search, smart search (with a Gemini key) and Telegram sources on every film and episode.\nPlayback streams straight from Telegram through the browser; it needs an https connection (the official site always is)."
+   },
+   "ru": {
+    "title": "Telegram: подключение, поиск и воспроизведение",
+    "body": "Подключение Telegram даёт две вещи: видеофайлы из ваших каналов и групп как источник, и синхронизацию пользователей, избранного, истории и точек продолжения между всеми устройствами.\nПодключение: Telegram > Войти - отсканируйте QR-код приложением Telegram на телефоне или введите номер телефона и код. Код обычно приходит сообщением в приложении Telegram, а не по SMS.\nПеред входом сайту нужны API ID и API Hash аккаунта. Проще всего: в Kodi, «Сервисы и аккаунты» > «Подключить веб-версию», и отсканировать код. Без Kodi: создайте их один раз на my.telegram.org.\nКаждое устройство входит само. Вход хранится только в этом браузере и не попадает в резервную копию.\nПосле подключения: мои чаты, видео канала, свободный поиск файлов, умный поиск (с ключом Gemini) и источники Telegram у каждого фильма и серии.\nВоспроизведение идёт прямо из Telegram через браузер; нужно соединение https (на официальном сайте оно всегда такое)."
+   }
+  },
+  {
+   "id": "live",
+   "he": {
+    "title": "טלוויזיה חיה ומדריך שידורים",
+    "body": "\"טלוויזיה חיה\" מציגה את הערוצים הישראליים, רשימות לפי שפה ונושא (חדשות, ילדים, תעודה, מוזיקה) וערוצים מכל העולם לפי מדינה.\nמתחת לערוץ ישראלי מופיע מה משודר עכשיו ומה הבא; לחיצה על \"מדריך\" מציגה את לוח השידורים.\nאפשר לסנן לפי שם, להוסיף ערוץ למועדפים ולהוסיף רשימת M3U משלכם.\nערוץ שלא נפתח: לרוב השידור חסום מחוץ לישראל או שהכתובת שלו http (דפדפן באתר https לא מנגן http). נסו ערוץ אחר או את אותו ערוץ מרשימה אחרת."
+   },
+   "en": {
+    "title": "Live TV and the guide",
+    "body": "\"Live TV\" shows the Israeli channels, lists by language and subject (news, kids, documentary, music) and channels of the world by country.\nUnder an Israeli channel you see what is on now and next; \"Guide\" shows the schedule.\nFilter by name, add a channel to favourites, and add your own M3U list.\nA channel that does not open is usually blocked outside Israel, or its address is http (a browser on an https site cannot play http). Try another channel, or the same one from another list."
+   },
+   "ru": {
+    "title": "Прямой эфир и телепрограмма",
+    "body": "«Прямой эфир» показывает израильские каналы, списки по языку и теме (новости, детям, документальные, музыка) и каналы мира по странам.\nПод израильским каналом видно, что идёт сейчас и что дальше; «Программа» открывает расписание.\nМожно фильтровать по названию, добавлять канал в избранное и добавить свой список M3U.\nКанал не открывается обычно потому, что трансляция закрыта за пределами Израиля или его адрес http (браузер на сайте https не воспроизводит http). Попробуйте другой канал или тот же канал из другого списка."
+   }
+  },
+  {
+   "id": "radio",
+   "he": {
+    "title": "רדיו",
+    "body": "\"רדיו\" מציג תחנות לפי מדינה, שפה וסגנון (חדשות, פופ, רוק, קלאסי, ג'אז, מזרחי, ילדים, דת), עם חיפוש לפי שם.\nהתחנה מתנגנת בסרגל בתחתית המסך וממשיכה לנגן כשעוברים לעמוד אחר. אפשר להוסיף תחנה למועדפים.\nתחנה שכתובתה http בלבד לא מוצגת: דפדפן באתר https לא יכול לנגן אותה."
+   },
+   "en": {
+    "title": "Radio",
+    "body": "\"Radio\" lists stations by country, language and style (news, pop, rock, classical, jazz, oriental, kids, religious), with search by name.\nA station plays in the bar at the bottom and keeps playing while you move between pages. Stations can be added to favourites.\nA station with an http-only address is not listed: a browser on an https site cannot play it."
+   },
+   "ru": {
+    "title": "Радио",
+    "body": "«Радио» показывает станции по стране, языку и стилю (новости, поп, рок, классика, джаз, восточная, детям, религия), с поиском по названию.\nСтанция играет в панели внизу и продолжает играть при переходе между страницами. Станцию можно добавить в избранное.\nСтанции только с адресом http не показываются: браузер на сайте https не может их воспроизвести."
+   }
+  },
+  {
+   "id": "youtube",
+   "he": {
+    "title": "YouTube ואקטואליה וידע",
+    "body": "ניגון YouTube, פלייליסטים, קישורים מודבקים ומועדפים עובדים תמיד, בלי מפתח.\nלחיפוש, לרשימות ערוצים ולשידורים חיים צריך אחד מהשניים (מסך \"חשבונות ושירותים\"): מפתח YouTube Data API חינמי משלכם, או כתובת של עוזר (Worker).\n\"אקטואליה וידע\" הוא אוסף ערוצים נבחרים: חדשות, ידע וטכנולוגיה, בקרה תעשייתית, בית חכם, DIY, אילוף כלבים וסדרות אסיה. עם מפתח רואים רק סרטונים ארוכים, מהחדש לישן, עם \"המדורגים ביותר\" וחיפוש. בלי מפתח רואים את רשימת הערוצים, וכל ערוץ מתנגן כאן מהחדש לישן.\nבסרטון YouTube אין כתוביות של האתר; משתמשים בכפתור הכתוביות של נגן YouTube עצמו."
+   },
+   "en": {
+    "title": "YouTube and News & knowledge",
+    "body": "YouTube playback, playlists, pasted links and favourites always work, with no key.\nSearch, channel lists and live broadcasts need one of two things (the Accounts & services screen): your own free YouTube Data API key, or the address of a helper (Worker).\n\"News & knowledge\" is a set of chosen channels: news, knowledge & technology, industrial control, smart home, DIY, dog training and Asian dramas. With a key you see only long videos, newest first, with \"Top rated\" and search. Without one you see the channel list, and every channel plays here, newest first.\nA YouTube video has no site subtitles; use the subtitle button of the YouTube player itself."
+   },
+   "ru": {
+    "title": "YouTube и «Новости и знания»",
+    "body": "Воспроизведение YouTube, плейлисты, вставленные ссылки и избранное работают всегда, без ключа.\nДля поиска, списков каналов и прямых эфиров нужно одно из двух (экран «Аккаунты и сервисы»): собственный бесплатный ключ YouTube Data API или адрес помощника (Worker).\n«Новости и знания» - подборка каналов: новости, знания и технологии, промышленная автоматизация, умный дом, DIY, дрессировка собак и азиатские сериалы. С ключом видны только длинные видео, от новых к старым, с разделом «Самые популярные» и поиском. Без ключа виден список каналов, и каждый канал воспроизводится здесь, от новых к старым.\nУ видео YouTube нет субтитров сайта; используйте кнопку субтитров самого плеера YouTube."
+   }
+  },
+  {
+   "id": "play",
+   "he": {
+    "title": "מקורות, נגן ומה לעשות כשקובץ לא מתנגן",
+    "body": "\"נגן\" בדף הכותר פותח את רשימת המקורות: טלגרם, Real-Debrid, שרתי Stremio שהוספתם, ארכיון האינטרנט, YouTube ו-Dailymotion. המקורות מופיעים מיד כשכל אחד עונה; בהגדרות הרשימה קובעים איכות מינימלית, שפה מועדפת וניגון אוטומטי של המקור הטוב ביותר.\nהנגן זוכר איפה עצרתם (נקודת ההמשך מסתנכרנת עם Kodi), מציע את הפרק הבא, ומאפשר מהירות, רצועת שמע וכתוביות.\nדפדפן מנגן MP4 / WebM (H.264, AAC). קובצי MKV, HEVC או שמע AC3 / DTS לא תמיד מתנגנים בדפדפן. כשזה קורה: בחרו \"קישור אחר\" מהרשימה (עדיף קובץ MP4 או WEB-DL 1080p), או פתחו את הקובץ בנגן חיצוני (VLC) או באפליקציה ב-Kodi - הכפתורים מופיעים מתחת לנגן.\nReal-Debrid: מתחברים ב\"שירותים\" עם קוד קצר באתר real-debrid.com/device, או מדביקים טוקן. הפרטים נשמרים רק בדפדפן הזה."
+   },
+   "en": {
+    "title": "Sources, the player and what to do when a file does not play",
+    "body": "\"Play\" on a title page opens the source list: Telegram, Real-Debrid, the Stremio servers you added, the Internet Archive, YouTube and Dailymotion. Sources appear as each one answers; the list's settings hold the minimum quality, the preferred language and automatic play of the best source.\nThe player remembers where you stopped (the resume point syncs with Kodi), offers the next episode, and has speed, audio track and subtitles.\nA browser plays MP4 / WebM (H.264, AAC). MKV, HEVC or AC3 / DTS audio do not always play in a browser. When that happens: choose \"Another link\" from the list (an MP4 or a WEB-DL 1080p file is the safest), or open the file in an external player (VLC) or in the Kodi app - the buttons appear under the player.\nReal-Debrid: sign in on Services with a short code at real-debrid.com/device, or paste a token. The details stay in this browser only."
+   },
+   "ru": {
+    "title": "Источники, плеер и что делать, если файл не воспроизводится",
+    "body": "«Смотреть» на странице фильма открывает список источников: Telegram, Real-Debrid, добавленные вами серверы Stremio, Интернет-архив, YouTube и Dailymotion. Источники появляются по мере ответа; в настройках списка - минимальное качество, предпочитаемый язык и автозапуск лучшего источника.\nПлеер помнит, где вы остановились (точка продолжения синхронизируется с Kodi), предлагает следующую серию, меняет скорость, звуковую дорожку и субтитры.\nБраузер воспроизводит MP4 / WebM (H.264, AAC). MKV, HEVC или звук AC3 / DTS в браузере работают не всегда. Тогда: выберите «Другая ссылка» в списке (надёжнее всего MP4 или WEB-DL 1080p) или откройте файл во внешнем плеере (VLC) или в приложении Kodi - кнопки появляются под плеером.\nReal-Debrid: вход на экране «Сервисы» коротким кодом на real-debrid.com/device или вставкой токена. Данные хранятся только в этом браузере."
+   }
+  },
+  {
+   "id": "subs",
+   "he": {
+    "title": "כתוביות",
+    "body": "בנגן, כפתור הכתוביות מחפש כתוביות לסרט או לפרק: Wizdom (עברית, בלי שום הגדרה), OpenSubtitles (צריך מפתח API חינמי), YIFY, ו-Ktuvit (צריך עוזר וחשבון Ktuvit).\nכתוביות בעברית מוצגות ראשונות. אם אין עברית ויש מפתח Gemini, אפשר לתרגם כתובית באנגלית לעברית.\nשרת הכתוביות AI הביתי (תמלול ותרגום) עובד מהאתר רק אם יש לו כתובת https (למשל Tailscale Funnel או Cloudflare Tunnel); את הכתובת מזינים ב\"שירותים\".\nסנכרון: בתפריט הכתוביות מזיזים את התזמון בצעדים קטנים. גודל, צבע ורקע של הכתוביות - באותו תפריט.\nאפשר גם לטעון קובץ SRT מהמכשיר."
+   },
+   "en": {
+    "title": "Subtitles",
+    "body": "In the player the subtitle button looks for subtitles of the film or episode: Wizdom (Hebrew, nothing to set up), OpenSubtitles (needs a free API key), YIFY, and Ktuvit (needs the helper and a Ktuvit account).\nHebrew subtitles are listed first. When there is no Hebrew and a Gemini key is set, an English subtitle can be translated to Hebrew.\nThe home AI subtitle server (transcription and translation) works from the site only when it has an https address (for example Tailscale Funnel or a Cloudflare Tunnel); the address is entered on Services.\nSync: the subtitle menu shifts the timing in small steps. Size, colour and background are in the same menu.\nAn SRT file from the device can be loaded too."
+   },
+   "ru": {
+    "title": "Субтитры",
+    "body": "В плеере кнопка субтитров ищет субтитры к фильму или серии: Wizdom (иврит, без настройки), OpenSubtitles (нужен бесплатный ключ API), YIFY и Ktuvit (нужны помощник и аккаунт Ktuvit).\nСубтитры на предпочитаемом языке показываются первыми. Если нужного языка нет и задан ключ Gemini, английские субтитры можно перевести.\nДомашний сервер ИИ-субтитров (расшифровка и перевод) работает с сайта, только если у него есть адрес https (например Tailscale Funnel или Cloudflare Tunnel); адрес вводится на экране «Сервисы».\nСинхронизация: в меню субтитров время сдвигается малыми шагами. Размер, цвет и фон - в том же меню.\nМожно загрузить и файл SRT с устройства."
+   }
+  },
+  {
+   "id": "lists",
+   "he": {
+    "title": "משתמשים, מועדפים, היסטוריה וסנכרון",
+    "body": "\"משתמשים\": לכל בן משפחה מועדפים, היסטוריה וחיפושים משלו. מחליפים משתמש בלחיצה.\nכוכב על כותר, ערוץ, תחנה או סרטון מוסיף אותם ל\"מועדפים\". \"היסטוריה\" מציגה מה נצפה, ולחיצה ממשיכה מאותה נקודה.\nסנכרון: כשהדפדפן מחובר לטלגרם, המשתמשים והרשימות מסתנכרנים לבד עם כל מכשיר אחר שמחובר לאותו חשבון - Kodi או דפדפן. המידע נשמר כמסמך מוצפן ב\"הודעות שמורות\" שלכם.\nאם בחשבון עוד אין מסמך סנכרון (אף פעם לא הופעל Kodi), יוצרים אותו מהאתר: \"גיבוי ושחזור\" > \"יצירת מסמך הסנכרון\"."
+   },
+   "en": {
+    "title": "Users, favourites, history and sync",
+    "body": "\"Users\": every member of the family has their own favourites, history and searches. Switch with one press.\nThe star on a title, channel, station or video adds it to \"Favourites\". \"History\" shows what was watched; choosing a row continues from the same point.\nSync: when the browser is connected to Telegram, the users and lists sync by themselves with every other device on the same account - Kodi or a browser. The data is kept as an encrypted document in your Saved Messages.\nIf the account has no sync document yet (Kodi never ran on it), create it from the site: \"Backup and restore\" > \"Create the sync document\"."
+   },
+   "ru": {
+    "title": "Пользователи, избранное, история и синхронизация",
+    "body": "«Пользователи»: у каждого члена семьи своё избранное, история и поиски. Переключение одним нажатием.\nЗвезда на фильме, канале, станции или видео добавляет их в «Избранное». «История» показывает просмотренное; выбор строки продолжает с того же места.\nСинхронизация: когда браузер подключён к Telegram, пользователи и списки сами синхронизируются со всеми устройствами того же аккаунта - Kodi или браузером. Данные хранятся зашифрованным документом в вашем «Избранном» Telegram.\nЕсли в аккаунте ещё нет документа синхронизации (Kodi никогда не запускался), создайте его с сайта: «Резервная копия» > «Создать документ синхронизации»."
+   }
+  },
+  {
+   "id": "services",
+   "he": {
+    "title": "חשבונות ושירותים: כל המפתחות במסך אחד",
+    "body": "מסך \"שירותים\" מציג כל שירות, את מצבו וכפתור בדיקה:\nטלגרם - חיבור, סנכרון עכשיו, מצב שקט (השתקה וארכוב של ערוצים שהצטרפתם אליהם) וחיפוש בבוטים.\nReal-Debrid - התחברות בקוד או בטוקן. StremThru - בדיקה אילו קבצים באמת זמינים ב-Real-Debrid.\nTMDb - מפתח חינמי לקטלוג המלא. Gemini - מפתח לחיפוש חכם ולתרגום. YouTube - מפתח לחיפוש ולרשימות.\nOpenSubtitles - מפתח API. שרת כתוביות AI - כתובת https.\nעוזר (Worker) - כתובת אופציונלית של Cloudflare Worker משלכם, שמאפשר את מה שדפדפן לא יכול לבד (Ktuvit, YouTube בלי מפתח, חלק מ-Real-Debrid).\nGoogle Drive, Trakt ודפי קבלת המפתחות נפתחים מאותו מסך.\nכל מפתח נשמר רק בדפדפן הזה, נשלח רק לשירות שלו, ולעולם לא מופיע בכתובת."
+   },
+   "en": {
+    "title": "Accounts & services: every key on one screen",
+    "body": "The Accounts & services screen lists every service, its state and a test button:\nTelegram - connect, sync now, quiet mode (mute and archive the channels you joined) and bot search.\nReal-Debrid - sign in with a code or a token. StremThru - checks which files really are available at Real-Debrid.\nTMDb - a free key for the full catalogue. Gemini - a key for smart search and translation. YouTube - a key for search and lists.\nOpenSubtitles - an API key. AI subtitle server - an https address.\nHelper (Worker) - the optional address of your own Cloudflare Worker, for what a browser cannot do alone (Ktuvit, YouTube without a key, part of Real-Debrid).\nGoogle Drive, Trakt and the pages that issue the keys open from the same screen.\nEvery key stays in this browser only, is sent only to its own service, and never appears in an address."
+   },
+   "ru": {
+    "title": "Аккаунты и сервисы: все ключи на одном экране",
+    "body": "Экран «Аккаунты и сервисы» показывает каждый сервис, его состояние и кнопку проверки:\nTelegram - подключение, синхронизация, тихий режим (без звука и в архив для каналов, в которые вы вступили) и поиск через ботов.\nReal-Debrid - вход по коду или токену. StremThru - проверяет, какие файлы действительно доступны в Real-Debrid.\nTMDb - бесплатный ключ для полного каталога. Gemini - ключ для умного поиска и перевода. YouTube - ключ для поиска и списков.\nOpenSubtitles - ключ API. Сервер ИИ-субтитров - адрес https.\nПомощник (Worker) - необязательный адрес вашего Cloudflare Worker для того, что браузер не может сам (Ktuvit, YouTube без ключа, часть Real-Debrid).\nGoogle Drive, Trakt и страницы выдачи ключей открываются с того же экрана.\nКаждый ключ хранится только в этом браузере, отправляется только своему сервису и никогда не попадает в адрес."
+   }
+  },
+  {
+   "id": "backup",
+   "he": {
+    "title": "גיבוי, שחזור, ייצוא ו-Google Drive",
+    "body": "\"גיבוי ושחזור\" > הורדת גיבוי: קובץ zip עם המשתמשים, ההיסטוריה, המועדפים והחיפושים, באותו מבנה של הגיבוי ב-Kodi. גיבוי מהאתר משתחזר ב-Kodi, וגיבוי מ-Kodi משתחזר כאן. השחזור ממזג - שום דבר לא נמחק.\nייצוא הגדרות: קובץ אחד עם ההגדרות והמפתחות של הדפדפן, עם סיסמה אם רוצים. ייבוא קורא גם קובץ הגדרות שיוצא מ-Kodi (מפתחות TMDb, Gemini, OpenSubtitles ועוד). הכניסה לטלגרם אף פעם לא מיוצאת ולא מיובאת.\nGoogle Drive: התחברות עם חשבון Google, גיבוי לתיקייה \"BN Stream/Backups\", שחזור, סנכרון מועדפים והיסטוריה, העלאת סרטונים וניגון שלהם בנגן של האתר.\nלחיבור Drive מהדפדפן צריך מזהה לקוח OAuth מסוג \"Web application\" (חינם, ב-Google Cloud Console); עמוד Drive מציג בדיוק אילו כתובות להזין שם."
+   },
+   "en": {
+    "title": "Backup, restore, export and Google Drive",
+    "body": "\"Backup and restore\" > Download a backup: a zip with the users, history, favourites and searches, in the same shape as the Kodi backup. A site backup restores in Kodi and a Kodi backup restores here. A restore merges - nothing is deleted.\nExport settings: one file with this browser's settings and keys, with a password if you want. Import also reads a settings file exported from Kodi (TMDb, Gemini, OpenSubtitles keys and more). The Telegram login is never exported or imported.\nGoogle Drive: sign in with a Google account, back up to the \"BN Stream/Backups\" folder, restore, sync favourites and history, upload videos and play them in the site player.\nConnecting Drive from a browser needs an OAuth client id of the \"Web application\" type (free, in the Google Cloud Console); the Drive page shows exactly which addresses to enter there."
+   },
+   "ru": {
+    "title": "Резервная копия, восстановление, экспорт и Google Drive",
+    "body": "«Резервная копия» > Скачать копию: zip с пользователями, историей, избранным и поисками в том же формате, что и в Kodi. Копия с сайта восстанавливается в Kodi, а копия из Kodi - здесь. Восстановление объединяет данные - ничего не удаляется.\nЭкспорт настроек: один файл с настройками и ключами браузера, при желании с паролем. Импорт читает и файл настроек из Kodi (ключи TMDb, Gemini, OpenSubtitles и другие). Вход в Telegram никогда не экспортируется и не импортируется.\nGoogle Drive: вход с аккаунтом Google, копия в папку «BN Stream/Backups», восстановление, синхронизация избранного и истории, загрузка видео и их воспроизведение в плеере сайта.\nДля подключения Drive из браузера нужен идентификатор клиента OAuth типа «Web application» (бесплатно, в Google Cloud Console); страница Drive показывает, какие адреса туда ввести."
+   }
+  },
+  {
+   "id": "tv",
+   "he": {
+    "title": "טלוויזיה, שלט ומקלדת",
+    "body": "בדפדפן של טלוויזיה: החצים עוברים בין הכפתורים, OK / Enter בוחר ו-Back חוזר (או סוגר חלון פתוח).\n\"פרופיל מכשיר\" קובע את הפריסה: אוטומטי, טלוויזיה, טלפון או מחשב. בטלוויזיה הכול גדול יותר ומותאם לצפייה מרחוק.\nבמחשב: / עובר לחיפוש, Esc סוגר חלון. בנגן: רווח - הפעלה והשהיה, חצים ימינה ושמאלה - דילוג, F - מסך מלא, M - השתקה.\nבדפדפן ישן של טלוויזיה ייתכן שחלק מהקבצים לא יתנגנו; האפליקציה ב-Kodi מנגנת כל פורמט, ועמוד \"הורדת Kodi\" מסביר איך להתקין אותה."
+   },
+   "en": {
+    "title": "TV, remote and keyboard",
+    "body": "In a TV browser: the arrows move between buttons, OK / Enter chooses and Back goes back (or closes an open sheet).\n\"Device profile\" sets the layout: automatic, TV, phone or computer. On a TV everything is larger and made for watching from a distance.\nOn a computer: / jumps to search, Esc closes a sheet. In the player: Space - play and pause, Left and Right - seek, F - full screen, M - mute.\nAn old TV browser may not play some files; the Kodi app plays every format, and the \"Download Kodi\" page explains how to install it."
+   },
+   "ru": {
+    "title": "Телевизор, пульт и клавиатура",
+    "body": "В браузере телевизора: стрелки переходят между кнопками, OK / Enter выбирает, Back возвращает (или закрывает открытое окно).\n«Профиль устройства» задаёт раскладку: автоматически, телевизор, телефон или компьютер. На телевизоре всё крупнее и рассчитано на просмотр издалека.\nНа компьютере: / переходит к поиску, Esc закрывает окно. В плеере: пробел - пуск и пауза, стрелки влево и вправо - перемотка, F - полный экран, M - без звука.\nСтарый браузер телевизора может не воспроизводить часть файлов; приложение Kodi воспроизводит любой формат, а страница «Скачать Kodi» объясняет, как его установить."
+   }
+  },
+  {
+   "id": "privacy",
+   "he": {
+    "title": "פרטיות: איפה נשמר המידע",
+    "body": "האתר הוא דף סטטי: אין לו שרת משלו ואין חשבון משתמש. הכול נשמר בדפדפן שלכם.\nמפתחות (TMDb, Gemini, YouTube, OpenSubtitles), הטוקן של Real-Debrid והכניסה לטלגרם נשמרים רק בדפדפן הזה. כל אחד נשלח רק לשירות שלו, בכותרת הבקשה ולא בכתובת.\nהרשימות (משתמשים, מועדפים, היסטוריה) מסתנכרנות רק אם חיברתם טלגרם, ואז הן נשמרות מוצפנות ב\"הודעות שמורות\" של החשבון שלכם.\n\"ניקוי מטמון\" ו\"איפוס הגדרות הדפדפן\" נמצאים ב\"שירותים\" > כלים. ניתוק מטלגרם מוחק את הכניסה מהדפדפן.\nהאתר משתמש רק במקורות חוקיים וגלויים, אותם מקורות של האפליקציה ב-Kodi."
+   },
+   "en": {
+    "title": "Privacy: where the data lives",
+    "body": "The site is a static page: it has no server of its own and no user account. Everything is kept in your browser.\nKeys (TMDb, Gemini, YouTube, OpenSubtitles), the Real-Debrid token and the Telegram login stay in this browser only. Each one is sent only to its own service, in a request header and not in an address.\nThe lists (users, favourites, history) sync only when you connected Telegram, and then they are kept encrypted in the Saved Messages of your own account.\n\"Clear the cache\" and \"Reset this browser's settings\" are under Services > Tools. Disconnecting Telegram removes the login from the browser.\nThe site uses only legal, open sources, the same ones as the Kodi app."
+   },
+   "ru": {
+    "title": "Конфиденциальность: где хранятся данные",
+    "body": "Сайт - статическая страница: у него нет своего сервера и нет учётной записи. Всё хранится в вашем браузере.\nКлючи (TMDb, Gemini, YouTube, OpenSubtitles), токен Real-Debrid и вход в Telegram хранятся только в этом браузере. Каждый отправляется только своему сервису, в заголовке запроса, а не в адресе.\nСписки (пользователи, избранное, история) синхронизируются, только если вы подключили Telegram, и тогда хранятся зашифрованными в «Избранном» вашего аккаунта.\n«Очистить кэш» и «Сбросить настройки браузера» находятся в «Сервисы» > Инструменты. Отключение Telegram удаляет вход из браузера.\nСайт использует только легальные открытые источники, те же, что и приложение Kodi."
+   }
+  },
+  {
+   "id": "kodi",
+   "he": {
+    "title": "האתר מול האפליקציה ב-Kodi",
+    "body": "האתר והאפליקציה ב-Kodi חולקים את אותם משתמשים, מועדפים, היסטוריה ונקודות המשך (דרך טלגרם), ואותם מקורות.\nמה ש-Kodi עושה טוב יותר: מנגן כל פורמט (MKV, HEVC, AC3 / DTS), ערוצי Idan+ ושידורי http, הקלטה, ושרת הכתוביות הביתי בלי https.\nמה שהאתר עושה טוב יותר: נפתח בכל מכשיר בלי התקנה, מתעדכן לבד, ועובד בטלפון.\nכשמשהו לא מתנגן בדפדפן, האתר מציע פתיחה בנגן חיצוני או ב-Kodi. עמוד \"הורדת Kodi\" מוביל להתקנה."
+   },
+   "en": {
+    "title": "The site and the Kodi app",
+    "body": "The site and the Kodi app share the same users, favourites, history and resume points (through Telegram), and the same sources.\nWhat Kodi does better: it plays every format (MKV, HEVC, AC3 / DTS), the Idan+ channels and http streams, recording, and the home subtitle server without https.\nWhat the site does better: it opens on any device with nothing to install, updates itself, and works on a phone.\nWhen something does not play in a browser the site offers to open it in an external player or in Kodi. The \"Download Kodi\" page leads to the installation."
+   },
+   "ru": {
+    "title": "Сайт и приложение Kodi",
+    "body": "Сайт и приложение Kodi используют одних и тех же пользователей, избранное, историю и точки продолжения (через Telegram) и одни и те же источники.\nЧто Kodi делает лучше: воспроизводит любой формат (MKV, HEVC, AC3 / DTS), каналы Idan+ и потоки http, запись, домашний сервер субтитров без https.\nЧто сайт делает лучше: открывается на любом устройстве без установки, обновляется сам и работает на телефоне.\nКогда что-то не воспроизводится в браузере, сайт предлагает открыть это во внешнем плеере или в Kodi. Страница «Скачать Kodi» ведёт к установке."
+   }
+  }
  ]
 }

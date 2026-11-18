@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-4.3.0.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-5.0.0.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -33,13 +33,54 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 4.3.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 4.3.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 4.3.0 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 5.0.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 5.0.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 5.0.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 4.3.0 | This repository |
+| `repository.telenova` | 5.0.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 5.0.0 (2026-11-18) - apps for Android and iOS, every file type in the browser, weak connections
+
+**Apps** (they show the web version, so a web update arrives with a refresh - no new install):
+
+- Android: [`apk/TeleNova.apk`](https://bennymat93.github.io/TeleNova/apk/TeleNova.apk) - one APK for phones, tablets,
+  Android TV and car units; a files screen for backups / exports. Details and what was verified: [`apk/README.md`](apk/README.md).
+- iPhone / iPad: [`ios/TeleNova-Web-5.1.0.ipa`](https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-5.1.0.ipa),
+  **unsigned** - sign it yourself (Sideloadly / AltStore / your own certificate): [`ios/README-app.md`](ios/README-app.md).
+  Built on GitHub Actions (`.github/workflows/ios-app.yml`); not run on a real device by us.
+
+**Web version 5.1**
+
+- **Every file type plays.** What a browser cannot decode - MKV / AVI / MPEG-TS, HEVC, AC3 / E-AC3 / DTS sound - goes
+  to a built-in engine by itself (`web/compat.js`, libmedia AVPlayer 1.3.1, LGPL, in `web/vendor/avplayer-1.3.1/`),
+  from the position reached and behind the same buttons. Checked in Chromium with MKV HEVC + AC3, MKV H.264 + DTS and
+  AVI XviD + MP3. Not checked: Safari / iOS, a real Telegram file, subtitles inside the file. 4K HEVC decoded in
+  software is slow on weak devices.
+- **Display size**: 100 % by default; − / + buttons or a typed percentage (50-200) on the More page and in
+  Settings > General. No automatic zoom while typing.
+- **Weak connections**: every HLS stream starts at the quality the line gave last time, holds a 60-180 s buffer, asks
+  again for a segment that did not arrive (8 times), reconnects (6 times, growing waits) and steps one quality level
+  down after three stops within a minute instead of stopping.
+
+**Kodi build**
+
+- **Files are judged against the connection, not only against their source** (`linkspeed.py`): a short download
+  measures the line (at most 4 s, kept 10 minutes; 24 Mbit/s and more = no limit). Files that need more than three
+  quarters of it are not listed, a lighter copy goes first, and when nothing fits the three lightest stay, marked.
+- **A player that keeps stopping to load is noticed** (`slowwatch.py` in the hub): three stops, or 25 s of loading,
+  within three minutes -> one notice, and the engine measures the line again before the next list of links.
+  Unit-tested (`qa/t_linkspeed.py`, `qa/t_slowwatch.py`); starts cleanly in Kodi; **not yet seen on a really slow line**.
+- **Every link gets a recommendation, 0-100 %, and the list is sorted by it** (`recommend.py`; in the browser
+  `recOf` in `web/sources.js`): right file 30 + link tested and working 25 + smooth on this connection now 25
+  (the line is sampled three times, the middle reading counts) + Hebrew sound / subtitles 12 + picture 8.
+  An untested link is never above 60, a doubtful match never above 45, a file the connection or the device
+  cannot handle never above 35. The row starts with the number and its tier (highly recommended / recommended /
+  fair / less recommended); the details window shows what it is made of. Unit-tested (`qa/t_recommend.py`,
+  `t_sources.js`); **not seen on real Telegram links** - Telegram is not connected in the Kodi of the build PC.
+- Everything of 4.3.0 below (62 world channels, paged Telegram search, media flags, TV failure log).
+- The guides were updated: `guide.html` ("מה חדש בגרסה 5.0"), the help inside Kodi and inside the web version, this file.
 
 ## TeleNova 4.3.0 (2026-11-18) - web version 5.0, more channels, deeper Telegram search
 

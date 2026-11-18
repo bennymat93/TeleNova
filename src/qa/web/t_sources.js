@@ -28,4 +28,30 @@ eq(S.addonBase('javascript:alert(1)'), '');
 eq(S.keyOf({type: 'tv', id: '1399', season: 1, episode: 3}), 'tv:1399:1:3');
 eq(S.keyOf({type: 'movie', id: '603'}), 'movie:603');
 eq([S.quality('Film.WEB-DL.720p'), S.quality('x'), S.sizeBytes('💾 700 MB'), S.sizeText(1610612736)], [720, 0, 734003200, '1.5 GB']);
+// 5.1: the recommendation number (recOf) and the order it gives
+const yes = (c, m) => { assert.ok(c, m); n++; };
+const row = (label, o) => Object.assign({label, quality: S.quality(label), lang: '', size: 2e9, status: 'direct'}, o || {});
+const good = S.recOf(row('Film.2020.1080p.WEB-DL.x264.AAC.mp4', {lang: 'he', probe: {ok: true, mbit: 40, verdict: {play: 'yes'}}}), 'he', 0);
+yes(good.pct >= 90 && good.tier === 'top' && good.flags.includes('tested'), 'tested, fast, plays here, wanted language: highly recommended (' + good.pct + ')');
+const untested = S.recOf(row('Film.2020.1080p.WEB-DL.x264.AAC.mp4', {lang: 'he'}), 'he', 0);
+yes(untested.pct <= 60 && untested.flags.includes('untested'), 'not tested: at most 60 (' + untested.pct + ')');
+eq(S.recOf(row('x.1080p.mp4', {dead: true}), '', 0).pct, 0, 'a dead link');
+eq(S.recOf(row('x.1080p.mp4', {probe: {ok: false}}), '', 0).pct, 0, 'a link that failed its test');
+const cached = S.recOf(row('Film.1080p.mkv', {status: 'cached'}), '', 0), rdLater = S.recOf(row('Film.1080p.mkv', {status: 'rd'}), '', 0);
+yes(cached.pct > rdLater.pct && cached.flags.includes('cached'), 'a cached file is above one Real-Debrid must download first');
+yes(S.recOf(row('Film.1080p.mkv', {status: 'torrent'}), '', 0).pct <= 30, 'what cannot play here is at the bottom');
+const hard = S.recOf(row('Film.2160p.HEVC.DTS.mkv', {probe: {ok: true, mbit: 80, verdict: {play: 'no', why: 'video'}}}), '', 0);
+const easy = S.recOf(row('Film.1080p.x264.AAC.mp4', {probe: {ok: true, mbit: 80, verdict: {play: 'yes'}}}), '', 0);
+yes(easy.pct > hard.pct, 'a file this browser plays itself is above one that needs the built-in engine');
+// a weak line: 4 Mbit/s measured last time
+const slow4k = S.recOf(row('Film.2160p.x264.mp4', {probe: {ok: true, mbit: 60, verdict: {play: 'yes'}}}), '', 4e6);
+const slow720 = S.recOf(row('Film.720p.x264.mp4', {probe: {ok: true, mbit: 60, verdict: {play: 'yes'}}}), '', 4e6);
+yes(slow720.pct > slow4k.pct, 'on a weak connection the lighter picture is recommended more (' + slow720.pct + ' > ' + slow4k.pct + ')');
+const fast4k = S.recOf(row('Film.2160p.x264.mp4', {probe: {ok: true, mbit: 60, verdict: {play: 'yes'}}}), '', 80e6);
+const fast720 = S.recOf(row('Film.720p.x264.mp4', {probe: {ok: true, mbit: 60, verdict: {play: 'yes'}}}), '', 80e6);
+yes(fast4k.pct >= fast720.pct, 'on a fast one the sharper picture is not behind');
+const sorted = S.sortRows([row('C.720p.mp4'), row('A.1080p.mp4', {probe: {ok: true, mbit: 30, verdict: {play: 'yes'}}}), row('D.1080p.mp4', {dead: true}),
+  row('B.1080p.mp4', {status: 'cached'})], '');
+eq(sorted.map((r) => r.label[0]).join(''), 'ABCD', 'the list: tested and recommended first, dead last');
+yes(sorted.every((r) => r.rec && typeof r.rec.pct === 'number'), 'every row carries its number');
 console.log('t_sources OK (' + n + ' checks)');

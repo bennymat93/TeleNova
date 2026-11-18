@@ -2,53 +2,311 @@
  "_help": "Troubleshooting table of the WEB version (Help page): problem | causes | fix, he + en + ru. Not the Kodi table.",
  "edition": "web",
  "rows": [
-  {"he": ["הסרט לא מתנגן (\"הדפדפן לא יכול לנגן את הקובץ\")", "הקובץ הוא MKV / HEVC או עם שמע AC3 / DTS, שדפדפנים לא תמיד מנגנים", "בחרו \"קישור אחר\" מרשימת המקורות (עדיף MP4 או WEB-DL); או פתחו בנגן חיצוני (VLC) או באפליקציה ב-Kodi"],
-   "en": ["The film does not play (\"this browser cannot play this file\")", "The file is MKV / HEVC or has AC3 / DTS audio, which browsers do not always play", "Choose \"Another link\" in the source list (an MP4 or WEB-DL is safest); or open it in an external player (VLC) or in the Kodi app"],
-   "ru": ["Фильм не воспроизводится («браузер не может воспроизвести файл»)", "Файл MKV / HEVC или со звуком AC3 / DTS, которые браузеры воспроизводят не всегда", "Выберите «Другая ссылка» в списке источников (надёжнее MP4 или WEB-DL); или откройте во внешнем плеере (VLC) или в приложении Kodi"]},
-  {"he": ["יש תמונה ואין קול", "רצועת השמע בפורמט AC3 / DTS / E-AC3", "בנגן: שמע > רצועה אחרת (AAC); או מקור אחר; או נגן חיצוני / Kodi"],
-   "en": ["Picture but no sound", "The audio track is AC3 / DTS / E-AC3", "In the player: Audio > another track (AAC); or another source; or an external player / Kodi"],
-   "ru": ["Есть изображение, нет звука", "Звуковая дорожка в формате AC3 / DTS / E-AC3", "В плеере: Звук > другая дорожка (AAC); или другой источник; или внешний плеер / Kodi"]},
-  {"he": ["הווידאו נעצר לטעינה", "אינטרנט איטי או לא יציב; מקור עמוס; קובץ גדול מדי לחיבור", "מצב המערכת > בדיקת מהירות; בחרו מקור באיכות נמוכה יותר (720p); חיבור קווי או Wi-Fi 5GHz"],
-   "en": ["The video keeps buffering", "Slow or unstable internet; a busy source; a file too large for the connection", "Status > Speed test; choose a lower quality source (720p); a wired connection or 5 GHz Wi-Fi"],
-   "ru": ["Видео постоянно буферизуется", "Медленный или нестабильный интернет; перегруженный источник; файл слишком большой для соединения", "Состояние > Тест скорости; выберите источник с меньшим качеством (720p); проводное соединение или Wi-Fi 5 ГГц"]},
-  {"he": ["הקוד של טלגרם לא מגיע", "לחשבון יש כבר מכשיר מחובר, ולכן טלגרם שולח את הקוד כהודעה בתוך האפליקציה ולא ב-SMS", "פתחו את אפליקציית טלגרם בטלפון וחפשו הודעה מ-\"Telegram\"; או התחברו בסריקת קוד QR; או בקשו \"שליחה ב-SMS\" אחרי ההמתנה"],
-   "en": ["The Telegram code does not arrive", "The account already has a connected device, so Telegram sends the code as a message inside the app, not by SMS", "Open the Telegram app on the phone and look for a message from \"Telegram\"; or sign in by scanning the QR code; or ask for \"Send by SMS\" after the wait"],
-   "ru": ["Код Telegram не приходит", "У аккаунта уже есть подключённое устройство, поэтому Telegram присылает код сообщением в приложении, а не по SMS", "Откройте приложение Telegram на телефоне и найдите сообщение от «Telegram»; или войдите по QR-коду; или запросите «Отправить по SMS» после ожидания"]},
-  {"he": ["האתר מבקש API ID ו-API Hash", "טלגרם דורש מכל אפליקציה מזהה משלה לחשבון", "ב-Kodi: שירותים וחיבורים > חיבור גרסת הדפדפן, וסרקו את הקוד; בלי Kodi: צרו אותם פעם אחת ב-my.telegram.org והזינו בעמוד ההתחברות"],
-   "en": ["The site asks for an API ID and API Hash", "Telegram requires every app to have its own id for the account", "In Kodi: Services and accounts > Connect web version, and scan the code; without Kodi: create them once at my.telegram.org and enter them on the sign-in page"],
-   "ru": ["Сайт просит API ID и API Hash", "Telegram требует от каждого приложения собственный идентификатор", "В Kodi: «Сервисы и аккаунты» > «Подключить веб-версию» и отсканируйте код; без Kodi: создайте их один раз на my.telegram.org и введите на странице входа"]},
-  {"he": ["הסנכרון לא עובד / \"אין מסמך סנכרון\"", "הדפדפן לא מחובר לטלגרם; או שבחשבון עוד לא נוצר מסמך הסנכרון", "שירותים > טלגרם > סנכרון עכשיו; אם אין מסמך: גיבוי ושחזור > יצירת מסמך הסנכרון; ודאו שכל המכשירים מחוברים לאותו חשבון טלגרם"],
-   "en": ["Sync does not work / \"no sync document\"", "The browser is not connected to Telegram; or the account has no sync document yet", "Services > Telegram > Sync now; with no document: Backup and restore > Create the sync document; make sure every device is on the same Telegram account"],
-   "ru": ["Синхронизация не работает / «нет документа синхронизации»", "Браузер не подключён к Telegram; или в аккаунте ещё нет документа синхронизации", "Сервисы > Telegram > Синхронизировать; если документа нет: Резервная копия > Создать документ синхронизации; убедитесь, что все устройства в одном аккаунте Telegram"]},
-  {"he": ["הקטלוג באנגלית / חסרות רשימות ישראליות", "אין מפתח TMDb, והקטלוג פועל דרך Cinemeta", "שירותים > TMDb: הזינו מפתח חינמי (הכפתור פותח את דף קבלת המפתח); או חברו טלגרם - המפתח מ-Kodi מסתנכרן לבד"],
-   "en": ["The catalogue is in English / Israeli lists are missing", "There is no TMDb key, so the catalogue runs on Cinemeta", "Services > TMDb: enter a free key (the button opens the page that issues it); or connect Telegram - the key from Kodi syncs by itself"],
-   "ru": ["Каталог на английском / нет израильских списков", "Нет ключа TMDb, каталог работает через Cinemeta", "Сервисы > TMDb: введите бесплатный ключ (кнопка открывает страницу выдачи); или подключите Telegram - ключ из Kodi синхронизируется сам"]},
-  {"he": ["YouTube: החיפוש ריק", "יוטיוב לא מאפשר לדפדפן לחפש בלי מפתח", "שירותים > YouTube: מפתח YouTube Data API חינמי, או כתובת עוזר (Worker). ניגון, קישורים ופלייליסטים עובדים גם בלי"],
-   "en": ["YouTube: the search is empty", "YouTube does not let a browser search without a key", "Services > YouTube: a free YouTube Data API key, or a helper (Worker) address. Playing, links and playlists work without either"],
-   "ru": ["YouTube: поиск пуст", "YouTube не даёт браузеру искать без ключа", "Сервисы > YouTube: бесплатный ключ YouTube Data API или адрес помощника (Worker). Воспроизведение, ссылки и плейлисты работают и без них"]},
-  {"he": ["ערוץ טלוויזיה לא נפתח", "השידור חסום מחוץ לישראל; כתובת http; הערוץ זמין רק דרך תוסף של Kodi", "נסו את אותו ערוץ מרשימה אחרת; ערוצים שמסומנים KODI מתנגנים באפליקציה ב-Kodi; בחו\"ל - VPN לישראל"],
-   "en": ["A TV channel does not open", "The broadcast is blocked outside Israel; an http address; the channel exists only through a Kodi add-on", "Try the same channel from another list; channels marked KODI play in the Kodi app; abroad - a VPN to Israel"],
-   "ru": ["Телеканал не открывается", "Трансляция закрыта за пределами Израиля; адрес http; канал доступен только через дополнение Kodi", "Попробуйте тот же канал из другого списка; каналы с меткой KODI воспроизводятся в приложении Kodi; за границей - VPN в Израиль"]},
-  {"he": ["אין כתוביות בעברית", "לא נמצאו כתוביות לגרסה הזאת; מקור הכתוביות כבוי; חסר מפתח", "ספרייה: ודאו ש-Wizdom פעיל; שירותים: מפתח OpenSubtitles; עם מפתח Gemini אפשר לתרגם כתובית באנגלית; או טענו קובץ SRT"],
-   "en": ["No Hebrew subtitles", "None found for this release; the subtitle source is off; a key is missing", "Library: check that Wizdom is on; Services: an OpenSubtitles key; with a Gemini key an English subtitle can be translated; or load an SRT file"],
-   "ru": ["Нет субтитров на нужном языке", "Для этого релиза не найдено; источник субтитров выключен; нет ключа", "Библиотека: проверьте, что Wizdom включён; Сервисы: ключ OpenSubtitles; с ключом Gemini английские субтитры можно перевести; или загрузите файл SRT"]},
-  {"he": ["הכתוביות לא מסונכרנות", "הכתובית נעשתה לגרסה אחרת של הסרט", "בתפריט הכתוביות: הזזת התזמון בצעדים קטנים; או בחירת כתובית אחרת מהרשימה"],
-   "en": ["Subtitles are out of sync", "The subtitle was made for another release", "In the subtitle menu: shift the timing in small steps; or choose another subtitle from the list"],
-   "ru": ["Субтитры не совпадают по времени", "Субтитры сделаны для другого релиза", "В меню субтитров: сдвиньте время малыми шагами; или выберите другие субтитры из списка"]},
-  {"he": ["Real-Debrid: \"צריך עוזר\" או שאין מקורות", "חלק מה-API של Real-Debrid לא עונה לדפדפן; הטוקן פג; החשבון לא פרימיום", "שירותים > Real-Debrid: התחברו מחדש בקוד; ודאו שהמנוי בתוקף; הגדירו כתובת עוזר (Worker) אם ההודעה חוזרת"],
-   "en": ["Real-Debrid: \"needs the helper\" or no sources", "Part of the Real-Debrid API does not answer a browser; the token expired; the account is not premium", "Services > Real-Debrid: sign in again with a code; check the subscription; set a helper (Worker) address if the message returns"],
-   "ru": ["Real-Debrid: «нужен помощник» или нет источников", "Часть API Real-Debrid не отвечает браузеру; токен истёк; аккаунт не премиум", "Сервисы > Real-Debrid: войдите снова по коду; проверьте подписку; укажите адрес помощника (Worker), если сообщение повторяется"]},
-  {"he": ["Google Drive: חלון הכניסה לא נפתח או נכשל", "הדפדפן חסם חלון קופץ; מזהה הלקוח לא מסוג Web application; הכתובות ב-Google Cloud לא תואמות", "אפשרו חלונות קופצים או בחרו \"כניסה באותה לשונית\"; העתיקו את שתי הכתובות שמוצגות בעמוד Drive אל Google Cloud Console"],
-   "en": ["Google Drive: the sign-in window does not open or fails", "The browser blocked the pop-up; the client id is not of the Web application type; the addresses in Google Cloud do not match", "Allow pop-ups or choose \"Sign in in this tab\"; copy the two addresses shown on the Drive page into the Google Cloud Console"],
-   "ru": ["Google Drive: окно входа не открывается или вход не удаётся", "Браузер заблокировал всплывающее окно; идентификатор клиента не типа Web application; адреса в Google Cloud не совпадают", "Разрешите всплывающие окна или выберите «Войти в этой вкладке»; скопируйте два адреса со страницы Drive в Google Cloud Console"]},
-  {"he": ["האתר לא מתעדכן / מסך ישן", "הדפדפן מציג גרסה שמורה", "שירותים > כלים > עדכון האפליקציה; אם לא עזר: תיקון - ניקוי מטמון (הרשימות והחיבורים נשארים)"],
-   "en": ["The site does not update / an old screen", "The browser shows a stored version", "Services > Tools > Update the app; if that does not help: Repair - clear the cache (your lists and connections stay)"],
-   "ru": ["Сайт не обновляется / старый экран", "Браузер показывает сохранённую версию", "Сервисы > Инструменты > Обновить приложение; если не помогло: Исправить - очистить кэш (списки и подключения сохранятся)"]},
-  {"he": ["בטלוויזיה: החצים לא זזים / הכול קטן", "הדפדפן לא זוהה כטלוויזיה", "פרופיל מכשיר > טלוויזיה; Back סוגר חלון פתוח; אם הדפדפן ישן מדי - האפליקציה ב-Kodi"],
-   "en": ["On a TV: the arrows do not move / everything is small", "The browser was not recognised as a TV", "Device profile > TV; Back closes an open sheet; if the browser is too old - the Kodi app"],
-   "ru": ["На телевизоре: стрелки не работают / всё мелко", "Браузер не распознан как телевизор", "Профиль устройства > Телевизор; Back закрывает открытое окно; если браузер слишком старый - приложение Kodi"]},
-  {"he": ["שרת הכתוביות AI לא נגיש מהאתר", "לשרת יש כתובת http מקומית; אתר https לא יכול לפנות אליה", "פרסמו את השרת בכתובת https (Tailscale Funnel / Cloudflare Tunnel) והזינו אותה בשירותים > שרת כתוביות AI"],
-   "en": ["The AI subtitle server cannot be reached from the site", "The server has a local http address; an https site cannot call it", "Publish the server at an https address (Tailscale Funnel / Cloudflare Tunnel) and enter it in Services > AI subtitle server"],
-   "ru": ["Сервер ИИ-субтитров недоступен с сайта", "У сервера локальный адрес http; сайт https не может к нему обратиться", "Опубликуйте сервер по адресу https (Tailscale Funnel / Cloudflare Tunnel) и введите его в Сервисы > Сервер ИИ-субтитров"]}
+  {
+   "he": [
+    "הסרט לא מתנגן, או מתנגן בלי תמונה / בלי קול",
+    "הקובץ הוא MKV / AVI / HEVC או עם שמע AC3 / DTS. מגרסה 5.1 הנגן המובנה נכנס לבד במקרה כזה; בסרטון 4K כבד במכשיר חלש הוא עלול להיות איטי",
+    "המתינו כמה שניות למעבר לנגן המובנה. אם הוא איטי או נכשל: \"קישור אחר\" מרשימת המקורות (עדיף 1080p / MP4), או פתיחה ב-VLC / ב-Kodi"
+   ],
+   "en": [
+    "The film does not play, or plays with no picture / no sound",
+    "The file is MKV / AVI / HEVC or has AC3 / DTS sound. Since 5.1 the built-in engine takes over by itself; a heavy 4K video may be slow on a weak device",
+    "Wait a few seconds for the built-in engine. If it is slow or fails: \"Another link\" from the list of sources (1080p / MP4 is best), or open in VLC / in Kodi"
+   ],
+   "ru": [
+    "Фильм не воспроизводится или идёт без картинки / без звука",
+    "Файл MKV / AVI / HEVC или со звуком AC3 / DTS. С версии 5.1 встроенный плеер включается сам; тяжёлое 4K-видео на слабом устройстве может идти медленно",
+    "Подождите несколько секунд, пока включится встроенный плеер. Если он медленный или не справился: «Другая ссылка» в списке источников (лучше 1080p / MP4) либо откройте в VLC / в Kodi"
+   ]
+  },
+  {
+   "he": [
+    "יש תמונה ואין קול",
+    "רצועת השמע בפורמט AC3 / DTS / E-AC3",
+    "בנגן: שמע > רצועה אחרת (AAC); או מקור אחר; או נגן חיצוני / Kodi"
+   ],
+   "en": [
+    "Picture but no sound",
+    "The audio track is AC3 / DTS / E-AC3",
+    "In the player: Audio > another track (AAC); or another source; or an external player / Kodi"
+   ],
+   "ru": [
+    "Есть изображение, нет звука",
+    "Звуковая дорожка в формате AC3 / DTS / E-AC3",
+    "В плеере: Звук > другая дорожка (AAC); или другой источник; или внешний плеер / Kodi"
+   ]
+  },
+  {
+   "he": [
+    "הווידאו נעצר לטעינה",
+    "אינטרנט איטי או לא יציב; מקור עמוס; קובץ גדול מדי לחיבור",
+    "מצב המערכת > בדיקת מהירות; בחרו מקור באיכות נמוכה יותר (720p); חיבור קווי או Wi-Fi 5GHz"
+   ],
+   "en": [
+    "The video keeps buffering",
+    "Slow or unstable internet; a busy source; a file too large for the connection",
+    "Status > Speed test; choose a lower quality source (720p); a wired connection or 5 GHz Wi-Fi"
+   ],
+   "ru": [
+    "Видео постоянно буферизуется",
+    "Медленный или нестабильный интернет; перегруженный источник; файл слишком большой для соединения",
+    "Состояние > Тест скорости; выберите источник с меньшим качеством (720p); проводное соединение или Wi-Fi 5 ГГц"
+   ]
+  },
+  {
+   "he": [
+    "הקוד של טלגרם לא מגיע",
+    "לחשבון יש כבר מכשיר מחובר, ולכן טלגרם שולח את הקוד כהודעה בתוך האפליקציה ולא ב-SMS",
+    "פתחו את אפליקציית טלגרם בטלפון וחפשו הודעה מ-\"Telegram\"; או התחברו בסריקת קוד QR; או בקשו \"שליחה ב-SMS\" אחרי ההמתנה"
+   ],
+   "en": [
+    "The Telegram code does not arrive",
+    "The account already has a connected device, so Telegram sends the code as a message inside the app, not by SMS",
+    "Open the Telegram app on the phone and look for a message from \"Telegram\"; or sign in by scanning the QR code; or ask for \"Send by SMS\" after the wait"
+   ],
+   "ru": [
+    "Код Telegram не приходит",
+    "У аккаунта уже есть подключённое устройство, поэтому Telegram присылает код сообщением в приложении, а не по SMS",
+    "Откройте приложение Telegram на телефоне и найдите сообщение от «Telegram»; или войдите по QR-коду; или запросите «Отправить по SMS» после ожидания"
+   ]
+  },
+  {
+   "he": [
+    "האתר מבקש API ID ו-API Hash",
+    "טלגרם דורש מכל אפליקציה מזהה משלה לחשבון",
+    "ב-Kodi: שירותים וחיבורים > חיבור גרסת הדפדפן, וסרקו את הקוד; בלי Kodi: צרו אותם פעם אחת ב-my.telegram.org והזינו בעמוד ההתחברות"
+   ],
+   "en": [
+    "The site asks for an API ID and API Hash",
+    "Telegram requires every app to have its own id for the account",
+    "In Kodi: Services and accounts > Connect web version, and scan the code; without Kodi: create them once at my.telegram.org and enter them on the sign-in page"
+   ],
+   "ru": [
+    "Сайт просит API ID и API Hash",
+    "Telegram требует от каждого приложения собственный идентификатор",
+    "В Kodi: «Сервисы и аккаунты» > «Подключить веб-версию» и отсканируйте код; без Kodi: создайте их один раз на my.telegram.org и введите на странице входа"
+   ]
+  },
+  {
+   "he": [
+    "הסנכרון לא עובד / \"אין מסמך סנכרון\"",
+    "הדפדפן לא מחובר לטלגרם; או שבחשבון עוד לא נוצר מסמך הסנכרון",
+    "שירותים > טלגרם > סנכרון עכשיו; אם אין מסמך: גיבוי ושחזור > יצירת מסמך הסנכרון; ודאו שכל המכשירים מחוברים לאותו חשבון טלגרם"
+   ],
+   "en": [
+    "Sync does not work / \"no sync document\"",
+    "The browser is not connected to Telegram; or the account has no sync document yet",
+    "Services > Telegram > Sync now; with no document: Backup and restore > Create the sync document; make sure every device is on the same Telegram account"
+   ],
+   "ru": [
+    "Синхронизация не работает / «нет документа синхронизации»",
+    "Браузер не подключён к Telegram; или в аккаунте ещё нет документа синхронизации",
+    "Сервисы > Telegram > Синхронизировать; если документа нет: Резервная копия > Создать документ синхронизации; убедитесь, что все устройства в одном аккаунте Telegram"
+   ]
+  },
+  {
+   "he": [
+    "הקטלוג באנגלית / חסרות רשימות ישראליות",
+    "אין מפתח TMDb, והקטלוג פועל דרך Cinemeta",
+    "שירותים > TMDb: הזינו מפתח חינמי (הכפתור פותח את דף קבלת המפתח); או חברו טלגרם - המפתח מ-Kodi מסתנכרן לבד"
+   ],
+   "en": [
+    "The catalogue is in English / Israeli lists are missing",
+    "There is no TMDb key, so the catalogue runs on Cinemeta",
+    "Services > TMDb: enter a free key (the button opens the page that issues it); or connect Telegram - the key from Kodi syncs by itself"
+   ],
+   "ru": [
+    "Каталог на английском / нет израильских списков",
+    "Нет ключа TMDb, каталог работает через Cinemeta",
+    "Сервисы > TMDb: введите бесплатный ключ (кнопка открывает страницу выдачи); или подключите Telegram - ключ из Kodi синхронизируется сам"
+   ]
+  },
+  {
+   "he": [
+    "YouTube: החיפוש ריק",
+    "יוטיוב לא מאפשר לדפדפן לחפש בלי מפתח",
+    "שירותים > YouTube: מפתח YouTube Data API חינמי, או כתובת עוזר (Worker). ניגון, קישורים ופלייליסטים עובדים גם בלי"
+   ],
+   "en": [
+    "YouTube: the search is empty",
+    "YouTube does not let a browser search without a key",
+    "Services > YouTube: a free YouTube Data API key, or a helper (Worker) address. Playing, links and playlists work without either"
+   ],
+   "ru": [
+    "YouTube: поиск пуст",
+    "YouTube не даёт браузеру искать без ключа",
+    "Сервисы > YouTube: бесплатный ключ YouTube Data API или адрес помощника (Worker). Воспроизведение, ссылки и плейлисты работают и без них"
+   ]
+  },
+  {
+   "he": [
+    "ערוץ טלוויזיה לא נפתח",
+    "השידור חסום מחוץ לישראל; כתובת http; הערוץ זמין רק דרך תוסף של Kodi",
+    "נסו את אותו ערוץ מרשימה אחרת; ערוצים שמסומנים KODI מתנגנים באפליקציה ב-Kodi; בחו\"ל - VPN לישראל"
+   ],
+   "en": [
+    "A TV channel does not open",
+    "The broadcast is blocked outside Israel; an http address; the channel exists only through a Kodi add-on",
+    "Try the same channel from another list; channels marked KODI play in the Kodi app; abroad - a VPN to Israel"
+   ],
+   "ru": [
+    "Телеканал не открывается",
+    "Трансляция закрыта за пределами Израиля; адрес http; канал доступен только через дополнение Kodi",
+    "Попробуйте тот же канал из другого списка; каналы с меткой KODI воспроизводятся в приложении Kodi; за границей - VPN в Израиль"
+   ]
+  },
+  {
+   "he": [
+    "אין כתוביות בעברית",
+    "לא נמצאו כתוביות לגרסה הזאת; מקור הכתוביות כבוי; חסר מפתח",
+    "ספרייה: ודאו ש-Wizdom פעיל; שירותים: מפתח OpenSubtitles; עם מפתח Gemini אפשר לתרגם כתובית באנגלית; או טענו קובץ SRT"
+   ],
+   "en": [
+    "No Hebrew subtitles",
+    "None found for this release; the subtitle source is off; a key is missing",
+    "Library: check that Wizdom is on; Services: an OpenSubtitles key; with a Gemini key an English subtitle can be translated; or load an SRT file"
+   ],
+   "ru": [
+    "Нет субтитров на нужном языке",
+    "Для этого релиза не найдено; источник субтитров выключен; нет ключа",
+    "Библиотека: проверьте, что Wizdom включён; Сервисы: ключ OpenSubtitles; с ключом Gemini английские субтитры можно перевести; или загрузите файл SRT"
+   ]
+  },
+  {
+   "he": [
+    "הכתוביות לא מסונכרנות",
+    "הכתובית נעשתה לגרסה אחרת של הסרט",
+    "בתפריט הכתוביות: הזזת התזמון בצעדים קטנים; או בחירת כתובית אחרת מהרשימה"
+   ],
+   "en": [
+    "Subtitles are out of sync",
+    "The subtitle was made for another release",
+    "In the subtitle menu: shift the timing in small steps; or choose another subtitle from the list"
+   ],
+   "ru": [
+    "Субтитры не совпадают по времени",
+    "Субтитры сделаны для другого релиза",
+    "В меню субтитров: сдвиньте время малыми шагами; или выберите другие субтитры из списка"
+   ]
+  },
+  {
+   "he": [
+    "Real-Debrid: \"צריך עוזר\" או שאין מקורות",
+    "חלק מה-API של Real-Debrid לא עונה לדפדפן; הטוקן פג; החשבון לא פרימיום",
+    "שירותים > Real-Debrid: התחברו מחדש בקוד; ודאו שהמנוי בתוקף; הגדירו כתובת עוזר (Worker) אם ההודעה חוזרת"
+   ],
+   "en": [
+    "Real-Debrid: \"needs the helper\" or no sources",
+    "Part of the Real-Debrid API does not answer a browser; the token expired; the account is not premium",
+    "Services > Real-Debrid: sign in again with a code; check the subscription; set a helper (Worker) address if the message returns"
+   ],
+   "ru": [
+    "Real-Debrid: «нужен помощник» или нет источников",
+    "Часть API Real-Debrid не отвечает браузеру; токен истёк; аккаунт не премиум",
+    "Сервисы > Real-Debrid: войдите снова по коду; проверьте подписку; укажите адрес помощника (Worker), если сообщение повторяется"
+   ]
+  },
+  {
+   "he": [
+    "Google Drive: חלון הכניסה לא נפתח או נכשל",
+    "הדפדפן חסם חלון קופץ; מזהה הלקוח לא מסוג Web application; הכתובות ב-Google Cloud לא תואמות",
+    "אפשרו חלונות קופצים או בחרו \"כניסה באותה לשונית\"; העתיקו את שתי הכתובות שמוצגות בעמוד Drive אל Google Cloud Console"
+   ],
+   "en": [
+    "Google Drive: the sign-in window does not open or fails",
+    "The browser blocked the pop-up; the client id is not of the Web application type; the addresses in Google Cloud do not match",
+    "Allow pop-ups or choose \"Sign in in this tab\"; copy the two addresses shown on the Drive page into the Google Cloud Console"
+   ],
+   "ru": [
+    "Google Drive: окно входа не открывается или вход не удаётся",
+    "Браузер заблокировал всплывающее окно; идентификатор клиента не типа Web application; адреса в Google Cloud не совпадают",
+    "Разрешите всплывающие окна или выберите «Войти в этой вкладке»; скопируйте два адреса со страницы Drive в Google Cloud Console"
+   ]
+  },
+  {
+   "he": [
+    "האתר לא מתעדכן / מסך ישן",
+    "הדפדפן מציג גרסה שמורה",
+    "שירותים > כלים > עדכון האפליקציה; אם לא עזר: תיקון - ניקוי מטמון (הרשימות והחיבורים נשארים)"
+   ],
+   "en": [
+    "The site does not update / an old screen",
+    "The browser shows a stored version",
+    "Services > Tools > Update the app; if that does not help: Repair - clear the cache (your lists and connections stay)"
+   ],
+   "ru": [
+    "Сайт не обновляется / старый экран",
+    "Браузер показывает сохранённую версию",
+    "Сервисы > Инструменты > Обновить приложение; если не помогло: Исправить - очистить кэш (списки и подключения сохранятся)"
+   ]
+  },
+  {
+   "he": [
+    "בטלוויזיה: החצים לא זזים / הכול קטן",
+    "הדפדפן לא זוהה כטלוויזיה",
+    "פרופיל מכשיר > טלוויזיה; Back סוגר חלון פתוח; אם הדפדפן ישן מדי - האפליקציה ב-Kodi"
+   ],
+   "en": [
+    "On a TV: the arrows do not move / everything is small",
+    "The browser was not recognised as a TV",
+    "Device profile > TV; Back closes an open sheet; if the browser is too old - the Kodi app"
+   ],
+   "ru": [
+    "На телевизоре: стрелки не работают / всё мелко",
+    "Браузер не распознан как телевизор",
+    "Профиль устройства > Телевизор; Back закрывает открытое окно; если браузер слишком старый - приложение Kodi"
+   ]
+  },
+  {
+   "he": [
+    "שרת הכתוביות AI לא נגיש מהאתר",
+    "לשרת יש כתובת http מקומית; אתר https לא יכול לפנות אליה",
+    "פרסמו את השרת בכתובת https (Tailscale Funnel / Cloudflare Tunnel) והזינו אותה בשירותים > שרת כתוביות AI"
+   ],
+   "en": [
+    "The AI subtitle server cannot be reached from the site",
+    "The server has a local http address; an https site cannot call it",
+    "Publish the server at an https address (Tailscale Funnel / Cloudflare Tunnel) and enter it in Services > AI subtitle server"
+   ],
+   "ru": [
+    "Сервер ИИ-субтитров недоступен с сайта",
+    "У сервера локальный адрес http; сайт https не может к нему обратиться",
+    "Опубликуйте сервер по адресу https (Tailscale Funnel / Cloudflare Tunnel) и введите его в Сервисы > Сервер ИИ-субтитров"
+   ]
+  },
+  {
+   "he": [
+    "האותיות קטנות / גדולות מדי, או שהמסך \"קופץ\" כשמקלידים",
+    "גודל התצוגה",
+    "מסך \"עוד\" או הגדרות > כללי > גודל התצוגה: − / + או הקלדת אחוזים; לחצן 100% מחזיר לגודל הרגיל"
+   ],
+   "en": [
+    "The text is too small / too large, or the page jumped when typing",
+    "Display size",
+    "The \"More\" page or Settings > General > Display size: − / + or a typed percentage; the 100% button goes back to normal"
+   ],
+   "ru": [
+    "Текст слишком мелкий / крупный или страница «прыгает» при вводе",
+    "Размер интерфейса",
+    "Страница «Ещё» или Настройки > Общие > Размер интерфейса: − / + или ввод процентов; кнопка 100% возвращает обычный размер"
+   ]
+  },
+  {
+   "he": [
+    "השידור נעצר לטעינה שוב ושוב",
+    "חיבור איטי או קליטה חלשה",
+    "האתר מוריד איכות לבד אחרי כמה עצירות; אפשר לבחור איכות נמוכה ידנית בתפריט ההגדרות של הנגן, או קישור קל יותר (720p)"
+   ],
+   "en": [
+    "Playback keeps stopping to load",
+    "A slow connection or weak reception",
+    "The site lowers the quality by itself after a few stops; you can pick a lower quality in the player's settings menu, or a lighter link (720p)"
+   ],
+   "ru": [
+    "Воспроизведение постоянно останавливается",
+    "Медленное соединение или слабый сигнал",
+    "Сайт сам снижает качество после нескольких остановок; можно выбрать качество ниже в меню настроек плеера или ссылку полегче (720p)"
+   ]
+  }
  ]
 }

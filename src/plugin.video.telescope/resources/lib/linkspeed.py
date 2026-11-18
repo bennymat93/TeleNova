@@ -35,6 +35,7 @@ KEEP_FAILED = 120               # ... and a failed one (offline, blocked): not a
 SHARE = 0.75                    # the part of the line a film may need
 TIGHT = 0.6                     # above this part of the cap a file starts to lose points
 LIGHTEST = 3
+SAMPLES = 3                     # readings per measurement
 MIN_RATE = 20000                # below 160 kbit/s nothing plays; such a reading is "unknown", not a limit
 
 
@@ -42,12 +43,18 @@ class LinkSpeed(object):
     def __init__(self, log=None, http=None, now=None, clock=None):
         self.log = log or (lambda *a: None)
         self.http = http
+        if http is None and requests is not None:
+            try:
+                self.http = requests.Session()        # one connection for all the readings
+            except Exception:
+                self.http = None
         self._now = now or time.time
         self._clock = clock or time.time
         self._lock = threading.Lock()
         self._rate = 0
         self._at = 0
         self._ok = False
+        self.samples = []
         self.measured = 0               # the raw reading (also when it is "fast"), for the status page / the log
 
     def _read(self, size, limit):
@@ -75,12 +82,25 @@ class LinkSpeed(object):
     def measure(self):
         """One measurement now. -> bytes per second, 0 when it could not be measured."""
         try:
-            got, took = self._read(FIRST, MAX_SECONDS)
-            if got and took < QUICK:
-                more, took2 = self._read(MORE, max(0.5, MAX_SECONDS - took))
+            got, took = self._read(FIRST, MAX_SECONDS / 2)
+            rates = [got / max(took, 0.01)] if got else []
+            # 5.0: sampled several times - one reading can fall into a momentary dip (or a lucky burst). Two more
+            # reads; the answer is the middle one of the three. On a quick line the longer reads replace the
+            # first, which is mostly connection set-up and slow start.
+            quick = bool(got) and took < QUICK
+            if quick:
+                rates = []
+            left = MAX_SECONDS - took
+            for _ in range(SAMPLES - 1 if not quick else SAMPLES):
+                if left < 0.4 or not got:
+                    break
+                more, took2 = self._read(MORE // 2 if quick else FIRST // 3, min(left, MAX_SECONDS / 3))
+                left -= took2
                 if more:
-                    got, took = more, took2         # the longer read alone: the first one is mostly slow start
-            rate = int(got / max(took, 0.01)) if got else 0      # a read too quick to time is a fast line
+                    rates.append(more / max(took2, 0.01))     # a read too quick to time is a fast line
+            rates.sort()
+            rate = int(rates[(len(rates) - 1) // 2]) if rates else 0      # the middle reading (the lower of two)
+            self.samples = [int(r) for r in rates]
         except Exception as exc:
             self.log('link speed: not measured (%s)' % type(exc).__name__)
             rate = 0

@@ -1020,6 +1020,13 @@ class Finder(object):
         if crossed:
             self.log('%d copy(ies) of the same release in another source folded' % crossed)
         result = [self._public(c) for c in self.order_groups(accepted)]
+        # 5.0: one number per link (recommend.py) - right file, tested, smooth on this connection now, Hebrew,
+        # picture - and the list in that order: the first link is the one most worth pressing
+        try:
+            from . import recommend
+            result = recommend.rank(result, getattr(self, '_link_rate', 0), (t.get('runtime') or 0) * 60)
+        except Exception as exc:
+            self.log('recommendation: %s' % exc)
         if result:
             self.cache.set(store_key, result, 1800)
         job.update(100, 'done')
@@ -1834,6 +1841,7 @@ class Finder(object):
             'title': p.get('title') or '',
             'rd': c.get('rd'), 'rd_cached': c.get('rd_cached'),
             'he_sub_synced': c.get('he_sub_synced') or '',          # 4.0.5
+            'heavy': bool(c.get('heavy')),                          # 5.0: more than this connection carries now
             # 4.3: the kind of HDR, the Dolby Vision profile, sound formats, seek state, device warning
             'hdr_type': p.get('hdr_type') or '', 'dv': bool(p.get('dv')), 'dv_profile': p.get('dv_profile'),
             'dv_fallback': p.get('dv_fallback'), 'audio_fmt': list(p.get('audio_fmt') or []),

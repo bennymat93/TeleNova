@@ -438,6 +438,11 @@ def _file_plot(c):
         lines.append(DOT.join(tech))
     if c.get('match'):
         lines.append('%s %d%%' % (L(30133), c['match']))
+    try:                                     # 5.0: the recommendation and what it is made of
+        from . import recommend
+        lines.extend(recommend.details(c, _ui_lang()))
+    except Exception:
+        pass
     if c.get('caption'):
         lines.append('')
         lines.append(c['caption'])
@@ -1268,10 +1273,28 @@ def reinstall(_):
 
 
 # ------------------------------------------------------------------ playback
+def _ui_lang():
+    try:
+        return (xbmc.getLanguage(xbmc.ISO_639_1) or 'en').lower()
+    except Exception:
+        return 'en'
+
+
+def _rec_badge(s):
+    try:
+        from . import recommend
+        return recommend.badge(s, _ui_lang())
+    except Exception:
+        return ''
+
+
 def _source_label(s):
     """First line of a source row: what you get (quality, picture, languages), how big, and whether the link was
     tested. 3.3.3: colour by quality, real data read from the file marked with a tick."""
     parts = []
+    rec = _rec_badge(s)                      # 5.0: how much this link is recommended, 0-100 %, first in the row
+    if rec:
+        parts.append(rec)
     if s.get('chiko'):
         parts.append('[COLOR gold]%s[/COLOR]' % L(30009))
     parts.append(_q_tag(s.get('quality')))
@@ -1287,7 +1310,7 @@ def _source_label(s):
     parts.append(_status_tag(s))
     if s.get('loose'):
         parts.append('[COLOR orange]%s ?[/COLOR]' % L(30133))
-    elif s.get('match'):
+    elif s.get('match') and s.get('rec') is None:      # the recommendation already counts the match
         parts.append('[COLOR FF8D99AE]%s %d%%[/COLOR]' % (L(30133), s['match']))
     if s.get('ai') and s['ai'].get('match'):
         parts.append('[COLOR violet]%s %d%%[/COLOR]' % (L(30097), int(s['ai'].get('confidence', 0) * 100)))

@@ -18,8 +18,9 @@ def ok(cond, what):
 
 class Line(object):
     """a connection that gives `rate` bytes per second; `fail`: 'error' raises, a number is the HTTP status"""
-    def __init__(self, rate, fail=None):
+    def __init__(self, rate, fail=None, rates=None):
         self.rate, self.fail, self.t, self.calls = float(rate), fail, 1000.0, []
+        self.rates = list(rates or [])       # the speed of each download in turn (then `rate` again)
 
     def clock(self):
         return self.t
@@ -30,6 +31,7 @@ class Line(object):
         size = int(url.rsplit('=', 1)[1])
         self.calls.append(size)
         line = self
+        mine = float(self.rates.pop(0)) if self.rates else self.rate
 
         class R(object):
             status_code = line.fail or 200
@@ -39,7 +41,7 @@ class Line(object):
                 while left > 0:
                     k = min(n, left)
                     left -= k
-                    line.t += k / line.rate
+                    line.t += k / mine
                     yield b'x' * k
 
             def close(self):
@@ -47,8 +49,8 @@ class Line(object):
         return R()
 
 
-def speed(rate, fail=None):
-    line = Line(rate, fail)
+def speed(rate, fail=None, rates=None):
+    line = Line(rate, fail, rates)
     ls = L.LinkSpeed(http=line, clock=line.clock, now=line.clock)
     return ls, line
 
@@ -57,17 +59,27 @@ MB = 1048576.0
 ls, line = speed(0.25 * MB)                       # 2 Mbit/s: weak mobile data
 r = ls.current()
 ok(abs(r - 0.25 * MB) < 0.03 * MB, 'a 2 Mbit/s line is measured as such (%.2f MB/s)' % (r / MB))
-ok(line.calls == [L.FIRST], 'one small download is enough on a slow line')
+ok(len(line.calls) == L.SAMPLES and ls.samples and len(ls.samples) == L.SAMPLES, 'the line is sampled %d times' % L.SAMPLES)
 ok(line.t - 1000.0 <= L.MAX_SECONDS + 0.5, 'the measurement stops after %.0f s' % L.MAX_SECONDS)
 ls.current()
-ok(len(line.calls) == 1, 'the result is kept (no second download within %d s)' % L.KEEP)
+ok(len(line.calls) == L.SAMPLES, 'the result is kept (no new download within %d s)' % L.KEEP)
 line.t += L.KEEP + 1
 ls.current()
-ok(len(line.calls) == 2, 'and measured again when it is old')
+ok(len(line.calls) == 2 * L.SAMPLES, 'and measured again when it is old')
 
 ls, line = speed(1.5 * MB)                        # 12 Mbit/s: medium
 r = ls.current()
-ok(line.calls == [L.FIRST, L.MORE] and abs(r - 1.5 * MB) < 0.15 * MB, 'a medium line gets the longer read (%.2f MB/s)' % (r / MB))
+ok(line.calls[0] == L.FIRST and len(line.calls) == 1 + L.SAMPLES and abs(r - 1.5 * MB) < 0.15 * MB, 'a medium line gets longer reads (%.2f MB/s)' % (r / MB))
+# one of the readings falls into a momentary dip (or a burst): the middle reading counts, not the odd one
+ls, line = speed(1.5 * MB, rates=[1.5 * MB, 1.5 * MB, 0.1 * MB, 1.5 * MB])
+r = ls.current()
+ok(abs(r - 1.5 * MB) < 0.15 * MB, 'a momentary dip in one reading does not lower the result (%.2f MB/s)' % (r / MB))
+ls, line = speed(0.25 * MB, rates=[0.25 * MB, 3 * MB, 0.25 * MB])
+r = ls.current()
+ok(abs(r - 0.25 * MB) < 0.05 * MB, 'a momentary burst does not raise it (%.2f MB/s)' % (r / MB))
+ls, line = speed(0.25 * MB, rates=[0.25 * MB, 0.25 * MB, 0.25 * MB])
+ls.current()
+ok(line.t - 1000.0 <= L.MAX_SECONDS + 0.5, 'three readings still fit in %.0f s' % L.MAX_SECONDS)
 ls, line = speed(12 * MB)
 ok(ls.current() == 0 and ls.measured > L.FAST, 'a fast line: no limit (measured %.0f Mbit/s)' % (ls.measured * 8 / 1e6))
 ls, line = speed(1 * MB, fail='error')
