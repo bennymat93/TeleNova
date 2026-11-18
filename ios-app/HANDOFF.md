@@ -11,8 +11,10 @@ He also asked that this file is kept current so another account can continue smo
   exports land in Documents, offline fallback loads); the three screenshots were looked at.
 - Then pushed (build 3): pinch zoom off, offline bar no longer covers the page's top bar, status bar hidden on iPad
   (the page's logo was under the clock), `ios/README-app.md` with the "what was verified" section.
-- NEXT: 1) confirm build 3 is green and its screenshots still look right (artifact `simulator-run`; `gh` on this PC
-  prints and then hangs - redirect to a file with `timeout`, e.g. `timeout 60 gh api ... > x.json`).
+- 19:05 UTC build 3 CONFIRMED green (bot commit da9b160, IPA 8,420,212 bytes on the site); self-test passed again on
+  iPhone + iPad; offline-bar and iPad screenshots looked at - both fixes show. `gh` on this PC prints and then hangs:
+  redirect to a file with `timeout` (`timeout 60 gh api ... > x.json`).
+- NEXT (nothing is in progress): 1) wait for the owner to sign and install.
   2) Everything in README "לא נבדק" needs the owner's real iPhone / iPad after he signs the IPA; fix what he reports.
   3) Optional, needs `web/` owner: items in `WEB_CHANGES_NEEDED.md` (Google Drive sign-in is the only missing function).
 
