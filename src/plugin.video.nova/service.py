@@ -1194,7 +1194,7 @@ def main():
     def slow_job():             # 5.0: the player keeps stopping to load -> notice + the engine measures the line again
         try:
             from resources.lib import slowwatch
-            slowwatch.run(monitor, log)
+            slowwatch.run(monitor(), log)
         except Exception as e:
             log('slow watch: %s' % e, xbmc.LOGWARNING)
     threading.Thread(target=slow_job, daemon=True).start()
