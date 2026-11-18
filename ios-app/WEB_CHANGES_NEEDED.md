@@ -27,3 +27,11 @@ agent ends with `TeleNovaApp/<version>`.
    2026-11-18). The app works around it by hiding the status bar on iPad; in Safari on iPad as a home-screen web app
    the overlap would still show. Suggested: `padding-top: env(safe-area-inset-top)` on the rail and the top bar in
    the desktop shell too.
+7. **Built-in helper (owner's request 2026-11-18: the Worker embedded in the build)**: the iOS app answers the
+   helper protocol itself (`ios-app/Sources/HelperRelay.swift`, same allow-list and header rules as
+   `worker/index.js` - keep the two in step when a host is added). `bridge.js` answers `fetch()` to
+   `https://helper.telenova.invalid/p` and `/ping`, and writes that address into the page's `helper` setting when it
+   is empty (the only way without a web change, because `TN.settings` is frozen). Cleaner in `web/`:
+   `TN.settings.helper()` returns `window.TeleNovaNative.helper` when the viewer set no address of their own, the
+   Services row shows "built into the app" instead of a URL field, and a backup made in the app does not carry
+   the `.invalid` address to a computer (there it would fail the ping and show "needs helper").

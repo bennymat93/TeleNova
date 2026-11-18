@@ -400,6 +400,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             guard let d = data, (try? d.write(to: dst)) != nil else { replyHandler(nil, "cannot save"); return }
             replyHandler(["ok": true, "path": FileStore.shortPath(dst)] as [String: Any], nil)
             saved(dst)
+        case "relay": HelperRelay.shared.handle(body) { replyHandler($0, nil) }
         case "files": showFiles(); replyHandler(true, nil)
         case "import": importFiles(); replyHandler(true, nil)
         case "scan": scanPair(); replyHandler(true, nil)
@@ -609,6 +610,23 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
           });
         } catch (e) { out.idbError = String(e); }
         try { localStorage.setItem('tn_selftest', '1'); out.ls = localStorage.getItem('tn_selftest') === '1'; } catch (e) { out.lsError = String(e); }
+        try {
+          const H = 'https://helper.telenova.invalid';
+          out.helperSetting = self.TN && self.TN.settings ? self.TN.settings.helper() : '';
+          out.helperPing = await (await fetch(H + '/ping')).json();
+          const rt = await fetch(H + '/p', {headers: {'X-TN-Target': 'https://api.real-debrid.com/rest/1.0/time'}});
+          out.helperRelay = {status: rt.status, text: (await rt.text()).slice(0, 40)};
+          const rf = await fetch(H + '/p', {headers: {'X-TN-Target': 'https://example.com/'}});
+          out.helperRefused = {status: rf.status, body: await rf.json()};
+          const ry = await fetch(H + '/p', {headers: {'X-TN-Target': 'https://www.youtube.com/watch'}});
+          out.helperPathRule = ry.status;
+          if (self.TN && self.TN.loadScript) {
+            await self.TN.loadScript('helper.js');
+            out.tnHelperHas = self.TNHelper.has();
+            const rh = await self.TNHelper.fetch('https://api.real-debrid.com/rest/1.0/time');
+            out.tnHelperFetch = rh.status;
+          }
+        } catch (e) { out.helperError = String(e); }
         try {
           const a = document.createElement('a');
           a.href = URL.createObjectURL(new Blob(['selftest export ok'], {type: 'application/zip'}));

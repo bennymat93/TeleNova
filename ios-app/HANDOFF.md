@@ -5,18 +5,20 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
-- 2026-11-18 18:50 UTC - RELEASED: run 44365469704 green; `ios/TeleNova-Web-5.1.0.ipa` (unsigned, 8.4 MB) is on
-  gh-pages and downloads from https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-5.1.0.ipa .
-  Simulator self-test passed on iPhone and iPad (service worker controls the page, /tgstream/ answered by the SW,
-  exports land in Documents, offline fallback loads); the three screenshots were looked at.
-- Then pushed (build 3): pinch zoom off, offline bar no longer covers the page's top bar, status bar hidden on iPad
-  (the page's logo was under the clock), `ios/README-app.md` with the "what was verified" section.
-- 19:05 UTC build 3 CONFIRMED green (bot commit da9b160, IPA 8,420,212 bytes on the site); self-test passed again on
-  iPhone + iPad; offline-bar and iPad screenshots looked at - both fixes show. `gh` on this PC prints and then hangs:
-  redirect to a file with `timeout` (`timeout 60 gh api ... > x.json`).
-- NEXT (nothing is in progress): 1) wait for the owner to sign and install.
-  2) Everything in README "לא נבדק" needs the owner's real iPhone / iPad after he signs the IPA; fix what he reports.
-  3) Optional, needs `web/` owner: items in `WEB_CHANGES_NEEDED.md` (Google Drive sign-in is the only missing function).
+- RELEASED and verified: `ios/TeleNova-Web-5.1.0.ipa` build 3 (bot commit da9b160), see Log.
+- 2026-11-18 ~19:40 UTC, two new owner requests (his words, Hebrew):
+  A) "improve the sign-in mechanism for accounts, mainly Telegram" - IN PROGRESS: a read-only map of the sign-in
+     flows (Telegram, other accounts, behaviour inside the iOS wrapper) was started; results not yet applied.
+     iOS-side fixes go in `ios-app/`; web-side fixes belong to the session that owns `web/` (write them in
+     `WEB_CHANGES_NEEDED.md` and in the shared notes, do not edit `web/` here).
+  B) "the worker must be embedded in the build" - DONE in code, pushed as build 4, NOT yet confirmed green:
+     `Sources/HelperRelay.swift` (native copy of `worker/index.js` rules) + fetch hook in `Resources/bridge.js`
+     (`https://helper.telenova.invalid`) + self-test keys `helperPing`, `helperRelay`, `helperRefused`,
+     `helperPathRule`, `tnHelperHas`, `tnHelperFetch` in `selftest-*.json`.
+- NEXT: 1) check build 4 (green? self-test keys above: ping ok, relay 200 from api.real-debrid.com/rest/1.0/time,
+  example.com -> 403 host, youtube /watch -> 403). 2) apply the sign-in findings. 3) the Android app needs the same
+  built-in helper (its own session; note left in the shared notes folder).
+- `gh` on this PC prints and then hangs: always `timeout 60 gh api ... > file`.
 
 ## Rules for this piece of work
 - Edit ONLY `ios-app/`, `.github/workflows/ios-app.yml`, `ios/TeleNova-Web-*.ipa`, `ios/README-app.md`.

@@ -2,7 +2,8 @@
 // 1. Files the page exports (<a download href="blob:...">, used by backup.js / tgplay.js / player.js) are written by
 //    the app into its Documents folder - WKWebView has no download bar of its own.
 // 2. navigator.standalone = true, so the page does not offer "add to home screen".
-// 3. window.TeleNovaNative: a small API the page may use later (see ios-app/WEB_CHANGES_NEEDED.md).
+// 3. The helper Worker is built in: requests to the helper address are relayed by the app (HelperRelay.swift).
+// 4. window.TeleNovaNative: a small API the page may use later (see ios-app/WEB_CHANGES_NEEDED.md).
 (function () {
   'use strict';
   if (window.__tnNative) return;
@@ -70,7 +71,57 @@
     if (a && take(a)) e.preventDefault();
   }, true);
 
+  // ---- the helper Worker, built into the app (HelperRelay.swift) -----------------------------------------------
+  // web/helper.js sends requests for hosts without browser CORS to <helper URL>/p with the target in X-TN-Target.
+  // Here that address is a name that never reaches the network: fetch() to it is answered by the app itself.
+  var HELPER = 'https://helper.telenova.invalid';
+  var realFetch = window.fetch;
+  function unb64(s) {
+    var bin = atob(s || ''), a = new Uint8Array(bin.length), i = 0;
+    for (; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return a;
+  }
+  async function relay(input, init) {
+    var signal = init && init.signal;
+    var aborted = function () { return new DOMException('Aborted', 'AbortError'); };
+    if (signal && signal.aborted) throw aborted();
+    var req = new Request(input, init);
+    var path = new URL(req.url).pathname;
+    if (path === '/ping') {
+      return new Response(JSON.stringify({ok: true, app: 'telenova-helper', v: 1, native: 'ios'}),
+        {status: 200, headers: {'content-type': 'application/json', 'cache-control': 'no-store'}});
+    }
+    var headers = {};
+    req.headers.forEach(function (v, k) { headers[k.toLowerCase()] = v; });
+    var body = '';
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      var buf = await req.arrayBuffer();
+      if (buf.byteLength) body = b64(buf);
+    }
+    var asked = mh.postMessage({op: 'relay', method: req.method, headers: headers, body: body});
+    var r = await (signal ? Promise.race([asked, new Promise(function (res, rej) {
+      signal.addEventListener('abort', function () { rej(aborted()); }, {once: true});
+    })]) : asked);
+    var st = Number(r.status) || 502;
+    var empty = st === 204 || st === 205 || st === 304 || req.method === 'HEAD';
+    return new Response(empty ? null : unb64(r.body), {status: st, headers: r.headers || {}});
+  }
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (url.indexOf(HELPER + '/') !== 0) return realFetch.apply(this, arguments);
+    return relay(input, init);
+  };
+  // the page reads the helper address from its own settings: fill it in when the viewer has none of their own
+  var tries = 0, timer = setInterval(function () {
+    try {
+      var S = self.TN && self.TN.settings;
+      if (S) { clearInterval(timer); if (!S.get('helper', '')) S.set('helper', HELPER); return; }
+    } catch (e) { clearInterval(timer); return; }
+    if (++tries > 240) clearInterval(timer);
+  }, 250);
+
   window.TeleNovaNative = {
+    helper: HELPER,                                                    // the built-in relay's address
     platform: 'ios',
     save: save,                                                        // save(blob, name) -> {ok, path}
     files: function () { return mh.postMessage({op: 'files'}); },      // opens the app's file browser
