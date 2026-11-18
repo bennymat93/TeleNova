@@ -1190,6 +1190,14 @@ def main():
             if mon.waitForAbort(2):
                 return
     threading.Thread(target=bn_player_job, daemon=True).start()
+
+    def slow_job():             # 5.0: the player keeps stopping to load -> notice + the engine measures the line again
+        try:
+            from resources.lib import slowwatch
+            slowwatch.run(monitor, log)
+        except Exception as e:
+            log('slow watch: %s' % e, xbmc.LOGWARNING)
+    threading.Thread(target=slow_job, daemon=True).start()
     try:        # YouTube's local server port inside a range Windows reserved -> no YouTube playback
         from resources.lib import ytport
         ytport.check(fix=True)

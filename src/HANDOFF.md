@@ -9,7 +9,7 @@
 החלטה שלו) – ובינתיים להמשיך בכל השאר.
 
 <!-- IN-PROGRESS:START -->
-### IN PROGRESS – עודכן 2026-11-18 20:45 (להמשיך מכאן)
+### IN PROGRESS – עודכן 2026-11-18 21:40 (להמשיך מכאן)
 **הנחיות הבעלים שנאמרו ב-18/11 (מחייבות את מי שממשיך):** לעבוד חסכוני (בלי ריבוי סוכנים, בדיקות ממוקדות); לעדכן את הבלוק הזה כל כמה דקות (`python src/tools/handoff_block.py "<תאריך שעה>" <קובץ טקסט>` או עריכה ידנית בין הסימונים); לשחרר קודם את ה-APK וה-IPA; **בסוף הכול** – לעלות ל-**גרסה 5.0** (`bump.py 5.0.0`) ולעדכן את כל המדריכים (`guide.html`, `README.md`, `web/data/help/*.json`, `web/README.md`).
 
 **נעשה ונבדק מאז 4.3.0 (הכול בקומיט ונדחף; גרסת הרשת באתר 5.1.0, התוספים עדיין 4.3.0):**
@@ -20,7 +20,9 @@
 3. **חיבור איטי – חלק א' (נעשה):**
    - מנוע הטלגרם: `plugin.video.telescope/resources/lib/linkspeed.py` (חדש) – מודד את מהירות החיבור (הורדה קצרה מ-speed.cloudflare.com, עד 4 ש', נשמר 10 דקות; קו של 24 Mbit ומעלה = בלי מגבלה). `sources.rate_caps()` מצמצם את המגבלות ל-75% מהקו; `sources.playable()` → `linkspeed.fit()`: קבצים כבדים מהקו לא מוצגים, עותק קל מקבל עדיפות, ואם כלום לא מתאים נשארים 3 הקלים ביותר עם סימון `heavy`. הגדרה `link_probe` (True). בדיקה: `qa/t_linkspeed.py`. מדידה אמיתית במחשב הזה: 421 Mbit (בלי מגבלה). **לא נבדק ב-Kodi חי על קו איטי אמיתי.**
    - רשת: `hlsCfg()` / `hlsWatch()` ב-`app.js` (ערוצים חיים, `iptv.js`) ואותם ערכים ב-`player.js`: פתיחה לפי המהירות מהפעם הקודמת (`net_bw`), עלייה זהירה, חוצץ 60–180 ש', 8 ניסיונות למקטע, ירידת רמה אחרי 3 עצירות בדקה (`pl_slow_down`), 6 ניסיונות חיבור מחדש עם המתנה גדלה. נבדק: כאן 11 מנגן, המהירות נשמרת.
-   **חלק ב' (לא נעשה):** (א) Kodi: כשהנגן נתקע שוב ושוב (`Player.Caching` / buffering) – לקרוא ל-`linkspeed.note_slow()` ולהציע / לעבור לעותק קל יותר (צריך לקרוא את `service.py` של ה-hub ואת `stream.py`); (ב) ערוצים חיים ב-Kodi: הגדרות inputstream.adaptive לקו איטי (היום רק ל-`tv32` ב-`profiles.py`); (ג) קבצי MP4 ישירים ברשת (לא HLS) – אין ירידת איכות, רק מעבר לקישור אחר; (ד) להוסיף `t_linkspeed` לרשימת הבדיקות ב"בדיקות לפני כל שחרור".
+   - **חלק ב' (נעשה 18/11 21:40, נבדק רק בבדיקות יחידה):** `plugin.video.nova/resources/lib/slowwatch.py` – `StallMeter` + לולאה בשירות ה-hub (`slow_job` ב-`service.py`): 3 עצירות טעינה של 2 ש'+ או 25 ש' טעינה בתוך 3 דקות (לא בפתיחה, לא אחרי קפיצה, לא בערוץ חי) → הודעה אחת לצופה + חותמת זמן ב-`Window(10000)` `telenova.link_slow`. המנוע (`service._link_hint` → `sources.Finder.link_hint` → `linkspeed.hint`) מודד מחדש לפני הרשימה הבאה, ומפתח המטמון של הרשימה כולל את מצב הקו (`:slowN`). בדיקות: `qa/t_slowwatch.py`, `qa/t_linkspeed.py`. **לא נבדק ב-Kodi חי** (צריך קו איטי אמיתי או הגבלת רוחב פס).
+   - **נשאר בחיבור איטי:** ערוצים חיים ב-Kodi (inputstream.adaptive לקו איטי – היום רק `tv32` ב-`profiles.py`); קבצי MP4 ישירים ברשת (אין ירידת איכות, רק קישור אחר); מעבר אוטומטי לעותק קל באמצע ניגון ב-Kodi (היום רק הודעה + רשימה הבאה).
+   - **מלכודת בדיקות:** `qa/agentC/test_all.py` `test_pacing_keeps_to_the_learned_rate` היא בדיקת תזמון – נכשלת כשהמעבד ב-100% (נבדק: נכשלת גם על קוד 4.3.0 נקי בזמן שסשני האפליקציות בונים). להריץ כשהמחשב פנוי.
 
 **נשאר, לפי הסדר:**
 4. **רשת = כמו במחשב** (בקשת הבעלים): לפי `docs/web-audit/kodi-features.md` סעיף 17 ו-`web-features.md`. הרבה תלוי ב-helper Worker (`worker/`) שלא פרוס – פריסה דורשת חשבון Cloudflare של הבעלים (**לשאול אותו**; חלופה לבדוק: פונקציית Edge ב-Vercel – מחבר Vercel מחובר בסשן). בלי helper אפשר: תיקוני הפגמים מ-`web-features.md` סעיף 3 שעוד לא טופלו (לבדוק אחד-אחד מול הקוד של 5.0), שדות הגדרה חסרים. לא התחיל.
@@ -95,7 +97,7 @@ git add -A; git commit; git push origin gh-pages   # ואז לוודא את repo
 cd "C:\My Projects\novaTV Addon\src"
 python -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read(),f,feature_version=(3,8)) for f in glob.glob(r'plugin.*\**\*.py',recursive=True)]; print('ok')"
 python qa\undef.py "C:\My Projects\novaTV Addon\src"
-foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs','t_linkspeed'){ python "qa\$t.py" }
+foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs','t_linkspeed','t_slowwatch'){ python "qa\$t.py" }
 cd qa\agentC; python test_all.py; python test_rd.py; cd ..\..; python qa\t_profiles.py plugin.video.nova\resources\lib
 python qa\web\run_web_tests.py   # כל בדיקות הרשת + ה-Worker
 python qa\deploy_local.py; & qa\qa_live.ps1      # על Kodi הראשי, כשהוא לא מנגן (deploy_local מעתיק גם json מ-resources)

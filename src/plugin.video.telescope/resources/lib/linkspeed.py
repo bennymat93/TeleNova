@@ -100,6 +100,21 @@ class LinkSpeed(object):
                     self.log('link speed: %.1f Mbit/s%s' % (rate * 8 / 1e6, '' if self._rate else ' (fast: no limit)'))
             return self._rate
 
+    def peek(self):
+        """the limit in force, without measuring: 0 when nothing fresh is known"""
+        with self._lock:
+            return self._rate if self._at and self._now() - self._at <= KEEP else 0
+
+    def hint(self, stamp):
+        """the player was starved at `stamp` (the hub's stall watcher): measure again unless that was done since"""
+        try:
+            stamp = float(stamp or 0)
+        except (TypeError, ValueError):
+            return self.peek()
+        if stamp and stamp > self._at and self._now() - stamp < 1800:
+            return self.current(fresh=True)
+        return self.peek()
+
     def note_slow(self, rate):
         """the player was starved at about `rate` bytes per second: the next list is planned with no more than that"""
         with self._lock:

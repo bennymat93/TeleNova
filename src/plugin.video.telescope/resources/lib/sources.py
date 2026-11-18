@@ -771,6 +771,11 @@ class Finder(object):
                                              ('t' if logged_in else '') + ('r' if rd_on else ''))
         # 3.3: a reduced ("fast" hub) search stores its shorter list under its own key - it used to replace the
         # full result for 30 minutes. It may still read a full result that is already there.
+        # 5.0: a list made on a good line is not served on a weak one (and the other way round). No measurement
+        # here - only what is already known, or a new one when the hub saw the player starve (slowwatch.py)
+        slow = self.link_hint()
+        if slow:
+            cache_key += ':slow%d' % max(1, slow // 250000)
         store_key = cache_key + ':fast' if self._reduced else cache_key
         if not req.get('refresh'):
             hit = self.cache.get(cache_key) or (self.cache.get(store_key) if self._reduced else None)
@@ -1039,6 +1044,16 @@ class Finder(object):
         self._link_rate = self.link_rate()
         from . import linkspeed
         return linkspeed.caps(tg, other, self._link_rate)
+
+    def link_hint(self):
+        if not self.s.get('link_probe', True):
+            return 0
+        try:
+            from . import linkspeed
+            hint = self.s.get('link_hint')
+            return linkspeed.shared(self.log).hint(hint() if callable(hint) else 0)
+        except Exception:
+            return 0
 
     def link_rate(self):
         if not self.s.get('link_probe', True):

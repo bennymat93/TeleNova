@@ -16,6 +16,15 @@ from .sources import Finder
 from .backends import TelemediaBridge, StremioServers
 
 
+def _link_hint():
+    """the time the hub's stall watcher (plugin.video.nova slowwatch.py) last saw the player starve, or 0"""
+    try:
+        import xbmcgui
+        return float(xbmcgui.Window(10000).getProperty('telenova.link_slow') or 0)
+    except Exception:
+        return 0
+
+
 def _foreign(addon_id, key):
     try:
         import xbmcaddon
@@ -98,6 +107,7 @@ def _load_settings():
         'rd_cloud': gb('rd_cloud', True), 'rd_max': gi('rd_max', 15),
         'max_mbit': gi('max_mbit', 40),             # 4.0.2: heavier files are not listed (0 = no limit)
         'link_probe': True,                         # 5.0: files are also judged against this connection's speed (linkspeed.py)
+        'link_hint': _link_hint,                    # ... and measured again when the hub saw the player starve
         # 4.0.4: optional services, off by default
         'st_enabled': gb('st_enabled', True), 'st_url': g('st_url').strip(),
         'os_enabled': gb('os_enabled', False), 'os_key': g('os_key').strip(),
