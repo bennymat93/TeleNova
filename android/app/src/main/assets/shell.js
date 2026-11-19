@@ -7,7 +7,12 @@
   'use strict';
   if (window.__tnShell) return;
   window.__tnShell = 1;
-  window.TeleNovaAndroid = true;                 // the page's test for "inside the Android app" (also "BNStream/" in the user agent)
+  window.TeleNovaAndroid = true;
+  // A WebView offers the browser's "save as" picker (showSaveFilePicker), and pages prefer it after a real tap - but
+  // inside the app it never returns (web/backup.js full backup waited for ever). Without it the page downloads the
+  // file, which the app saves in its own folder (the full backup over the old one). Hidden before any page code runs.
+  try { delete window.showSaveFilePicker; } catch (e) { /* not there */ }
+  try { if ('showSaveFilePicker' in window) Object.defineProperty(window, 'showSaveFilePicker', {value: undefined, configurable: true, writable: true}); } catch (e) { /* stays */ }                 // the page's test for "inside the Android app" (also "BNStream/" in the user agent)
   var seq = 0, pend = {}, wired = false, relays = {};
   function unb64(s) {
     var bin = atob(s || ''), a = new Uint8Array(bin.length), i = 0;

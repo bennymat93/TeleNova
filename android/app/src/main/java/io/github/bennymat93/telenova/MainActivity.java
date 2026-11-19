@@ -612,7 +612,10 @@ public class MainActivity extends Activity {
                     Save s = saves.remove(id);
                     if (s == null) throw new IOException("unknown");
                     s.out.close();
-                    File dst = Storage.unique(s.dir, s.name);
+                    // the full backup is ONE file: a new one replaces the old one; every other file gets a free name
+                    boolean single = Storage.FULL_BACKUP.equals(s.name);
+                    File dst = single ? new File(s.dir, s.name) : Storage.unique(s.dir, s.name);
+                    if (single && dst.exists() && !dst.delete()) { s.tmp.delete(); throw new IOException("replace"); }
                     if (!s.tmp.renameTo(dst)) { s.tmp.delete(); throw new IOException("rename"); }
                     saved(dst);
                     break;

@@ -13,6 +13,9 @@ final class Storage {
     static final String BACKUPS = "Backups", SETTINGS = "Settings", SUBTITLES = "Subtitles", PLAYLISTS = "Playlists", DOWNLOADS = "Downloads";
     static final String[] DIRS = {BACKUPS, SETTINGS, SUBTITLES, PLAYLISTS, DOWNLOADS};
 
+    /** The page's full backup (web/backup.js): always this one name, kept in Backups. */
+    static final String FULL_BACKUP = "BN_Stream_backup.tncfg";
+
     private Storage() {}
 
     static File root(Context c) {
@@ -24,6 +27,7 @@ final class Storage {
 
     /** The folder a file belongs to by its type. */
     static String dirFor(String name) {
+        if (FULL_BACKUP.equals(name)) return BACKUPS;
         String n = name.toLowerCase(Locale.ROOT);
         int i = n.lastIndexOf('.');
         String ext = i < 0 ? "" : n.substring(i + 1);

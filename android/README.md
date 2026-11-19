@@ -57,6 +57,9 @@ repository and must be backed up: an APK signed with another key cannot be insta
 - **Markers and storage.** The page can test `window.TeleNovaAndroid === true`, `window.TeleNovaNative`, or
   `BNStream/<version>` in the user agent. The WebView uses its default persistent storage (localStorage, IndexedDB,
   cookies, service worker): it survives app updates and is removed only with the app or "clear data".
+- **One full backup.** A download named `BN_Stream_backup.tncfg` (the page's full backup) replaces the file of that
+  name in Backups; every other download gets a free name. `showSaveFilePicker` is hidden from the page: in a WebView
+  it is offered but never returns, which left the full-backup button doing nothing.
 - **A refused certificate** (most often a wrong device clock, common on TV boxes) is never accepted: the built-in
   copy is shown with a note to check the date and time.
 - **Zoom.** Text zoom is fixed at 100% and pinch / control zoom is off: the page has its own display-size control.
