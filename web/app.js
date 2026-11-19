@@ -1441,7 +1441,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-5.1.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-5.2.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest" target="_blank" rel="noopener">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
@@ -1842,6 +1842,7 @@ const MODULES = {
   yt: {pages: ['youtube'], kinds: ['search', 'source']}, topics: {pages: ['topics'], kinds: []}, hub: {pages: ['hub', 'search'], kinds: ['search']},   // WP-8
   services: {pages: ['services', 'device'], kinds: []}, library: {pages: ['library'], kinds: []}, backup: {pages: ['backup'], kinds: []},            // WP-9
   aio: {pages: ['aio'], kinds: ['service']},                                    // 5.5: All in one
+  srcedit: {pages: ['srcedit', 'info'], kinds: ['service']},                    // 5.6: Edit sources, Information and help
   gdrive: {pages: ['gdrive'], kinds: ['service']}, help: {pages: ['help'], kinds: []}, status: {pages: ['status'], kinds: []},
 };
 const MODULE_OF = {};

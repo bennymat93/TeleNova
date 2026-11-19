@@ -955,3 +955,7 @@ msgstr "Сервер недоступен. Проверьте интернет �
 msgctxt "#30969"
 msgid "Everything is connected. Telegram is next: its sign-in screen opens now, and another device of yours that is open and signed in approves it by itself."
 msgstr "Всё подключено. Остался Telegram: экран входа открывается, и другое ваше открытое подключённое устройство подтвердит вход само."
+
+msgctxt "#30970"
+msgid "Saved. From now on, on every new device: All in one + the same user name and password."
+msgstr "Сохранено. Теперь на любом новом устройстве: «Всё в одном» + те же имя и пароль."

@@ -976,6 +976,35 @@ def action(do):
         merge()
 
 
+def xtream_urls(server, user, password):
+    """an Xtream Codes account -> (M3U address, XMLTV address), the way every Xtream panel serves them"""
+    try:
+        from urllib.parse import urlencode
+    except ImportError:                         # pragma: no cover
+        from urllib import urlencode
+    base = server.strip().rstrip('/')
+    if not base.lower().startswith(('http://', 'https://')):
+        base = 'http://' + base
+    q = urlencode({'username': user, 'password': password})
+    return base + '/get.php?' + q + '&type=m3u_plus&output=ts', base + '/xmltv.php?' + q
+
+
+def check_m3u(u, timeout=20):
+    """-> (ok, text): does the address answer with a playlist, and how many channels are in it"""
+    try:
+        import requests
+        r = requests.get(u, timeout=timeout, headers={'User-Agent': 'Mozilla/5.0'}, stream=True)
+        head = r.raw.read(4 * 1024 * 1024, decode_content=True).decode('utf-8', 'replace')
+        r.close()
+        if r.status_code != 200:
+            return False, 'HTTP %d' % r.status_code
+        if '#EXTM3U' not in head[:2048]:
+            return False, 'not an M3U list'
+        return True, '%d channels' % head.count('#EXTINF')
+    except Exception as e:
+        return False, type(e).__name__
+
+
 def edit_sources():
     src = sources()
     d = xbmcgui.Dialog()
@@ -983,15 +1012,29 @@ def edit_sources():
         free = ['%s %s' % ('[x]' if src['free'].get(n, True) else '[  ]', n) for n, _ in FREE]
         own = ['M3U: %s' % x['name'] for x in src['m3u']]
         epg = ['EPG: %s' % u[:60] for u in src['epg']]
-        rows = ['[+] M3U', '[+] EPG'] + free + own + epg + ['[x] ' + T('ok')]
+        rows = ['[+] M3U', '[+] EPG'] + free + own + epg + ['[+] Xtream Codes', '[x] ' + T('ok')]
         i = d.select(T('iptv_src'), rows)
         if i < 0 or i == len(rows) - 1:
             break
+        if i == len(rows) - 2:                  # 5.2: Xtream Codes - server + user + password -> its M3U and XMLTV addresses
+            server = (d.input('Xtream: server (http://host:port)') or '').strip().rstrip('/')
+            user = server and (d.input('Xtream: user name') or '').strip()
+            pw = user and (d.input('Xtream: password', option=xbmcgui.ALPHANUM_HIDE_INPUT) or '').strip()
+            if server and user and pw:
+                m3u, xml = xtream_urls(server, user, pw)
+                src['m3u'].append({'name': d.input('Name', 'Xtream %d' % (len(src['m3u']) + 1)) or 'Xtream', 'url': m3u})
+                if xml not in src['epg']:
+                    src['epg'].append(xml)
+                ok, why = check_m3u(m3u)
+                d.ok('Xtream', ('%s\n%s' % (T('ok'), why)) if ok else why)
+            continue
         if i == 0:
             u = d.input('M3U URL')
             if u:
                 name = d.input('Name', 'IPTV %d' % (len(src['m3u']) + 1))
                 src['m3u'].append({'name': name or u, 'url': u.strip()})
+                ok, why = check_m3u(u.strip())       # 5.2: said at once whether the list answers and how many channels it has
+                d.ok('M3U', why)
         elif i == 1:
             u = d.input('EPG URL (xml / xml.gz)')
             if u:

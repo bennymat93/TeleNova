@@ -19,22 +19,20 @@
   // ---------------------------------------------------------------- navigation tables
   // [page key, icon id, group]. Kodi root order inside each group; youtube + topics are home-screen items in Kodi.
   const MENU = [
-    ['hub', 'search', 'watch'], ['searchhist', 'searchhist', 'watch'], ['movies', 'movies', 'watch'], ['tv', 'tv', 'watch'],
+    ['hub', 'search', 'watch'], ['movies', 'movies', 'watch'], ['tv', 'tv', 'watch'],
     ['live', 'live', 'watch'], ['radio', 'radio', 'watch'], ['telegram', 'telegram', 'watch'], ['youtube', 'youtube', 'watch'],
     ['topics', 'topics', 'watch'],
-    ['history', 'history', 'mine'], ['favs', 'heart', 'mine'], ['library', 'library', 'mine'], ['users', 'users', 'mine'],
-    ['services', 'key', 'system'], ['backup', 'backup', 'system'], ['gdrive', 'cloud', 'system'], ['status', 'status', 'system'],
-    ['help', 'help', 'system'], ['device', 'device', 'system'], ['settings', 'settings', 'system'], ['bn', 'download', 'system'],
-    ['about', 'info', 'system'],
+    ['history', 'history', 'mine'], ['favs', 'heart', 'mine'], ['users', 'users', 'mine'], ['srcedit', 'library', 'mine'],
+    ['services', 'key', 'system'], ['backup', 'backup', 'system'], ['settings', 'settings', 'system'], ['info', 'help', 'system'],
   ];
   const GROUPS = ['watch', 'mine', 'system'];
   const RAIL = [['', 'home'], ['hub', 'search'], ['movies', 'movies'], ['tv', 'tv'], ['live', 'live'], ['radio', 'radio'], ['telegram', 'telegram'],
-                null, ['favs', 'heart'], ['history', 'history'], ['library', 'library'], null, ['menu', 'more']];
+                null, ['favs', 'heart'], ['history', 'history'], ['srcedit', 'library'], null, ['menu', 'more']];
   const TABS = [['', 'home'], ['hub', 'search'], ['live', 'live'], ['mine', 'mine'], ['menu', 'more']];
   // where "back" leads from a page, and which bar item it lights up
   const PARENT = {catalog: 'movies', search: 'hub', searchhist: 'hub', title: 'movies', youtube: 'menu', topics: 'menu', users: 'menu',
-                  services: 'menu', backup: 'menu', gdrive: 'menu', status: 'menu', help: 'menu', device: 'menu', settings: 'menu', bn: 'menu',
-                  about: 'menu', library: 'menu', tglogin: 'settings'};
+                  services: 'menu', backup: 'menu', gdrive: 'backup', status: 'info', help: 'info', device: 'settings', settings: 'menu', bn: 'info',
+                  about: 'info', library: 'srcedit', srcedit: 'menu', info: 'menu', aio: 'services', tglogin: 'settings'};
   function parentOf(key, arg) {
     key = String(key || '');
     if (!key) return '';

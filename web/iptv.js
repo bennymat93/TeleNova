@@ -38,7 +38,7 @@
          iptv_src_add: 'הוספה', iptv_src_file: 'או קובץ M3U מהמכשיר', iptv_src_del: 'מחיקה', iptv_src_none: 'אין עדיין רשימות משלך.',
          iptv_src_bad: 'צריך שם וכתובת https, או קובץ.', iptv_src_fail: 'הרשימה לא נקראה: %s', iptv_src_ok: 'נוספו %s ערוצים.',
          iptv_src_empty: 'לא נמצאו ערוצים ברשימה.', iptv_src_cors: 'האתר לא מאפשר קריאה מדפדפן. העלו את הקובץ מהמכשיר או הגדירו שרת עזר.',
-         iptv_src_epg: 'כתובות לוח שידורים (XMLTV)', iptv_src_epg_url: 'כתובת XMLTV (https, אפשר .gz)', iptv_src_epg_file: 'או קובץ XMLTV מהמכשיר (לביקור הזה)',
+         iptv_x_server: 'שרת (https://host:port)', iptv_x_user: 'שם משתמש', iptv_x_pass: 'סיסמה', iptv_x_http: 'השרת הזה ב-http: הדפדפן והאפליקציות קוראים רק https. ב-Kodi הוא עובד (עריכת מקורות ← טלוויזיה לייב).', iptv_x_ok: 'נוסף, עם לוח השידורים שלו.', iptv_src_epg: 'כתובות לוח שידורים (XMLTV)', iptv_src_epg_url: 'כתובת XMLTV (https, אפשר .gz)', iptv_src_epg_file: 'או קובץ XMLTV מהמכשיר (לביקור הזה)',
          iptv_src_check: 'בדיקת ערוצים', iptv_src_check_txt: 'תוצאות הבדיקה נשמרות יום אחד בדפדפן הזה. ערוץ שלא ענה מוצג בסוף הרשימה.',
          iptv_src_clear: 'איפוס תוצאות הבדיקה', iptv_src_cleared: 'אופס.', iptv_src_on: 'מוצג', iptv_src_off: 'מוסתר',
          iptv_src_note: 'הרשימות והכתובות נשמרות בדפדפן הזה בלבד.', iptv_load_fail: 'הרשימה לא נטענה. בדקו את החיבור ונסו שוב.',
@@ -65,7 +65,7 @@
          iptv_src_add: 'Add', iptv_src_file: 'or an M3U file from this device', iptv_src_del: 'Delete', iptv_src_none: 'No playlists of your own yet.',
          iptv_src_bad: 'A name and an https address, or a file, are needed.', iptv_src_fail: 'The playlist could not be read: %s', iptv_src_ok: '%s channels added.',
          iptv_src_empty: 'No channels were found in the playlist.', iptv_src_cors: 'The site does not allow reading from a browser. Upload the file from this device or set a helper server.',
-         iptv_src_epg: 'Guide addresses (XMLTV)', iptv_src_epg_url: 'XMLTV address (https, .gz allowed)', iptv_src_epg_file: 'or an XMLTV file from this device (for this visit)',
+         iptv_x_server: 'Server (https://host:port)', iptv_x_user: 'User name', iptv_x_pass: 'Password', iptv_x_http: 'This server is http: a browser and the apps read only https. In Kodi it works (Edit sources > Live TV).', iptv_x_ok: 'Added, with its guide.', iptv_src_epg: 'Guide addresses (XMLTV)', iptv_src_epg_url: 'XMLTV address (https, .gz allowed)', iptv_src_epg_file: 'or an XMLTV file from this device (for this visit)',
          iptv_src_check: 'Stream check', iptv_src_check_txt: 'Check results are kept for one day in this browser. A channel that did not answer is listed last.',
          iptv_src_clear: 'Reset the check results', iptv_src_cleared: 'Reset.', iptv_src_on: 'Shown', iptv_src_off: 'Hidden',
          iptv_src_note: 'Playlists and addresses are kept in this browser only.', iptv_load_fail: 'The list could not be loaded. Check the connection and try again.',
@@ -92,7 +92,7 @@
          iptv_src_add: 'Добавить', iptv_src_file: 'или файл M3U с устройства', iptv_src_del: 'Удалить', iptv_src_none: 'Своих плейлистов пока нет.',
          iptv_src_bad: 'Нужны название и адрес https либо файл.', iptv_src_fail: 'Плейлист не прочитан: %s', iptv_src_ok: 'Добавлено каналов: %s.',
          iptv_src_empty: 'В плейлисте не найдено каналов.', iptv_src_cors: 'Сайт не разрешает чтение из браузера. Загрузите файл с устройства или укажите вспомогательный сервер.',
-         iptv_src_epg: 'Адреса телепрограммы (XMLTV)', iptv_src_epg_url: 'Адрес XMLTV (https, можно .gz)', iptv_src_epg_file: 'или файл XMLTV с устройства (на этот визит)',
+         iptv_x_server: 'Сервер (https://host:port)', iptv_x_user: 'Имя пользователя', iptv_x_pass: 'Пароль', iptv_x_http: 'Сервер на http: браузер и приложения читают только https. В Kodi работает (Редактор источников > ТВ).', iptv_x_ok: 'Добавлено вместе с телепрограммой.', iptv_src_epg: 'Адреса телепрограммы (XMLTV)', iptv_src_epg_url: 'Адрес XMLTV (https, можно .gz)', iptv_src_epg_file: 'или файл XMLTV с устройства (на этот визит)',
          iptv_src_check: 'Проверка каналов', iptv_src_check_txt: 'Результаты проверки хранятся сутки в этом браузере. Неответивший канал стоит в конце списка.',
          iptv_src_clear: 'Сбросить результаты проверки', iptv_src_cleared: 'Сброшено.', iptv_src_on: 'Показан', iptv_src_off: 'Скрыт',
          iptv_src_note: 'Плейлисты и адреса хранятся только в этом браузере.', iptv_load_fail: 'Список не загрузился. Проверьте соединение и попробуйте снова.',
@@ -615,6 +615,14 @@
   }
 
   // ---- Live TV > Sources (the build's iptv.edit_sources): free lists on / off, own M3U lists, guide addresses
+  // an Xtream Codes account -> {m3u, xml}, the way every Xtream panel serves them ('' when something is missing)
+  function xtreamUrls(server, user, pass) {
+    let base = String(server || '').trim().replace(/\/+$/, '');
+    if (!base || !String(user || '').trim() || !String(pass || '')) return null;
+    if (!/^https?:\/\//i.test(base)) base = 'http://' + base;
+    const q = new URLSearchParams({username: String(user).trim(), password: String(pass)}).toString();
+    return {m3u: base + '/get.php?' + q + '&type=m3u_plus&output=ts', xml: base + '/xmltv.php?' + q};
+  }
   function compactRows(rows) { return rows.slice(0, 3000).map((r) => [r.name, r.url, TN.httpsOnly(r.logo) || '', r.group || '']); }
   async function pageSources(ctx) {
     style();
@@ -693,6 +701,26 @@
         say('…');
         try { save(name, parseM3u(await fetchText(url)), url); } catch (er) { say(er.code === 'cors' ? er.message : t('iptv_src_fail', er.message)); }
       };
+      // 5.6: Xtream Codes (server + user name + password) -> the panel's own M3U and XMLTV addresses
+      const xf = document.createElement('form');
+      xf.innerHTML = `<b>Xtream Codes</b> <input type="url" name="s" dir="ltr" placeholder="${esc(t('iptv_x_server'))}" aria-label="${esc(t('iptv_x_server'))}">` +
+        `<input type="text" name="u" dir="ltr" autocomplete="off" placeholder="${esc(t('iptv_x_user'))}" aria-label="${esc(t('iptv_x_user'))}">` +
+        `<input type="password" name="p" dir="ltr" autocomplete="off" placeholder="${esc(t('iptv_x_pass'))}" aria-label="${esc(t('iptv_x_pass'))}">` +
+        `<button class="btn" type="submit">${esc(t('iptv_src_add'))}</button><span class="hint" role="status"></span>`;
+      xf.onsubmit = async (e) => {
+        e.preventDefault();
+        const x = xtreamUrls(xf.s.value, xf.u.value, xf.p.value);
+        const sayX = (m) => { xf.lastChild.textContent = m; };
+        if (!x) return sayX(t('iptv_src_bad'));
+        if (!/^https:/i.test(x.m3u)) return sayX(t('iptv_x_http'));           // a browser may not read http from an https page
+        sayX('…');
+        try {
+          save('Xtream ' + new URL(x.m3u).hostname, parseM3u(await fetchText(x.m3u)), x.m3u);
+          if (epg && epg.addSource) { try { await epg.addSource(x.xml); } catch (er) { /* the channels are there; the guide can be added by hand */ } }
+          sayX(t('iptv_x_ok'));
+        } catch (er) { sayX(er.code === 'cors' ? er.message : t('iptv_src_fail', er.message)); }
+      };
+      setTimeout(() => { if (f.isConnected) f.after(xf); }, 0);
       f.f.onchange = async () => {
         const file = f.f.files && f.f.files[0];
         if (!file) return;

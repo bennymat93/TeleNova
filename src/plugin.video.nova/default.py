@@ -136,20 +136,13 @@ def root():
                'special://home/addons/plugin.video.telescope/resources/icon.png')
     folder(T('history'), url(a='history'), icon('history'))
     folder(T('favourites'), url(a='favs'), icon('favourites'))
-    folder(providers.s('library'), url(a='libs'), icon('libraries'))
+    folder(_he('עריכת מקורות', 'Edit sources'), url(a='src_menu'), icon('libraries'))
     folder('%s: %s' % (_users().s('title'), _users().current_name()), url(a='users'), 'DefaultUser.png', plot=_users().s('about'))
     folder(T('accounts'), url(a='accounts'), icon('accounts'))
-    folder(T('kodi_settings'), url(a='kodi_settings'), icon('accounts'))
-    folder(T('backup_menu'), url(a='bk_menu'), icon('backup'))
-    folder('Google Drive', url(a='gd_menu'), 'DefaultNetwork.png')
-    folder(status.s('title'), url(a='status'), icon('accounts'))
-    from resources.lib import profiles
-    from resources.lib.common import ui_lang
-    he = ui_lang() == 'he'
-    folder('%s: %s' % ('סוג מכשיר' if he else 'Device type', profiles.label(profiles.current(), 'he' if he else 'en')),
-           url(a='profile_pick'), 'DefaultAddonProgram.png')
-    folder(sysupdate.s('title'), url(a='sysreport'), icon('accounts'),
-           plot=sysupdate.s('running'))
+    # 5.2: one entry per job - backup holds Google Drive, "settings and system" holds Kodi's settings, the device
+    # type, the status page and the update report (each was its own line in the main menu)
+    folder(_he('גיבוי, שחזור ו-Google Drive', 'Backup, restore and Google Drive'), url(a='bk_menu'), icon('backup'))
+    folder(_he('הגדרות ומערכת', 'Settings and system'), url(a='sys_menu'), icon('accounts'))
     end(cache=False)
 
 
@@ -160,6 +153,51 @@ def _tg_api_set():
         return bool(a.getSetting('api_id') and a.getSetting('api_hash'))
     except Exception:
         return False
+
+
+def _he(he, en):
+    from resources.lib.common import ui_lang
+    return he if ui_lang() == 'he' else en
+
+
+def sys_menu():
+    from resources.lib import profiles
+    folder(T('kodi_settings'), url(a='kodi_settings'), icon('accounts'))
+    folder('%s: %s' % (_he('סוג מכשיר', 'Device type'), profiles.label(profiles.current(), 'he' if _he(1, 0) else 'en')),
+           url(a='profile_pick'), 'DefaultAddonProgram.png')
+    folder(status.s('title'), url(a='status'), icon('accounts'))
+    folder(sysupdate.s('title'), url(a='sysreport'), icon('accounts'), plot=sysupdate.s('running'))
+    end(cache=False)
+
+
+def src_menu(cat=''):
+    """5.2: Edit sources - one place per kind of content, each with the editors that already exist for it"""
+    tele = 'plugin://plugin.video.telescope/'
+    cats = [('video', _he('סרטים וסדרות', 'Films and series'), icon('movies')), ('live', _he('טלוויזיה לייב', 'Live TV'), icon('tv')),
+            ('radio', _he('רדיו ומוזיקה', 'Radio and music'), icon('radio')), ('tg', _he('טלגרם', 'Telegram'), icon('accounts')),
+            ('subs', _he('כתוביות', 'Subtitles'), icon('accounts'))]
+    if not cat:
+        for key, label, ic in cats:
+            folder(label, url(a='src_menu', cat=key), ic)
+        return end(cache=False)
+    if cat == 'video':
+        folder(_he('חיפוש בכל מקורות הסרטים והסדרות', 'Search every film and series source'), url(a='hub_search'), os.path.join(MEDIA, 'search_all.png'))
+        folder(providers.s('library'), url(a='libs'), icon('libraries'))
+        folder(_he('שרתי Stremio, Real-Debrid, StremThru ומפתחות', 'Stremio servers, Real-Debrid, StremThru and keys'), url(a='accounts'), icon('accounts'))
+        folder(_he('ערוצים ובוטים של טלגרם', 'Telegram channels and bots'), tele + '?mode=telegram', icon('accounts'))
+    elif cat == 'live':
+        li = xbmcgui.ListItem(_he('מקורות IPTV: M3U, Xtream ולוח שידורים (EPG)', 'IPTV sources: M3U, Xtream and guide (EPG)'))
+        li.setArt({'icon': 'DefaultAddonService.png'})
+        xbmcplugin.addDirectoryItem(HANDLE, url(a='src_iptv'), li, False)
+        folder(T('tv'), url(a='tv_root'), icon('tv'))
+    elif cat == 'radio':
+        folder(T('radio'), url(a='radio_root'), icon('radio'))
+    elif cat == 'tg':
+        folder(_he('הערוצים, הקבוצות והבוטים שלי', 'My channels, groups and bots'), tele + '?mode=telegram', icon('accounts'))
+        folder(_he('חשבון טלגרם', 'Telegram account'), tele + '?mode=account', icon('accounts'))
+    elif cat == 'subs':
+        folder(_he('אתרי כתוביות, מפתחות ותרגום AI', 'Subtitle sites, keys and AI translation'), url(a='accounts'), icon('accounts'))
+    end(cache=False)
 
 
 def bk_menu():
@@ -173,6 +211,12 @@ def bk_menu():
         li.setArt({'icon': 'DefaultAddonProgram.png'})
         xbmcplugin.addDirectoryItem(HANDLE, url(a=act), li, False)
     folder('Google Drive', url(a='gd_menu'), 'DefaultNetwork.png')      # backups on Drive, restore, sync
+    # 5.2: All in one, both ways, where backups are
+    for label, mode in ((_he('חיבור כולל: התחברות במשתמש וסיסמה', 'All in one: connect with user name and password'), 'aio'),
+                        (_he('חיבור כולל: שמירה / עדכון מהמכשיר הזה', 'All in one: save / update from this device'), 'aio_save')):
+        li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % label)
+        li.setArt({'icon': 'DefaultAddonProgram.png'})
+        xbmcplugin.addDirectoryItem(HANDLE, 'plugin://plugin.video.telescope/?mode=' + mode, li, False)
     end(cache=False)
 
 
@@ -744,6 +788,9 @@ def router(p):
         'play': lambda: play(**p),
         'lib_install': lambda: libraries.install(p['id']),
         'bk_menu': bk_menu,
+        'sys_menu': sys_menu,
+        'src_menu': lambda: src_menu(p.get('cat', '')),
+        'src_iptv': lambda: __import__('resources.lib.iptv', fromlist=['x']).edit_sources(),
         'gd_menu': lambda: _gd().menu(HANDLE, url),
         'gd': lambda: _gd().action(p['do']),
         'gd_browse': lambda: _gd().browse(HANDLE, url, p.get('id', '')),
@@ -766,7 +813,7 @@ def router(p):
     simple[a]()
 
 
-ACTIONS = {'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc', 'ac_pick', 'sh_clear', 'sh_remove', 'sh_add', 'user_do', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
+ACTIONS = {'src_iptv', 'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc', 'ac_pick', 'sh_clear', 'sh_remove', 'sh_add', 'user_do', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
            'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu', 'pair_send', 'pair_receive', 'web_pair',
            'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go', 'clip_paste', 'clip_menu'}
 

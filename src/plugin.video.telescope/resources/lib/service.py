@@ -647,6 +647,31 @@ class Service(xbmc.Monitor):
             return self._cloud(method, p)
         if method == 'config_export':
             return self.config_export(p.get('password') or '')
+        if method == 'aio_save':                 # 5.2: All in one from Kodi - this device's settings MERGED into the vault
+            import base64
+            from . import aio, configio
+            name, pw = p.get('name') or '', p.get('password') or ''
+            if not aio.ok_input(name, pw):
+                raise RuntimeError('aio_short')
+            seal = aio.keys(name, pw)[1]
+            mine = configio.unpack(base64.b64decode(self.config_export(seal)['data']), seal)
+            settings, files, extra = dict(mine[0]), dict(mine[1]), dict(mine[2])
+            try:                                 # what the site / an app saved there before (users, lists, its keys) is kept
+                old_s, old_f, old_x, _h = configio.unpack(aio.fetch(name, pw)[0], seal)
+                settings = dict(old_s, **{k: v for k, v in settings.items() if v not in ('', None)})
+                web = dict(old_x.get('web') or {}, **(extra.get('web') or {}))
+                extra = dict(old_x, **extra)
+                if web:
+                    extra['web'] = web
+                files = dict(old_f, **files)
+            except aio.AioError as exc:
+                if str(exc) != 'none':
+                    raise RuntimeError('aio_' + str(exc))
+            try:
+                aio.store(name, pw, configio.pack(settings, files, seal, extra))
+            except aio.AioError as exc:
+                raise RuntimeError('aio_' + str(exc))
+            return {'ok': True}
         if method == 'aio_connect':              # 5.1: All in one (aio.py) - the vault, opened and imported like a file
             import base64
             from . import aio

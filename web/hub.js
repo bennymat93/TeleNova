@@ -292,6 +292,9 @@
 
   TN.registerPage('search', async (q, ctx) => {
     q = String(q || '').trim();
+    let cat = '';
+    const cm = /^cat=([a-z]+)&q=([\s\S]*)$/.exec(q);
+    if (cm) { cat = cm[1]; q = cm[2].trim(); }
     const qi = document.getElementById('q');
     if (qi) qi.value = q;
     TN.page('', `${TN.t('results')} “${q}”`);
@@ -310,13 +313,16 @@
     status.setAttribute('role', 'status');
     view.append(status, bestH, bestG);
 
-    const list = (await TN.providers('search')).filter((p) => typeof p.search === 'function');
+    let list = (await TN.providers('search')).filter((p) => typeof p.search === 'function');
+    let only = null;
+    if (cat) { try { const SE = await TN.provider('srcedit'); only = SE && SE.providersOf(cat); } catch (e) { only = null; } }
+    if (only) list = list.filter((p) => only.includes(p.name));
     if (!ctx.current()) return;
     const names = new Set(list.map((p) => p.name));
     const jobs = list.map((p) => ({label: p.label || p.name, name: p.name, run: (o) => p.search(o.query, o)}));
-    for (const [k, fn, mod] of fallbacks) if (!names.has(mod) && TN.providerOn(mod)) jobs.push({label: TN.t(k), name: mod, run: (o) => fn(o.query)});
+    for (const [k, fn, mod] of fallbacks) if (!names.has(mod) && TN.providerOn(mod) && (!only || only.includes(mod))) jobs.push({label: TN.t(k), name: mod, run: (o) => fn(o.query)});
     try {                                      // topics: only what this visit already loaded (no new requests)
-      const tp = TN.providerOn('topics') ? await TN.provider('topics') : null;
+      const tp = TN.providerOn('topics') && (!only || only.includes('topics')) ? await TN.provider('topics') : null;
       if (tp && tp.searchLoaded) jobs.push({label: TN.t('hub_topics'), name: 'topics', run: async (o) => {
         const Y = await TN.provider('yt');
         const found = tp.searchAll && Y && Y.ready && Y.ready() ? await tp.searchAll(o.query, {signal: o.signal}) : tp.searchLoaded(o.query);

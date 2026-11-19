@@ -955,3 +955,7 @@ msgstr ""
 msgctxt "#30969"
 msgid "Everything is connected. Telegram is next: its sign-in screen opens now, and another device of yours that is open and signed in approves it by itself."
 msgstr ""
+
+msgctxt "#30970"
+msgid "Saved. From now on, on every new device: All in one + the same user name and password."
+msgstr ""

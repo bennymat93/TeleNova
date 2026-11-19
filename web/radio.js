@@ -395,9 +395,13 @@
     async search(q, opts = {}) {
       q = String(q || '').trim();
       if (q.length < 2) return [];
+      const ql = q.toLowerCase();
+      let own = [];
+      try { own = (TN.get('radio_own', []) || []).filter((s) => s && s.name && /^https:\/\//i.test(String(s.url)) && String(s.name).toLowerCase().includes(ql)); } catch (e) { own = []; }
+      const mine = own.map((s) => ({title: s.name, sub: t('radio'), img: '', kind: 'radio', score: 1, open: () => play({name: s.name, url: s.url, url_resolved: s.url, favicon: ''})}));
       const d = await stations({q});
-      return d.items.filter((s) => !s.http_only).slice(0, opts.limit || 20).map((s) => ({title: s.name, sub: [s.country, t('radio')].filter(Boolean).join(' · '),
-        img: TN.httpsOnly(s.favicon) || '', kind: 'radio', score: s.name.toLowerCase() === q.toLowerCase() ? 1 : 0.5, open: () => play(s)}));
+      return mine.concat(d.items.filter((s) => !s.http_only).slice(0, opts.limit || 20).map((s) => ({title: s.name, sub: [s.country, t('radio')].filter(Boolean).join(' · '),
+        img: TN.httpsOnly(s.favicon) || '', kind: 'radio', score: s.name.toLowerCase() === q.toLowerCase() ? 1 : 0.5, open: () => play(s)})));
     },
     stations, playable, split, readable, parseArg, favStations, recentStations, play, countryList, tagList, flag, canPlay, SERVERS,
   });

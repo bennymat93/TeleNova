@@ -927,6 +927,25 @@ def config_export(_):
     dlg.ok(common.ADDON_NAME, '%s\n%s\n%s' % (L(30161), path, L(30179)))        # 4.2: never the Telegram login (BUG-010)
 
 
+def aio_save(_):
+    """5.2: All in one, saved from this Kodi (merged with what the site / an app saved there)"""
+    dlg = xbmcgui.Dialog()
+    name = dlg.input(L(30962))
+    pw = name and dlg.input(L(30963), option=xbmcgui.ALPHANUM_HIDE_INPUT)
+    if not name or not pw:
+        return
+    if dlg.input(L(30963), option=xbmcgui.ALPHANUM_HIDE_INPUT) != pw:
+        dlg.ok(L(30961), L(30158))
+        return
+    try:
+        rpc.call('aio_save', name=name, password=pw, timeout=180)
+    except rpc.RPCError as exc:
+        msg = str(exc)
+        dlg.ok(L(30961), L(30966) if 'aio_busy' in msg else L(30967) if 'aio_short' in msg else L(30968))
+        return
+    dlg.ok(L(30961), L(30970))
+
+
 def aio(_):
     """5.1: All in one - one user name and password bring every account and key of the household (web/aio.js)"""
     dlg = xbmcgui.Dialog()
@@ -1667,7 +1686,7 @@ MODES = {
     'clear_cache': clear_cache, 'reinstall': reinstall, 'play': play, 'playtg': playtg, 'settings': settings,
     'chiko': chiko, 'chiko_chat': chiko_chat, 'playurl': playurl, 'hub': hub,
     'bots': bots, 'bot_ask': bot_ask, 'bot_mark': bot_mark, 'pin': pin,
-    'config_export': config_export, 'config_import': config_import, 'hub_go': hub_go, 'aio': aio,
+    'config_export': config_export, 'config_import': config_import, 'hub_go': hub_go, 'aio': aio, 'aio_save': aio_save,
     'noop': lambda p: None,            # a heading row
     'rd_login': rd_login, 'rd_logout': rd_logout, 'rd_status': rd_status, 'playrd': playrd,
 }

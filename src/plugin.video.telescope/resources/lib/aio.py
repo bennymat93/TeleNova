@@ -31,6 +31,26 @@ def ok_input(name, password):
     return len(str(name or '').strip()) >= 3 and len(str(password or '')) >= 8
 
 
+def store(name, password, blob, http=None, timeout=60):
+    """keep a sealed setup at the account's address (PUT /aio/<id>). Raises AioError('short' | 'busy' | 'net')."""
+    if not ok_input(name, password):
+        raise AioError('short')
+    vid = keys(name, password)[0]
+    if http is None:
+        import requests
+        http = requests
+    try:
+        r = http.put('%s/aio/%s' % (HELPER, vid), data=blob, timeout=timeout, headers={'Origin': ORIGIN})
+    except Exception:
+        raise AioError('net')
+    code = getattr(r, 'status_code', 0)
+    if code == 429:
+        raise AioError('busy')
+    if code not in (200, 204):
+        raise AioError('net')
+    return True
+
+
 def fetch(name, password, http=None, timeout=20):
     """-> (sealed bytes, seal password). Raises AioError('short' | 'none' | 'busy' | 'net')."""
     if not ok_input(name, password):
