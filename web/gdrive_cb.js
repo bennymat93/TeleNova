@@ -12,6 +12,13 @@
   if (!/^[A-Za-z0-9._~+\/-]{20,4096}$/.test(token)) token = '';
   var msg = {type: 'tn_gdrive', state: h.get('state') || '', token: token, expires: Math.max(0, Math.min(86400, Number(h.get('expires_in')) || 0)),
              error: String(h.get('error') || '').slice(0, 80)};
+  // the iOS / Android app runs the Google sign-in in the system's own sign-in sheet (Google refuses sign-in inside an
+  // app's web view); its requests carry a state starting with 'tnapp-'. The answer goes back to the app by its
+  // own address, which closes the sheet and hands the fragment to the page inside the app.
+  if (/^tnapp-/.test(msg.state)) {
+    location.replace('telenova://gdrive#' + new URLSearchParams({access_token: msg.token, state: msg.state, expires_in: String(msg.expires), error: msg.error}).toString());
+    return;
+  }
   var line = document.querySelector('p');
   var opener = null;
   try { opener = window.opener && !window.opener.closed ? window.opener : null; } catch (e) { opener = null; }
