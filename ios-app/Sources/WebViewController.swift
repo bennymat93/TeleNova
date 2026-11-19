@@ -1,6 +1,7 @@
 import UIKit
 import WebKit
 import SafariServices
+import AuthenticationServices
 import Network
 import UniformTypeIdentifiers
 
@@ -14,7 +15,8 @@ import UniformTypeIdentifiers
 //  * local: the copy of web/ inside the app, served by LocalServer on 127.0.0.1 - only when the live site cannot be
 //           reached and the service worker has nothing cached yet. Separate storage, no service worker.
 final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandlerWithReply,
-                               WKDownloadDelegate, UIDocumentPickerDelegate, UIScrollViewDelegate {
+                               WKDownloadDelegate, UIDocumentPickerDelegate, UIScrollViewDelegate,
+                               ASWebAuthenticationPresentationContextProviding {
     static let site = URL(string: "https://bennymat93.github.io/TeleNova/web/")!
     static let background = UIColor(red: 11 / 255, green: 13 / 255, blue: 18 / 255, alpha: 1)   // #0b0d12, the page's own
 
@@ -33,6 +35,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private let tgButton = UIButton(type: .system)          // "confirm the sign-in in the Telegram app"
     private var tgLogin: URL?
     private var keyboardUp = false
+    private var authSession: ASWebAuthenticationSession?
     private let monitor = NWPathMonitor()
     private var online = true
     private var pendingLink: String?
@@ -459,6 +462,11 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             tgLogin = ok ? URL(string: text) : nil
             updateTgButton()
             replyHandler(true, nil)
+        case "gauth":
+            guard let s = body["url"] as? String, let u = URL(string: s), u.host == "accounts.google.com" else {
+                replyHandler(nil, "bad"); return
+            }
+            googleSignIn(u) { replyHandler(true, nil) }
         case "files": showFiles(); replyHandler(true, nil)
         case "import": importFiles(); replyHandler(true, nil)
         case "scan": scanPair(); replyHandler(true, nil)
@@ -628,6 +636,42 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             UserDefaults.standard.set(Double((f.origin.y - r.minY) / (r.maxY - r.minY)), forKey: "menuPosY")
             UIView.animate(withDuration: 0.2) { self.placeMenuButton() }
         }
+    }
+
+    // ------------------------------------------------------------------ Google sign-in (Drive)
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        view.window ?? ASPresentationAnchor()
+    }
+
+    // Google's own page in the system sign-in sheet (shares the Safari sign-in, so the account is usually one tap).
+    // The answer comes back as telenova://gdrive#access_token=...&state=tnapp-...; it is handed to the page as the
+    // message the pop-up of web/gdrive.js would have sent. The token goes nowhere else and is not kept here.
+    private func googleSignIn(_ url: URL, done: @escaping () -> Void) {
+        authSession?.cancel()
+        let s = ASWebAuthenticationSession(url: url, callbackURLScheme: "telenova") { [weak self] cb, err in
+            DispatchQueue.main.async {
+                defer { done() }
+                guard let self = self else { return }
+                var msg: [String: Any] = ["type": "tn_gdrive", "state": "", "token": "", "expires": 0, "error": "access_denied"]
+                if let cb = cb, let frag = URLComponents(url: cb, resolvingAgainstBaseURL: false)?.fragment {
+                    var q = URLComponents(); q.percentEncodedQuery = frag
+                    var v: [String: String] = [:]
+                    for i in q.queryItems ?? [] { v[i.name] = i.value ?? "" }
+                    var state = v["state"] ?? ""
+                    if state.hasPrefix("tnapp-") { state = String(state.dropFirst(6)) }
+                    msg = ["type": "tn_gdrive", "state": state, "token": v["access_token"] ?? "",
+                           "expires": Int(v["expires_in"] ?? "") ?? 0, "error": v["error"] ?? ""]
+                } else if err != nil {
+                    msg["error"] = "access_denied"
+                }
+                guard let d = try? JSONSerialization.data(withJSONObject: msg), let js = String(data: d, encoding: .utf8) else { return }
+                self.webView.evaluateJavaScript("window.postMessage(\(js), location.origin);", completionHandler: nil)
+            }
+        }
+        s.presentationContextProvider = self
+        s.prefersEphemeralWebBrowserSession = false
+        authSession = s
+        if !s.start() { done() }
     }
 
     // ------------------------------------------------------------------ Telegram sign-in on this device, keyboard

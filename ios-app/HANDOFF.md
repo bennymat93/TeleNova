@@ -5,6 +5,14 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19, owner: "Drive sign-in does not work at all" (screenshot: Google "redirect_uri_mismatch").
+  Two parts. (1) OWNER'S Google Cloud client must list origin https://bennymat93.github.io and redirect
+  https://bennymat93.github.io/TeleNova/web/gdrive_cb.html (Web application type) - only he can do it.
+  (2) In the app: Google refuses sign-in inside a web view and a pop-up cannot come back, so `bridge.js` wraps
+  window.open for accounts.google.com, adds 'tnapp-' to the state, Swift runs ASWebAuthenticationSession
+  (callback scheme telenova), `web/gdrive_cb.js` sends 'tnapp-' answers to telenova://gdrive#..., Swift posts the
+  pop-up's message {type:'tn_gdrive', state, token, expires} to the page. Not testable in CI (needs his Google).
+  Also: the page now starts below the status bar (header can no longer hide behind the clock).
 - 2026-11-19, owner's screenshot (2.5 on iPhone, Telegram sign-in page): the page header with the back button
   was hidden under the status bar after typing; asked for smaller buttons, better use of space, iOS adaptation.
   Done in the app only (web/ unchanged): `bridge.js` adds class `tnios` + a denser stylesheet (`IOS_CSS`:

@@ -12,6 +12,23 @@
   window.__tnNative = true;
   try { Object.defineProperty(navigator, 'standalone', {configurable: true, get: function () { return true; }}); } catch (e) { /* stays as it is */ }
 
+  // ---- Google Drive sign-in -------------------------------------------------------------------------------------
+  // web/gdrive.js opens Google's sign-in in a pop-up and waits for a message from gdrive_cb.html. In the app the
+  // sign-in runs in the system sheet (ASWebAuthenticationSession); gdrive_cb.html sends the answer back by the
+  // telenova:// address (state 'tnapp-...'), and the app posts it to this page exactly as the pop-up would.
+  var realOpen = window.open;
+  window.open = function (url) {
+    var u = String(url || '');
+    if (u.indexOf('https://accounts.google.com/o/oauth2/') !== 0) return realOpen.apply(window, arguments);
+    var fake = {closed: false, close: function () { fake.closed = true; }, focus: function () {}, postMessage: function () {}};
+    try {
+      var x = new URL(u);
+      x.searchParams.set('state', 'tnapp-' + (x.searchParams.get('state') || ''));
+      mh.postMessage({op: 'gauth', url: x.toString()}).then(function () { fake.closed = true; }, function () { fake.closed = true; });
+    } catch (e) { return null; }
+    return fake;
+  };
+
   // ---- iOS look: denser, closer to a native app (owner, 2026-11-19: "smaller buttons, use the space") -------------
   // Only inside the iOS app (class tnios on <html>); the web site itself is unchanged. Sizes stay at or above the
   // 36-44 pt touch range. The header no longer slides away while scrolling: its back button must always be there.
