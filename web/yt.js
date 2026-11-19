@@ -14,7 +14,7 @@
 (function (TN) {
   if (!TN) return;
   TN.i18n.add({
-    he: {yt_title: 'YouTube', yt_search: 'חיפוש ביוטיוב', yt_go: 'חיפוש', yt_key: 'מפתח YouTube Data API (לא חובה)',
+    he: {yt_title: 'YouTube', yt_topics: 'נושאים', yt_search: 'חיפוש ביוטיוב', yt_go: 'חיפוש', yt_key: 'מפתח YouTube Data API (לא חובה)',
       yt_key_hint: 'יוטיוב לא מאפשר לדפדפן לחפש בלי מפתח. אפשר להזין מפתח YouTube Data API v3 משלך (נשמר רק בדפדפן הזה), או להגדיר כתובת עוזר (Worker) בהגדרות.',
       yt_need: 'כדי לחפש ביוטיוב צריך מפתח API או עוזר (Worker). הניגון עצמו עובד תמיד.', yt_saved: 'נשמר',
       yt_fail: 'יוטיוב לא ענה. בדקו את המפתח או את העוזר.', yt_channel: 'ערוץ', yt_open: 'פתיחה ביוטיוב', yt_views: '%s צפיות',
@@ -23,7 +23,7 @@
       yt_setup_txt: 'ניגון, קישורים, מועדפים ופלייליסטים עובדים בלי מפתח. לחיפוש, לרשימות ערוצים ולשידורים חיים צריך מפתח YouTube Data API חינמי או כתובת עוזר (Worker) - שניהם במסך "שירותים".',
       yt_retry: 'נסו שוב', yt_none: 'לא נמצאו סרטונים', yt_fav_add_ch: 'הוספת הערוץ למועדפים', yt_ch_need: 'כדי לפתוח ערוץ לפי שם (@) צריך מפתח או עוזר. הערוץ נפתח ב-YouTube.',
       yt_key_how: 'איך מקבלים מפתח', yt_min: "%s דק'"},
-    en: {yt_title: 'YouTube', yt_search: 'Search YouTube', yt_go: 'Search', yt_key: 'YouTube Data API key (optional)',
+    en: {yt_title: 'YouTube', yt_topics: 'Topics', yt_search: 'Search YouTube', yt_go: 'Search', yt_key: 'YouTube Data API key (optional)',
       yt_key_hint: 'YouTube does not let a browser search without a key. Enter your own YouTube Data API v3 key (kept only in this browser), or set a helper (Worker) URL in Settings.',
       yt_need: 'Searching YouTube needs an API key or the helper (Worker). Playing always works.', yt_saved: 'Saved',
       yt_fail: 'YouTube did not answer. Check the key or the helper.', yt_channel: 'Channel', yt_open: 'Open on YouTube', yt_views: '%s views',
@@ -32,7 +32,7 @@
       yt_setup_txt: 'Playing, links, favourites and playlists work without a key. Search, channel lists and live broadcasts need a free YouTube Data API key or a helper (Worker) address - both are on the Services screen.',
       yt_retry: 'Try again', yt_none: 'No videos found', yt_fav_add_ch: 'Add the channel to favourites', yt_ch_need: 'Opening a channel by its @name needs a key or the helper. The channel opens on YouTube.',
       yt_key_how: 'How to get a key', yt_min: '%s min'},
-    ru: {yt_title: 'YouTube', yt_search: 'Поиск в YouTube', yt_go: 'Найти', yt_key: 'Ключ YouTube Data API (необязательно)',
+    ru: {yt_title: 'YouTube', yt_topics: 'Темы', yt_search: 'Поиск в YouTube', yt_go: 'Найти', yt_key: 'Ключ YouTube Data API (необязательно)',
       yt_key_hint: 'YouTube не даёт браузеру искать без ключа. Введите свой ключ YouTube Data API v3 (хранится только в этом браузере) или укажите адрес помощника (Worker) в настройках.',
       yt_need: 'Для поиска в YouTube нужен ключ API или помощник (Worker). Воспроизведение работает всегда.', yt_saved: 'Сохранено',
       yt_fail: 'YouTube не ответил. Проверьте ключ или помощник.', yt_channel: 'Канал', yt_open: 'Открыть в YouTube', yt_views: '%s просмотров',
@@ -415,6 +415,15 @@
     }
     return box;
   }
+  // ready-made searches for the front page: [label, query, live?]
+  const TOPICS = {
+    he: [['פופולרי עכשיו', 'פופולרי השבוע בישראל'], ['חדשות', 'חדשות היום'], ['שידורים חיים', 'שידור חי', 1], ['מוזיקה ישראלית', 'להיטים ישראליים'], ['סרטים מלאים', 'סרט מלא'], ['סדרות', 'פרק מלא'],
+      ['ילדים', 'סרטונים לילדים'], ['ספורט', 'תקצירים ספורט'], ['בישול', 'מתכונים'], ['טכנולוגיה', 'טכנולוגיה סקירה']],
+    en: [['Popular now', 'popular this week'], ['News', 'news today'], ['Live now', 'live', 1], ['Music', 'top hits'], ['Full films', 'full movie'], ['Series', 'full episode'],
+      ['Kids', 'kids cartoons'], ['Sport', 'sport highlights'], ['Cooking', 'recipes'], ['Technology', 'tech review']],
+    ru: [['Популярное', 'популярное на этой неделе'], ['Новости', 'новости сегодня'], ['Прямой эфир', 'прямой эфир', 1], ['Музыка', 'хиты'], ['Фильмы', 'фильм полностью'], ['Сериалы', 'серия полностью'],
+      ['Детям', 'мультфильмы'], ['Спорт', 'спорт обзор'], ['Кулинария', 'рецепты'], ['Технологии', 'обзор техники']],
+  };
   function grid(view, title, list, shape) {
     if (!list.length) return null;
     const g = TN.section(title, list.length);
@@ -489,6 +498,25 @@
       grid(view, TN.t('yt_favs'), all.filter((x) => x.kind === 'web_yt'), 'wide');
       grid(view, TN.t('yt_fav_ch'), all.filter((x) => x.kind === 'web_ytc'), 'square');
       grid(view, TN.t('yt_recent'), recent(12));
+      // 5.2.1: the front page is never an empty search box - ready-made topics (one press = a search) and, when
+      // lists are available (key or helper), what is watched most now in the viewer's language
+      if (!wants) {
+        const topics = TOPICS[TN.lang()] || TOPICS.en;
+        const sec = TN.section(TN.t('yt_topics'), null);
+        const row = document.createElement('div');
+        row.className = 'links';
+        topics.forEach(([label, q, live]) => row.append(TN.button('btn ghost', label, () => TN.go(TN.link('youtube', live ? {q, live: 1} : {q})))));
+        sec.replaceWith(row);
+        if (ready()) {
+          const sk = TN.skeleton(6);
+          let list = [];
+          try { list = await videos(topics[0][1], {pages: 1}); } catch (e) { list = []; }
+          if (!ctx.current()) return;
+          sk.remove();
+          if (list.length) { const g = TN.section(topics[0][0], list.length); list.slice(0, 18).forEach((v) => g.append(card(v))); }
+          else note(view, 'error', TN.t('yt_fail'), {label: TN.t('yt_retry'), onClick: () => { mem.clear(); TN.route(); }});
+        }
+      }
       return;
     }
     const sk = TN.skeleton(8);

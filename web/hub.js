@@ -12,25 +12,25 @@
   if (!TN) return;
   TN.i18n.add({
     he: {hub_best: 'ההתאמות הטובות ביותר', hub_titles: 'סרטים וסדרות', hub_ia: 'ארכיון האינטרנט', hub_dm: 'Dailymotion', hub_live: 'ערוצים',
-      hub_radio: 'רדיו', hub_topics: 'אקטואליה וידע', hub_none: 'לא נמצא כלום.', hub_ep: 'מחפש: %s', hub_wait: 'מחפש ב-%s מקורות...',
+      hub_radio: 'רדיו', hub_topics: 'אקטואליה וידע', hub_srcs: 'מקורות שנבדקו', hub_src_off: 'לא מחובר – לחצו לחיבור', hub_src_late: 'לא ענה', hub_src_none: 'אין', hub_none: 'לא נמצא כלום.', hub_ep: 'מחפש: %s', hub_wait: 'מחפש ב-%s מקורות...',
       hub_yt_need: 'YouTube: צריך מפתח או עוזר כדי לחפש גם שם.', hub_dm_open: 'פתיחה ב-Dailymotion', hub_dm_wait: 'טוען את הסרטון...',
       hub_dm_fail: 'הסרטון לא נפתח בנגן של האתר. אפשר לפתוח אותו ב-Dailymotion.', hub_tg: 'חיפוש בטלגרם', hub_yt: 'YouTube', hub_live_tile: 'טלוויזיה חיה',
       hub_radio_tile: 'רדיו', hub_movies: 'סרטים', hub_series: 'סדרות', hub_more: 'עוד מקומות לחפש בהם', hub_all: 'הכול', hub_recent: 'חיפושים אחרונים',
       hub_retry: 'חיפוש חוזר', hub_paste: 'קישור שהודבק נפתח ישר (t.me, YouTube, Dailymotion, archive.org).'},
     en: {hub_best: 'Best matches', hub_titles: 'Movies & series', hub_ia: 'Internet Archive', hub_dm: 'Dailymotion', hub_live: 'Channels',
-      hub_radio: 'Radio', hub_topics: 'News & knowledge', hub_none: 'Nothing found.', hub_ep: 'Looking for: %s', hub_wait: 'Searching %s sources...',
+      hub_radio: 'Radio', hub_topics: 'News & knowledge', hub_srcs: 'Sources searched', hub_src_off: 'not connected - press to connect', hub_src_late: 'no answer', hub_src_none: 'none', hub_none: 'Nothing found.', hub_ep: 'Looking for: %s', hub_wait: 'Searching %s sources...',
       hub_yt_need: 'YouTube: a key or the helper is needed to search there too.', hub_dm_open: 'Open on Dailymotion', hub_dm_wait: 'Loading the video...',
       hub_dm_fail: 'The video did not open in the site player. You can open it on Dailymotion.', hub_tg: 'Telegram search', hub_yt: 'YouTube', hub_live_tile: 'Live TV',
       hub_radio_tile: 'Radio', hub_movies: 'Movies', hub_series: 'Series', hub_more: 'More places to search', hub_all: 'All', hub_recent: 'Recent searches',
       hub_retry: 'Search again', hub_paste: 'A pasted link opens directly (t.me, YouTube, Dailymotion, archive.org).'},
     ru: {hub_best: 'Лучшие совпадения', hub_titles: 'Фильмы и сериалы', hub_ia: 'Интернет-архив', hub_dm: 'Dailymotion', hub_live: 'Каналы',
-      hub_radio: 'Радио', hub_topics: 'Новости и знания', hub_none: 'Ничего не найдено.', hub_ep: 'Ищем: %s', hub_wait: 'Поиск в %s источниках...',
+      hub_radio: 'Радио', hub_topics: 'Новости и знания', hub_srcs: 'Проверенные источники', hub_src_off: 'не подключён - нажмите', hub_src_late: 'нет ответа', hub_src_none: 'нет', hub_none: 'Ничего не найдено.', hub_ep: 'Ищем: %s', hub_wait: 'Поиск в %s источниках...',
       hub_yt_need: 'YouTube: для поиска нужен ключ или помощник.', hub_dm_open: 'Открыть в Dailymotion', hub_dm_wait: 'Загрузка видео...',
       hub_dm_fail: 'Видео не открылось в плеере сайта. Его можно открыть в Dailymotion.', hub_tg: 'Поиск в Telegram', hub_yt: 'YouTube', hub_live_tile: 'Прямой эфир',
       hub_radio_tile: 'Радио', hub_movies: 'Фильмы', hub_series: 'Сериалы', hub_more: 'Где ещё искать', hub_all: 'Все', hub_recent: 'Недавние запросы',
       hub_retry: 'Искать снова', hub_paste: 'Вставленная ссылка открывается сразу (t.me, YouTube, Dailymotion, archive.org).'},
   });
-  const PER_TIMEOUT = 12000;
+  const PER_TIMEOUT = 20000;                     // 5.2.1: Telegram's deep search and a cold helper need more than 12 s
 
   // ------------------------------------------------------------ pure logic (providers.py rank, epmatch.parse subset)
   const words = (s) => String(s || '').replace(/\[\/?[A-Z]+[^\]]*\]/g, '').toLowerCase().match(/[\p{L}\p{N}_]+/gu) || [];
@@ -168,17 +168,53 @@
       return parseDm(await r.json()).map((v) => ({title: v.title, sub: [v.owner, fmt(v.secs)].filter(Boolean).join(' · '), img: v.img, kind: 'wide', open: () => playDm(v)}));
     },
   });
+  // 5.2.1: the key-less catalogue (Cinemeta) knows English names only, so "פאודה" or "Бригада" found no title at all
+  // without a TMDb key. Wikidata (open, CORS) knows a film or series by its name in any language and by its IMDb id:
+  // -> [{imdb: 'tt...', en: 'English name'}], at most 4, [] on any failure.
+  const WD = 'https://www.wikidata.org/w/api.php?format=json&origin=*&';
+  const wikiCache = new Map();
+  async function wikiTitles(q, signal) {
+    const key = q.toLowerCase();
+    if (wikiCache.has(key)) return wikiCache.get(key);
+    const lang = /[\u0590-\u05ff]/.test(q) ? 'he' : /[\u0400-\u04ff]/.test(q) ? 'ru' : /[\u0600-\u06ff]/.test(q) ? 'ar' : 'en';
+    let out = [];
+    try {
+      const r = await fetch(WD + new URLSearchParams({action: 'wbsearchentities', search: q, language: lang, uselang: lang, type: 'item', limit: '8'}), {signal});
+      const ids = ((await r.json()).search || []).map((x) => x.id).filter((x) => /^Q\d+$/.test(x));
+      if (ids.length) {
+        const r2 = await fetch(WD + new URLSearchParams({action: 'wbgetentities', ids: ids.join('|'), props: 'claims|labels', languages: 'en'}), {signal});
+        const ents = (await r2.json()).entities || {};
+        for (const id of ids) {
+          const e = ents[id] || {}, c = (e.claims && e.claims.P345 && e.claims.P345[0]) || null;
+          const imdb = c && c.mainsnak && c.mainsnak.datavalue && String(c.mainsnak.datavalue.value || '');
+          const en = e.labels && e.labels.en && String(e.labels.en.value || '');
+          if (/^tt\d{6,10}$/.test(imdb || '') && en) out.push({imdb, en});
+          if (out.length >= 4) break;
+        }
+      }
+    } catch (e) { out = []; }
+    if (!signal || !signal.aborted) wikiCache.set(key, out);
+    return out;
+  }
   TN.registerProvider('tmdb', {
     kinds: ['search'], label: TN.t('hub_titles'),
-    async search(q, {want} = {}) {
+    async search(q, {want, signal} = {}) {
       const text = (want && want.show) || q;
       const se = want && want.season != null ? ' · ' + seLabel(want) : '';
       if (!TN.hasTmdbKey()) {                    // no key: the key-less catalogue (Cinemeta), films and series
         const C = await TN.provider('catalog');
         if (!C || !C.cineSearch) return [];
-        const both = await Promise.all(['movie', 'tv'].map((m) => C.cineSearch(m, text).catch(() => [])));
-        const out = [];
+        let both = await Promise.all(['movie', 'tv'].map((m) => C.cineSearch(m, text).catch(() => [])));
+        let out = [];
         for (let i = 0; i < Math.max(both[0].length, both[1].length) && out.length < 40; i++) for (const l of both) if (l[i]) out.push(l[i]);
+        if (/[^\u0000-\u024f]/.test(text)) {     // a name not in Latin letters: by its IMDb id through Wikidata, exact titles first
+          const exact = [], seen = new Set();
+          for (const w of await wikiTitles(text, signal)) {
+            both = await Promise.all(['movie', 'tv'].map((m) => C.cineSearch(m, w.en).catch(() => [])));
+            for (const row of both[0].concat(both[1])) if (String(row.id) === w.imdb && !seen.has(row.media_type + row.id)) { seen.add(row.media_type + row.id); exact.push(row); }
+          }
+          out = exact.concat(out.filter((x) => !seen.has(x.media_type + x.id)));
+        }
         return out.map((x) => ({title: x.title || x.name, sub: (x.release_date || x.first_air_date || '') + (x.media_type === 'tv' ? se : ''), img: x.poster || 'icon.png', kind: '',
           open: () => (x.media_type === 'tv' ? TN.go(C.link({m: 'tv', v: 'cseasons', id: x.id})) : C.openCine(x))}));
       }
@@ -290,6 +326,44 @@
     const yt = list.find((p) => p.name === 'yt');
     if (yt && yt.ready && !yt.ready()) view.insertAdjacentHTML('beforeend', `<p class="hint"><a href="#/youtube">${TN.esc(TN.t('hub_yt_need'))}</a></p>`);
 
+    // 5.2.1: "sources searched" - one chip per source with what it gave: a number, "nothing", "not connected" (a
+    // link to the place that connects it) or "no answer". Every search asks every source; this line shows it.
+    const srcBar = document.createElement('div');
+    srcBar.className = 'hub_srcs';
+    srcBar.setAttribute('aria-label', TN.t('hub_srcs'));
+    if (!document.getElementById('hub_srcs_css')) {
+      const st = document.createElement('style');
+      st.id = 'hub_srcs_css';
+      st.textContent = '.hub_srcs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}.hub_src{display:inline-flex;gap:6px;align-items:center;padding:4px 10px;border-radius:999px;' +
+        'border:1px solid var(--line,rgba(127,127,127,.35));font-size:13px;color:inherit;text-decoration:none;background:none;cursor:pointer;font-family:inherit}' +
+        '.hub_src b{font-weight:600}.hub_src.ok{border-color:#3ddc84}.hub_src.ok i{color:#3ddc84}.hub_src.wait{opacity:.7}.hub_src.none{opacity:.6}.hub_src.off,.hub_src.late{border-color:#ffc857}.hub_src i{font-style:normal}';
+      document.head.append(st);
+    }
+    view.insertBefore(srcBar, bestH);
+    const chips = jobs.map((j) => {
+      const c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'hub_src wait';
+      c.innerHTML = `<b>${TN.esc(j.label)}</b><i>…</i>`;
+      srcBar.append(c);
+      return c;
+    });
+    const LINK = {tgsearch: '#/tglogin', yt: '#/services', rd: '#/services'};
+    const mark = (i, state, n) => {
+      const c = chips[i], name = jobs[i].name;
+      c.className = 'hub_src ' + state;
+      c.lastChild.textContent = state === 'ok' ? String(n) : TN.t(state === 'off' ? 'hub_src_off' : state === 'late' ? 'hub_src_late' : 'hub_src_none');
+      c.onclick = state === 'ok' ? () => { if (slots[i] && slots[i].scrollIntoView) slots[i].scrollIntoView({behavior: 'smooth', block: 'start'}); }
+        : state === 'off' && LINK[name] ? () => TN.go(LINK[name]) : null;
+    };
+    // is a source that gave nothing simply not connected?
+    const isOff = async (name) => {
+      try {
+        if (name === 'tgsearch') { const TG = await TN.tg(); return !(TG && TG.state && TG.state() === 'on'); }
+        if (name === 'yt') return !!(yt && yt.ready && !yt.ready());
+      } catch (e) { return name === 'tgsearch'; }
+      return false;
+    };
     // one place per provider, in registry order, so sections never jump around as answers arrive
     const slots = jobs.map(() => { const d = document.createElement('div'); view.append(d); return d; });
     const groups = [];
@@ -298,16 +372,21 @@
     const ctl = new AbortController();
     const offRoute = TN.on('route', () => { if (!ctx.current()) { ctl.abort(); offRoute(); } });
     await Promise.all(jobs.map(async (j, i) => {
-      let items = [];
-      const timer = new Promise((res) => setTimeout(() => res([]), PER_TIMEOUT));
+      let items = [], late = false, failed = false;
+      const timer = new Promise((res) => setTimeout(() => { late = true; res([]); }, PER_TIMEOUT));
       try {
         items = await Promise.race([j.run({query: q, signal: ctl.signal, limit: 30, want, season: want.season, episode: want.episode, show: want.show}), timer]) || [];
-      } catch (e) { items = []; }
+      } catch (e) { items = []; failed = true; }
       left--;
       if (!ctx.current()) return;
       status.textContent = left ? TN.t('hub_wait', left) : '';
       items = rank(items.filter((it) => it && it.title && typeof it.open === 'function'), q);
-      if (!items.length) { slots[i].remove(); return; }
+      if (!items.length) {
+        slots[i].remove(); slots[i] = null;
+        mark(i, (await isOff(j.name)) ? 'off' : late || failed ? 'late' : 'none', 0);
+        return;
+      }
+      mark(i, 'ok', items.length);
       total += items.length;
       groups[i] = {items};
       const h = document.createElement('h2');

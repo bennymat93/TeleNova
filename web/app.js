@@ -1563,6 +1563,17 @@ function takePair() {
   try { history.replaceState({i: hIdx}, '', location.pathname + location.search + '#/settings/accounts'); } catch (e) { location.hash = '#/settings/accounts'; }
   return true;
 }
+// 5.2.1: the transfer link of another device (<site>/web/#setup=<sealed setup>): kept for this tab only and taken out of
+// the address at once; the backup page asks for the six-digit code and opens it.
+function takeSetup() {
+  const m = /^#setup=([\w-]{40,})$/.exec(location.hash);
+  if (!m) return false;
+  try { sessionStorage.setItem('bn_setup', m[1]); } catch (e) { return false; }
+  try { history.replaceState({i: hIdx}, '', location.pathname + location.search + '#/backup'); } catch (e) { location.hash = '#/backup'; }
+  return true;
+}
+// settings stay until the viewer changes them or removes the app: ask the browser not to evict this site's storage
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* older browsers */ }
 function drawTgBox() {
   const ui = $('#tgui');
   if (!ui) return;
@@ -2192,7 +2203,7 @@ function afterRender() {
   } else if (info.nav) { try { view.focus({preventScroll: true}); } catch (e) {} }
 }
 function route(keep) {
-  if (takePair()) return route();
+  if (takePair() || takeSetup()) return route();
   if (keep !== true) { closeModal(); closePop(); closeSearchLayer(); }
   const here = hereNow(), p = here.key, a = here.arg;
   markNav(p, a);
