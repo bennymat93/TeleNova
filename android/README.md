@@ -9,9 +9,15 @@ native shell. Package `io.github.bennymat93.telenova`, minSdk 24 (Android 7), Ja
 powershell -ExecutionPolicy Bypass -File android\build.ps1
 ```
 
+**Version numbers.** Every release goes up by one inside the series in `android/VERSION` (now `2.6` -> 2.6.1, 2.6.2,
+...), the same rule as the iOS app (`ios-app/VERSION`). `build.ps1` counts the published GitHub releases
+`apk-<series>.N`, builds `<series>.(N+1)` and writes `versionName` / `versionCode` (`major*10000 + minor*100 + N`) into
+`app/build.gradle` - do not edit them by hand; `build.ps1 -DryRun` only prints the next number. After commit + push:
+`gh release create apk-X.Y.Z BN-Stream-Android-X.Y.Z.apk --target gh-pages --latest --title "BN Stream Android X.Y.Z"`
+(the script prints the exact line). A new series (2.7) = edit `android/VERSION`.
+
 It copies `web/` into the app (Gradle task `syncWeb`, see `sync_web.gradle`; `web/tests` and `*.md` are left out),
-builds the signed release and writes `apk/TeleNova.apk` + `apk/version.json`. After a web release: run it again, raise
-`versionCode` / `versionName` in `app/build.gradle` first.
+builds the signed release and writes `apk/TeleNova.apk` + `apk/version.json`. After a web release: run it again.
 
 The Gradle build folder is outside the repository (`%USERPROFILE%\.telenova-build`): folders under the project are
 scanned / synced by other programs, which kept files open and failed builds ("Failed to delete some children").
