@@ -23,6 +23,15 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Version (series from ios-app/VERSION, next number after the published releases)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BASE="$(tr -d ' \r\n' < ios-app/VERSION)"
+          N="$(gh release list --limit 300 --json tagName -q '.[].tagName' | grep -c "^ios-$BASE\.[0-9]*$" || true)"
+          echo "TN_VERSION=$BASE.$((N + 1))" >> "$GITHUB_ENV"
+          echo "version $BASE.$((N + 1))"
       - name: Tools
         run: |
           xcodebuild -version
@@ -157,8 +166,8 @@ jobs:
         run: |
           set -euo pipefail
           V="$(bash ios-app/build.sh version)"
-          TAG="ios-$V-b$GITHUB_RUN_NUMBER"
-          FILE="BN-Stream-iOS-$V-b$GITHUB_RUN_NUMBER.ipa"
+          TAG="ios-$V"
+          FILE="BN-Stream-iOS-$V.ipa"
           cp "ios-app/build/TeleNova-Web-$V.ipa" "$RUNNER_TEMP/$FILE"
           if gh release view "$TAG" >/dev/null 2>&1; then echo "release $TAG exists"; exit 0; fi
-          gh release create "$TAG" "$RUNNER_TEMP/$FILE" --target gh-pages --latest=false --title "BN Stream iOS $V (build $GITHUB_RUN_NUMBER)" --notes "Unsigned IPA for iPhone and iPad (iOS 15+). Sign it yourself (Sideloadly / AltStore). Guide: https://github.com/bennymat93/TeleNova/blob/gh-pages/ios/README-app.md"
+          gh release create "$TAG" "$RUNNER_TEMP/$FILE" --target gh-pages --latest=false --title "BN Stream iOS $V" --notes "Unsigned IPA for iPhone and iPad (iOS 15+). Sign it yourself (Sideloadly / AltStore). Guide: https://github.com/bennymat93/TeleNova/blob/gh-pages/ios/README-app.md"

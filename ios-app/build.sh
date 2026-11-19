@@ -14,7 +14,9 @@ HERE="$(pwd)"
 WEB="$HERE/../web"
 
 # the app's own version (the owner's numbering, since 2.0): ios-app/VERSION. The web version is only reported.
-TN_VERSION="$(tr -d ' \r\n' < "$HERE/VERSION")"
+# ios-app/VERSION holds the series (2.6); every release adds the next number: 2.6.1, 2.6.2, ... The workflow works the
+# number out from the releases already published and passes the full version in TN_VERSION.
+TN_VERSION="${TN_VERSION:-$(tr -d ' \r\n' < "$HERE/VERSION")}"
 [ -n "$TN_VERSION" ] || { echo "ios-app/VERSION is empty" >&2; exit 1; }
 WEB_VERSION="$(sed -n "s/.*WEB_VERSION *= *'\([0-9][0-9.]*\)'.*/\1/p" "$WEB/version.js" | head -1)"
 export TN_VERSION

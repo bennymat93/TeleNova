@@ -5,6 +5,10 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19, owner: every release goes up one: v2.6.1, v2.6.2, ... `ios-app/VERSION` = series ("2.6"); the
+  workflow step "Version" counts releases `ios-2.6.N` and builds 2.6.(N+1); release tag `ios-2.6.N`, file
+  `BN-Stream-iOS-2.6.N.ipa`, `ios/TeleNova-Web-2.6.N.ipa`. New series = edit VERSION (e.g. 2.7 -> 2.7.1).
+  Also: Internet Archive button removed from the title page (web/app.js, 96e2017).
 - 2026-11-19, owner: "Drive sign-in does not work at all" (screenshot: Google "redirect_uri_mismatch").
   Two parts. (1) OWNER'S Google Cloud client must list origin https://bennymat93.github.io and redirect
   https://bennymat93.github.io/TeleNova/web/gdrive_cb.html (Web application type) - only he can do it.

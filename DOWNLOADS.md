@@ -6,16 +6,16 @@
 
 | אפליקציה | איפה | שם הקובץ | התקנה |
 |---|---|---|---|
-| iPhone / iPad (IPA לא חתום) | גרסאות שהתג שלהן מתחיל ב-`ios-` | `BN-Stream-iOS-<גרסה>-b<בנייה>.ipa` | [ios/README-app.md](ios/README-app.md) - חתימה עצמית (Sideloadly / AltStore) |
+| iPhone / iPad (IPA לא חתום) | גרסאות שהתג שלהן מתחיל ב-`ios-` | `BN-Stream-iOS-<גרסה>.ipa` (2.6.1, 2.6.2, ...) | [ios/README-app.md](ios/README-app.md) - חתימה עצמית (Sideloadly / AltStore) |
 | Android (טלפון, טאבלט, Android TV, רכב) | גרסאות שהתג שלהן מתחיל ב-`apk-` | `BN-Stream-Android-<גרסה>.apk` | [apk/README.md](apk/README.md) |
 
 קישורים ישירים לגרסה האחרונה (מהאתר, תמיד הקובץ העדכני):
 
-- iOS: https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-2.5.ipa
+- iOS: https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-<גרסה>.ipa
 - Android: https://bennymat93.github.io/TeleNova/apk/TeleNova.apk
 
 איך זה מתעדכן:
-- **iOS** - אוטומטי: כל בנייה ירוקה של `.github/workflows/ios-app.yml` יוצרת Release חדש `ios-<גרסה>-b<מספר בנייה>`
+- **iOS** - אוטומטי: כל בנייה ירוקה של `.github/workflows/ios-app.yml` יוצרת Release חדש עם הגרסה הבאה (`ios-2.6.1`, `ios-2.6.2`, ...; הסדרה כתובה ב-`ios-app/VERSION`)
   ומחליפה את הקובץ שב-`ios/`.
 - **Android** - אחרי כל שחרור APK מריצים פעם אחת, מתיקיית הפרויקט, עם מספר הגרסה החדש:
   `cp apk/TeleNova.apk BN-Stream-Android-X.Y.Z.apk` ואז
