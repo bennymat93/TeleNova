@@ -588,6 +588,8 @@ html[data-shell="tablet"] .brand{display:none}
 /* 5.1: display size control, and no automatic zoom while typing (iOS zooms into a field whose text is under 16px) */
 .zoomctl{display:inline-flex;align-items:center;gap:6px;direction:ltr}.zoomctl .zoombtn{min-width:var(--ctl,44px);padding-inline:10px;font-weight:700}
 .zoomctl .zoominp{width:5.2em;text-align:center}
+/* a phone: the four buttons stay inside the screen (the settings row stretched the box and cut the last one) */
+.zoomctl{flex-wrap:wrap;max-width:100%}.zoomctl .zoominp{flex:0 0 5.2em;min-width:0;max-width:5.2em}
 .zoomrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:0 0 var(--sp-4,16px);padding:10px 14px;border-radius:12px;background:var(--s1,rgba(127,127,127,.12))}
 html[data-shell="phone"] input,html[data-shell="phone"] select,html[data-shell="phone"] textarea,html[data-shell="tablet"] input,html[data-shell="tablet"] select,html[data-shell="tablet"] textarea{font-size:max(16px,1em)}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
