@@ -66,6 +66,12 @@ jobs:
           for f in mac/BN-Stream-macOS-*.zip; do [ -e "$f" ] && git rm -q --cached "$f" && rm -f "$f"; done
           cp "mac-app/build/BN-Stream-macOS-$V.zip" mac/
           git add "mac/BN-Stream-macOS-$V.zip"
+          # every page that links the zip by its versioned name follows the new file
+          for f in mac/index.html guide.html README.md DOWNLOADS.md ios/index.html; do
+            [ -f "$f" ] || continue
+            sed -i '' -E "s/BN-Stream-macOS-[0-9][0-9.]*\.zip/BN-Stream-macOS-$V.zip/g; s#releases/download/mac-[0-9][0-9.]*/#releases/download/mac-$V/#g" "$f"
+            git add "$f"
+          done
           if ! git diff --cached --quiet; then
             git commit -q -m "Mac app: mac/BN-Stream-macOS-$V.zip (build $GITHUB_RUN_NUMBER)"
             ok=0

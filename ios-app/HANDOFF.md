@@ -5,6 +5,8 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-20: the ios-app and mac-app workflows now rewrite the versioned download links themselves in
+  ios/README-app.md, ios/index.html, mac/index.html, guide.html, README.md, DOWNLOADS.md in the same bot commit.
 - 2026-11-19: ONE version 6.0.0 for the whole project (owner). `ios-app/VERSION` = 6.0.0; the workflow uses a full
   x.y.z as it is (a series x.y still gets x.y.N). Next iOS fix release: set VERSION to 6.0.1 by hand. Self-test now
   also plays Apple's public HLS test stream (`playback.time` > 2 s).
