@@ -1,12 +1,13 @@
 # One command: copies web/ into the app (Gradle task syncWeb), builds the signed release APK and puts it in ..\apk\.
 #   powershell -ExecutionPolicy Bypass -File android\build.ps1            (the next number of the series)
 #   powershell -ExecutionPolicy Bypass -File android\build.ps1 -DryRun    (only says which number it would be)
+#   powershell -ExecutionPolicy Bypass -File android\build.ps1 -Version 6.0.0   (one exact version, to align with Kodi / web)
 # Version: every release goes up by one inside the series of android\VERSION (e.g. "2.6" -> 2.6.1, 2.6.2, ...). The
 # number is the count of published GitHub releases apk-<series>.N plus one - the same rule as the iOS app
 # (ios-app/VERSION). versionCode = major*10000 + minor*100 + N, so every release installs over the one before.
 # Needs: Android Studio (its JDK is used) and the Android SDK; the release key in %USERPROFILE%\.telenova-keys\
 # (keystore.properties + telenova-release.jks - never in the repository).
-param([switch]$DryRun)
+param([switch]$DryRun, [string]$Version = '')
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -24,7 +25,11 @@ try {
 } catch { $done = $null }
 if ($null -eq $done) { throw 'Cannot read the GitHub releases (gh missing or not signed in): the next version number is not known.' }
 $patch = $done + 1
-$vName = "$series.$patch"
+if ($Version) {                                   # one exact version asked for (X.Y.Z), e.g. to align with Kodi / web
+    if ($Version -notmatch '^(\d+)\.(\d+)\.(\d+)$') { throw "-Version must be X.Y.Z (now: '$Version')" }
+    $major = [int]$Matches[1]; $minor = [int]$Matches[2]; $patch = [int]$Matches[3]
+}
+$vName = "$major.$minor.$patch"
 $vCode = $major * 10000 + $minor * 100 + $patch
 Write-Host "Version $vName (code $vCode) - releases of $series so far: $done"
 if ($DryRun) { return }

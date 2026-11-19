@@ -154,14 +154,14 @@
   // ---- "Files" button on the pages where files are made or needed
   function fab() {
     if (!document.body || !bridge()) return;
-    var want = /^#\/(backup|settings|services|library|gdrive)/.test(location.hash || '');
+    var want = /^#\/(backup|settings)/.test(location.hash || '');   // 6.0: only where files are made; small, so it covers nothing
     var b = document.getElementById('tn-android-files');
     if (want && !b) {
       b = document.createElement('button');
       b.id = 'tn-android-files'; b.type = 'button';
-      b.style.cssText = 'position:fixed;z-index:40;bottom:calc(76px + env(safe-area-inset-bottom,0px));inset-inline-end:16px;' +
-        'padding:10px 16px;border-radius:24px;border:1px solid rgba(255,255,255,.28);background:#1b2030;color:#fff;' +
-        'font:600 14px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.5);cursor:pointer';
+      b.style.cssText = 'position:fixed;z-index:40;bottom:calc(16px + env(safe-area-inset-bottom,0px));inset-inline-end:16px;' +
+        'width:44px;height:44px;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.28);background:#1b2030;color:#fff;' +
+        'font:600 20px/42px system-ui,sans-serif;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.5);cursor:pointer;opacity:.85';
       b.addEventListener('click', function () { post({t: 'menu'}); });
       document.body.appendChild(b);
     } else if (!want && b) b.remove();
@@ -170,7 +170,11 @@
       try { lang = String((window.TN && TN.lang && TN.lang()) || document.documentElement.lang || 'he').slice(0, 2); } catch (e) {}
       var txt = '☰ ' + (lang === 'he' ? 'קבצים ורענון'
         : lang === 'ru' ? 'Файлы и обновление' : 'Files & refresh');
-      if (b.textContent !== txt) b.textContent = txt;
+      if (b.title !== txt) { b.title = txt; b.setAttribute('aria-label', txt); b.textContent = '☰'; }
+      // the phone layout has a tab bar at the bottom: the button sits above it
+      var low = document.documentElement.getAttribute('data-shell') === 'phone' ? 84 : 16;
+      var bottom = 'calc(' + low + 'px + env(safe-area-inset-bottom,0px))';
+      if (b.style.bottom !== bottom) b.style.bottom = bottom;
     }
   }
   window.addEventListener('hashchange', fab);

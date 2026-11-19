@@ -14,7 +14,8 @@ powershell -ExecutionPolicy Bypass -File android\build.ps1
 `apk-<series>.N`, builds `<series>.(N+1)` and writes `versionName` / `versionCode` (`major*10000 + minor*100 + N`) into
 `app/build.gradle` - do not edit them by hand; `build.ps1 -DryRun` only prints the next number. After commit + push:
 `gh release create apk-X.Y.Z BN-Stream-Android-X.Y.Z.apk --target gh-pages --latest --title "BN Stream Android X.Y.Z"`
-(the script prints the exact line). A new series (2.7) = edit `android/VERSION`.
+(the script prints the exact line). A new series = edit `android/VERSION`. One exact version (to align with Kodi / web, e.g. 6.0.0) =
+`build.ps1 -Version 6.0.0`; the next plain build of series 6.0 is then 6.0.1.
 
 It copies `web/` into the app (Gradle task `syncWeb`, see `sync_web.gradle`; `web/tests` and `*.md` are left out),
 builds the signed release and writes `apk/TeleNova.apk` + `apk/version.json`. After a web release: run it again.
