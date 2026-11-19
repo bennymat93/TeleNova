@@ -41,6 +41,17 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
 
+## TeleNova 5.1.0 / web 5.5.0 / apps v3.0 (2026-11-19) - All in one
+
+- **All in one**: one user name and password bring back every account and service on any device (Kodi, the apps, the
+  site). The owner saves once from a device where everything works (Accounts & services -> All in one -> Save / update);
+  a new device uses the "All in one" button on its main screen. The setup is sealed on the device with a key made from
+  the user name and password (PBKDF2, 310 000 rounds); its address at the helper is made from them too, so the helper
+  never sees either and there is nothing to guess offline (misses are limited per network). Telegram then signs in by
+  itself through a device of the household that is open. No user name or password is in this repository.
+- Kodi: the hub's main menu shows "All in one" first until Telegram is set up; a signed-in Kodi approves the household's
+  new devices by itself (5.0.2).
+
 ## TeleNova 5.0.1 / web 5.3.1 (2026-11-19) - the open ends closed
 
 - **The whole setup to another device, lists included.** "Show the transfer code" (Backup page) now carries settings, keys,
