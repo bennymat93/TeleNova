@@ -120,8 +120,11 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         statusShade.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: top)
         statusShade.isHidden = top < 1
         offlineBar.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: top + 34)
-        // the offline bar sits above the page, not over its top bar
-        let barHeight: CGFloat = offlineBar.isHidden ? 0 : top + 34
+        // The page starts BELOW the status bar (and below the offline bar when it shows). Nothing of the page can
+        // then end up behind the clock - the page's header with its back button always sits under it. (Before, the
+        // page ran under the status bar and its header was hidden there on some screens of a real iPhone.)
+        // The web view's own top safe area becomes 0 by itself, so the page adds no padding of its own.
+        let barHeight: CGFloat = offlineBar.isHidden ? top : top + 34
         let frame = CGRect(x: 0, y: barHeight, width: view.bounds.width, height: view.bounds.height - barHeight)
         if webView.frame != frame { webView.frame = frame }
         offlineBar.contentEdgeInsets = UIEdgeInsets(top: top, left: 12, bottom: 0, right: 12)
