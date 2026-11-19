@@ -355,7 +355,9 @@
     const who = el('p', 'hint', ''); box.append(who);
     about().then((a) => { if (ctx.current()) who.textContent = t('gd_acc', a.name) + (a.limit ? ' · ' + t('gd_space', sizeText(a.usage), sizeText(a.limit)) : ''); }, () => {});
     const acts = el('div', 'links');
-    acts.append(TN.button('btn', t('gd_backup'), async () => { say(t('gd_wait')); try { await backupNow(); say(t('gd_done')); TN.route(); } catch (e) { err(e); } }),
+    const result = (o) => (root.TNResult ? Promise.resolve() : TN.loadScript('result.js')).then(() => { if (root.TNResult) root.TNResult(o); }, () => {});
+    acts.append(TN.button('btn', t('gd_backup'), async () => { say(t('gd_wait')); try { await backupNow(); say(t('gd_done')); TN.route(); result({ok: true, op: 'drive_backup', where: 'Google Drive > BN Stream > Backups'}); }
+      catch (e) { err(e); result({ok: false, op: 'drive_backup', error: e}); } }),
       TN.button('btn ghost', t('gd_sync'), async () => { say(t('gd_wait')); try { const n = await syncNow(); say(t('gd_synced', n[0], n[1])); } catch (e) { err(e); } }),
       TN.button('btn ghost', t('gd_out'), () => { signOut(); TN.route(); }));
     box.append(acts, el('p', 'hint', t('gd_sync_hint')));

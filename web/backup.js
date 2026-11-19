@@ -407,12 +407,13 @@
           inbox.textContent = '';
           box.say(t('bk_move_done', got.names.join(', ') || '-') + (got.lists ? ' · ' + got.lists : ''));
           TN.emit('settings', 'transfer');
+          result({ok: true, op: 'move_take', items: got.names});
           if (got.telegram && !(tgStatus() && tgStatus().state === 'on')) {
             if (got.autoTg) { try { sessionStorage.setItem('bn_tg_auto', '1'); } catch (e) { /* asked by hand below */ } }
             inbox.append(el('p', '', t(got.autoTg ? 'bk_tg_auto' : 'bk_move_tg')), Object.assign(el('a', 'btn', t('bk_sync_connect')), {href: '#/tglogin'}));
             if (got.autoTg) setTimeout(() => TN.go('#/tglogin'), 2500);
           }
-        } catch (err) { box.say(err && err.code === 'drop_gone' ? t('bk_move_gone') : cfgError(err)); }
+        } catch (err) { box.say(err && err.code === 'drop_gone' ? t('bk_move_gone') : cfgError(err)); result({ok: false, op: 'move_take', error: err}); }
       };
       inbox.append(el('p', '', t('bk_move_got')), f);
       // a phone's camera opens the link in the browser, not in the BN Stream app: one press hands it to the app
@@ -453,7 +454,8 @@
         if (drawn) out.append(q);
         out.append(el('p', 'hint', t('bk_move_pin_is')), pin, copy, el('p', 'hint', t(tr.full ? 'bk_move_full' : 'bk_move_part')), el('p', 'hint', t('bk_move_note')));
         box.say('');
-      } catch (e) { box.say(cfgError(e)); }
+        result({ok: true, op: 'move_send', extra: [[t('bk_move_pin'), tr.pin || '']]});
+      } catch (e) { box.say(cfgError(e)); result({ok: false, op: 'move_send', error: e}); }
     }));
     acts.append(TN.button('btn ghost', t('bk_move_paste'), async () => {
       let text = '';
@@ -514,7 +516,8 @@
         if (how === 'down') download(blob, FULL_NAME);
         box.say(t('bk_full_made', FULL_NAME) + ' ' + t('bk_full_one'));
         pw.value = pw2.value = '';
-      } catch (e) { box.say(cfgError(e)); }
+        result({ok: true, op: 'full_make', file: FULL_NAME, where: how === 'saved' ? '' : 'down'});
+      } catch (e) { box.say(cfgError(e)); result({ok: false, op: 'full_make', error: e}); }
     }), TN.button('btn ghost', t('bk_full_restore'), () => {
       if (!pw.value) { box.say(t('bk_full_need_pass')); pw.focus(); return; }
       file.click();
@@ -536,7 +539,9 @@
           if (got.autoTg) setTimeout(() => TN.go('#/tglogin'), 2500);
         }
         TN.emit('settings', 'restore');
+        result({ok: true, op: 'full_restore', file: fl.name, items: got.names});
       } catch (e) {
+        result({ok: false, op: 'full_restore', file: fl.name, error: e});
         // a wrong password is said as such, in its own words, and the field is ready for another try
         const c = e && e.code;
         if (c === 'wrong_password' || c === 'password_required') { box.say(t('bk_full_wrong')); box.msg.setAttribute('role', 'alert'); pw.value = ''; pw.focus(); }
@@ -551,6 +556,8 @@
     return c === 'password_required' ? t('bk_pass_need') : c === 'wrong_password' ? t('bk_pass_bad') : c === 'no_webcrypto' ? t('bk_no_crypto')
       : c === 'not_a_config_file' || c === 'unsupported_version' || c === 'damaged' ? t('bk_cfg_bad') : t('bk_fail', (e && e.message) || e);
   };
+  // 5.4.3: the result window after every backup / restore / transfer (result.js: one line, details, how to fix)
+  const result = (o) => (root.TNResult ? Promise.resolve() : TN.loadScript('result.js')).then(() => { if (root.TNResult) root.TNResult(o); }, () => {});
 
   // ---- the account's document
   const tgSaved = () => !!(TN.get('tg_session', '') && TN.get('tg_api', null));
@@ -662,7 +669,8 @@
     cfgBox.append(cb, document.createTextNode(t('bk_cfg')));
     acts.append(TN.button('btn', t('bk_make'), async () => {
       box.say(t('bk_wait'));
-      try { const name = zipName(); download(await makeZip(), name); box.say(t('bk_made', name)); } catch (e) { box.say(t('bk_fail', (e && e.message) || e)); }
+      try { const name = zipName(); download(await makeZip(), name); box.say(t('bk_made', name)); result({ok: true, op: 'zip_make', file: name, where: 'down'}); }
+      catch (e) { box.say(t('bk_fail', (e && e.message) || e)); result({ok: false, op: 'zip_make', error: e}); }
     }), TN.button('btn ghost', t('bk_restore'), () => file.click()));
     acts.append(Object.assign(el('a', 'btn ghost', t('bk_drive')), {href: '#/gdrive'}));
     file.onchange = async () => {
@@ -670,7 +678,8 @@
       if (!f) return;
       if (f.size > 200 * 1024 * 1024) return box.say(t('bk_big'));
       box.say(t('bk_wait'));
-      try { box.say(await restoreBytes(new Uint8Array(await f.arrayBuffer()), cb.checked)); } catch (e) { box.say(t('bk_fail', (e && e.message) || e)); }
+      try { const said = await restoreBytes(new Uint8Array(await f.arrayBuffer()), cb.checked); box.say(said); result({ok: true, op: 'zip_restore', file: f.name, short: said}); }
+      catch (e) { box.say(t('bk_fail', (e && e.message) || e)); result({ok: false, op: 'zip_restore', file: f.name, error: e}); }
     };
     box.append(acts, cfgBox, file, box.msg, el('p', 'hint', t('bk_note')));
 
@@ -681,7 +690,8 @@
     const cfActs = el('form', 'links');              // (a form, so a password manager treats the field properly; nothing is submitted anywhere)
     const doExport = async () => {
       cf.say(t('bk_wait'));
-      try { const name = 'telenova_web_' + stamp() + '.tncfg'; download(await exportCfg(pw.value), name); cf.say(t('bk_exported', name)); } catch (e) { cf.say(cfgError(e)); }
+      try { const name = 'telenova_web_' + stamp() + '.tncfg'; download(await exportCfg(pw.value), name); cf.say(t('bk_exported', name)); result({ok: true, op: 'cfg_export', file: name, where: 'down'}); }
+      catch (e) { cf.say(cfgError(e)); result({ok: false, op: 'cfg_export', error: e}); }
     };
     cfActs.onsubmit = (e) => { e.preventDefault(); doExport(); };
     const exBtn = el('button', 'btn', t('bk_export')); exBtn.type = 'submit';
@@ -695,7 +705,8 @@
       try {
         const names = await importCfg(new Uint8Array(await f.arrayBuffer()), pw.value);
         cf.say(names.length ? t('bk_imported', names.join(', ')) : t('bk_imported_none'));
-      } catch (e) { cf.say(cfgError(e)); if (e && (e.code === 'password_required' || e.code === 'wrong_password')) pw.focus(); }
+        result({ok: true, op: 'cfg_import', file: f.name, items: names});
+      } catch (e) { cf.say(cfgError(e)); result({ok: false, op: 'cfg_import', file: f.name, error: e}); if (e && (e.code === 'password_required' || e.code === 'wrong_password')) pw.focus(); }
     };
     cf.append(cfActs, cfFile, cf.msg);
   }
