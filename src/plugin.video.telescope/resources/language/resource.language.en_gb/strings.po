@@ -919,3 +919,39 @@ msgstr ""
 msgctxt "#30960"
 msgid "Another device of yours was connected to Telegram (approved by itself)"
 msgstr ""
+
+msgctxt "#30961"
+msgid "All in one"
+msgstr ""
+
+msgctxt "#30962"
+msgid "All in one: user name"
+msgstr ""
+
+msgctxt "#30963"
+msgid "All in one: password"
+msgstr ""
+
+msgctxt "#30964"
+msgid "Connecting every account and service..."
+msgstr ""
+
+msgctxt "#30965"
+msgid "No All-in-one account with this user name and password. Check the spelling (capital and small letters too)."
+msgstr ""
+
+msgctxt "#30966"
+msgid "Too many tries from this network. Try again in an hour."
+msgstr ""
+
+msgctxt "#30967"
+msgid "A user name of 3 characters or more and a password of 8 or more."
+msgstr ""
+
+msgctxt "#30968"
+msgid "The server cannot be reached. Check the internet and try again."
+msgstr ""
+
+msgctxt "#30969"
+msgid "Everything is connected. Telegram is next: its sign-in screen opens now, and another device of yours that is open and signed in approves it by itself."
+msgstr ""

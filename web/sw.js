@@ -11,7 +11,7 @@ const SHELL = ['./', 'index.html', 'style.css', 'version.js', 'i18n.js', 'shell_
 // yet is skipped without failing the install.
 const MODULES = ['tglogin.js', 'matcher.js', 'epmatch.js', 'tgsearch.js', 'telegram.js', 'tgplay.js', 'catalog.js', 'sources.js',
                  'player.js', 'compat.js', 'rd.js', 'srt.js', 'subs.js', 'iptv.js', 'epg.js', 'radio.js', 'yt.js', 'topics.js', 'hub.js',
-                 'services.js', 'library.js', 'backup.js', 'result.js', 'gdrive.js', 'help.js', 'status.js', 'helper.js', 'icon-512.png'];
+                 'services.js', 'library.js', 'backup.js', 'result.js', 'aio.js', 'gdrive.js', 'help.js', 'status.js', 'helper.js', 'icon-512.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).then(() => Promise.all(MODULES.map((m) => c.add(m).catch(() => {})))))
   );

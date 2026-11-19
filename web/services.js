@@ -426,6 +426,8 @@
     const view = TN.view();
     // 5.2: quick setup - the two accounts worth connecting, one button each; everything else works as installed and
     // sits folded under "All services and keys"
+    // 5.5: All in one - the whole household's connections with one user name and password, first on this page
+    try { const AIO = await TN.provider('aio'); if (AIO && AIO.panel) AIO.panel(view); } catch (e) { /* the rest of the page */ }
     const quick = el('div', 'sv_quick');
     quick.append(el('h2', '', t('sv_quick')), el('p', 'hint', t('sv_quick_txt')));
     const qrow = (name, text) => {

@@ -919,3 +919,39 @@ msgstr "החיפוש בטלגרם נכשל במכשיר הזה: %s – לחיצ�
 msgctxt "#30960"
 msgid "Another device of yours was connected to Telegram (approved by itself)"
 msgstr "מכשיר נוסף שלכם חובר לטלגרם (אושר אוטומטית)"
+
+msgctxt "#30961"
+msgid "All in one"
+msgstr "חיבור כולל (All in one)"
+
+msgctxt "#30962"
+msgid "All in one: user name"
+msgstr "חיבור כולל: שם משתמש"
+
+msgctxt "#30963"
+msgid "All in one: password"
+msgstr "חיבור כולל: סיסמה"
+
+msgctxt "#30964"
+msgid "Connecting every account and service..."
+msgstr "מחבר את כל החשבונות והשירותים..."
+
+msgctxt "#30965"
+msgid "No All-in-one account with this user name and password. Check the spelling (capital and small letters too)."
+msgstr "לא נמצא חיבור כולל עם המשתמש והסיסמה האלה. בדקו את האיות (גם אותיות גדולות וקטנות)."
+
+msgctxt "#30966"
+msgid "Too many tries from this network. Try again in an hour."
+msgstr "יותר מדי ניסיונות מהרשת הזו. נסו שוב בעוד שעה."
+
+msgctxt "#30967"
+msgid "A user name of 3 characters or more and a password of 8 or more."
+msgstr "שם משתמש של 3 תווים לפחות וסיסמה של 8 לפחות."
+
+msgctxt "#30968"
+msgid "The server cannot be reached. Check the internet and try again."
+msgstr "אין חיבור לשרת. בדקו את האינטרנט ונסו שוב."
+
+msgctxt "#30969"
+msgid "Everything is connected. Telegram is next: its sign-in screen opens now, and another device of yours that is open and signed in approves it by itself."
+msgstr "הכול מחובר. נשאר טלגרם: מסך החיבור נפתח עכשיו, ומכשיר אחר שלכם שמחובר ופתוח יאשר אותו בעצמו."

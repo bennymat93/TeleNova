@@ -919,3 +919,39 @@ msgstr "Поиск в Telegram не удался на этом устройст�
 msgctxt "#30960"
 msgid "Another device of yours was connected to Telegram (approved by itself)"
 msgstr "Ещё одно ваше устройство подключено к Telegram (подтверждено автоматически)"
+
+msgctxt "#30961"
+msgid "All in one"
+msgstr "Всё в одном"
+
+msgctxt "#30962"
+msgid "All in one: user name"
+msgstr "Всё в одном: имя пользователя"
+
+msgctxt "#30963"
+msgid "All in one: password"
+msgstr "Всё в одном: пароль"
+
+msgctxt "#30964"
+msgid "Connecting every account and service..."
+msgstr "Подключаю все аккаунты и сервисы..."
+
+msgctxt "#30965"
+msgid "No All-in-one account with this user name and password. Check the spelling (capital and small letters too)."
+msgstr "Аккаунт «Всё в одном» с таким именем и паролем не найден. Проверьте написание (и регистр)."
+
+msgctxt "#30966"
+msgid "Too many tries from this network. Try again in an hour."
+msgstr "Слишком много попыток из этой сети. Попробуйте через час."
+
+msgctxt "#30967"
+msgid "A user name of 3 characters or more and a password of 8 or more."
+msgstr "Имя от 3 символов и пароль от 8."
+
+msgctxt "#30968"
+msgid "The server cannot be reached. Check the internet and try again."
+msgstr "Сервер недоступен. Проверьте интернет и попробуйте снова."
+
+msgctxt "#30969"
+msgid "Everything is connected. Telegram is next: its sign-in screen opens now, and another device of yours that is open and signed in approves it by itself."
+msgstr "Всё подключено. Остался Telegram: экран входа открывается, и другое ваше открытое подключённое устройство подтвердит вход само."

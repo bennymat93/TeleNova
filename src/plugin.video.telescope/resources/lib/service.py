@@ -647,6 +647,14 @@ class Service(xbmc.Monitor):
             return self._cloud(method, p)
         if method == 'config_export':
             return self.config_export(p.get('password') or '')
+        if method == 'aio_connect':              # 5.1: All in one (aio.py) - the vault, opened and imported like a file
+            import base64
+            from . import aio
+            try:
+                blob, seal = aio.fetch(p.get('name') or '', p.get('password') or '')
+            except aio.AioError as exc:
+                raise RuntimeError('aio_' + str(exc))
+            return self.config_import(base64.b64encode(blob).decode('ascii'), seal)
         if method == 'config_import':
             return self.config_import(p['data'], p.get('password') or '')
         if method == 'clear_cache':

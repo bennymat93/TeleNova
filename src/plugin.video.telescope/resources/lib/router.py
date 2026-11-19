@@ -927,6 +927,32 @@ def config_export(_):
     dlg.ok(common.ADDON_NAME, '%s\n%s\n%s' % (L(30161), path, L(30179)))        # 4.2: never the Telegram login (BUG-010)
 
 
+def aio(_):
+    """5.1: All in one - one user name and password bring every account and key of the household (web/aio.js)"""
+    dlg = xbmcgui.Dialog()
+    name = dlg.input(L(30962))
+    if not name:
+        return
+    password = dlg.input(L(30963), option=xbmcgui.ALPHANUM_HIDE_INPUT)
+    if not password:
+        return
+    bg = xbmcgui.DialogProgressBG()
+    bg.create(L(30961), L(30964))
+    try:
+        rpc.call('aio_connect', name=name, password=password, timeout=180)
+    except rpc.RPCError as exc:
+        msg = str(exc)
+        text = L(30965) if ('aio_none' in msg or 'wrong_password' in msg) else L(30966) if 'aio_busy' in msg else \
+            L(30967) if 'aio_short' in msg else L(30968)
+        bg.close()
+        dlg.ok(L(30961), text)
+        return
+    bg.close()
+    # Telegram: the login screen with its QR code - a device of the household that is open approves it by itself
+    dlg.ok(L(30961), L(30969))
+    xbmc.executebuiltin('RunPlugin(plugin://plugin.video.telescope/?mode=login&how=qr)')
+
+
 def config_import(_):
     import base64
     from . import configio
@@ -1641,7 +1667,7 @@ MODES = {
     'clear_cache': clear_cache, 'reinstall': reinstall, 'play': play, 'playtg': playtg, 'settings': settings,
     'chiko': chiko, 'chiko_chat': chiko_chat, 'playurl': playurl, 'hub': hub,
     'bots': bots, 'bot_ask': bot_ask, 'bot_mark': bot_mark, 'pin': pin,
-    'config_export': config_export, 'config_import': config_import, 'hub_go': hub_go,
+    'config_export': config_export, 'config_import': config_import, 'hub_go': hub_go, 'aio': aio,
     'noop': lambda p: None,            # a heading row
     'rd_login': rd_login, 'rd_logout': rd_logout, 'rd_status': rd_status, 'playrd': playrd,
 }

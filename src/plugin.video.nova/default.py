@@ -118,6 +118,12 @@ def apply_details(li, tag, m, d):
 
 # ------------------------------------------------------------------ root
 def root():
+    # 5.1: All in one - first on a device where Telegram is not set up yet: one user name + password connect everything
+    if not providers.telegram_on() or not _tg_api_set():
+        from resources.lib.common import ui_lang
+        he = ui_lang() == 'he'
+        folder('[COLOR gold][B]%s[/B][/COLOR]' % ('חיבור כולל – כל החשבונות במשתמש וסיסמה אחד' if he else 'All in one - every account with one user name and password'),
+               'plugin://plugin.video.telescope/?mode=aio', icon('accounts'))
     folder(providers.s('hub_search'), url(a='hub_search'), os.path.join(MEDIA, 'search_all.png'))   # a search-box tile
     from resources.lib import searchhist
     folder(searchhist.s('title'), url(a='search_hist'), 'DefaultAddonsRecentlyUpdated.png')
@@ -145,6 +151,15 @@ def root():
     folder(sysupdate.s('title'), url(a='sysreport'), icon('accounts'),
            plot=sysupdate.s('running'))
     end(cache=False)
+
+
+def _tg_api_set():
+    try:
+        import xbmcaddon
+        a = xbmcaddon.Addon('plugin.video.telescope')
+        return bool(a.getSetting('api_id') and a.getSetting('api_hash'))
+    except Exception:
+        return False
 
 
 def bk_menu():

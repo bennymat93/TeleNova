@@ -1177,6 +1177,18 @@ const HOME = {
   },
   // 5.2: the main menu of the Kodi build, as large tiles at the top of Home: what to watch, my things, accounts
   mainmenu(root) {
+    // 5.5: a device with nothing connected yet (fresh install, new browser): one big button that connects everything
+    const first = document.createElement('div');
+    root.append(first);
+    provider('aio').then((A) => {
+      if (!A || !A.fresh() || !first.isConnected) return;
+      const b = labelButton('btn', 'key', N('aio_first_btn'), () => go('#/aio'));
+      b.style.cssText = 'font-size:1.15em;padding:14px 26px;min-height:56px';
+      const p = document.createElement('p'); p.className = 'hint'; p.textContent = N('aio_first');
+      first.style.cssText = 'margin:0 0 18px;padding:16px;border:2px solid var(--accent);border-radius:14px';
+      first.append(p, b);
+      b.setAttribute('data-autofocus', '');
+    }).catch(() => {});
     const box = document.createElement('div');
     box.className = 'menu mainmenu';
     box.setAttribute('role', 'navigation');
@@ -1429,7 +1441,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-5.0.2.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-5.1.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest" target="_blank" rel="noopener">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
@@ -1829,6 +1841,7 @@ const MODULES = {
   iptv: {pages: ['live'], kinds: ['search']}, epg: {pages: [], kinds: ['service']}, radio: {pages: ['radio'], kinds: ['search']},   // WP-7
   yt: {pages: ['youtube'], kinds: ['search', 'source']}, topics: {pages: ['topics'], kinds: []}, hub: {pages: ['hub', 'search'], kinds: ['search']},   // WP-8
   services: {pages: ['services', 'device'], kinds: []}, library: {pages: ['library'], kinds: []}, backup: {pages: ['backup'], kinds: []},            // WP-9
+  aio: {pages: ['aio'], kinds: ['service']},                                    // 5.5: All in one
   gdrive: {pages: ['gdrive'], kinds: ['service']}, help: {pages: ['help'], kinds: []}, status: {pages: ['status'], kinds: []},
 };
 const MODULE_OF = {};

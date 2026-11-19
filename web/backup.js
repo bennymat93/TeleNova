@@ -593,7 +593,7 @@
     try { await TG.syncNow(); } catch (e) {}
     return res === 'exists' ? 'exists' : 'made';
   }
-  root.TNBackup = Object.assign({}, core, {makeZip, zipName, restoreBytes, exportCfg, importCfg, foundDoc});
+  root.TNBackup = Object.assign({}, core, {makeZip, zipName, restoreBytes, exportCfg, importCfg, foundDoc, fullBackup, fullRestore});
 
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function panel(view, title, intro) {

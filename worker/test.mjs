@@ -61,6 +61,17 @@ ok((await handle(new Request(ch, {method: 'DELETE', headers: {origin: O}}), dEnv
 ok((await handle(new Request(ch, {method: 'PUT', headers: {origin: O}, body: new Uint8Array(2049)}), dEnv)).status === 413, 'link: too large is refused');
 ok((await handle(new Request('https://w.dev/link/xyz', {headers: {origin: O}}), dEnv)).status === 400, 'link: a bad channel name is refused');
 ok((await handle(new Request(ch, {headers: {origin: 'https://other.io'}}), dEnv)).status === 403, 'link: another origin gets nothing');
+const vid = 'https://w.dev/aio/' + 'cd'.repeat(32);
+ok((await handle(new Request(vid, {headers: {origin: O}}), dEnv)).status === 404, 'aio: an unknown vault -> 404');
+ok((await handle(new Request(vid, {method: 'PUT', headers: {origin: O}, body: new Uint8Array([5, 6])}), dEnv)).status === 204, 'aio: a vault is saved');
+const av = await handle(new Request(vid, {headers: {origin: O}}), dEnv);
+ok(av.status === 200 && new Uint8Array(await av.arrayBuffer()).join() === '5,6', 'aio: and read back');
+let last = 0;
+for (let i = 0; i < 25; i++) last = (await handle(new Request('https://w.dev/aio/' + String(i).padStart(64, '0'), {headers: {origin: O, 'cf-connecting-ip': '1.2.3.4'}}), dEnv)).status;
+ok(last === 429, 'aio: many misses from one network are stopped');
+ok((await handle(new Request(vid, {headers: {origin: O, 'cf-connecting-ip': '5.6.7.8'}}), dEnv)).status === 200, 'aio: other networks are not');
+ok((await handle(new Request('https://w.dev/aio/short', {headers: {origin: O}}), dEnv)).status === 400, 'aio: a malformed address is refused');
+ok((await handle(new Request(vid, {headers: {origin: 'https://other.io'}}), dEnv)).status === 403, 'aio: another origin gets nothing');
 const pg = await handle(new Request('https://w.dev/ping', {headers: {origin: O}}), env);
 ok((await pg.json()).app === 'telenova-helper', 'ping');
 console.log(fails ? 'WORKER TESTS FAILED ' + fails : 'WORKER TESTS OK'); process.exit(fails ? 1 : 0);

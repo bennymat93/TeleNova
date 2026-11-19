@@ -129,6 +129,32 @@ export async function handle(request, env) {
     }
     return fail(405, 'method', origin, okOrigins);
   }
+  // All in one (web/aio.js): one sealed vault per user name + password. The address IS derived from the password (the
+  // helper never sees either), so there is nothing to list or guess offline; misses are limited per network.
+  if (url.pathname.startsWith('/aio/')) {
+    const h = cors(origin, okOrigins); h.set('cache-control', 'no-store');
+    h.set('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
+    const m = /^\/aio\/([0-9a-f]{64})$/.exec(url.pathname);
+    if (!env.DROP) return fail(503, 'no_drop', origin, okOrigins);
+    if (!m) return fail(400, 'id', origin, okOrigins);
+    const ip = request.headers.get('cf-connecting-ip') || 'x';
+    const rk = 'r:' + ip + ':' + Math.floor(Date.now() / 3600000);
+    const misses = Number(await env.DROP.get(rk) || 0);
+    if (misses >= 20) return fail(429, 'busy', origin, okOrigins);
+    if (request.method === 'PUT') {
+      const buf = await request.arrayBuffer();
+      if (!buf.byteLength || buf.byteLength > 3 * 1024 * 1024) return fail(413, 'size', origin, okOrigins);
+      await env.DROP.put('a:' + m[1], buf);
+      return new Response(null, {status: 204, headers: h});
+    }
+    if (request.method === 'GET') {
+      const buf = await env.DROP.get('a:' + m[1], 'arrayBuffer');
+      if (!buf) { await env.DROP.put(rk, String(misses + 1), {expirationTtl: 3700}); return fail(404, 'none', origin, okOrigins); }
+      h.set('content-type', 'application/octet-stream');
+      return new Response(buf, {headers: h});
+    }
+    return fail(405, 'method', origin, okOrigins);
+  }
   // the mailbox of an automatic Telegram sign-in (web/tg.js): a device that restored a backup leaves its sealed login
   // token here for a device of the same household to approve. PUT / GET / DELETE /link/<32 hex>; 90 seconds, 2 KB.
   // The channel name and the seal both come from a secret only the household's devices hold.
