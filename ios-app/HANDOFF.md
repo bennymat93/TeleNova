@@ -5,6 +5,9 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19: ONE version 6.0.0 for the whole project (owner). `ios-app/VERSION` = 6.0.0; the workflow uses a full
+  x.y.z as it is (a series x.y still gets x.y.N). Next iOS fix release: set VERSION to 6.0.1 by hand. Self-test now
+  also plays Apple's public HLS test stream (`playback.time` > 2 s).
 - 2026-11-19 CURRENT RELEASE: iOS 3.0.1 (release `ios-3.0.1`): web 5.6.0 bundled (aio.js, srcedit.js). Fresh install
   shows the "All in one" box on Home; #/aio, #/srcedit, #/info open with no cut / overflow on iPhone + iPad.
   Seen (web matter): in English the small line above each card title in Edit sources / Information is right-aligned.

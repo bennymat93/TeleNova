@@ -802,6 +802,17 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         } catch (e) { out.helperError = String(e); }
         // (the Telegram phone sign-in test passed in 2.6.1 - code step in ~4 s - and was removed: repeated codes
         //  requested from CI could make Telegram slow down the owner's API id)
+        // one real playback: Apple's public HLS test stream in a <video> of the page (native HLS of WebKit)
+        try {
+          const v = document.createElement('video');
+          v.muted = true; v.playsInline = true; v.setAttribute('playsinline', '');
+          v.src = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8';
+          document.body.appendChild(v);
+          await v.play().catch((e) => { out.playError = String(e); });
+          for (let i = 0; i < 40 && v.currentTime < 2; i++) await wait(250);
+          out.playback = {time: Math.round(v.currentTime * 10) / 10, w: v.videoWidth, h: v.videoHeight, err: v.error ? v.error.code : 0};
+          v.pause(); v.remove();
+        } catch (e) { out.playError = String(e); }
         out.tgShims = typeof self.dropPending === 'function' && typeof self.setFlood === 'function';
         try { self.dropPending(); self.setFlood(0); out.tgShimsRun = true; } catch (e) { out.tgShimsRun = String(e); }
         try {

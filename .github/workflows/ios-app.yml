@@ -29,6 +29,8 @@ jobs:
         run: |
           set -euo pipefail
           BASE="$(tr -d ' \r\n' < ios-app/VERSION)"
+          # a full version (x.y.z, e.g. 6.0.0 - one version for every part of the project) is used as it is
+          if echo "$BASE" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then echo "TN_VERSION=$BASE" >> "$GITHUB_ENV"; echo "version $BASE"; exit 0; fi
           N="$(gh release list --limit 300 --json tagName -q '.[].tagName' | grep -c "^ios-$BASE\.[0-9]*$" || true)"
           echo "TN_VERSION=$BASE.$((N + 1))" >> "$GITHUB_ENV"
           echo "version $BASE.$((N + 1))"
