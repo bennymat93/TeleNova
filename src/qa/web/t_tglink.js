@@ -8,9 +8,9 @@ let n = 0, fails = 0;
 function ok(c, m) { n++; if (!c) { fails++; console.log('FAIL', m); } }
 // the three functions, cut out of the module (they use only WebCrypto and TextEncoder)
 const cut = (name) => { const i = src.indexOf('  async function ' + name + '('); const j = src.indexOf('\n  }\n', i) + 5; if (i < 0) throw new Error('missing ' + name); return src.slice(i, j); };
-const box = {crypto: globalThis.crypto, TextEncoder, Uint8Array, Array};
+const box = {crypto: globalThis.crypto, TextEncoder, Uint8Array, Array, DataView, Math, Error};
 vm.createContext(box);
-vm.runInContext(cut('linkKeys') + cut('linkSeal') + cut('linkOpen') + '\nthis.api = {linkKeys, linkSeal, linkOpen};', box);
+vm.runInContext(cut('linkKeys') + cut('linkStream') + cut('linkTag') + cut('linkSeal') + cut('linkOpen') + '\nthis.api = {linkKeys, linkSeal, linkOpen};', box);
 const L = box.api;
 (async () => {
   const secret = 'A'.repeat(43), other = 'B'.repeat(43);
@@ -29,7 +29,15 @@ const L = box.api;
   refused = false;
   try { await L.linkOpen(secret, bent); } catch (e) { refused = true; }
   ok(refused, 'a changed message is refused');
-  ok(!a.chan.includes(secret.slice(0, 8)) && a.body.length === 12 + token.length + 16, 'nothing of the secret is in what leaves the device');
+  ok(!a.chan.includes(secret.slice(0, 8)) && a.body.length === 16 + token.length + 16, 'nothing of the secret is in what leaves the device');
+  // byte for byte the same as the Kodi engine (linklogin.py), both ways
+  const {execFileSync} = require('child_process');
+  const py = execFileSync(process.env.PYTHON || 'python', [path.join(__dirname, '..', 't_linklogin.py'), 'vector']).toString().trim().split(' ');
+  const nonce = Uint8Array.from({length: 16}, (_, i) => i);
+  const mine = await L.linkSeal(secret, token, nonce);
+  ok(mine.chan === py[0], 'the same channel as Kodi');
+  ok(Buffer.from(mine.body).toString('hex') === py[1], 'the same sealed bytes as Kodi');
+  ok(Buffer.from(await L.linkOpen(secret, Buffer.from(py[1], 'hex'))).equals(Buffer.from(token)), 'a token sealed by Kodi opens here');
   // the wiring
   ok(/linkAsk\(code\.token\)/.test(src) && /AcceptLoginToken/.test(src) && /linkStart\(\)/.test(src), 'the sign-in asks, and a signed-in device answers');
   ok(!/A\.put\('tg_session'[^)]*\)[^\n]*link|tg_session[^\n]*web\.tg_link/.test(src), 'a Telegram session is not part of it');

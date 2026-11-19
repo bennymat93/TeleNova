@@ -298,6 +298,10 @@ class Service(xbmc.Monitor):
             with open(bots, 'rb') as fh:
                 files['bots.json'] = fh.read()
         extra = {'addon': common.ADDON_VERSION, 'shared': {}}
+        # 5.0.2: the household secret of the automatic sign-in (linklogin.py) - in the place the browser reads it
+        link = self._link_secret(make=bool(self.tg and getattr(self.tg, 'me', None)))
+        if link:
+            extra['web'] = {'tg_link': link, 'tg_was_on': bool(self.tg and getattr(self.tg, 'me', None))}
         for key in ('tmdb_key', 'gemini_key'):               # keys typed once in the TeleNova hub and used here
             val = _foreign('plugin.video.nova', key)
             if val:
@@ -349,6 +353,10 @@ class Service(xbmc.Monitor):
                 if key in known and isinstance(val, str) and common.setting(key, '') != val:
                     common.set_setting(key, val)
                     n += 1
+            web = extra.get('web') if isinstance(extra.get('web'), dict) else {}
+            from . import linklogin
+            if linklogin.valid(web.get('tg_link')):
+                self._link_secret(set_to=str(web['tg_link']))
             for key, val in (extra.get('shared') or {}).items():
                 if key in ('tmdb_key', 'gemini_key') and val and not _foreign('plugin.video.nova', key):
                     try:
@@ -441,6 +449,63 @@ class Service(xbmc.Monitor):
             if self.tg and not self.tg_error:
                 self._build()
 
+    # ------------------------------------------------------------------ 5.0.2: automatic sign-in (linklogin.py)
+    def _link_secret(self, make=False, set_to=None):
+        """the household secret, kept in the engine's profile (never in the settings: they are shown and exported)"""
+        from . import linklogin
+        path = os.path.join(common.PROFILE, 'tg_link.txt')
+        if set_to and linklogin.valid(set_to):
+            with open(path, 'w') as fh:
+                fh.write(set_to)
+            return set_to
+        try:
+            with open(path) as fh:
+                val = fh.read().strip()
+            if linklogin.valid(val):
+                return val
+        except OSError:
+            pass
+        if not make:
+            return ''
+        return self._link_secret(set_to=linklogin.new_secret())
+
+    def _qr_start_linked(self, tg):
+        """the QR login of this device; with a household secret its token also goes to the mailbox, where a
+        signed-in device of the household approves it by itself"""
+        async def run():
+            res = await tg.qr_start()
+            secret = self._link_secret()
+            if secret and getattr(tg, '_qr', None) is not None:
+                from . import linklogin
+                token = getattr(getattr(tg._qr, '_resp', None), 'token', None)
+                if token:
+                    self._later(0.1, lambda: linklogin.Mailbox().ask(secret, token))
+                    res = dict(res, auto=True)
+            return res
+        return run()
+
+    def _link_tick(self):
+        """signed in: approve a device of the household that waits in the mailbox"""
+        tg = self.tg
+        if not tg or not getattr(tg, 'me', None):
+            return
+        secret = self._link_secret(make=True)
+        from . import linklogin
+        if not hasattr(self, '_mailbox'):
+            self._mailbox = linklogin.Mailbox()
+        token = self._mailbox.take(secret)
+        if not token:
+            return
+        res = tg.submit(tg.qr_accept(linklogin.token_text(token))).result(timeout=30)
+        if res.get('ok'):
+            common.log('automatic sign-in: another device of this household was approved', xbmc.LOGINFO)
+            try:
+                common.notify(common.lang(30960) or 'Another device was connected to Telegram')
+            except Exception:
+                pass
+        else:
+            common.log('automatic sign-in: not approved (%s)' % res.get('error'))
+
     def run(self):
         self.start()
         ticks = 0
@@ -449,6 +514,10 @@ class Service(xbmc.Monitor):
             if self.waitForAbort(10):
                 break
             ticks += 1
+            try:
+                self._link_tick()
+            except Exception as exc:
+                common.log('automatic sign-in: %s' % type(exc).__name__)
             if ticks % 3 == 0:
                 try:
                     self._watchdog()
@@ -650,7 +719,7 @@ class Service(xbmc.Monitor):
             'resend_code': lambda: tg.resend_code(),
             'sign_in': lambda: tg.sign_in(p['code']),
             'sign_in_password': lambda: tg.sign_in_password(p['password']),
-            'qr_start': lambda: tg.qr_start(),
+            'qr_start': lambda: self._qr_start_linked(tg),
             'qr_wait': lambda: tg.qr_wait(p.get('timeout', 4)),
             'qr_accept': lambda: tg.qr_accept(p.get('token')),          # 4.2: device pairing
             'qr_check': lambda: tg.qr_check(),

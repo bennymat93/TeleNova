@@ -915,3 +915,7 @@ msgstr "Telegram не подключён на этом устройстве - п
 msgctxt "#30181"
 msgid "Telegram search failed on this device: %s - tap for status"
 msgstr "Поиск в Telegram не удался на этом устройстве: %s - нажмите для статуса"
+
+msgctxt "#30960"
+msgid "Another device of yours was connected to Telegram (approved by itself)"
+msgstr "Ещё одно ваше устройство подключено к Telegram (подтверждено автоматически)"

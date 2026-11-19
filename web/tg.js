@@ -181,26 +181,53 @@
     A.put('tg_link', v);
     return v;
   }
+  // 5.4.1: the seal Kodi's engine can make too (its Python has no AES-GCM): a SHA-256 key stream and an HMAC-SHA-256
+  // tag - plugin.video.telescope/resources/lib/linklogin.py, byte for byte the same.
   async function linkKeys(secret) {
     const enc = new TextEncoder();
     const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
     const chan = hex(await crypto.subtle.digest('SHA-256', enc.encode('bn-link-channel:' + secret))).slice(0, 32);
-    const key = await crypto.subtle.importKey('raw', await crypto.subtle.digest('SHA-256', enc.encode('bn-link-key:' + secret)), 'AES-GCM', false, ['encrypt', 'decrypt']);
-    return {chan, key};
+    const encKey = new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode('bn-link-key:' + secret)));
+    const mac = await crypto.subtle.importKey('raw', await crypto.subtle.digest('SHA-256', enc.encode('bn-link-mac:' + secret)), {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
+    return {chan, encKey, mac};
   }
-  async function linkSeal(secret, bytes) {
-    const {chan, key} = await linkKeys(secret);
-    const iv = new Uint8Array(12);
-    crypto.getRandomValues(iv);
-    const ct = new Uint8Array(await crypto.subtle.encrypt({name: 'AES-GCM', iv}, key, bytes));
-    const out = new Uint8Array(12 + ct.length);
-    out.set(iv); out.set(ct, 12);
+  async function linkStream(encKey, nonce, n) {
+    const out = new Uint8Array(Math.ceil(n / 32) * 32);
+    for (let i = 0; i * 32 < n; i++) {
+      const blk = new Uint8Array(encKey.length + nonce.length + 4);
+      blk.set(encKey); blk.set(nonce, encKey.length);
+      new DataView(blk.buffer).setUint32(encKey.length + nonce.length, i);
+      out.set(new Uint8Array(await crypto.subtle.digest('SHA-256', blk)), i * 32);
+    }
+    return out.subarray(0, n);
+  }
+  async function linkTag(mac, nonce, ct) {
+    const m = new Uint8Array(nonce.length + ct.length);
+    m.set(nonce); m.set(ct, nonce.length);
+    return new Uint8Array(await crypto.subtle.sign('HMAC', mac, m)).subarray(0, 16);
+  }
+  async function linkSeal(secret, bytes, fixedNonce) {
+    const {chan, encKey, mac} = await linkKeys(secret);
+    const data = new Uint8Array(bytes);
+    const nonce = fixedNonce ? new Uint8Array(fixedNonce) : crypto.getRandomValues(new Uint8Array(16));
+    const ks = await linkStream(encKey, nonce, data.length);
+    const ct = data.map((b, i) => b ^ ks[i]);
+    const tag = await linkTag(mac, nonce, ct);
+    const out = new Uint8Array(16 + ct.length + 16);
+    out.set(nonce); out.set(ct, 16); out.set(tag, 16 + ct.length);
     return {chan, body: out};
   }
   async function linkOpen(secret, body) {
-    const {key} = await linkKeys(secret);
     const u = new Uint8Array(body);
-    return new Uint8Array(await crypto.subtle.decrypt({name: 'AES-GCM', iv: u.slice(0, 12)}, key, u.slice(12)));
+    if (u.length < 33) throw new Error('size');
+    const {encKey, mac} = await linkKeys(secret);
+    const nonce = u.subarray(0, 16), ct = u.subarray(16, u.length - 16), tag = u.subarray(u.length - 16);
+    const want = await linkTag(mac, nonce, ct);
+    let diff = 0;
+    for (let i = 0; i < 16; i++) diff |= want[i] ^ tag[i];
+    if (diff) throw new Error('seal');
+    const ks = await linkStream(encKey, nonce, ct.length);
+    return ct.map((b, i) => b ^ ks[i]);
   }
   // the device that wants in: its fresh login token goes to the mailbox (called for every token GramJS makes, ~30 s each)
   async function linkAsk(token) {
