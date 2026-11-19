@@ -8,6 +8,7 @@
 |---|---|---|---|
 | iPhone / iPad (IPA לא חתום) | גרסאות שהתג שלהן מתחיל ב-`ios-` | `BN-Stream-iOS-<גרסה>.ipa` (2.6.1, 2.6.2, ...) | [ios/README-app.md](ios/README-app.md) - חתימה עצמית (Sideloadly / AltStore) |
 | Android (טלפון, טאבלט, Android TV, רכב) | גרסאות שהתג שלהן מתחיל ב-`apk-` | `BN-Stream-Android-<גרסה>.apk` | [apk/README.md](apk/README.md) |
+| Mac (Apple silicon + Intel, macOS 12+) | גרסאות שהתג שלהן מתחיל ב-`mac-` | `BN-Stream-macOS-<גרסה>.zip` | [mac/](mac/) - בפעם הראשונה: לחיצה ימנית > פתיחה |
 
 קישורים ישירים לגרסה האחרונה (מהאתר, תמיד הקובץ העדכני):
 

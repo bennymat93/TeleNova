@@ -1,5 +1,7 @@
 # TeleNova – Handoff
 
+- **אפליקציית Mac 6.0.1** (סשן ה-iOS, 19/11): `mac-app/` (WKWebView, `HelperRelay` / `LocalServer` משותפים עם `ios-app/`), workflow `mac-app.yml` (macOS runner, universal, חתימה ad-hoc, בדיקת הרצה בשני גדלי חלון), פלט `mac/BN-Stream-macOS-6.0.1.zip` + release `mac-6.0.1`, דף הורדה `mac/index.html` עם צעדי Gatekeeper. גרסה הבאה: לשנות `mac-app/VERSION` ולדחוף.
+
 ## התחל כאן (עודכן 2026-11-18 19:40, אחרי 4.3.0) – כל מה שצריך כדי להמשיך מכל חשבון / מחשב
 
 **להמשך מחשבון אחר:** לפתוח סשן של Claude Code בתיקייה `C:\My Projects\novaTV Addon` ולכתוב **תמשיך** (או להדביק את הנתיב ואחריו "תמשיך"). הפרוטוקול ב-`CLAUDE.md`: סנכרון git, קריאת הסעיף הזה ו-PROGRESS, דיווח קצר, ומיד התחלת עבודה על המשימה הפתוחה הראשונה.
