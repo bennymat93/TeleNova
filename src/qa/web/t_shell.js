@@ -84,11 +84,12 @@ eq(SC.kodiPlay({key: 'ch:il:kan11'}).play, undefined, 'only films');
 
 // ---- home rows
 const rows = SC.homeRows([{id: 'radio', on: false}, {id: 'nosuch'}, {id: 'radio'}, null, {id: 'live'}]);
-eq(rows.slice(0, 2), [{id: 'radio', on: false}, {id: 'live', on: true}], "the viewer's order and switches are kept");
+eq(rows.slice(0, 3), [{id: 'mainmenu', on: true}, {id: 'radio', on: false}, {id: 'live', on: true}], "the viewer's order and switches are kept; the main menu (new in 5.2) goes first");
+eq(SC.homeRows([{id: 'live'}, {id: 'mainmenu', on: false}]).slice(0, 2), [{id: 'live', on: true}, {id: 'mainmenu', on: false}], 'a viewer who moved or hid the main menu keeps that');
 eq(rows.length, SC.HOME_ROWS.length, 'new rows are appended, unknown and repeated ones dropped');
 eq(SC.homeRows(null).map((r) => r.id), SC.HOME_ROWS, 'default order');
-eq(SC.moveRow(rows, 'live', -1).slice(0, 2).map((r) => r.id), ['live', 'radio'], 'move up');
-eq(SC.moveRow(rows, 'radio', -1).map((r) => r.id), rows.map((r) => r.id), 'the first row cannot move up');
+eq(SC.moveRow(rows, 'live', -1).slice(0, 3).map((r) => r.id), ['mainmenu', 'live', 'radio'], 'move up');
+eq(SC.moveRow(rows, 'mainmenu', -1).map((r) => r.id), rows.map((r) => r.id), 'the first row cannot move up');
 
 // ---- focus geometry: 7 items in 3 columns
 //   0 1 2

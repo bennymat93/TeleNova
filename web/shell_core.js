@@ -123,7 +123,8 @@
   }
 
   // ---------------------------------------------------------------- home rows
-  const HOME_ROWS = ['continue', 'favs', 'live', 'trend_movie', 'trend_tv', 'popular', 'il_movies', 'il_series', 'family', 'radio',
+  // 5.2: 'mainmenu' - the build's main menu as tiles, first on Home (nobody has to look for a section)
+  const HOME_ROWS = ['mainmenu', 'continue', 'favs', 'live', 'trend_movie', 'trend_tv', 'popular', 'il_movies', 'il_series', 'family', 'radio',
                      'searches', 'telegram', 'classics', 'sections'];
   // saved = [{id, on}] in the viewer's order; rows added by a newer version are appended, unknown ones dropped
   function homeRows(saved) {
@@ -133,6 +134,8 @@
       seen[r.id] = true;
       out.push({id: r.id, on: r.on !== false});
     }
+    // a saved order from before 5.2 has no main menu: it goes first, not to the end like other new rows
+    if (!seen.mainmenu) { out.unshift({id: 'mainmenu', on: true}); seen.mainmenu = true; }
     for (const id of HOME_ROWS) if (!seen[id]) out.push({id, on: true});
     return out;
   }

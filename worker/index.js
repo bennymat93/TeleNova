@@ -88,6 +88,14 @@ export async function handle(request, env) {
     const h = cors(origin, okOrigins); h.set('content-type', 'application/json'); h.set('cache-control', 'no-store');
     return new Response(JSON.stringify({ok: true, app: 'telenova-helper', v: 1}), {headers: h});
   }
+  // the Telegram application details that come with the build, for the site's sign-in page. Set by the owner as
+  // secrets (wrangler secret put TG_API_ID / TG_API_HASH) - never in the repository. Only allowed origins get here.
+  if (url.pathname === '/tgapp') {
+    const h = cors(origin, okOrigins); h.set('content-type', 'application/json'); h.set('cache-control', 'no-store');
+    const id = String(env.TG_API_ID || '').trim(), hash = String(env.TG_API_HASH || '').trim().toLowerCase();
+    if (!/^\d{3,12}$/.test(id) || !/^[0-9a-f]{32}$/.test(hash)) return new Response(JSON.stringify({error: 'not_set'}), {status: 404, headers: h});
+    return new Response(JSON.stringify({id, hash}), {headers: h});
+  }
   const target = allowed(request.headers.get('x-tn-target') || '', env);
   if (!target) return fail(403, 'host', origin, okOrigins);
 

@@ -29,6 +29,11 @@ ok(pre.status === 204 && /x-tn-target/.test(pre.headers.get('access-control-allo
 const rd = await handle(req('https://api.real-debrid.com/redir'), env);
 ok(rd.headers.get('x-tn-status') === '302' && (await rd.json()).redirect === null, 'redirect to non-allowlisted host blocked');
 ok(allowed('https://my.st.io/x', {ALLOW_HOSTS: 'my.st.io'}) !== null, 'ALLOW_HOSTS extra host');
+const noApp = await handle(new Request('https://w.dev/tgapp', {headers: {origin: O}}), env);
+ok(noApp.status === 404, 'tgapp: nothing set -> 404');
+const app = await handle(new Request('https://w.dev/tgapp', {headers: {origin: O}}), Object.assign({}, env, {TG_API_ID: '12345', TG_API_HASH: '0123456789abcdef0123456789ABCDEF'}));
+ok(app.status === 200 && (await app.json()).hash === '0123456789abcdef0123456789abcdef', 'tgapp: the stored details, to an allowed origin');
+ok((await handle(new Request('https://w.dev/tgapp', {headers: {origin: 'https://other.io'}}), Object.assign({}, env, {TG_API_ID: '12345', TG_API_HASH: '0123456789abcdef0123456789abcdef'}))).status === 403, 'tgapp: another origin gets nothing');
 const pg = await handle(new Request('https://w.dev/ping', {headers: {origin: O}}), env);
 ok((await pg.json()).app === 'telenova-helper', 'ping');
 console.log(fails ? 'WORKER TESTS FAILED ' + fails : 'WORKER TESTS OK'); process.exit(fails ? 1 : 0);

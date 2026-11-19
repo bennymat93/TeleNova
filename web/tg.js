@@ -39,6 +39,7 @@
   let listeners = [];                            // TG.on(fn): fn(state) after every change of state or login step
 
   const G = () => root.GramJS;
+  const BUILTIN_HELPER = 'https://telenova-helper.hmi-analyzer.workers.dev';
   const creds = () => { const c = A.get('tg_api', null); return c && /^\d{3,12}$/.test(String(c.id)) && /^[0-9a-f]{32}$/.test(String(c.hash)) ? c : null; };
   const savedSession = () => memSession || String(A.get('tg_session', '') || '');
   // a phone login that waits for its code, and the time Telegram asked to wait (see the header): this tab's
@@ -503,6 +504,23 @@
     note: () => info.note || '',
     step: publicStep,
     hasApi: () => !!creds(),
+    // 5.2: API details that come with the build. The helper Worker hands them out (GET /tgapp) when its owner stored
+    // them there as secrets - they are never in this repository. -> true when details are in place afterwards.
+    async ensureApi() {
+      if (creds()) return true;
+      for (const base of [A.settings && A.settings.helper && A.settings.helper(), BUILTIN_HELPER]) {
+        if (!base || !/^https:\/\//.test(base) || /\.invalid$/.test(base.split('/')[2] || '')) continue;
+        try {
+          const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 8000);
+          const r = await fetch(base.replace(/\/+$/, '') + '/tgapp', {signal: ctl.signal, cache: 'no-store'});
+          clearTimeout(tm);
+          if (!r.ok) continue;
+          const j = await r.json();
+          if (j && /^\d{3,12}$/.test(String(j.id)) && /^[0-9a-f]{32}$/.test(String(j.hash))) { A.put('tg_api', {id: String(j.id), hash: String(j.hash), builtin: true}); draw(); return true; }
+        } catch (e) { /* the next address, or none: the page then asks for the details as before */ }
+      }
+      return false;
+    },
     apiId: () => (creds() ? creds().id : ''),
     setApi, parsePair,
     forgetApi() { if (state === 'off' || state === 'offline') { A.drop('tg_api'); info.error = ''; info.note = ''; draw(); return true; } return false; },

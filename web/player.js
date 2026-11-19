@@ -157,6 +157,7 @@
       pl_nopicture: 'רק הקול מתנגן: הדפדפן לא תומך בקידוד התמונה הזה (%s).', pl_nosound: 'אין קול: הדפדפן לא תומך בקידוד הקול הזה (%s).',
       pl_compat: 'הדפדפן לא מנגן את הקובץ הזה – עובר לנגן המובנה…', pl_compat_on: 'מתנגן בנגן המובנה (MKV / HEVC / AC3 / DTS)',
       pl_slow_down: 'החיבור איטי – עוברים לאיכות נמוכה יותר כדי שהניגון לא ייעצר',
+      pl_ai_now: 'תרגום AI עכשיו', pl_ai_wait: 'מכין תרגום AI…', pl_ai_none: 'אין ממה לתרגם: צריך כתובית בשפה כלשהי (חיפוש כתוביות / קובץ) ומפתח Gemini ב"חשבונות ושירותים"',
       pl_keep: 'להמשיך לצפות', pl_retry: 'נסה שוב', pl_next_link: 'הקישור הבא', pl_next_try: 'הקישור לא עבד, מנסה את הבא...',
       pl_elsewhere: 'פתיחה בנגן אחר', pl_copy: 'העתק קישור', pl_copied: 'הקישור הועתק', pl_copy_manual: 'סמנו והעתיקו את הקישור:',
       pl_vlc: 'פתח ב-VLC', pl_kodi: 'פתח ב-Kodi', pl_m3u: 'קובץ רשימת ניגון (.m3u)', pl_share: 'שיתוף לאפליקציה',
@@ -181,6 +182,7 @@
       pl_nopicture: 'Only the sound plays: this browser does not support this picture format (%s).', pl_nosound: 'No sound: this browser does not support this sound format (%s).',
       pl_compat: 'The browser cannot play this file - switching to the built-in engine…', pl_compat_on: 'Playing with the built-in engine (MKV / HEVC / AC3 / DTS)',
       pl_slow_down: 'Slow connection - switching to a lower quality so playback does not stop',
+      pl_ai_now: 'AI translation now', pl_ai_wait: 'Preparing the AI translation…', pl_ai_none: 'Nothing to translate from: it needs a subtitle in any language (search / file) and a Gemini key in "Accounts & services"',
       pl_keep: 'Keep watching', pl_retry: 'Try again', pl_next_link: 'Next link', pl_next_try: 'That link did not work, trying the next one...',
       pl_elsewhere: 'Open in another player', pl_copy: 'Copy link', pl_copied: 'Link copied', pl_copy_manual: 'Select and copy the link:',
       pl_vlc: 'Open in VLC', pl_kodi: 'Open in Kodi', pl_m3u: 'Playlist file (.m3u)', pl_share: 'Share to an app',
@@ -205,6 +207,7 @@
       pl_nopicture: 'Играет только звук: браузер не поддерживает этот формат изображения (%s).', pl_nosound: 'Нет звука: браузер не поддерживает этот формат звука (%s).',
       pl_compat: 'Браузер не воспроизводит этот файл - включается встроенный плеер…', pl_compat_on: 'Воспроизводит встроенный плеер (MKV / HEVC / AC3 / DTS)',
       pl_slow_down: 'Медленное соединение - качество снижено, чтобы воспроизведение не прерывалось',
+      pl_ai_now: 'Перевод ИИ сейчас', pl_ai_wait: 'Готовлю перевод ИИ…', pl_ai_none: 'Не из чего переводить: нужны субтитры на любом языке (поиск / файл) и ключ Gemini в «Аккаунты и сервисы»',
       pl_keep: 'Смотреть дальше', pl_retry: 'Повторить', pl_next_link: 'Следующая ссылка', pl_next_try: 'Ссылка не сработала, пробуем следующую...',
       pl_elsewhere: 'Открыть в другом плеере', pl_copy: 'Скопировать ссылку', pl_copied: 'Ссылка скопирована', pl_copy_manual: 'Выделите и скопируйте ссылку:',
       pl_vlc: 'Открыть в VLC', pl_kodi: 'Открыть в Kodi', pl_m3u: 'Файл плейлиста (.m3u)', pl_share: 'Поделиться с приложением',
@@ -1073,6 +1076,34 @@
       }
       if (alive() && s.panelKind === 'subs') redraw();
     }
+    // 5.2: "AI translation now" - one press at any moment of any video. In order: an AI subtitle the search offers
+    // (the owner's subtitle server, or Gemini over the best English subtitle); else the subtitle that is on now,
+    // translated into the viewer's language; else one clear line that says what is missing.
+    async function aiNow() {
+      const sv = await subsSvc();
+      if (!sv || !alive()) return;
+      s.subsBusy = t('pl_ai_wait'); say(s.subsBusy); if (s.panelKind === 'subs') redraw();
+      if (!s.found && hasId()) { const errors = {}; try { s.found = await sv.find(subQuery(), {errors}); } catch (e) { s.found = []; } }
+      if (!alive()) return;
+      const ai = (s.found || []).filter((x) => x.source === 'subsrv').concat((s.found || []).filter((x) => x.source === 'subs_ai'));
+      if (ai.length) { await pickSub(ai[0]); return; }
+      const cur = s.lastPick && !s.lastPick.embedded ? s.lastPick : (s.found || []).concat(s.extra || []).find((x) => !x.embedded && x.source !== 'subs_ai');
+      const want = sv.prefLang ? sv.prefLang() : TN.lang();
+      if (cur && sv.translate && cur.lang !== want) {
+        try {
+          const src = cur.vtt != null ? cur.vtt : await cur.fetchVtt();
+          const vtt = await sv.translate(String(src), want, {onProgress: (pc) => { if (alive()) { s.subsBusy = t('pl_ai_wait') + ' ' + pc + '%'; say(s.subsBusy); } }});
+          if (!alive()) return;
+          sv.attach(v, String(vtt), {label: t('pl_ai_now'), lang: want, key: s.key, source: 'subs_ai'});
+          s.subsBusy = ''; say(''); flash(t('pl_subs_on', t('pl_ai_now')));
+          if (s.panelKind === 'subs') redraw();
+          return;
+        } catch (e) { /* the line below says what is missing */ }
+      }
+      if (!alive()) return;
+      s.subsBusy = ''; say(''); flash(t('pl_ai_none'));
+      if (s.panelKind === 'subs') redraw();
+    }
     async function searchSubs() {
       const sv = await subsSvc();
       if (!sv || !alive()) return;
@@ -1128,6 +1159,7 @@
         else if (!s.found && !s.subsBusy && !hasId()) body.append(el('p', 'pl-pmsg', t('pl_subs_need_id')));
         if (s.found && s.found.length && s.subsErr) body.append(el('p', 'pl-pmsg', s.subsErr));
         body.append(prow(t('pl_subs_find'), null, () => searchSubs(), 'pl-act'));
+        body.append(prow('✦ ' + t('pl_ai_now'), null, () => aiNow(), 'pl-act'));
         const fileIn = el('input'); fileIn.type = 'file'; fileIn.accept = '.srt,.vtt,.ass,.ssa,.sub,.txt,.zip'; fileIn.hidden = true;
         fileIn.addEventListener('change', async () => {
           const f = fileIn.files && fileIn.files[0];

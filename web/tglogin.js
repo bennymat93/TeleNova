@@ -290,6 +290,9 @@
       return [st, el('p', 'hint', t('tgl_newdevice')), row];
     }
     draw(true);
+    // 5.2: no API details here yet - take the ones that come with the build (when its helper has them) and go
+    // straight to the sign-in itself: press, confirm in Telegram, done
+    if (!TG.hasApi() && TG.ensureApi) TG.ensureApi().then((ok) => { if (ok && TG.state() !== 'on') { ui.tab = firstTab(TG); draw(true); } });
     // a browser that was signed in before: make sure the connection is up (shows "connecting", then the account)
     if (TG.state() === 'off' && TG.hasApi() && TG.hasSession()) TG.client().catch(() => {});
   }

@@ -591,3 +591,18 @@ html[data-shell="tablet"] .brand{display:none}
 .zoomrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:0 0 var(--sp-4,16px);padding:10px 14px;border-radius:12px;background:var(--s1,rgba(127,127,127,.12))}
 html[data-shell="phone"] input,html[data-shell="phone"] select,html[data-shell="phone"] textarea,html[data-shell="tablet"] input,html[data-shell="tablet"] select,html[data-shell="tablet"] textarea{font-size:max(16px,1em)}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* 5.2: the main menu on Home - compact tiles, many per line, like the build's home menu */
+.menu.mainmenu{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;margin:0 0 var(--sp-5,24px)}
+.menu.mainmenu>*{min-height:92px}
+html[data-shell="phone"] .menu.mainmenu{grid-template-columns:repeat(3,1fr);gap:8px}
+html[data-shell="phone"] .menu.mainmenu>*{min-height:84px;padding:10px 6px}
+html[data-shell="phone"] .menu.mainmenu small{display:none}
+/* 5.2: quick setup on the accounts page */
+.sv_quick{border:1px solid var(--accent);border-radius:14px;padding:14px 16px;margin:0 0 var(--sp-5,24px);background:var(--s1,rgba(127,127,127,.08))}
+.sv_quick h2{margin:0 0 4px}.sv_q{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line,rgba(127,127,127,.25));flex-wrap:wrap}
+.sv_q:first-of-type{border-top:0}.sv_q .dot{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;border:2px solid var(--text3,#888);color:var(--text3,#888)}
+.sv_q.on .dot{border-color:#3ddc84;color:#3ddc84}.sv_q .tx{flex:1;min-width:180px}.sv_q .tx b{display:block}.sv_q .tx small{color:var(--text2,#aaa)}
+.sv_ready{margin:10px 0 0;color:var(--text2,#aaa);font-size:.92em}
+details.sv_adv{margin-top:var(--sp-4,16px)}details.sv_adv>summary{cursor:pointer;font-weight:600;padding:12px 0;font-size:1.05em}
+html[data-shell="phone"] .menu.mainmenu>.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;grid-template-columns:none}
+html[data-shell="phone"] .menu.mainmenu>.tile b{white-space:normal;overflow:visible;text-overflow:clip;font-size:13.5px;line-height:1.2;max-width:100%}

@@ -304,7 +304,9 @@
   }
 
   // ------------------------------------------------------------ playing
-  function embed(id, start) { return 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0' + (start > 0 ? '&start=' + Math.floor(start) : ''); }
+  // 5.2: subtitles on, in the site's language when YouTube has (or can make) them; the player's own language too
+  const ccLang = () => ({he: 'iw', ru: 'ru'}[TN.lang()] || 'en');
+  function embed(id, start) { return 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0&cc_load_policy=1&cc_lang_pref=' + ccLang() + '&hl=' + ccLang() + (start > 0 ? '&start=' + Math.floor(start) : ''); }
   // a whole playlist in the embed player (its own next / previous): works with no key
   function embedList(id, firstVideo) {
     return 'https://www.youtube-nocookie.com/embed/' + (ID.test(firstVideo || '') ? encodeURIComponent(firstVideo) : 'videoseries') + '?autoplay=1&rel=0&list=' + encodeURIComponent(id);

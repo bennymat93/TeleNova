@@ -1175,6 +1175,18 @@ const HOME = {
   classics(root) {
     row(t('classics'), {into: root, more: '#/movies', load: async (sc) => { (await archive({rows: 20})).forEach((d) => sc.append(iaCard(d))); }});
   },
+  // 5.2: the main menu of the Kodi build, as large tiles at the top of Home: what to watch, my things, accounts
+  mainmenu(root) {
+    const box = document.createElement('div');
+    box.className = 'menu mainmenu';
+    box.setAttribute('role', 'navigation');
+    box.setAttribute('aria-label', N('home_mainmenu'));
+    for (const key of ['movies', 'tv', 'live', 'radio', 'telegram', 'youtube', 'hub', 'favs', 'history', 'services', 'settings']) {
+      const m = MENU.find((x) => x[0] === key);
+      if (m) box.append(menuTile(m[0], m[1]));
+    }
+    root.append(box);
+  },
   sections(root) {
     const h = document.createElement('h2');
     h.textContent = N('home_sections');

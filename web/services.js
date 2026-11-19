@@ -80,7 +80,10 @@
   const TN = root.TN;
   if (!TN) return;
   TN.i18n.add({
-    he: {sv_intro: 'כל החיבורים והמפתחות במסך אחד. כל ערך נשמר רק בדפדפן הזה, נשלח רק לשירות שלו, ולעולם לא מופיע בכתובת.',
+    he: {sv_quick: 'הגדרה מהירה', sv_quick_txt: 'שני החשבונות ששווה לחבר. לחיצה אחת על כל אחד – ואישור.', sv_q_tg_txt: 'סרטים וסדרות מהערוצים והקבוצות שלך. לוחצים, מאשרים באפליקציית טלגרם – וזהו.',
+      sv_q_rd_txt: 'קישורים מהירים ואיכותיים (מנוי בתשלום). לוחצים, מאשרים את הקוד באתר Real-Debrid – וזהו.', sv_q_code: 'התחבר עם קוד',
+      sv_ready_txt: 'כל השאר כבר מוגדר ופועל בלי שום פעולה: קטלוג הסרטים והסדרות, ערוצי הטלוויזיה והרדיו, כתוביות בעברית, מנוע העזר, והנגן לכל סוגי הקבצים.', sv_adv: 'כל השירותים והמפתחות (מתקדם)',
+      sv_intro: 'כל החיבורים והמפתחות במסך אחד. כל ערך נשמר רק בדפדפן הזה, נשלח רק לשירות שלו, ולעולם לא מופיע בכתובת.',
          sv_sum: '%s פעילים, %s כבויים, %s לתיקון', sv_on: 'פעיל', sv_off: 'כבוי', sv_fix: 'צריך תיקון', sv_set: 'מוגדר', sv_unset: 'לא הוגדר', sv_acc: 'מהחשבון המסונכרן',
          sv_g_sources: 'מקורות', sv_g_subs: 'כתוביות', sv_g_ai: 'בינה מלאכותית ומידע', sv_g_tv: 'טלוויזיה, גיבוי ומעקב', sv_g_sync: 'סנכרון ומכשירים', sv_tools: 'כלים',
          sv_save: 'שמירה', sv_saved: 'נשמר', sv_del: 'מחיקה', sv_deleted: 'נמחק', sv_test: 'בדיקה עכשיו', sv_testing: 'בודק...', sv_ok: 'עובד', sv_bad: 'לא עבד (%s)',
@@ -118,7 +121,10 @@
          sv_magnet_need: 'magnet נפתח דרך Real-Debrid: התחברו ל-Real-Debrid למעלה', sv_newtab: 'הקישור נפתח בלשונית חדשה',
          dv_intro: 'איך האתר מסודר במכשיר הזה.', dv_auto: 'אוטומטי', dv_tv: 'טלוויזיה (שלט / מקלדת)', dv_phone: 'טלפון', dv_desktop: 'מחשב',
          dv_tv_hint: 'בטלוויזיה החצים עוברים בין הכפתורים, Enter בוחר ו-Back חוזר.'},
-    en: {sv_intro: 'Every connection and key on one screen. Each value stays in this browser only, is sent only to its own service, and never appears in an address.',
+    en: {sv_quick: 'Quick setup', sv_quick_txt: 'The two accounts worth connecting. One press each - and a confirmation.', sv_q_tg_txt: 'Films and series from your own channels and groups. Press, confirm in the Telegram app - done.',
+      sv_q_rd_txt: 'Fast, high-quality links (paid subscription). Press, approve the code on the Real-Debrid site - done.', sv_q_code: 'Sign in with a code',
+      sv_ready_txt: 'Everything else is already set and works with no action: the film and series catalogue, TV channels and radio, Hebrew subtitles, the helper, and the player for every file type.', sv_adv: 'All services and keys (advanced)',
+      sv_intro: 'Every connection and key on one screen. Each value stays in this browser only, is sent only to its own service, and never appears in an address.',
          sv_sum: '%s on, %s off, %s to fix', sv_on: 'On', sv_off: 'Off', sv_fix: 'Needs fixing', sv_set: 'Set', sv_unset: 'Not set', sv_acc: 'From the synced account',
          sv_g_sources: 'Sources', sv_g_subs: 'Subtitles', sv_g_ai: 'AI and metadata', sv_g_tv: 'TV, backup and tracking', sv_g_sync: 'Sync and devices', sv_tools: 'Tools',
          sv_save: 'Save', sv_saved: 'Saved', sv_del: 'Delete', sv_deleted: 'Deleted', sv_test: 'Test now', sv_testing: 'Checking...', sv_ok: 'Works', sv_bad: 'Did not work (%s)',
@@ -156,7 +162,10 @@
          sv_magnet_need: 'A magnet opens through Real-Debrid: sign in to Real-Debrid above', sv_newtab: 'The link opened in a new tab',
          dv_intro: 'How the site is laid out on this device.', dv_auto: 'Automatic', dv_tv: 'TV (remote / keyboard)', dv_phone: 'Phone', dv_desktop: 'Computer',
          dv_tv_hint: 'On a TV the arrows move between buttons, Enter chooses and Back goes back.'},
-    ru: {sv_intro: 'Все подключения и ключи на одном экране. Каждое значение хранится только в этом браузере, отправляется только своему сервису и никогда не попадает в адрес.',
+    ru: {sv_quick: 'Быстрая настройка', sv_quick_txt: 'Два аккаунта, которые стоит подключить. Одно нажатие и подтверждение.', sv_q_tg_txt: 'Фильмы и сериалы из ваших каналов и групп. Нажмите, подтвердите в приложении Telegram - готово.',
+      sv_q_rd_txt: 'Быстрые качественные ссылки (платная подписка). Нажмите, подтвердите код на сайте Real-Debrid - готово.', sv_q_code: 'Войти по коду',
+      sv_ready_txt: 'Всё остальное уже настроено и работает без действий: каталог фильмов и сериалов, ТВ-каналы и радио, субтитры на иврите, помощник и плеер для любых файлов.', sv_adv: 'Все сервисы и ключи (дополнительно)',
+      sv_intro: 'Все подключения и ключи на одном экране. Каждое значение хранится только в этом браузере, отправляется только своему сервису и никогда не попадает в адрес.',
          sv_sum: 'Включено: %s, выключено: %s, требует внимания: %s', sv_on: 'Вкл', sv_off: 'Выкл', sv_fix: 'Требует внимания', sv_set: 'Задано', sv_unset: 'Не задано', sv_acc: 'Из синхронизированного аккаунта',
          sv_g_sources: 'Источники', sv_g_subs: 'Субтитры', sv_g_ai: 'ИИ и метаданные', sv_g_tv: 'ТВ, копии и отслеживание', sv_g_sync: 'Синхронизация и устройства', sv_tools: 'Инструменты',
          sv_save: 'Сохранить', sv_saved: 'Сохранено', sv_del: 'Удалить', sv_deleted: 'Удалено', sv_test: 'Проверить', sv_testing: 'Проверка...', sv_ok: 'Работает', sv_bad: 'Не сработало (%s)',
@@ -415,11 +424,31 @@
     style();
     TN.page('services', t('m_services'));
     const view = TN.view();
-    view.append(el('p', 'hint', t('sv_intro')));
-    const sum = el('p', 'hint'); sum.setAttribute('role', 'status'); view.append(sum);
+    // 5.2: quick setup - the two accounts worth connecting, one button each; everything else works as installed and
+    // sits folded under "All services and keys"
+    const quick = el('div', 'sv_quick');
+    quick.append(el('h2', '', t('sv_quick')), el('p', 'hint', t('sv_quick_txt')));
+    const qrow = (name, text) => {
+      const r = el('div', 'sv_q'), dot = el('span', 'dot', '○'), tx = el('div', 'tx'), act = el('div', 'links');
+      tx.append(el('b', '', name), el('small', '', text));
+      r.append(dot, tx, act);
+      r.set = (on, label, btn) => { r.classList.toggle('on', !!on); dot.textContent = on ? '✓' : '○'; tx.lastChild.textContent = label; act.textContent = ''; if (btn) act.append(btn); };
+      quick.append(r);
+      return r;
+    };
+    const qTg = qrow(t('sv_tg'), t('sv_q_tg_txt')), qRd = qrow(t('sv_rd'), t('sv_q_rd_txt'));
+    quick.append(el('p', 'sv_ready', t('sv_ready_txt')));
+    view.append(quick);
+    const adv = el('details', 'sv_adv');
+    adv.append(el('summary', '', t('sv_adv')));
+    if (arg) adv.open = true;                      // a link to one service (#/services/<name>) opens the full list
+    const page = view;
+    page.append(adv);
+    adv.append(el('p', 'hint', t('sv_intro')));
+    const sum = el('p', 'hint'); sum.setAttribute('role', 'status'); adv.append(sum);
     const rows = [];
     const count = () => { const c = summary(rows.map((r) => r.state)); sum.textContent = t('sv_sum', c.on, c.off, c.fix); };
-    const group = (key) => { view.append(el('h2', 'sv_h2', t(key))); const l = el('div', 'sv_list'); view.append(l); return l; };
+    const group = (key) => { adv.append(el('h2', 'sv_h2', t(key))); const l = el('div', 'sv_list'); adv.append(l); return l; };
     const add = (list, r) => { r.onState = count; rows.push(r); list.append(r); return r; };
     const synced = S.synced() || {};
 
@@ -439,6 +468,7 @@
         }));
       }
       tg.acts.append(linkBtn('btn ghost', t('sv_api_page'), PAGES.telegram));
+      qTg.set(on, on ? t('sv_tg_on') + (st.name ? ' · ' + st.name : '') : t('sv_q_tg_txt'), linkBtn('btn' + (on ? ' ghost' : ''), t(on ? 'sv_tg_manage' : 'sv_tg_connect'), '#/tglogin'));
     };
     tg.body.append(switchLine(t('sv_quiet'), t('sv_quiet_hint'), () => S.get('telegram_quiet', true) !== false, (v) => S.set('telegram_quiet', !!v)),
                    switchLine(t('sv_bots'), t('sv_bots_hint'), () => S.get('tgsearch_bots', false) === true, (v) => S.set('tgsearch_bots', !!v)));
@@ -448,7 +478,17 @@
     const rd = add(list, row(t('sv_rd'), t('sv_rd_hint')));
     const rdBox = el('div'); rd.body.append(rdBox);
     rd.acts.append(linkBtn('btn ghost', 'real-debrid.com/device', PAGES.rd));
-    const paintRd = (R) => rd.setState(R && R.hasToken && R.hasToken() ? 'on' : 'off', R && R.hasToken && R.hasToken() ? t('sv_tg_on') : t('sv_tg_off'));
+    const paintRd = (R) => {
+      const on = !!(R && R.hasToken && R.hasToken());
+      rd.setState(on ? 'on' : 'off', on ? t('sv_tg_on') : t('sv_tg_off'));
+      // quick setup: one press shows the code (the device sign-in of rd.js), no scrolling through the list
+      qRd.set(on, on ? t('sv_tg_on') : t('sv_q_rd_txt'), TN.button('btn' + (on ? ' ghost' : ''), t(on ? 'sv_tg_manage' : 'sv_q_code'), () => {
+        adv.open = true;
+        let n = 0;
+        const go = () => { const b = rdBox.querySelector('#rd_dev'); if (b) { rd.scrollIntoView({block: 'center'}); if (!on) b.click(); else b.focus(); } else if (n++ < 30) setTimeout(go, 100); };
+        go();
+      }));
+    };
     paintRd(null);
     const offRd = TN.on('settings', (k) => { if (k === 'rd' && ctx.current()) TN.provider('rd').then(paintRd, () => {}); });
     TN.provider('rd').then((R) => {
