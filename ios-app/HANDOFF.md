@@ -5,6 +5,13 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19 01:30 UTC. CURRENT RELEASE: iOS app 2.0, build 7 (run 44427144401 green, bot commit ef09550):
+  `ios/TeleNova-Web-2.0.ipa` (8,450,890 bytes) + GitHub release `ios-2.0-b7` (made by the workflow's new last
+  step - it works). Version now comes from `ios-app/VERSION` (not from the web version); bundled web copy 5.2.0.
+  Self-test passed on iPhone + iPad, live and offline; phone screenshot checked (web 5.2 home with the menu tiles,
+  "..." button in the bottom-left strip). Sent to the owner. Nothing in progress.
+  Seen in the screenshot, a `web/` matter: on the Home tiles in English the labels sit right-aligned under centred
+  icons (RTL rule applied to an LTR language).
 - OWNER'S BUDGET RULE (2026-11-18, all sessions): 15 USD loaded - finish the iOS app first, in the cheapest way
   (no agent fan-out, no long polling, short answers), then the APK if money is left; everything else is STOPPED
   until he connects another account.
