@@ -164,7 +164,7 @@
          bk_move_done: 'ההגדרות התקבלו: %s', bk_move_tg: 'נשאר צעד אחד: לחבר את טלגרם במכשיר הזה (אישור אחד באפליקציית טלגרם).', bk_move_paste: 'קיבלתי קישור – הדבק', bk_move_full: 'עובר הכול: הגדרות, חיבורים, משתמשים, היסטוריה, מועדפים וחיפושים. הקוד תקף 15 דקות ולשימוש אחד.', bk_move_part: 'תיבת המסירה לא זמינה כרגע: עוברים ההגדרות והחיבורים בלבד (היסטוריה ומועדפים יסתנכרנו דרך טלגרם).', bk_move_gone: 'הקוד כבר נוצל או שפג תוקפו (15 דקות). הציגו קוד חדש במכשיר הראשון.', bk_move_app: 'פתח באפליקציית BN Stream', bk_move_app_txt: 'משתמשים באפליקציה? העבירו את ההגדרות אליה: לחצו "פתח באפליקציה", או העתיקו את הקישור ולחצו באפליקציה על "קיבלתי קישור – הדבק".', bk_move_nolink: 'לא נמצא קישור העברה בלוח ההעתקה.',
          bk_h_full: 'גיבוי מלא מוגן בסיסמה', bk_full_intro: 'קובץ אחד עם הכול: כל ההגדרות, מפתחות ה-API, חשבונות וסיסמאות (כתוביות, IPTV, Google Drive), החיבור ל-Real-Debrid, פרטי טלגרם, שרתים, והמשתמשים עם ההיסטוריה, המועדפים והחיפושים. הקובץ מוצפן בסיסמה שתבחרו, ואפשר לשחזר אותו בכל מכשיר שמותקן בו BN Stream – אתר, אפליקציה או Kodi.',
          bk_full_pass: 'סיסמה לגיבוי (6 תווים לפחות)', bk_full_pass2: 'הסיסמה שוב', bk_full_make: 'צור גיבוי מלא', bk_full_restore: 'שחזר מגיבוי', bk_full_short: 'הסיסמה צריכה להיות באורך %s תווים לפחות.', bk_full_differ: 'שתי הסיסמאות אינן זהות.',
-         bk_full_need_pass: 'הקלידו קודם את סיסמת הגיבוי, ואז בחרו את הקובץ.', bk_full_made: 'הגיבוי נשמר: %s. שמרו את הקובץ ואת הסיסמה – בלי הסיסמה אי אפשר לפתוח אותו.', bk_full_done: 'שוחזר: %s',
+         bk_full_need_pass: 'הקלידו קודם את סיסמת הגיבוי, ואז בחרו את הקובץ.', bk_full_made: 'הגיבוי נשמר: %s. שמרו את הקובץ ואת הסיסמה – בלי הסיסמה אי אפשר לפתוח אותו.', bk_full_done: 'שוחזר: %s', bk_full_one: 'יש קובץ גיבוי אחד: גיבוי חדש מחליף את הקודם.', bk_full_wrong: 'הסיסמה שגויה. שום דבר לא שוחזר – הקלידו את הסיסמה שנבחרה בזמן יצירת הגיבוי ונסו שוב.', bk_full_notfile: 'זה לא קובץ גיבוי של BN Stream, או שהקובץ פגום.',
          bk_full_device: 'סוג המכשיר זוהה אוטומטית: %s. הגדרות התצוגה הותאמו למכשיר הזה, לא למכשיר שממנו נעשה הגיבוי.', bk_dev_phone: 'טלפון', bk_dev_tablet: 'טאבלט', bk_dev_desktop: 'מחשב', bk_dev_tv: 'טלוויזיה',
          bk_done: 'השחזור הושלם: %s משתמשים עודכנו. מה שהיה בדפדפן נשאר, והגיבוי מוזג אליו.', bk_cfg: 'לשחזר גם את הגדרות הדפדפן מהגיבוי',
          bk_note: 'גיבוי לא כולל את הכניסה לטלגרם ואת הכניסה ל-Real-Debrid: כל מכשיר מתחבר בעצמו. הוא כן כולל את המפתחות שהוזנו בדפדפן הזה (TMDb, Gemini, YouTube, OpenSubtitles); שמרו אותו במקום פרטי.',
@@ -190,7 +190,7 @@
          bk_move_done: 'Setup received: %s', bk_move_tg: 'One step left: connect Telegram on this device (one confirmation in the Telegram app).', bk_move_paste: 'I got a link - paste', bk_move_full: 'Everything goes: settings, connections, users, history, favourites and searches. The code is good for 15 minutes and for one use.', bk_move_part: 'The drop box is not reachable now: only settings and connections go (history and favourites sync through Telegram).', bk_move_gone: 'This code was already used or has expired (15 minutes). Show a new code on the first device.', bk_move_app: 'Open in the BN Stream app', bk_move_app_txt: 'Using the app? Hand the setup to it: press "Open in the app", or copy the link and press "I got a link - paste" in the app.', bk_move_nolink: 'No transfer link in the clipboard.',
          bk_h_full: 'Full backup, protected by a password', bk_full_intro: 'One file with everything: every setting, API keys, accounts and passwords (subtitles, IPTV, Google Drive), the Real-Debrid sign-in, the Telegram details, servers, and the users with their history, favourites and searches. The file is encrypted with a password you choose and can be restored on any device that has BN Stream - the site, the app or Kodi.',
          bk_full_pass: 'Backup password (6 characters or more)', bk_full_pass2: 'The password again', bk_full_make: 'Make a full backup', bk_full_restore: 'Restore from a backup', bk_full_short: 'The password must be at least %s characters long.', bk_full_differ: 'The two passwords are not the same.',
-         bk_full_need_pass: 'Type the backup password first, then choose the file.', bk_full_made: 'Backup saved: %s. Keep the file and the password - without the password it cannot be opened.', bk_full_done: 'Restored: %s',
+         bk_full_need_pass: 'Type the backup password first, then choose the file.', bk_full_made: 'Backup saved: %s. Keep the file and the password - without the password it cannot be opened.', bk_full_done: 'Restored: %s', bk_full_one: 'There is one backup file: a new backup replaces the one before it.', bk_full_wrong: 'Wrong password. Nothing was restored - type the password chosen when the backup was made and try again.', bk_full_notfile: 'This is not a BN Stream backup file, or the file is damaged.',
          bk_full_device: 'The device type was recognised by itself: %s. The display fits this device, not the one the backup came from.', bk_dev_phone: 'phone', bk_dev_tablet: 'tablet', bk_dev_desktop: 'computer', bk_dev_tv: 'television',
          bk_done: 'Restored: %s users updated. What this browser had stays; the backup was merged into it.', bk_cfg: 'Also restore this browser\'s settings from the backup',
          bk_note: 'A backup never holds the Telegram login or the Real-Debrid login: every device signs in by itself. It does hold the keys entered in this browser (TMDb, Gemini, YouTube, OpenSubtitles); keep it somewhere private.',
@@ -216,7 +216,7 @@
          bk_move_done: 'Настройки получены: %s', bk_move_tg: 'Остался один шаг: подключить Telegram на этом устройстве (одно подтверждение в приложении Telegram).', bk_move_paste: 'У меня есть ссылка - вставить', bk_move_full: 'Переносится всё: настройки, подключения, пользователи, история, избранное и поиски. Код действует 15 минут и один раз.', bk_move_part: 'Ящик передачи сейчас недоступен: переносятся только настройки и подключения (история и избранное синхронизируются через Telegram).', bk_move_gone: 'Код уже использован или истёк (15 минут). Покажите новый код на первом устройстве.', bk_move_app: 'Открыть в приложении BN Stream', bk_move_app_txt: 'Пользуетесь приложением? Передайте настройки в него: нажмите «Открыть в приложении» или скопируйте ссылку и нажмите в приложении «У меня есть ссылка - вставить».', bk_move_nolink: 'В буфере обмена нет ссылки переноса.',
          bk_h_full: 'Полная резервная копия с паролем', bk_full_intro: 'Один файл со всем: все настройки, ключи API, аккаунты и пароли (субтитры, IPTV, Google Drive), вход Real-Debrid, данные Telegram, серверы и пользователи с историей, избранным и поисками. Файл шифруется вашим паролем и восстанавливается на любом устройстве с BN Stream - сайт, приложение или Kodi.',
          bk_full_pass: 'Пароль копии (не менее 6 символов)', bk_full_pass2: 'Пароль ещё раз', bk_full_make: 'Создать полную копию', bk_full_restore: 'Восстановить из копии', bk_full_short: 'Пароль должен быть не короче %s символов.', bk_full_differ: 'Пароли не совпадают.',
-         bk_full_need_pass: 'Сначала введите пароль копии, затем выберите файл.', bk_full_made: 'Копия сохранена: %s. Храните файл и пароль - без пароля его не открыть.', bk_full_done: 'Восстановлено: %s',
+         bk_full_need_pass: 'Сначала введите пароль копии, затем выберите файл.', bk_full_made: 'Копия сохранена: %s. Храните файл и пароль - без пароля его не открыть.', bk_full_done: 'Восстановлено: %s', bk_full_one: 'Резервная копия одна: новая заменяет предыдущую.', bk_full_wrong: 'Неверный пароль. Ничего не восстановлено - введите пароль, выбранный при создании копии, и попробуйте снова.', bk_full_notfile: 'Это не файл копии BN Stream, или файл повреждён.',
          bk_full_device: 'Тип устройства определён автоматически: %s. Отображение подстроено под это устройство, а не под то, где сделана копия.', bk_dev_phone: 'телефон', bk_dev_tablet: 'планшет', bk_dev_desktop: 'компьютер', bk_dev_tv: 'телевизор',
          bk_done: 'Восстановлено: обновлено пользователей — %s. Данные браузера сохранены, копия объединена с ними.', bk_cfg: 'Восстановить и настройки браузера из копии',
          bk_note: 'Копия не содержит вход в Telegram и вход в Real-Debrid: каждое устройство входит само. В ней есть ключи, введённые в этом браузере (TMDb, Gemini, YouTube, OpenSubtitles); храните её в надёжном месте.',
@@ -462,6 +462,7 @@
   // The device type and the display size are never restored: the device that restores is recognised by itself.
   const DEVICE_KEYS = ['device', 'zoom'];
   const PASS_MIN = 6;
+  const FULL_NAME = 'BN_Stream_backup.tncfg';
   async function fullBackup(password) {
     if (String(password || '').length < PASS_MIN) throw Object.assign(new Error('short'), {code: 'pass_short'});
     const zip = new Uint8Array(await (await makeZip()).arrayBuffer());
@@ -489,8 +490,24 @@
       if (pw.value.length < PASS_MIN) { box.say(t('bk_full_short', PASS_MIN)); pw.focus(); return; }
       if (pw.value !== pw2.value) { box.say(t('bk_full_differ')); pw2.focus(); return; }
       box.say(t('bk_wait'));
-      try { const name = 'bn_stream_full_' + stamp() + '.tncfg'; download(await fullBackup(pw.value), name); box.say(t('bk_full_made', name)); pw.value = pw2.value = ''; }
-      catch (e) { box.say(cfgError(e)); }
+      // 5.3.3: ONE backup file, always under the same name - a new backup replaces the one before it. Where the browser
+      // lets a page write a file the viewer picked (desktop Chrome / Edge), that very file is overwritten; elsewhere the
+      // download carries the fixed name and the device's own "replace?" question does the rest.
+      try {
+        const blob = await fullBackup(pw.value);
+        let how = 'down';
+        if (typeof root.showSaveFilePicker === 'function') {
+          try {
+            const h = await root.showSaveFilePicker({suggestedName: FULL_NAME, types: [{description: 'BN Stream backup', accept: {'application/octet-stream': ['.tncfg']}}]});
+            const w = await h.createWritable();
+            await w.write(blob); await w.close();
+            how = 'saved';
+          } catch (e) { if (e && e.name === 'AbortError') { box.say(''); return; } how = 'down'; }
+        }
+        if (how === 'down') download(blob, FULL_NAME);
+        box.say(t('bk_full_made', FULL_NAME) + ' ' + t('bk_full_one'));
+        pw.value = pw2.value = '';
+      } catch (e) { box.say(cfgError(e)); }
     }), TN.button('btn ghost', t('bk_full_restore'), () => {
       if (!pw.value) { box.say(t('bk_full_need_pass')); pw.focus(); return; }
       file.click();
@@ -507,7 +524,12 @@
         after.append(el('p', '', t('bk_full_device', t('bk_dev_' + got.shell))));
         if (got.telegram && !(tgStatus() && tgStatus().state === 'on')) after.append(el('p', '', t('bk_move_tg')), Object.assign(el('a', 'btn', t('bk_sync_connect')), {href: '#/tglogin'}));
         TN.emit('settings', 'restore');
-      } catch (e) { box.say(cfgError(e)); }
+      } catch (e) {
+        // a wrong password is said as such, in its own words, and the field is ready for another try
+        const c = e && e.code;
+        if (c === 'wrong_password' || c === 'password_required') { box.say(t('bk_full_wrong')); box.msg.setAttribute('role', 'alert'); pw.value = ''; pw.focus(); }
+        else box.say(c === 'not_a_config_file' || c === 'unsupported_version' || c === 'damaged' ? t('bk_full_notfile') : cfgError(e));
+      }
     };
     box.append(f, acts, after, box.msg);
   }
