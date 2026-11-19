@@ -5,6 +5,9 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19 CURRENT RELEASE: iOS 3.0.1 (release `ios-3.0.1`): web 5.6.0 bundled (aio.js, srcedit.js). Fresh install
+  shows the "All in one" box on Home; #/aio, #/srcedit, #/info open with no cut / overflow on iPhone + iPad.
+  Seen (web matter): in English the small line above each card title in Edit sources / Information is right-aligned.
 - 2026-11-19 CURRENT RELEASE: iOS 2.6.1 (release `ios-2.6.1`, run 44569213767): web 5.4.4, Drive sign-in sheet,
   page below the status bar. Simulator: the whole Telegram phone path works (API details from the helper, connect,
   SendCode, "code" step in ~4 s, iPhone + iPad); that test was then removed (rate limits on the owner's API id).
