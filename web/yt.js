@@ -380,7 +380,11 @@
           srv.onProgress = (pc) => { if (frame.isConnected && !cues.length) status.textContent = TN.t('yt_ai_wait') + ' ' + pc + '%'; };
           const got = parseVtt(await list[0].fetchVtt());
           if (!frame.isConnected) return;
-          if (got.length) { cues = got; status.textContent = TN.t('yt_ai_on'); btn.hidden = true; }
+          if (got.length) {
+            cues = got; status.textContent = TN.t('yt_ai_on'); btn.hidden = true;
+            // YouTube's own captions off: two subtitles on top of each other help nobody
+            try { frame.contentWindow.postMessage(JSON.stringify({event: 'command', func: 'unloadModule', args: ['captions']}), YT_ORIGIN); } catch (e) { /* they stay */ }
+          }
           const end = got.length ? got[got.length - 1].e : 0;
           if (!got.length || !v.secs || end >= v.secs - 90) break;       // the whole video is covered (or its length is unknown)
           await new Promise((r) => setTimeout(r, 30000));

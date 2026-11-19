@@ -112,6 +112,11 @@ def plan(profile, total_ram_mb, platform):
 LIGHT = ('tv32', 'phone', 'car')
 
 # inputstream.adaptive (HLS / DASH: YouTube, some channels) keeps its own buffer, apart from Kodi's file cache
+# 5.0.1, weak connections, every device: live channels and other HLS / DASH streams go through this add-on. It picks
+# the picture by the speed it measured; the first choice, before anything is measured, was the best picture - on a
+# weak line that is a channel that opens, stops and starts again. So: adaptive choice, start from what the last
+# stream measured, and 1.5 Mbit/s when nothing is known yet (the add-on then goes up by itself within seconds).
+ISA_ALL = {'adaptivestream.type': 'default', 'adaptivestream.bandwidth.init.auto': 'true', 'adaptivestream.bandwidth.init': '1500'}
 ISA = {
     'tv32': {'adaptivestream.res.max': '1080p', 'ASSUREDBUFFERDURATION': '30', 'MAXBUFFERDURATION': '60'},
     'car': {'adaptivestream.res.max': '720p'},
@@ -387,10 +392,10 @@ def apply(profile):
         if 'error' in r:
             bad.append(k)
     try:        # the adaptive-stream add-on's own limits for the weak devices (only when it is installed)
-        if profile in ISA and xbmc.getCondVisibility('System.HasAddon(inputstream.adaptive)'):
+        if xbmc.getCondVisibility('System.HasAddon(inputstream.adaptive)'):
             import xbmcaddon
             isa = xbmcaddon.Addon('inputstream.adaptive')
-            for k, v in ISA[profile].items():
+            for k, v in dict(ISA_ALL, **ISA.get(profile, {})).items():
                 if isa.getSetting(k) != v:
                     isa.setSetting(k, v)
     except Exception as e:

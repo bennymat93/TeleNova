@@ -45,6 +45,18 @@
   // a phone login that waits for its code, and the time Telegram asked to wait (see the header): this tab's
   // sessionStorage only. Called when a sign-in succeeds and when the login is wiped; storage that refuses must
   // never break a sign-in. (Both were called but not defined: every sign-in failed at its last step.)
+  // 5.3: a phone sign-in that waits for its code survives a reload / the app going to the background: the number,
+  // Telegram's code hash and the connection it was asked on are kept for this tab, 10 minutes at most (as the header
+  // says). The code can then be typed without asking Telegram for a new one - every new request cancels the old code.
+  function setPending(p) { try { sessionStorage.setItem('bn_tg_pending', JSON.stringify(Object.assign({t: Date.now()}, p))); } catch (e) { /* no storage */ } }
+  function getPending() {
+    try {
+      const p = JSON.parse(sessionStorage.getItem('bn_tg_pending') || 'null');
+      if (p && p.phone && p.hash && typeof p.session === 'string' && p.session && Date.now() - p.t < 600000) return p;
+      if (p) sessionStorage.removeItem('bn_tg_pending');
+    } catch (e) { /* no storage */ }
+    return null;
+  }
   function dropPending() { try { sessionStorage.removeItem('bn_tg_pending'); } catch (e) { /* no storage */ } }
   function setFlood(until) {
     try { if (until) sessionStorage.setItem('bn_tg_flood', String(Number(until) || 0)); else sessionStorage.removeItem('bn_tg_flood'); } catch (e) { /* no storage */ }
@@ -232,26 +244,35 @@
   }
   const isCls = (o, name) => !!(o && (o.className === name || (G().Api.auth[name.replace(/^auth\./, '')] && o instanceof G().Api.auth[name.replace(/^auth\./, '')])));
 
-  async function phoneFlow(apiCreds, password, onError) {
+  async function phoneFlow(apiCreds, password, onError, pend, keep) {
     const Api = G().Api;
+    const remember = (phone, hash, where) => { try { setPending({phone, hash, where, keep: !!keep, session: String(client.session.save() || '')}); } catch (e) { /* not kept */ } };
     for (;;) {
-      const raw = await ask('phone', {});
-      const phone = normalizePhone(raw);
-      if (!phone) { info.error = A.X('e_phone'); continue; }
-      let sent;
-      try {
-        sent = await client.invoke(new Api.auth.SendCode({phoneNumber: phone, apiId: apiCreds.apiId, apiHash: apiCreds.apiHash, settings: new Api.CodeSettings({})}));
-      } catch (e) { if (await onError(e)) throw new Error('AUTH_USER_CANCEL'); continue; }
-      if (isCls(sent, 'auth.SentCodeSuccess')) return;
-      let hash = sent.phoneCodeHash, where = sentInfo(sent);
+      let phone, hash, where;
+      if (pend) {                               // the code step of a sign-in that was interrupted
+        phone = pend.phone; hash = pend.hash; where = pend.where || {via: 'other', length: 0, next: '', timeout: 0, canResend: true};
+        pend = null;
+      } else {
+        const raw = await ask('phone', {});
+        phone = normalizePhone(raw);
+        if (!phone) { info.error = A.X('e_phone'); continue; }
+        let sent;
+        try {
+          sent = await client.invoke(new Api.auth.SendCode({phoneNumber: phone, apiId: apiCreds.apiId, apiHash: apiCreds.apiHash, settings: new Api.CodeSettings({})}));
+        } catch (e) { if (await onError(e)) throw new Error('AUTH_USER_CANCEL'); continue; }
+        if (isCls(sent, 'auth.SentCodeSuccess')) return;
+        hash = sent.phoneCodeHash; where = sentInfo(sent);
+        remember(phone, hash, where);
+      }
       for (;;) {
         const code = await ask('code', Object.assign({phone}, where));
-        if (code === BACK) break;
+        if (code === BACK) { dropPending(); break; }
         if (code === RESEND) {
           try {
             const r = await client.invoke(new Api.auth.ResendCode({phoneNumber: phone, phoneCodeHash: hash}));
             if (isCls(r, 'auth.SentCodeSuccess')) return;
             hash = r.phoneCodeHash; where = sentInfo(r); info.error = '';
+            remember(phone, hash, where);
           } catch (e) { if (await onError(e)) throw new Error('AUTH_USER_CANCEL'); }
           continue;
         }
@@ -263,7 +284,7 @@
           const m = e && e.errorMessage;
           if (m === 'SESSION_PASSWORD_NEEDED') { await client.signInWithPassword(apiCreds, {password, onError}); return; }
           if (await onError(e)) throw new Error('AUTH_USER_CANCEL');
-          if (m === 'PHONE_CODE_EXPIRED' || m === 'PHONE_NUMBER_INVALID') break;      // back to the number
+          if (m === 'PHONE_CODE_EXPIRED' || m === 'PHONE_NUMBER_INVALID') { dropPending(); break; }      // back to the number
         }
       }
     }
@@ -289,7 +310,11 @@
     const password = (hint) => ask('password', {hint: typeof hint === 'string' ? hint : ''});
     try {
       if (client) await close();                 // a fresh connection for a fresh login
-      await open(true);
+      // ... except for a phone sign-in that was interrupted: its code is good only on the connection it was asked on
+      let pend = how === 'phone' ? getPending() : null;
+      if (how !== 'phone') dropPending();
+      try { await open(true, pend ? pend.session : ''); }
+      catch (e) { if (!pend) throw e; pend = null; dropPending(); if (client) await close(); await open(true); }
       const apiCreds = {apiId: Number(creds().id), apiHash: creds().hash};
       if (how === 'qr') {
         await client.signInUserWithQrCode(apiCreds, {
@@ -299,7 +324,7 @@
             info.error = ''; draw();
           },
           password, onError});
-      } else await phoneFlow(apiCreds, password, onError);
+      } else await phoneFlow(apiCreds, password, onError, pend, keep);
       if (gen !== loginGen) return;
       loginUi = null; cancelLogin = null;
       await signedIn(keep);
@@ -525,6 +550,7 @@
     setApi, parsePair,
     forgetApi() { if (state === 'off' || state === 'offline') { A.drop('tg_api'); info.error = ''; info.note = ''; draw(); return true; } return false; },
     hasSession: () => !!savedSession(),
+    pending: () => { const p = getPending(); return p ? {phone: p.phone, keep: !!p.keep} : null; },
     login,
     answer,
     resend: () => answer(RESEND),

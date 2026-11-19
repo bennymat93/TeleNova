@@ -290,6 +290,9 @@
       return [st, el('p', 'hint', t('tgl_newdevice')), row];
     }
     draw(true);
+    // 5.3: a phone sign-in was waiting for its code when the page went away (reload, app in the background): back to
+    // the code field, with no new request to Telegram
+    try { const pd = TG.pending && TG.pending(); if (pd && TG.state() === 'off' && TG.hasApi()) { ui.tab = 'phone'; ui.phone = pd.phone; TG.login('phone', pd.keep); } } catch (e) { /* the normal page */ }
     // 5.2: no API details here yet - take the ones that come with the build (when its helper has them) and go
     // straight to the sign-in itself: press, confirm in Telegram, done
     if (!TG.hasApi() && TG.ensureApi) TG.ensureApi().then((ok) => { if (ok && TG.state() !== 'on') { ui.tab = firstTab(TG); draw(true); } });
