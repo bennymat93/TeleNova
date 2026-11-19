@@ -40,6 +40,18 @@ const ai = await handle(new Request('https://w.dev/ai', {headers: {origin: O}}),
 ok(ai.status === 200 && (await ai.json()).url === 'https://a-b-c.trycloudflare.com', 'ai: the address and token, to an allowed origin');
 ok((await handle(new Request('https://w.dev/ai', {headers: {origin: 'https://other.io'}}), aiEnv)).status === 403, 'ai: another origin gets nothing');
 ok((await handle(new Request('https://w.dev/ai', {headers: {origin: O}}), Object.assign({}, aiEnv, {AI_SERVER_URL: 'http://192.168.1.2:8765'}))).status === 404, 'ai: an http address is never handed out');
+// the drop box, with an in-memory KV
+const kv = new Map(), DROP = {put: async (k, v) => { kv.set(k, v); }, get: async (k) => kv.get(k) || null, delete: async (k) => { kv.delete(k); }};
+const dEnv = Object.assign({}, env, {DROP});
+const put = await handle(new Request('https://w.dev/drop', {method: 'POST', headers: {origin: O}, body: new Uint8Array([1, 2, 3, 4])}), dEnv);
+const dropId = (await put.json()).id;
+ok(put.status === 200 && /^[0-9a-f]{32}$/.test(dropId), 'drop: a blob is taken and gets a random id');
+const got1 = await handle(new Request('https://w.dev/drop/' + dropId, {headers: {origin: O}}), dEnv);
+ok(got1.status === 200 && new Uint8Array(await got1.arrayBuffer()).join() === '1,2,3,4', 'drop: the other device reads it');
+ok((await handle(new Request('https://w.dev/drop/' + dropId, {headers: {origin: O}}), dEnv)).status === 404, 'drop: only once');
+ok((await handle(new Request('https://w.dev/drop', {method: 'POST', headers: {origin: 'https://other.io'}, body: 'x'}), dEnv)).status === 403, 'drop: another origin is refused');
+ok((await handle(new Request('https://w.dev/drop', {method: 'POST', headers: {origin: O}, body: new Uint8Array(3 * 1024 * 1024 + 1)}), dEnv)).status === 413, 'drop: too large is refused');
+ok((await handle(new Request('https://w.dev/drop', {method: 'POST', headers: {origin: O}, body: 'x'}), env)).status === 503, 'drop: no store configured -> 503');
 const pg = await handle(new Request('https://w.dev/ping', {headers: {origin: O}}), env);
 ok((await pg.json()).app === 'telenova-helper', 'ping');
 console.log(fails ? 'WORKER TESTS FAILED ' + fails : 'WORKER TESTS OK'); process.exit(fails ? 1 : 0);

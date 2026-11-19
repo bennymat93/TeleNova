@@ -14,7 +14,7 @@
 (function (TN) {
   if (!TN) return;
   TN.i18n.add({
-    he: {yt_title: 'YouTube', yt_topics: 'נושאים', yt_search: 'חיפוש ביוטיוב', yt_go: 'חיפוש', yt_key: 'מפתח YouTube Data API (לא חובה)',
+    he: {yt_title: 'YouTube', yt_topics: 'נושאים', yt_ai: 'תרגום AI עכשיו', yt_ai_wait: 'שרת התרגום מאזין לסרטון ומכין כתוביות בעברית…', yt_ai_on: 'כתוביות AI בעברית מוצגות על הסרטון', yt_ai_fail: 'שרת התרגום לא ענה (המחשב בבית צריך להיות דולק). נסו שוב.', yt_search: 'חיפוש ביוטיוב', yt_go: 'חיפוש', yt_key: 'מפתח YouTube Data API (לא חובה)',
       yt_key_hint: 'יוטיוב לא מאפשר לדפדפן לחפש בלי מפתח. אפשר להזין מפתח YouTube Data API v3 משלך (נשמר רק בדפדפן הזה), או להגדיר כתובת עוזר (Worker) בהגדרות.',
       yt_need: 'כדי לחפש ביוטיוב צריך מפתח API או עוזר (Worker). הניגון עצמו עובד תמיד.', yt_saved: 'נשמר',
       yt_fail: 'יוטיוב לא ענה. בדקו את המפתח או את העוזר.', yt_channel: 'ערוץ', yt_open: 'פתיחה ביוטיוב', yt_views: '%s צפיות',
@@ -23,7 +23,7 @@
       yt_setup_txt: 'ניגון, קישורים, מועדפים ופלייליסטים עובדים בלי מפתח. לחיפוש, לרשימות ערוצים ולשידורים חיים צריך מפתח YouTube Data API חינמי או כתובת עוזר (Worker) - שניהם במסך "שירותים".',
       yt_retry: 'נסו שוב', yt_none: 'לא נמצאו סרטונים', yt_fav_add_ch: 'הוספת הערוץ למועדפים', yt_ch_need: 'כדי לפתוח ערוץ לפי שם (@) צריך מפתח או עוזר. הערוץ נפתח ב-YouTube.',
       yt_key_how: 'איך מקבלים מפתח', yt_min: "%s דק'"},
-    en: {yt_title: 'YouTube', yt_topics: 'Topics', yt_search: 'Search YouTube', yt_go: 'Search', yt_key: 'YouTube Data API key (optional)',
+    en: {yt_title: 'YouTube', yt_topics: 'Topics', yt_ai: 'AI translation now', yt_ai_wait: 'The translation server is listening to the video and making Hebrew subtitles…', yt_ai_on: 'AI subtitles in Hebrew are shown on the video', yt_ai_fail: 'The translation server did not answer (the PC at home must be on). Try again.', yt_search: 'Search YouTube', yt_go: 'Search', yt_key: 'YouTube Data API key (optional)',
       yt_key_hint: 'YouTube does not let a browser search without a key. Enter your own YouTube Data API v3 key (kept only in this browser), or set a helper (Worker) URL in Settings.',
       yt_need: 'Searching YouTube needs an API key or the helper (Worker). Playing always works.', yt_saved: 'Saved',
       yt_fail: 'YouTube did not answer. Check the key or the helper.', yt_channel: 'Channel', yt_open: 'Open on YouTube', yt_views: '%s views',
@@ -32,7 +32,7 @@
       yt_setup_txt: 'Playing, links, favourites and playlists work without a key. Search, channel lists and live broadcasts need a free YouTube Data API key or a helper (Worker) address - both are on the Services screen.',
       yt_retry: 'Try again', yt_none: 'No videos found', yt_fav_add_ch: 'Add the channel to favourites', yt_ch_need: 'Opening a channel by its @name needs a key or the helper. The channel opens on YouTube.',
       yt_key_how: 'How to get a key', yt_min: '%s min'},
-    ru: {yt_title: 'YouTube', yt_topics: 'Темы', yt_search: 'Поиск в YouTube', yt_go: 'Найти', yt_key: 'Ключ YouTube Data API (необязательно)',
+    ru: {yt_title: 'YouTube', yt_topics: 'Темы', yt_ai: 'Перевод ИИ сейчас', yt_ai_wait: 'Сервер перевода слушает видео и готовит субтитры на иврите…', yt_ai_on: 'Субтитры ИИ на иврите показаны на видео', yt_ai_fail: 'Сервер перевода не ответил (домашний ПК должен быть включён). Попробуйте ещё раз.', yt_search: 'Поиск в YouTube', yt_go: 'Найти', yt_key: 'Ключ YouTube Data API (необязательно)',
       yt_key_hint: 'YouTube не даёт браузеру искать без ключа. Введите свой ключ YouTube Data API v3 (хранится только в этом браузере) или укажите адрес помощника (Worker) в настройках.',
       yt_need: 'Для поиска в YouTube нужен ключ API или помощник (Worker). Воспроизведение работает всегда.', yt_saved: 'Сохранено',
       yt_fail: 'YouTube не ответил. Проверьте ключ или помощник.', yt_channel: 'Канал', yt_open: 'Открыть в YouTube', yt_views: '%s просмотров',
@@ -306,7 +306,7 @@
   // ------------------------------------------------------------ playing
   // 5.2: subtitles on, in the site's language when YouTube has (or can make) them; the player's own language too
   const ccLang = () => ({he: 'iw', ru: 'ru'}[TN.lang()] || 'en');
-  function embed(id, start) { return 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0&cc_load_policy=1&cc_lang_pref=' + ccLang() + '&hl=' + ccLang() + (start > 0 ? '&start=' + Math.floor(start) : ''); }
+  function embed(id, start) { return 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0&enablejsapi=1&origin=' + encodeURIComponent(location.origin) + '&cc_load_policy=1&cc_lang_pref=' + ccLang() + '&hl=' + ccLang() + (start > 0 ? '&start=' + Math.floor(start) : ''); }
   // a whole playlist in the embed player (its own next / previous): works with no key
   function embedList(id, firstVideo) {
     return 'https://www.youtube-nocookie.com/embed/' + (ID.test(firstVideo || '') ? encodeURIComponent(firstVideo) : 'videoseries') + '?autoplay=1&rel=0&list=' + encodeURIComponent(id);
@@ -317,18 +317,96 @@
       `title="${TN.esc(title || TN.t('yt_playlist'))}"></iframe></div><h2 dir="auto">${TN.esc(title || TN.t('yt_playlist'))}</h2><div class="links">` +
       `<a class="btn ghost" target="_blank" rel="noopener" href="https://www.youtube.com/playlist?list=${encodeURIComponent(id)}">${TN.esc(TN.t('yt_open'))}</a></div>`);
   }
+  // 5.3: AI translation on a YouTube video. The video itself stays in YouTube's own player (a browser cannot get the
+  // stream: YouTube answers "confirm you are not a bot" to servers, and a stream address works only for the one
+  // who asked). What the viewer asked for is the translation, and that needs two things the embed does give:
+  //  - the time: the player reports it to the page (enablejsapi, messages 'infoDelivery' with currentTime);
+  //  - the subtitles: the owner's AI server listens to the video by its id (its own YouTube access, at home) and
+  //    sends Hebrew subtitles; they are drawn over the player, in step with that time.
+  const YT_ORIGIN = 'https://www.youtube-nocookie.com';
+  function parseVtt(text) {
+    const out = [], sec = (x) => { const m = /(?:(\d+):)?(\d+):(\d+)[.,](\d+)/.exec(x); return m ? (Number(m[1]) || 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) + Number('0.' + m[4]) : 0; };
+    const blocks = String(text || '').replace(/\r/g, '').split(/\n\n+/);
+    for (const b of blocks) {
+      const lines = b.split('\n'), i = lines.findIndex((l) => l.includes('-->'));
+      if (i < 0) continue;
+      const [a, z] = lines[i].split('-->');
+      const tx = lines.slice(i + 1).join('\n').replace(/<[^>]+>/g, '').replace(/[\u202a-\u202e\u2066-\u2069]/g, '').trim();
+      if (tx) out.push({s: sec(a), e: sec(z), t: tx});
+    }
+    return out;
+  }
+  function aiOverlay(v, frame, acts, status) {
+    const wrap = frame.parentNode;
+    wrap.style.position = 'relative';
+    const box = document.createElement('div');
+    box.className = 'yt_cues';
+    box.style.cssText = 'position:absolute;left:4%;right:4%;bottom:12%;text-align:center;pointer-events:none;z-index:2;font-size:clamp(15px,2.4vw,34px);line-height:1.35;color:#fff;' +
+      'text-shadow:0 0 4px #000,0 0 4px #000,0 2px 6px #000;white-space:pre-wrap';
+    wrap.append(box);
+    let cues = [], lastT = Number(v.start) || 0, lastAt = Date.now(), rate = 1, playing = true, shown = '';
+    const now = () => (playing ? lastT + (Date.now() - lastAt) / 1000 * rate : lastT);
+    const onMsg = (e) => {
+      if (e.origin !== YT_ORIGIN || e.source !== frame.contentWindow) return;
+      let d = e.data;
+      try { if (typeof d === 'string') d = JSON.parse(d); } catch (err) { return; }
+      const info = d && d.info;
+      if (!info || typeof info !== 'object') return;
+      if (typeof info.currentTime === 'number') { lastT = info.currentTime; lastAt = Date.now(); }
+      if (typeof info.playbackRate === 'number' && info.playbackRate > 0) rate = info.playbackRate;
+      if (typeof info.playerState === 'number') { playing = info.playerState === 1; lastAt = Date.now(); }
+    };
+    window.addEventListener('message', onMsg);
+    const hello = () => { try { frame.contentWindow.postMessage(JSON.stringify({event: 'listening', id: 1, channel: 'widget'}), YT_ORIGIN); } catch (e) { /* not loaded yet */ } };
+    frame.addEventListener('load', hello);
+    const hi = setInterval(hello, 2500);          // the player answers only after it is ready; asking again is harmless
+    const tick = setInterval(() => {
+      if (!frame.isConnected) { clearInterval(tick); clearInterval(hi); window.removeEventListener('message', onMsg); return; }
+      const t = now();
+      const txt = cues.filter((c) => c.s <= t && t < c.e).map((c) => c.t).join('\n');
+      if (txt !== shown) { shown = txt; box.textContent = ''; if (txt) { const sp = document.createElement('span'); sp.dir = 'auto'; sp.textContent = txt; sp.style.cssText = 'background:rgba(0,0,0,.5);padding:.08em .4em;border-radius:.2em'; box.append(sp); } }
+    }, 200);
+    let busy = false;
+    const btn = TN.button('btn', '✦ ' + TN.t('yt_ai'), async () => {
+      if (busy) return;
+      busy = true; status.textContent = TN.t('yt_ai_wait');
+      try {
+        await TN.provider('subs');
+        const srv = await TN.provider('subsrv');
+        // the server makes the subtitles from where the viewer is; a long video arrives in parts, so it is asked again
+        for (let round = 0; round < 40 && frame.isConnected; round++) {
+          const list = srv && srv.find ? await srv.find({url: 'https://www.youtube.com/watch?v=' + v.id, youtube_id: v.id, title: v.title || '', position: now()}) : [];
+          if (!list.length) throw new Error('no server');
+          srv.onProgress = (pc) => { if (frame.isConnected && !cues.length) status.textContent = TN.t('yt_ai_wait') + ' ' + pc + '%'; };
+          const got = parseVtt(await list[0].fetchVtt());
+          if (!frame.isConnected) return;
+          if (got.length) { cues = got; status.textContent = TN.t('yt_ai_on'); btn.hidden = true; }
+          const end = got.length ? got[got.length - 1].e : 0;
+          if (!got.length || !v.secs || end >= v.secs - 90) break;       // the whole video is covered (or its length is unknown)
+          await new Promise((r) => setTimeout(r, 30000));
+        }
+        if (!cues.length) throw new Error('empty');
+      } catch (e) {
+        if (frame.isConnected && !cues.length) status.textContent = TN.t('yt_ai_fail');
+      }
+      busy = false;
+    });
+    acts.prepend(btn);
+  }
   function play(v) {
     if (!v || !ID.test(v.id || '')) return;
     TN.noteHistory({key: 'yt:' + v.id, label: v.title || 'YouTube', play: PLAY + v.id, thumb: v.img || ''});
     const sub = [v.channel, v.live ? TN.t('yt_live') : clock(v.secs), v.views ? TN.t('yt_views', v.views.toLocaleString()) : ''].filter(Boolean).join(' · ');
     TN.modal(`<div class="player"><iframe src="${TN.esc(embed(v.id, v.start))}" ` +
       `allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="${TN.esc(v.title || 'YouTube')}"></iframe></div>` +
-      `<h2 dir="auto">${TN.esc(v.title || '')}</h2><p class="hint" dir="auto">${TN.esc(sub)}</p><div class="links" id="yt_acts">` +
+      `<h2 dir="auto">${TN.esc(v.title || '')}</h2><p class="hint" dir="auto">${TN.esc(sub)}</p><p class="hint" id="yt_ai_st" role="status"></p><div class="links" id="yt_acts">` +
       `<a class="btn ghost" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}">${TN.esc(TN.t('yt_open'))}</a>` +
       (CHAN.test(v.channel_id || '') ? `<a class="btn ghost" href="${TN.esc(TN.link('youtube', {ch: v.channel_id, n: v.channel || ''}))}">${TN.esc(TN.t('yt_channel'))}</a>` : '') +
       '</div>');
     const acts = document.getElementById('yt_acts');
     if (acts) acts.append(TN.favButton({kind: 'web_yt', id: v.id, label: v.title || 'YouTube', extra: PLAY + v.id, img: v.img}));
+    const fr = acts && acts.parentNode.querySelector('.player iframe');
+    if (fr && !v.live) { try { aiOverlay(v, fr, acts, document.getElementById('yt_ai_st')); } catch (e) { /* the video still plays */ } }
     acts && acts.querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener('click', () => TN.closeModal()));
   }
   const thumb = (id) => 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';

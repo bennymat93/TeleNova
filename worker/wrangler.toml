@@ -12,3 +12,10 @@ ALLOW_HOSTS = ""
 
 [observability]
 enabled = false
+
+# The hand-over of a whole setup from one device to another (web/backup.js): the sending device leaves ONE sealed
+# blob here for 15 minutes; the first read deletes it. The blob is encrypted on the device with the six-digit code
+# the viewer types on the other device - the Worker never sees the code or the contents.
+[[kv_namespaces]]
+binding = "DROP"
+id = "813c28ff59674bcc88f8a4990181e506"

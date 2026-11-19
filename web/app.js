@@ -1566,7 +1566,7 @@ function takePair() {
 // 5.2.1: the transfer link of another device (<site>/web/#setup=<sealed setup>): kept for this tab only and taken out of
 // the address at once; the backup page asks for the six-digit code and opens it.
 function takeSetup() {
-  const m = /^#setup=([\w-]{40,})$/.exec(location.hash);
+  const m = /^#setup=(@[0-9a-f]{32}|[\w-]{40,})$/.exec(location.hash);
   if (!m) return false;
   try { sessionStorage.setItem('bn_setup', m[1]); } catch (e) { return false; }
   try { history.replaceState({i: hIdx}, '', location.pathname + location.search + '#/backup'); } catch (e) { location.hash = '#/backup'; }

@@ -161,7 +161,7 @@
          bk_move_show: 'הצג קוד להעברה', bk_move_scan: '1. סרקו את הקוד במצלמה של המכשיר השני (או פתחו בו את הקישור).', bk_move_noqr: 'פתחו את הקישור במכשיר השני:', bk_move_pin_is: '2. הקלידו שם את הקוד:',
          bk_move_copy: 'העתק קישור', bk_move_copied: 'הקישור הועתק', bk_move_note: 'הקישור מוצפן בקוד. אל תשלחו את הקישור והקוד יחד למי שאינו אתם. טלגרם: המכשיר השני מתחבר בעצמו באישור אחד – חיבור טלגרם לא מועתק, כדי שלא יתנתקו שני המכשירים.',
          bk_move_got: 'התקבלו הגדרות ממכשיר אחר. הקלידו את הקוד בן 6 הספרות שמופיע בו:', bk_move_pin: 'קוד בן 6 ספרות', bk_move_take: 'קבל את ההגדרות', bk_move_wait: 'רגע…',
-         bk_move_done: 'ההגדרות התקבלו: %s', bk_move_tg: 'נשאר צעד אחד: לחבר את טלגרם במכשיר הזה (אישור אחד באפליקציית טלגרם).', bk_move_paste: 'קיבלתי קישור – הדבק', bk_move_app: 'פתח באפליקציית BN Stream', bk_move_app_txt: 'משתמשים באפליקציה? העבירו את ההגדרות אליה: לחצו "פתח באפליקציה", או העתיקו את הקישור ולחצו באפליקציה על "קיבלתי קישור – הדבק".', bk_move_nolink: 'לא נמצא קישור העברה בלוח ההעתקה.',
+         bk_move_done: 'ההגדרות התקבלו: %s', bk_move_tg: 'נשאר צעד אחד: לחבר את טלגרם במכשיר הזה (אישור אחד באפליקציית טלגרם).', bk_move_paste: 'קיבלתי קישור – הדבק', bk_move_full: 'עובר הכול: הגדרות, חיבורים, משתמשים, היסטוריה, מועדפים וחיפושים. הקוד תקף 15 דקות ולשימוש אחד.', bk_move_part: 'תיבת המסירה לא זמינה כרגע: עוברים ההגדרות והחיבורים בלבד (היסטוריה ומועדפים יסתנכרנו דרך טלגרם).', bk_move_gone: 'הקוד כבר נוצל או שפג תוקפו (15 דקות). הציגו קוד חדש במכשיר הראשון.', bk_move_app: 'פתח באפליקציית BN Stream', bk_move_app_txt: 'משתמשים באפליקציה? העבירו את ההגדרות אליה: לחצו "פתח באפליקציה", או העתיקו את הקישור ולחצו באפליקציה על "קיבלתי קישור – הדבק".', bk_move_nolink: 'לא נמצא קישור העברה בלוח ההעתקה.',
          bk_done: 'השחזור הושלם: %s משתמשים עודכנו. מה שהיה בדפדפן נשאר, והגיבוי מוזג אליו.', bk_cfg: 'לשחזר גם את הגדרות הדפדפן מהגיבוי',
          bk_note: 'גיבוי לא כולל את הכניסה לטלגרם ואת הכניסה ל-Real-Debrid: כל מכשיר מתחבר בעצמו. הוא כן כולל את המפתחות שהוזנו בדפדפן הזה (TMDb, Gemini, YouTube, OpenSubtitles); שמרו אותו במקום פרטי.',
          bk_drive: 'גיבוי ל-Google Drive', bk_big: 'הקובץ גדול מדי', bk_wait: 'רגע...', bk_fail: 'לא הצליח: %s',
@@ -183,7 +183,7 @@
          bk_move_show: 'Show the transfer code', bk_move_scan: '1. Scan this with the camera of the other device (or open the link on it).', bk_move_noqr: 'Open this link on the other device:', bk_move_pin_is: '2. Type this code there:',
          bk_move_copy: 'Copy the link', bk_move_copied: 'Link copied', bk_move_note: 'The link is sealed with the code. Do not send the link and the code together to anyone else. Telegram: the other device signs in by itself with one confirmation - a Telegram login is never copied, so that neither device is signed out.',
          bk_move_got: 'A setup from another device arrived. Type the 6-digit code it shows:', bk_move_pin: '6-digit code', bk_move_take: 'Take the setup', bk_move_wait: 'One moment…',
-         bk_move_done: 'Setup received: %s', bk_move_tg: 'One step left: connect Telegram on this device (one confirmation in the Telegram app).', bk_move_paste: 'I got a link - paste', bk_move_app: 'Open in the BN Stream app', bk_move_app_txt: 'Using the app? Hand the setup to it: press "Open in the app", or copy the link and press "I got a link - paste" in the app.', bk_move_nolink: 'No transfer link in the clipboard.',
+         bk_move_done: 'Setup received: %s', bk_move_tg: 'One step left: connect Telegram on this device (one confirmation in the Telegram app).', bk_move_paste: 'I got a link - paste', bk_move_full: 'Everything goes: settings, connections, users, history, favourites and searches. The code is good for 15 minutes and for one use.', bk_move_part: 'The drop box is not reachable now: only settings and connections go (history and favourites sync through Telegram).', bk_move_gone: 'This code was already used or has expired (15 minutes). Show a new code on the first device.', bk_move_app: 'Open in the BN Stream app', bk_move_app_txt: 'Using the app? Hand the setup to it: press "Open in the app", or copy the link and press "I got a link - paste" in the app.', bk_move_nolink: 'No transfer link in the clipboard.',
          bk_done: 'Restored: %s users updated. What this browser had stays; the backup was merged into it.', bk_cfg: 'Also restore this browser\'s settings from the backup',
          bk_note: 'A backup never holds the Telegram login or the Real-Debrid login: every device signs in by itself. It does hold the keys entered in this browser (TMDb, Gemini, YouTube, OpenSubtitles); keep it somewhere private.',
          bk_drive: 'Back up to Google Drive', bk_big: 'The file is too large', bk_wait: 'One moment...', bk_fail: 'Did not work: %s',
@@ -205,7 +205,7 @@
          bk_move_show: 'Показать код переноса', bk_move_scan: '1. Отсканируйте камерой другого устройства (или откройте на нём ссылку).', bk_move_noqr: 'Откройте эту ссылку на другом устройстве:', bk_move_pin_is: '2. Введите там код:',
          bk_move_copy: 'Скопировать ссылку', bk_move_copied: 'Ссылка скопирована', bk_move_note: 'Ссылка зашифрована кодом. Не отправляйте ссылку и код вместе посторонним. Telegram: другое устройство входит само одним подтверждением - вход Telegram не копируется, чтобы оба устройства не вышли из аккаунта.',
          bk_move_got: 'Получены настройки с другого устройства. Введите код из 6 цифр, который оно показывает:', bk_move_pin: 'Код из 6 цифр', bk_move_take: 'Принять настройки', bk_move_wait: 'Секунду…',
-         bk_move_done: 'Настройки получены: %s', bk_move_tg: 'Остался один шаг: подключить Telegram на этом устройстве (одно подтверждение в приложении Telegram).', bk_move_paste: 'У меня есть ссылка - вставить', bk_move_app: 'Открыть в приложении BN Stream', bk_move_app_txt: 'Пользуетесь приложением? Передайте настройки в него: нажмите «Открыть в приложении» или скопируйте ссылку и нажмите в приложении «У меня есть ссылка - вставить».', bk_move_nolink: 'В буфере обмена нет ссылки переноса.',
+         bk_move_done: 'Настройки получены: %s', bk_move_tg: 'Остался один шаг: подключить Telegram на этом устройстве (одно подтверждение в приложении Telegram).', bk_move_paste: 'У меня есть ссылка - вставить', bk_move_full: 'Переносится всё: настройки, подключения, пользователи, история, избранное и поиски. Код действует 15 минут и один раз.', bk_move_part: 'Ящик передачи сейчас недоступен: переносятся только настройки и подключения (история и избранное синхронизируются через Telegram).', bk_move_gone: 'Код уже использован или истёк (15 минут). Покажите новый код на первом устройстве.', bk_move_app: 'Открыть в приложении BN Stream', bk_move_app_txt: 'Пользуетесь приложением? Передайте настройки в него: нажмите «Открыть в приложении» или скопируйте ссылку и нажмите в приложении «У меня есть ссылка - вставить».', bk_move_nolink: 'В буфере обмена нет ссылки переноса.',
          bk_done: 'Восстановлено: обновлено пользователей — %s. Данные браузера сохранены, копия объединена с ними.', bk_cfg: 'Восстановить и настройки браузера из копии',
          bk_note: 'Копия не содержит вход в Telegram и вход в Real-Debrid: каждое устройство входит само. В ней есть ключи, введённые в этом браузере (TMDb, Gemini, YouTube, OpenSubtitles); храните её в надёжном месте.',
          bk_drive: 'Копия в Google Drive', bk_big: 'Файл слишком большой', bk_wait: 'Минутку...', bk_fail: 'Не получилось: %s',
@@ -284,6 +284,7 @@
       if (auth && auth.cid && auth.sec && auth.refresh) web.rd_auth = {cid: auth.cid, sec: auth.sec, refresh: auth.refresh, exp: 1};
       if (api && /^\d{3,12}$/.test(String(api.id)) && /^[0-9a-f]{32}$/.test(String(api.hash))) { kodi.api_id = String(api.id); kodi.api_hash = String(api.hash); }
       web.tg_was_on = !!(tgStatus() && tgStatus().state === 'on') || tgSaved();
+      if (opt.zip) web.zip = opt.zip;              // the users and their lists (the Backup zip), base64
     }
     const bytes = await SL.pack(kodi, {}, password || '', {web, app: 'telenova-web'});
     return new Blob([bytes], {type: 'application/octet-stream'});
@@ -301,6 +302,7 @@
       else if (xweb.rd_auth && xweb.rd_auth.cid && xweb.rd_auth.sec && xweb.rd_auth.refresh) TN.put('rd_auth', {cid: String(xweb.rd_auth.cid), sec: String(xweb.rd_auth.sec), refresh: String(xweb.rd_auth.refresh), exp: 1});
     }
     importCfg.tgWasOn = !!xweb.tg_was_on;
+    importCfg.zip = typeof xweb.zip === 'string' && xweb.zip.length < 4 * 1024 * 1024 ? xweb.zip : '';
     if (got.addons.length) {
       const src = await sourcesSvc();
       if (src && src.setAddons && src.addons) src.setAddons(src.addons().concat(got.addons)); else names.splice(names.indexOf('Stremio'), 1);
@@ -314,16 +316,58 @@
   // ---- 5.2.1: the whole setup to another device - a QR code / link and a six-digit code
   const b64u = (u8) => { let s = ''; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
   const unb64u = (text) => { const b = atob(String(text).replace(/-/g, '+').replace(/_/g, '/')); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+  // 5.3: the hand-over carries EVERYTHING - settings, keys and connections, and the users with their history,
+  // favourites and searches (the same zip as "Backup"). That is too much for a QR code, so the sealed blob waits in
+  // the helper's drop box (15 minutes, read once) and the code / link carries only its id: '@<32 hex>'. When the drop
+  // box cannot be reached the old way still works: settings and connections inside the link itself.
+  const DROP_BASES = () => {
+    const out = [];
+    try { const h = TN.settings.helper && TN.settings.helper(); if (h && !/\.invalid(\/|$)/.test(h)) out.push(h.replace(/\/+$/, '')); } catch (e) { /* none */ }
+    if (!out.includes('https://telenova-helper.hmi-analyzer.workers.dev')) out.push('https://telenova-helper.hmi-analyzer.workers.dev');
+    return out;
+  };
+  const u8b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+  const b64u8 = (b) => { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
   async function transferOut() {
     const r = new Uint32Array(1);
     crypto.getRandomValues(r);
     const pin = String(r[0] % 1000000).padStart(6, '0');
+    const base = location.origin + location.pathname + '#setup=';
+    try {
+      const zip = new Uint8Array(await (await makeZip()).arrayBuffer());
+      if (zip.length <= 2 * 1024 * 1024) {
+        const big = new Uint8Array(await (await exportCfg(pin, {full: true, zip: u8b64(zip)})).arrayBuffer());
+        for (const b of DROP_BASES()) {
+          try {
+            const res = await fetch(b + '/drop', {method: 'POST', body: big, cache: 'no-store'});
+            const id = res.ok ? String(((await res.json()) || {}).id || '') : '';
+            if (/^[0-9a-f]{32}$/.test(id)) return {pin, link: base + '@' + id, size: big.length, full: true};
+          } catch (e) { /* the next address, or the link-only way below */ }
+        }
+      }
+    } catch (e) { /* the link-only way below */ }
     const bytes = new Uint8Array(await (await exportCfg(pin, {full: true})).arrayBuffer());
-    return {pin, link: location.origin + location.pathname + '#setup=' + b64u(bytes), size: bytes.length};
+    return {pin, link: base + b64u(bytes), size: bytes.length, full: false};
   }
+  let dropBytes = null, dropId = '';             // a drop is read once: kept here so a mistyped code can be typed again
   async function transferIn(text, pin) {
-    const names = await importCfg(unb64u(text), String(pin || '').replace(/\D+/g, ''));
-    return {names, telegram: !!importCfg.tgWasOn};
+    let bytes;
+    const m = /^@([0-9a-f]{32})$/.exec(String(text));
+    if (m) {
+      if (dropId !== m[1] || !dropBytes) {
+        dropBytes = null; dropId = m[1];
+        for (const b of DROP_BASES()) {
+          try { const res = await fetch(b + '/drop/' + m[1], {cache: 'no-store'}); if (res.ok) { dropBytes = new Uint8Array(await res.arrayBuffer()); break; } } catch (e) { /* the next address */ }
+        }
+        if (!dropBytes) throw Object.assign(new Error('gone'), {code: 'drop_gone'});
+      }
+      bytes = dropBytes;
+    } else bytes = unb64u(text);
+    const names = await importCfg(bytes, String(pin || '').replace(/\D+/g, ''));
+    let lists = '';
+    if (importCfg.zip) { try { lists = await restoreBytes(b64u8(importCfg.zip), false); } catch (e) { lists = ''; } }
+    dropBytes = null; dropId = '';
+    return {names, telegram: !!importCfg.tgWasOn, lists};
   }
   const pendingSetup = () => { try { return sessionStorage.getItem('bn_setup') || ''; } catch (e) { return ''; } };
   const dropSetup = () => { try { sessionStorage.removeItem('bn_setup'); } catch (e) { /* no storage */ } };
@@ -344,12 +388,12 @@
           const got = await transferIn(text, inp.value);
           dropSetup();
           inbox.textContent = '';
-          box.say(t('bk_move_done', got.names.join(', ') || '-'));
+          box.say(t('bk_move_done', got.names.join(', ') || '-') + (got.lists ? ' · ' + got.lists : ''));
           TN.emit('settings', 'transfer');
           if (got.telegram && !(tgStatus() && tgStatus().state === 'on')) {
             inbox.append(el('p', '', t('bk_move_tg')), Object.assign(el('a', 'btn', t('bk_sync_connect')), {href: '#/tglogin'}));
           }
-        } catch (err) { box.say(cfgError(err)); }
+        } catch (err) { box.say(err && err.code === 'drop_gone' ? t('bk_move_gone') : cfgError(err)); }
       };
       inbox.append(el('p', '', t('bk_move_got')), f);
       // a phone's camera opens the link in the browser, not in the BN Stream app: one press hands it to the app
@@ -388,14 +432,14 @@
         const copy = TN.button('btn ghost', t('bk_move_copy'), async () => { try { await navigator.clipboard.writeText(tr.link); copy.textContent = t('bk_move_copied'); } catch (e) { box.say(tr.link); } });
         out.append(el('p', '', t(drawn ? 'bk_move_scan' : 'bk_move_noqr')));
         if (drawn) out.append(q);
-        out.append(el('p', 'hint', t('bk_move_pin_is')), pin, copy, el('p', 'hint', t('bk_move_note')));
+        out.append(el('p', 'hint', t('bk_move_pin_is')), pin, copy, el('p', 'hint', t(tr.full ? 'bk_move_full' : 'bk_move_part')), el('p', 'hint', t('bk_move_note')));
         box.say('');
       } catch (e) { box.say(cfgError(e)); }
     }));
     acts.append(TN.button('btn ghost', t('bk_move_paste'), async () => {
       let text = '';
       try { text = await navigator.clipboard.readText(); } catch (e) { text = ''; }
-      const m = /#setup=([\w-]{40,})/.exec(text || '');
+      const m = /#setup=(@[0-9a-f]{32}|[\w-]{40,})/.exec(text || '');
       if (m) receive(m[1]); else box.say(t('bk_move_nolink'));
     }));
   }

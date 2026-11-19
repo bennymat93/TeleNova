@@ -105,6 +105,30 @@ export async function handle(request, env) {
     if (!/^https:\/\/[a-z0-9.-]+$/i.test(at) || !/^[\w-]{20,80}$/.test(tok)) return new Response(JSON.stringify({error: 'not_set'}), {status: 404, headers: h});
     return new Response(JSON.stringify({url: at, token: tok}), {headers: h});
   }
+  // the drop box of a setup hand-over: POST /drop (sealed bytes, at most 3 MB) -> {id}; GET /drop/<id> -> the bytes,
+  // once. 15 minutes at most. Ids are 128 random bits; the contents are sealed on the device.
+  if (url.pathname === '/drop' || url.pathname.startsWith('/drop/')) {
+    const h = cors(origin, okOrigins); h.set('cache-control', 'no-store');
+    if (!env.DROP) return fail(503, 'no_drop', origin, okOrigins);
+    if (request.method === 'POST' && url.pathname === '/drop') {
+      const buf = await request.arrayBuffer();
+      if (!buf.byteLength || buf.byteLength > 3 * 1024 * 1024) return fail(413, 'size', origin, okOrigins);
+      const r = new Uint8Array(16); crypto.getRandomValues(r);
+      const id = Array.from(r, (b) => b.toString(16).padStart(2, '0')).join('');
+      await env.DROP.put('d:' + id, buf, {expirationTtl: 900});
+      h.set('content-type', 'application/json');
+      return new Response(JSON.stringify({id}), {headers: h});
+    }
+    const m = /^\/drop\/([0-9a-f]{32})$/.exec(url.pathname);
+    if (request.method === 'GET' && m) {
+      const buf = await env.DROP.get('d:' + m[1], 'arrayBuffer');
+      if (!buf) return fail(404, 'gone', origin, okOrigins);
+      await env.DROP.delete('d:' + m[1]);
+      h.set('content-type', 'application/octet-stream');
+      return new Response(buf, {headers: h});
+    }
+    return fail(405, 'method', origin, okOrigins);
+  }
   const target = allowed(request.headers.get('x-tn-target') || '', env);
   if (!target) return fail(403, 'host', origin, okOrigins);
 
