@@ -45,7 +45,7 @@ foreach ($a in 'plugin.video.nova', 'plugin.video.telescope', 'plugin.program.no
     Get-ChildItem $dst -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
     "updated $a"
 }
-[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 6.0.0`n", $enc)
+[IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_build.txt'), "TeleNova 6.0.1`n", $enc)
 
 # 4b. which add-ons the build ships (a full backup carries only what the viewer installed on top of them)
 [IO.File]::WriteAllText((Join-Path $Root 'userdata\novatv_addons.txt'), ((Get-ChildItem (Join-Path $Root 'addons') -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'addon.xml') } | ForEach-Object Name | Sort-Object) -join "`n") + "`n", $enc)

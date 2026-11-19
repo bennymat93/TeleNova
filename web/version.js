@@ -1,7 +1,7 @@
 'use strict';
 // The one place the web version is written. The page (index.html) and the service worker (sw.js, importScripts) both
 // read it: the SW cache name is 'bn-web-' + WEB_VERSION, so bumping this line refreshes every installed copy.
-self.WEB_VERSION = '6.0.0';
+self.WEB_VERSION = '6.0.1';
 // A browser too old for app.js (a syntax error stops the whole file, and the CSP allows no inline script): when the
 // page finished loading and the app object is not there, the plain "this browser is too old" panel of index.html is
 // shown instead of an empty page. ES5 only in this block. (Not in the service worker: no document there.)

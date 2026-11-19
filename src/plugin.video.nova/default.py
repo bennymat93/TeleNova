@@ -122,11 +122,9 @@ def root():
     if not providers.telegram_on() or not _tg_api_set():
         from resources.lib.common import ui_lang
         he = ui_lang() == 'he'
-        folder('[COLOR gold][B]%s[/B][/COLOR]' % ('חיבור כולל – כל החשבונות במשתמש וסיסמה אחד' if he else 'All in one - every account with one user name and password'),
+        folder('[COLOR gold][B]%s[/B][/COLOR]' % ('חיבור כולל (All in one)' if he else 'All in one'),
                'plugin://plugin.video.telescope/?mode=aio', icon('accounts'))
     folder(providers.s('hub_search'), url(a='hub_search'), os.path.join(MEDIA, 'search_all.png'))   # a search-box tile
-    from resources.lib import searchhist
-    folder(searchhist.s('title'), url(a='search_hist'), 'DefaultAddonsRecentlyUpdated.png')
     folder(T('movies'), url(a='media_root', m='movie'), icon('movies'))
     folder(T('series'), url(a='media_root', m='tv'), icon('series'))
     folder(T('tv'), url(a='tv_root'), icon('tv'))
@@ -142,7 +140,7 @@ def root():
     # 5.2: one entry per job - backup holds Google Drive, "settings and system" holds Kodi's settings, the device
     # type, the status page and the update report (each was its own line in the main menu)
     folder(_he('גיבוי, שחזור ו-Google Drive', 'Backup, restore and Google Drive'), url(a='bk_menu'), icon('backup'))
-    folder(_he('הגדרות ומערכת', 'Settings and system'), url(a='sys_menu'), icon('accounts'))
+    folder(_he('הגדרות ומערכת', 'Settings and system'), url(a='sys_menu'), 'DefaultAddonProgram.png')
     end(cache=False)
 
 
@@ -162,11 +160,11 @@ def _he(he, en):
 
 def sys_menu():
     from resources.lib import profiles
-    folder(T('kodi_settings'), url(a='kodi_settings'), icon('accounts'))
+    folder(T('kodi_settings'), url(a='kodi_settings'), 'DefaultAddonProgram.png')
     folder('%s: %s' % (_he('סוג מכשיר', 'Device type'), profiles.label(profiles.current(), 'he' if _he(1, 0) else 'en')),
            url(a='profile_pick'), 'DefaultAddonProgram.png')
-    folder(status.s('title'), url(a='status'), icon('accounts'))
-    folder(sysupdate.s('title'), url(a='sysreport'), icon('accounts'), plot=sysupdate.s('running'))
+    folder(status.s('title'), url(a='status'), 'DefaultAddonService.png')
+    folder(sysupdate.s('title'), url(a='sysreport'), 'DefaultAddonsUpdates.png', plot=sysupdate.s('running'))
     end(cache=False)
 
 
@@ -174,8 +172,9 @@ def src_menu(cat=''):
     """5.2: Edit sources - one place per kind of content, each with the editors that already exist for it"""
     tele = 'plugin://plugin.video.telescope/'
     cats = [('video', _he('סרטים וסדרות', 'Films and series'), icon('movies')), ('live', _he('טלוויזיה לייב', 'Live TV'), icon('tv')),
-            ('radio', _he('רדיו ומוזיקה', 'Radio and music'), icon('radio')), ('tg', _he('טלגרם', 'Telegram'), icon('accounts')),
-            ('subs', _he('כתוביות', 'Subtitles'), icon('accounts'))]
+            ('radio', _he('רדיו ומוזיקה', 'Radio and music'), icon('radio')),
+            ('tg', _he('טלגרם', 'Telegram'), 'special://home/addons/plugin.video.telescope/resources/icon.png'),
+            ('subs', _he('כתוביות', 'Subtitles'), 'DefaultSubtitles.png')]
     if not cat:
         for key, label, ic in cats:
             folder(label, url(a='src_menu', cat=key), ic)
