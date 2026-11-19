@@ -52,6 +52,15 @@ ok((await handle(new Request('https://w.dev/drop/' + dropId, {headers: {origin: 
 ok((await handle(new Request('https://w.dev/drop', {method: 'POST', headers: {origin: 'https://other.io'}, body: 'x'}), dEnv)).status === 403, 'drop: another origin is refused');
 ok((await handle(new Request('https://w.dev/drop', {method: 'POST', headers: {origin: O}, body: new Uint8Array(3 * 1024 * 1024 + 1)}), dEnv)).status === 413, 'drop: too large is refused');
 ok((await handle(new Request('https://w.dev/drop', {method: 'POST', headers: {origin: O}, body: 'x'}), env)).status === 503, 'drop: no store configured -> 503');
+const ch = 'https://w.dev/link/' + 'ab'.repeat(16);
+ok((await handle(new Request(ch, {headers: {origin: O}}), dEnv)).status === 204, 'link: an empty mailbox answers 204');
+ok((await handle(new Request(ch, {method: 'PUT', headers: {origin: O}, body: new Uint8Array([9, 8, 7])}), dEnv)).status === 204, 'link: a request is left');
+const lg = await handle(new Request(ch, {headers: {origin: O}}), dEnv);
+ok(lg.status === 200 && new Uint8Array(await lg.arrayBuffer()).join() === '9,8,7', 'link: the approving device reads it');
+ok((await handle(new Request(ch, {method: 'DELETE', headers: {origin: O}}), dEnv)).status === 204 && (await handle(new Request(ch, {headers: {origin: O}}), dEnv)).status === 204, 'link: and removes it');
+ok((await handle(new Request(ch, {method: 'PUT', headers: {origin: O}, body: new Uint8Array(2049)}), dEnv)).status === 413, 'link: too large is refused');
+ok((await handle(new Request('https://w.dev/link/xyz', {headers: {origin: O}}), dEnv)).status === 400, 'link: a bad channel name is refused');
+ok((await handle(new Request(ch, {headers: {origin: 'https://other.io'}}), dEnv)).status === 403, 'link: another origin gets nothing');
 const pg = await handle(new Request('https://w.dev/ping', {headers: {origin: O}}), env);
 ok((await pg.json()).app === 'telenova-helper', 'ping');
 console.log(fails ? 'WORKER TESTS FAILED ' + fails : 'WORKER TESTS OK'); process.exit(fails ? 1 : 0);

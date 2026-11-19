@@ -129,6 +129,30 @@ export async function handle(request, env) {
     }
     return fail(405, 'method', origin, okOrigins);
   }
+  // the mailbox of an automatic Telegram sign-in (web/tg.js): a device that restored a backup leaves its sealed login
+  // token here for a device of the same household to approve. PUT / GET / DELETE /link/<32 hex>; 90 seconds, 2 KB.
+  // The channel name and the seal both come from a secret only the household's devices hold.
+  if (url.pathname.startsWith('/link/')) {
+    const h = cors(origin, okOrigins); h.set('cache-control', 'no-store');
+    h.set('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
+    const m = /^\/link\/([0-9a-f]{32})$/.exec(url.pathname);
+    if (!env.DROP) return fail(503, 'no_drop', origin, okOrigins);
+    if (!m) return fail(400, 'channel', origin, okOrigins);
+    if (request.method === 'PUT') {
+      const buf = await request.arrayBuffer();
+      if (!buf.byteLength || buf.byteLength > 2048) return fail(413, 'size', origin, okOrigins);
+      await env.DROP.put('l:' + m[1], buf, {expirationTtl: 90});
+      return new Response(null, {status: 204, headers: h});
+    }
+    if (request.method === 'GET') {
+      const buf = await env.DROP.get('l:' + m[1], 'arrayBuffer');
+      if (!buf) return new Response(null, {status: 204, headers: h});
+      h.set('content-type', 'application/octet-stream');
+      return new Response(buf, {headers: h});
+    }
+    if (request.method === 'DELETE') { await env.DROP.delete('l:' + m[1]); return new Response(null, {status: 204, headers: h}); }
+    return fail(405, 'method', origin, okOrigins);
+  }
   const target = allowed(request.headers.get('x-tn-target') || '', env);
   if (!target) return fail(403, 'host', origin, okOrigins);
 

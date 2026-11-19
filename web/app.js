@@ -117,7 +117,7 @@ const X4 = {
        tg_unreadable: 'לא ניתן לקרוא כרגע את מסמך הסנכרון. ננסה שוב בסבב הבא.', tg_other_tab: 'הסנכרון פועל בלשונית אחרת של הדפדפן הזה.',
        tg_logout_fail: 'לא ניתן היה להגיע לטלגרם. הכניסה נמחקה מהדפדפן הזה; כדאי לסיים אותה גם בטלגרם ← הגדרות ← מכשירים.',
        e_code: 'הקוד שגוי. נסו שוב.', e_code_expired: 'תוקף הקוד פג. התחילו מחדש.', e_pass: 'הסיסמה שגויה. נסו שוב.', e_phone: 'מספר הטלפון אינו תקין',
-       e_flood: 'יותר מדי ניסיונות. נסו שוב בעוד %s שניות.', e_api: 'ה-API ID או ה-API Hash שגויים', e_net: 'אין חיבור לטלגרם', e_generic: 'הפעולה נכשלה (%s)',
+       e_flood: 'יותר מדי ניסיונות. נסו שוב בעוד %s שניות.', tg_link_ok: 'מכשיר נוסף שלכם חובר עכשיו לחשבון הטלגרם (אושר אוטומטית אחרי שחזור גיבוי).', e_api: 'ה-API ID או ה-API Hash שגויים', e_net: 'אין חיבור לטלגרם', e_generic: 'הפעולה נכשלה (%s)',
        e_session: 'הכניסה לטלגרם אינה בתוקף עוד. התחברו מחדש.', e_signup: 'המספר הזה אינו רשום בטלגרם'},
   en: {done: 'Done', kodi_only: 'Plays in Kodi only',
        kodi_idan: 'This channel comes through Idan+ (a Kodi add-on for the broadcasters\' official players), so a browser cannot play it. It plays in the BN Stream app.',
@@ -151,7 +151,7 @@ const X4 = {
        tg_unreadable: 'The sync document cannot be read right now. The next round tries again.', tg_other_tab: 'The sync is running in another tab of this browser.',
        tg_logout_fail: 'Telegram could not be reached. The login was deleted from this browser; end it in Telegram → Settings → Devices as well.',
        e_code: 'Wrong code. Try again.', e_code_expired: 'The code has expired. Start again.', e_pass: 'Wrong password. Try again.', e_phone: 'The phone number is not valid',
-       e_flood: 'Too many attempts. Try again in %s seconds.', e_api: 'The API ID or the API Hash is wrong', e_net: 'No connection to Telegram', e_generic: 'It did not work (%s)',
+       e_flood: 'Too many attempts. Try again in %s seconds.', tg_link_ok: 'Another device of yours was just connected to the Telegram account (approved by itself after a backup restore).', e_api: 'The API ID or the API Hash is wrong', e_net: 'No connection to Telegram', e_generic: 'It did not work (%s)',
        e_session: 'The Telegram login is no longer valid. Connect again.', e_signup: 'This number is not registered with Telegram'},
   ru: {done: 'Готово', kodi_only: 'Только в Kodi',
        kodi_idan: 'Этот канал идёт через Idan+ (дополнение Kodi для официальных плееров каналов), поэтому в браузере он недоступен. Он работает в приложении BN Stream.',
@@ -185,7 +185,7 @@ const X4 = {
        tg_unreadable: 'Документ синхронизации сейчас не читается. Следующая попытка - в следующем круге.', tg_other_tab: 'Синхронизация работает в другой вкладке этого браузера.',
        tg_logout_fail: 'Не удалось связаться с Telegram. Вход удалён из этого браузера; завершите его также в Telegram → Настройки → Устройства.',
        e_code: 'Неверный код. Попробуйте ещё раз.', e_code_expired: 'Срок действия кода истёк. Начните заново.', e_pass: 'Неверный пароль. Попробуйте ещё раз.', e_phone: 'Неверный номер телефона',
-       e_flood: 'Слишком много попыток. Повторите через %s с.', e_api: 'Неверный API ID или API Hash', e_net: 'Нет связи с Telegram', e_generic: 'Не получилось (%s)',
+       e_flood: 'Слишком много попыток. Повторите через %s с.', tg_link_ok: 'Ещё одно ваше устройство только что подключено к аккаунту Telegram (подтверждено автоматически после восстановления копии).', e_api: 'Неверный API ID или API Hash', e_net: 'Нет связи с Telegram', e_generic: 'Не получилось (%s)',
        e_session: 'Вход в Telegram больше не действует. Подключитесь снова.', e_signup: 'Этот номер не зарегистрирован в Telegram'},
 };
 const SC = self.ShellCore;                           // shell_core.js: the shell's plain logic (tested in node, t_shell.js)

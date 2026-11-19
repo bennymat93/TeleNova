@@ -15,7 +15,7 @@
       tgl_api_have: 'API ID %s שמור בדפדפן הזה.', tgl_api_forget: 'מחיקת פרטי ה-API',
       tgl_via_app: 'הקוד נשלח לאפליקציית טלגרם שלכם (במכשיר אחר שמחובר).', tgl_via_sms: 'הקוד נשלח ב-SMS אל %s.',
       tgl_via_call: 'תתקבל שיחה אל %s עם הקוד.', tgl_via_email: 'הקוד נשלח לדואר האלקטרוני של החשבון.', tgl_via_other: 'הקוד נשלח אל %s.',
-      tgl_qr_here: 'טלגרם מותקן במכשיר הזה? לחצו כאן לאישור',
+      tgl_qr_here: 'טלגרם מותקן במכשיר הזה? לחצו כאן לאישור', tgl_auto_wait: 'מתחבר לטלגרם אוטומטית: המכשיר השני שלכם (שבו BN Stream פתוח ומחובר) מאשר את הכניסה בעצמו. זה לוקח כמה שניות – אין צורך לעשות דבר.',
       tgl_code: 'הקוד', tgl_resend: 'שלחו את הקוד שוב', tgl_resend_sms: 'שלחו ב-SMS', tgl_resend_call: 'התקשרו אליי', tgl_resend_in: 'אפשר לבקש שוב בעוד %s שניות',
       tgl_change_phone: 'מספר אחר', tgl_use_phone: 'כניסה במספר טלפון במקום', tgl_qr_renew: 'הקוד מתחדש מעצמו.',
       tgl_connected: 'מחובר בתור %s', tgl_open_tg: 'לטלגרם', tgl_settings: 'סנכרון והגדרות', tgl_logout: 'התנתקות מטלגרם בדפדפן הזה', tgl_logout_q: 'בטוח? לחצו שוב',
@@ -30,7 +30,7 @@
       tgl_api_have: 'API ID %s is saved in this browser.', tgl_api_forget: 'Delete the API details',
       tgl_via_app: 'The code was sent to your Telegram app (on another signed-in device).', tgl_via_sms: 'The code was sent by SMS to %s.',
       tgl_via_call: 'A call to %s will give you the code.', tgl_via_email: 'The code was sent to the account\'s e-mail.', tgl_via_other: 'The code was sent to %s.',
-      tgl_qr_here: 'Telegram is on this device? Tap here to confirm',
+      tgl_qr_here: 'Telegram is on this device? Tap here to confirm', tgl_auto_wait: 'Connecting to Telegram by itself: your other device (where BN Stream is open and connected) approves the sign-in. It takes a few seconds - nothing to do.',
       tgl_code: 'The code', tgl_resend: 'Send the code again', tgl_resend_sms: 'Send it by SMS', tgl_resend_call: 'Call me', tgl_resend_in: 'You can ask again in %s s',
       tgl_change_phone: 'Another number', tgl_use_phone: 'Sign in with the phone number instead', tgl_qr_renew: 'The code renews by itself.',
       tgl_connected: 'Connected as %s', tgl_open_tg: 'Go to Telegram', tgl_settings: 'Sync and settings', tgl_logout: 'Log out of Telegram in this browser', tgl_logout_q: 'Sure? Press again',
@@ -45,7 +45,7 @@
       tgl_api_have: 'API ID %s сохранён в этом браузере.', tgl_api_forget: 'Удалить данные API',
       tgl_via_app: 'Код отправлен в ваше приложение Telegram (на другом подключённом устройстве).', tgl_via_sms: 'Код отправлен по SMS на %s.',
       tgl_via_call: 'На %s поступит звонок с кодом.', tgl_via_email: 'Код отправлен на почту аккаунта.', tgl_via_other: 'Код отправлен на %s.',
-      tgl_qr_here: 'Telegram на этом устройстве? Нажмите, чтобы подтвердить',
+      tgl_qr_here: 'Telegram на этом устройстве? Нажмите, чтобы подтвердить', tgl_auto_wait: 'Подключение к Telegram выполняется само: ваше другое устройство (где BN Stream открыт и подключён) подтверждает вход. Это займёт несколько секунд - ничего делать не нужно.',
       tgl_code: 'Код', tgl_resend: 'Отправить код ещё раз', tgl_resend_sms: 'Отправить по SMS', tgl_resend_call: 'Позвоните мне', tgl_resend_in: 'Повторить можно через %s с',
       tgl_change_phone: 'Другой номер', tgl_use_phone: 'Войти по номеру телефона', tgl_qr_renew: 'Код обновляется сам.',
       tgl_connected: 'Подключено: %s', tgl_open_tg: 'К Telegram', tgl_settings: 'Синхронизация и настройки', tgl_logout: 'Выйти из Telegram в этом браузере', tgl_logout_q: 'Точно? Нажмите ещё раз',
@@ -218,7 +218,9 @@
         here.rel = 'noopener';
         const hereRow = el('div', 'tgl-row');
         hereRow.append(here);
-        return [el('p', 'hint', t('tg_qr_how')), hereRow, q, el('p', 'hint', t('tgl_qr_renew')), row];
+        // 5.4: this device restored a backup of a household whose other device is open: it is approved by itself
+        const autoP = st.auto ? el('p', 'msg', t('tgl_auto_wait')) : null;
+        return [autoP, el('p', 'hint', t('tg_qr_how')), hereRow, q, el('p', 'hint', t('tgl_qr_renew')), row].filter(Boolean);
       }
       if (st.step === 'phone' || st.step === 'code' || st.step === 'password') {
         const f = el('form', 'tgl-box' + (st.step === 'code' ? ' tgl-code' : ''));
@@ -290,6 +292,12 @@
       return [st, el('p', 'hint', t('tgl_newdevice')), row];
     }
     draw(true);
+    // 5.4: after a restore / hand-over the sign-in starts by itself; a device of the household approves it
+    try {
+      let auto = '';
+      try { auto = sessionStorage.getItem('bn_tg_auto') || ''; sessionStorage.removeItem('bn_tg_auto'); } catch (e) { auto = ''; }
+      if (auto && TG.canAutoLink && TG.canAutoLink() && TG.state() === 'off') { ui.tab = 'qr'; TG.login('qr', true); }
+    } catch (e) { /* the normal page */ }
     // 5.3: a phone sign-in was waiting for its code when the page went away (reload, app in the background): back to
     // the code field, with no new request to Telegram
     try { const pd = TG.pending && TG.pending(); if (pd && TG.state() === 'off' && TG.hasApi()) { ui.tab = 'phone'; ui.phone = pd.phone; TG.login('phone', pd.keep); } } catch (e) { /* the normal page */ }

@@ -161,6 +161,83 @@
     client = null; me = null; key = '';
     if (c) { try { if (keepKey) await c.disconnect(); else await c.destroy(); } catch (e) {} }
   }
+  // ---------------------------------------------------------------- 5.4: automatic Telegram sign-in on a restored device
+  // Telegram signs a new device in when an ALREADY signed-in device accepts its login token (this is what scanning the
+  // QR code does). Here the token travels by itself: every device that is signed in keeps a household secret
+  // (storage key tg_link; it travels inside the full backup and the hand-over). A device that restored one leaves its
+  // login token - sealed with that secret - in the helper's mailbox (/link/<channel>); any device of the household
+  // that is open and signed in finds it within seconds and accepts it. Each device gets its OWN login: a Telegram
+  // session is never copied (two devices on one session lose both). Nobody without the secret can read the mailbox's
+  // content or ask for approval.
+  const LINK_BASE = 'https://telenova-helper.hmi-analyzer.workers.dev';
+  const linkSecret = () => { const v = String(A.get('tg_link', '') || ''); return /^[\w-]{40,64}$/.test(v) ? v : ''; };
+  function ensureLinkSecret() {
+    if (linkSecret()) return linkSecret();
+    const r = new Uint8Array(32);
+    crypto.getRandomValues(r);
+    let s = '';
+    for (const b of r) s += String.fromCharCode(b);
+    const v = btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    A.put('tg_link', v);
+    return v;
+  }
+  async function linkKeys(secret) {
+    const enc = new TextEncoder();
+    const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
+    const chan = hex(await crypto.subtle.digest('SHA-256', enc.encode('bn-link-channel:' + secret))).slice(0, 32);
+    const key = await crypto.subtle.importKey('raw', await crypto.subtle.digest('SHA-256', enc.encode('bn-link-key:' + secret)), 'AES-GCM', false, ['encrypt', 'decrypt']);
+    return {chan, key};
+  }
+  async function linkSeal(secret, bytes) {
+    const {chan, key} = await linkKeys(secret);
+    const iv = new Uint8Array(12);
+    crypto.getRandomValues(iv);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({name: 'AES-GCM', iv}, key, bytes));
+    const out = new Uint8Array(12 + ct.length);
+    out.set(iv); out.set(ct, 12);
+    return {chan, body: out};
+  }
+  async function linkOpen(secret, body) {
+    const {key} = await linkKeys(secret);
+    const u = new Uint8Array(body);
+    return new Uint8Array(await crypto.subtle.decrypt({name: 'AES-GCM', iv: u.slice(0, 12)}, key, u.slice(12)));
+  }
+  // the device that wants in: its fresh login token goes to the mailbox (called for every token GramJS makes, ~30 s each)
+  async function linkAsk(token) {
+    const secret = linkSecret();
+    if (!secret) return false;
+    try {
+      const {chan, body} = await linkSeal(secret, new Uint8Array(token));
+      const r = await fetch(LINK_BASE + '/link/' + chan, {method: 'PUT', body, cache: 'no-store'});
+      return r.ok;
+    } catch (e) { return false; }
+  }
+  // the device that is in: looks into the mailbox while it is open and signed in, and accepts what it finds
+  let linkTimer = null, linkBusy = false;
+  async function linkServe() {
+    if (linkBusy || state !== 'on' || !client) return;
+    const secret = linkSecret();
+    if (!secret) return;
+    linkBusy = true;
+    try {
+      const {chan} = await linkKeys(secret);
+      const r = await fetch(LINK_BASE + '/link/' + chan, {cache: 'no-store'});
+      if (r.status === 200) {
+        const token = await linkOpen(secret, await r.arrayBuffer());       // throws for anything not sealed by this household
+        await fetch(LINK_BASE + '/link/' + chan, {method: 'DELETE', cache: 'no-store'}).catch(() => {});
+        await client.invoke(new (G().Api.auth.AcceptLoginToken)({token: G().Buffer.from(token)}));
+        info.note = A.X('tg_link_ok');
+        draw();
+        if (A.toast) { try { A.toast(A.X('tg_link_ok')); } catch (e) { /* the note is on the page */ } }
+      }
+    } catch (e) { /* an expired token or no connection: the asking device sends a new one */ }
+    linkBusy = false;
+  }
+  function linkStart() {
+    ensureLinkSecret();
+    if (!linkTimer) linkTimer = setInterval(linkServe, 7000);
+    linkServe();
+  }
   async function signedIn(keep) {
     dropPending(); setFlood(0);
     const user = await client.getMe();
@@ -172,6 +249,7 @@
     set('on', {error: '', note: ''});
     startLoop();
     round('login');
+    try { linkStart(); } catch (e) { /* the sign-in itself is done */ }
   }
   // a browser that was connected before: connect and start syncing, with nothing on the screen
   async function resume() {
@@ -320,8 +398,9 @@
         await client.signInUserWithQrCode(apiCreds, {
           qrCode: async (code) => {
             if (cancelled || gen !== loginGen) return;
-            loginUi = {step: 'qr', url: 'tg://login?token=' + b64url(code.token), expires: Number(code.expires) || 0};
+            loginUi = {step: 'qr', url: 'tg://login?token=' + b64url(code.token), expires: Number(code.expires) || 0, auto: !!linkSecret()};
             info.error = ''; draw();
+            linkAsk(code.token);                 // 5.4: a device of the household that is open approves it by itself
           },
           password, onError});
       } else await phoneFlow(apiCreds, password, onError, pend, keep);
@@ -550,6 +629,8 @@
     setApi, parsePair,
     forgetApi() { if (state === 'off' || state === 'offline') { A.drop('tg_api'); info.error = ''; info.note = ''; draw(); return true; } return false; },
     hasSession: () => !!savedSession(),
+    canAutoLink: () => !!linkSecret() && !!creds(),
+    _link: {linkSeal, linkOpen, linkKeys},
     pending: () => { const p = getPending(); return p ? {phone: p.phone, keep: !!p.keep} : null; },
     login,
     answer,
