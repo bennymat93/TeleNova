@@ -11,7 +11,7 @@
 
 קישורים ישירים לגרסה האחרונה (מהאתר, תמיד הקובץ העדכני):
 
-- iOS: https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-5.1.0.ipa
+- iOS: https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-2.0.ipa
 - Android: https://bennymat93.github.io/TeleNova/apk/TeleNova.apk
 
 איך זה מתעדכן:

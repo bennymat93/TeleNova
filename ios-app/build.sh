@@ -7,13 +7,16 @@
 #   ./build.sh sim <udid>   simulator build -> build/sim/TeleNova.app (installed and started by the workflow)
 #
 # The web files are copied from ../web at build time and never edited here.
+# Version: ios-app/VERSION (file name ios/TeleNova-Web-<version>.ipa, release tag ios-<version>-b<build>).
 set -euo pipefail
 cd "$(dirname "$0")"
 HERE="$(pwd)"
 WEB="$HERE/../web"
 
-TN_VERSION="$(sed -n "s/.*WEB_VERSION *= *'\([0-9][0-9.]*\)'.*/\1/p" "$WEB/version.js" | head -1)"
-[ -n "$TN_VERSION" ] || { echo "cannot read WEB_VERSION from web/version.js" >&2; exit 1; }
+# the app's own version (the owner's numbering, since 2.0): ios-app/VERSION. The web version is only reported.
+TN_VERSION="$(tr -d ' \r\n' < "$HERE/VERSION")"
+[ -n "$TN_VERSION" ] || { echo "ios-app/VERSION is empty" >&2; exit 1; }
+WEB_VERSION="$(sed -n "s/.*WEB_VERSION *= *'\([0-9][0-9.]*\)'.*/\1/p" "$WEB/version.js" | head -1)"
 export TN_VERSION
 export TN_BUILD="${TN_BUILD:-${GITHUB_RUN_NUMBER:-1}}"
 IPA="$HERE/build/TeleNova-Web-$TN_VERSION.ipa"
@@ -39,7 +42,7 @@ JSON
 JSON
   echo '{"info":{"author":"xcode","version":1}}' > build/Assets.xcassets/Contents.json
   xcodegen generate --spec project.yml
-  echo "prepared: TeleNova $TN_VERSION ($TN_BUILD), $(find build/web -type f | wc -l | tr -d ' ') web files"
+  echo "prepared: BN Stream $TN_VERSION ($TN_BUILD), bundled web $WEB_VERSION, $(find build/web -type f | wc -l | tr -d ' ') web files"
 }
 
 NOSIGN=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= CODE_SIGN_ENTITLEMENTS= DEVELOPMENT_TEAM=)
