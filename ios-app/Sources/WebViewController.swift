@@ -38,6 +38,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     private let selftest = ProcessInfo.processInfo.arguments.contains("-selftest")
     private let forceOffline = ProcessInfo.processInfo.arguments.contains("-forceOffline")
+    private let tour = ProcessInfo.processInfo.arguments.contains("-tour")
     private var selftestDone = false
 
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
@@ -334,7 +335,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if mode == .live && webView.url?.scheme == "https" { offlineBar.isHidden = true; view.setNeedsLayout() }
         if let h = pendingLink { pendingLink = nil; go(hash: h, reload: h.hasPrefix("#pair=") || h.hasPrefix("#setup=")) }
-        if selftest && !selftestDone { selftestDone = true; runSelftest() }
+        if selftest && !selftestDone { selftestDone = true; if tour { runTour() } else { runSelftest() } }
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
@@ -759,6 +760,96 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
                 out["jsError"] = "\(e)"
             }
             self?.writeSelftest(out)
+        }
+    }
+
+    // ------------------------------------------------------------------ layout tour (CI only, "-selftest -tour")
+    // Visits every page, measures what is cut off / sticks out / cannot scroll, and saves a picture of the top and
+    // of the bottom of each page to Documents/tour/. The workflow uploads that folder.
+    private static let tourPages = ["#/", "#/movies", "#/tv", "#/live", "#/radio", "#/telegram", "#/youtube", "#/topics",
+        "#/search", "#/searchhist", "#/hub", "#/library", "#/catalog", "#/mine", "#/favs", "#/history", "#/users",
+        "#/services", "#/backup", "#/gdrive", "#/status", "#/help", "#/about", "#/settings", "#/settings/accounts",
+        "#/tglogin", "#/device", "#/bn"]
+
+    private static let measureJS = """
+    const W = innerWidth, H = innerHeight, out = {hash: location.hash, w: W, h: H};
+    const sc = document.scrollingElement || document.documentElement;
+    out.pageScrollW = sc.scrollWidth; out.pageScrollH = sc.scrollHeight;
+    const name = (e) => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\\s+/).slice(0, 3).join('.') : '');
+    const txt = (e) => (e.innerText || e.getAttribute('aria-label') || '').replace(/\\s+/g, ' ').trim().slice(0, 50);
+    const inXScroller = (e) => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { const o = getComputedStyle(p).overflowX; if (o === 'auto' || o === 'scroll' || o === 'hidden' || o === 'clip') return true; } return false; };
+    const sticks = [], clipped = [];
+    for (const e of document.querySelectorAll('body *')) {
+      const r = e.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const cs = getComputedStyle(e);
+      if (cs.visibility === 'hidden' || cs.position === 'fixed' && r.top > H) continue;
+      if ((r.right > W + 1 || r.left < -1) && !inXScroller(e) && sticks.length < 12) sticks.push({el: name(e), l: Math.round(r.left), r: Math.round(r.right), t: txt(e)});
+      const ox = cs.overflowX, oy = cs.overflowY;
+      const hides = (v) => v === 'hidden' || v === 'clip';
+      const meant = cs.textOverflow === 'ellipsis' || cs.webkitLineClamp && cs.webkitLineClamp !== 'none' || e.matches('.sr,.sprite,img,video,canvas,svg,iframe');
+      if (!meant && ((hides(oy) && e.scrollHeight > e.clientHeight + 2) || (hides(ox) && e.scrollWidth > e.clientWidth + 2)) && clipped.length < 12) {
+        clipped.push({el: name(e), sw: e.scrollWidth, cw: e.clientWidth, sh: e.scrollHeight, ch: e.clientHeight, t: txt(e)});
+      }
+      if (cs.textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth + 1 && clipped.length < 24) clipped.push({el: name(e), ellipsis: true, t: txt(e)});
+    }
+    out.sticksOut = sticks; out.clipped = clipped;
+    const tabs = document.getElementById('tabs'), tr = tabs && tabs.getBoundingClientRect();
+    const tabsTop = tr && tr.height && getComputedStyle(tabs).display !== 'none' ? tr.top : H;
+    out.tabsTop = Math.round(tabsTop);
+    scrollTo(0, 1e7); await new Promise((r) => setTimeout(r, 400));
+    out.scrolledTo = Math.round(scrollY); out.canScroll = scrollY > 0 || sc.scrollHeight <= H + 1;
+    const view = document.getElementById('view');
+    let last = null;
+    if (view) for (const e of view.querySelectorAll('*')) { const r = e.getBoundingClientRect(); if (r.height && (!last || r.bottom > last.b)) last = {b: r.bottom, el: name(e), t: txt(e)}; }
+    const tabs2 = tabs && tabs.getBoundingClientRect();
+    const top2 = tabs2 && tabs2.height && getComputedStyle(tabs).display !== 'none' ? tabs2.top : innerHeight;
+    out.lastBottom = last ? Math.round(last.b) : null; out.lastEl = last;
+    out.hiddenUnderTabs = !!(last && last.b > top2 + 1);
+    return JSON.stringify(out);
+    """
+
+    private func tourDir() -> URL {
+        let d = FileStore.docs.appendingPathComponent("tour")
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        return d
+    }
+
+    private func snap(_ name: String, _ done: @escaping () -> Void) {
+        let cfg = WKSnapshotConfiguration()
+        webView.takeSnapshot(with: cfg) { [weak self] img, _ in
+            if let d = img?.pngData(), let self = self { try? d.write(to: self.tourDir().appendingPathComponent(name + ".png")) }
+            done()
+        }
+    }
+
+    private func runTour(_ i: Int = 0, _ results: [[String: Any]] = []) {
+        let pages = WebViewController.tourPages
+        guard i < pages.count else {
+            if let d = try? JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys]) {
+                try? d.write(to: tourDir().appendingPathComponent("tour.json"))
+            }
+            try? Data("done".utf8).write(to: tourDir().appendingPathComponent("done.txt"))
+            return
+        }
+        let hash = pages[i]
+        let tag = String(format: "%02d", i) + "-" + hash.replacingOccurrences(of: "#/", with: "").replacingOccurrences(of: "/", with: "_")
+        let name = tag.hasSuffix("-") ? tag + "home" : tag
+        let q = (try? JSONEncoder().encode(hash)).flatMap { String(data: $0, encoding: .utf8) } ?? "\"#/\""
+        webView.evaluateJavaScript("scrollTo(0,0); location.hash = \(q);", completionHandler: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            guard let self = self else { return }
+            self.snap(name + "-top") {
+                self.webView.callAsyncJavaScript(WebViewController.measureJS, arguments: [:], in: nil, in: .page) { r in
+                    var o: [String: Any] = ["page": hash]
+                    if case .success(let v) = r, let str = v as? String, let d = str.data(using: .utf8),
+                       let j = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] { o = j; o["page"] = hash }
+                    else if case .failure(let e) = r { o["error"] = "\(e)" }
+                    self.snap(name + "-bottom") {
+                        self.runTour(i + 1, results + [o])
+                    }
+                }
+            }
         }
     }
 
