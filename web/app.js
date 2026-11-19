@@ -1483,17 +1483,7 @@ async function pageTitle(arg, ctx) {
   if (tr) acts.append(labelButton('btn ghost', 'play', t('trailer'), () => { openTrailer(tr.key, title); noteHistory(entry); }));
   acts.append(favButton({kind, id, label: title, extra: '', img: poster}));
   const iaBox = document.createElement('div');
-  acts.append(button('btn ghost', t('archive'), async (e) => {
-    const b = e.currentTarget;
-    b.disabled = true;
-    iaBox.innerHTML = '';
-    try {
-      const docs = await archive({q: d.original_title || d.original_name || title, rows: 12});
-      if (!docs.length) state(iaBox.appendChild(document.createElement('div')), {kind: 'empty', title: t('none'), text: N('title_ia_none'), action: null});
-      else { const sc = row(t('ia'), {into: iaBox, count: docs.length}); docs.forEach((x) => sc.append(iaCard(x))); if (inputMode === 'key' || isTvShell()) focusEl(sc.firstChild); }
-    } catch (err) { state(iaBox.appendChild(document.createElement('div')), {kind: errKind(err), action: null}); }
-    b.disabled = false;
-  }));
+  // (the 'free on Internet Archive' button is gone: the owner asked to remove it, 2026-11-19)
   try { d.imdb_id = d.imdb_id || (d.external_ids && d.external_ids.imdb_id) || ''; } catch (e) {}
   runHooks('title', acts, {type, id: String(id), title, detail: d, poster});      // e.g. the sources module's "Play"
   if (type === 'tv' && !acts.querySelector('[data-autofocus]')) {                 // (the sources module did not load: the seasons are still one press away)
