@@ -80,7 +80,7 @@
   const TN = root.TN;
   if (!TN) return;
   TN.i18n.add({
-    he: {sv_quick: 'הגדרה מהירה', sv_quick_txt: 'שני החשבונות ששווה לחבר. לחיצה אחת על כל אחד – ואישור.', sv_q_tg_txt: 'סרטים וסדרות מהערוצים והקבוצות שלך. לוחצים, מאשרים באפליקציית טלגרם – וזהו.',
+    he: {sv_backup_btn: 'גיבוי מלא / שחזור / העברה למכשיר אחר', sv_quick: 'הגדרה מהירה', sv_quick_txt: 'שני החשבונות ששווה לחבר. לחיצה אחת על כל אחד – ואישור.', sv_q_tg_txt: 'סרטים וסדרות מהערוצים והקבוצות שלך. לוחצים, מאשרים באפליקציית טלגרם – וזהו.',
       sv_q_rd_txt: 'קישורים מהירים ואיכותיים (מנוי בתשלום). לוחצים, מאשרים את הקוד באתר Real-Debrid – וזהו.', sv_q_code: 'התחבר עם קוד',
       sv_ready_txt: 'כל השאר כבר מוגדר ופועל בלי שום פעולה: קטלוג הסרטים והסדרות, ערוצי הטלוויזיה והרדיו, כתוביות בעברית, מנוע העזר, והנגן לכל סוגי הקבצים.', sv_adv: 'כל השירותים והמפתחות (מתקדם)',
       sv_intro: 'כל החיבורים והמפתחות במסך אחד. כל ערך נשמר רק בדפדפן הזה, נשלח רק לשירות שלו, ולעולם לא מופיע בכתובת.',
@@ -121,7 +121,7 @@
          sv_magnet_need: 'magnet נפתח דרך Real-Debrid: התחברו ל-Real-Debrid למעלה', sv_newtab: 'הקישור נפתח בלשונית חדשה',
          dv_intro: 'איך האתר מסודר במכשיר הזה.', dv_auto: 'אוטומטי', dv_tv: 'טלוויזיה (שלט / מקלדת)', dv_phone: 'טלפון', dv_desktop: 'מחשב',
          dv_tv_hint: 'בטלוויזיה החצים עוברים בין הכפתורים, Enter בוחר ו-Back חוזר.'},
-    en: {sv_quick: 'Quick setup', sv_quick_txt: 'The two accounts worth connecting. One press each - and a confirmation.', sv_q_tg_txt: 'Films and series from your own channels and groups. Press, confirm in the Telegram app - done.',
+    en: {sv_backup_btn: 'Full backup / restore / move to another device', sv_quick: 'Quick setup', sv_quick_txt: 'The two accounts worth connecting. One press each - and a confirmation.', sv_q_tg_txt: 'Films and series from your own channels and groups. Press, confirm in the Telegram app - done.',
       sv_q_rd_txt: 'Fast, high-quality links (paid subscription). Press, approve the code on the Real-Debrid site - done.', sv_q_code: 'Sign in with a code',
       sv_ready_txt: 'Everything else is already set and works with no action: the film and series catalogue, TV channels and radio, Hebrew subtitles, the helper, and the player for every file type.', sv_adv: 'All services and keys (advanced)',
       sv_intro: 'Every connection and key on one screen. Each value stays in this browser only, is sent only to its own service, and never appears in an address.',
@@ -162,7 +162,7 @@
          sv_magnet_need: 'A magnet opens through Real-Debrid: sign in to Real-Debrid above', sv_newtab: 'The link opened in a new tab',
          dv_intro: 'How the site is laid out on this device.', dv_auto: 'Automatic', dv_tv: 'TV (remote / keyboard)', dv_phone: 'Phone', dv_desktop: 'Computer',
          dv_tv_hint: 'On a TV the arrows move between buttons, Enter chooses and Back goes back.'},
-    ru: {sv_quick: 'Быстрая настройка', sv_quick_txt: 'Два аккаунта, которые стоит подключить. Одно нажатие и подтверждение.', sv_q_tg_txt: 'Фильмы и сериалы из ваших каналов и групп. Нажмите, подтвердите в приложении Telegram - готово.',
+    ru: {sv_backup_btn: 'Полная копия / восстановление / перенос на другое устройство', sv_quick: 'Быстрая настройка', sv_quick_txt: 'Два аккаунта, которые стоит подключить. Одно нажатие и подтверждение.', sv_q_tg_txt: 'Фильмы и сериалы из ваших каналов и групп. Нажмите, подтвердите в приложении Telegram - готово.',
       sv_q_rd_txt: 'Быстрые качественные ссылки (платная подписка). Нажмите, подтвердите код на сайте Real-Debrid - готово.', sv_q_code: 'Войти по коду',
       sv_ready_txt: 'Всё остальное уже настроено и работает без действий: каталог фильмов и сериалов, ТВ-каналы и радио, субтитры на иврите, помощник и плеер для любых файлов.', sv_adv: 'Все сервисы и ключи (дополнительно)',
       sv_intro: 'Все подключения и ключи на одном экране. Каждое значение хранится только в этом браузере, отправляется только своему сервису и никогда не попадает в адрес.',
@@ -438,6 +438,10 @@
     };
     const qTg = qrow(t('sv_tg'), t('sv_q_tg_txt')), qRd = qrow(t('sv_rd'), t('sv_q_rd_txt'));
     quick.append(el('p', 'sv_ready', t('sv_ready_txt')));
+    // 5.3.2: the full backup, where the accounts are: one press from here
+    const bk = el('div', 'links');
+    bk.append(linkBtn('btn ghost', t('sv_backup_btn'), '#/backup'));
+    quick.append(bk);
     view.append(quick);
     const adv = el('details', 'sv_adv');
     adv.append(el('summary', '', t('sv_adv')));

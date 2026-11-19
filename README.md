@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-5.0.0.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-5.0.1.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -33,13 +33,32 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 5.0.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 5.0.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 5.0.0 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 5.0.1 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 5.0.1 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 5.0.1 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 5.0.0 | This repository |
+| `repository.telenova` | 5.0.1 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
+
+## TeleNova 5.0.1 / web 5.3.1 (2026-11-19) - the open ends closed
+
+- **The whole setup to another device, lists included.** "Show the transfer code" (Backup page) now carries settings, keys,
+  the Real-Debrid sign-in, the Telegram details AND the users with their history, favourites and searches. The sealed
+  blob waits 15 minutes in the helper's read-once drop box; the QR code / link carries only its id; the six-digit code
+  opens it on the other device. A Telegram login itself is never copied (two devices on one login lose both) - the
+  other device confirms once. Checked on the live site against wiped storage.
+- **AI translation on YouTube videos.** The video stays in YouTube's player (a browser cannot get the stream); the
+  owner's AI subtitle server makes Hebrew subtitles from the video id and they are drawn over the player, in step with
+  it. Checked on the live site. The server is reached over https through a Cloudflare tunnel and found by itself
+  (helper `/ai`); it works while the owner's PC is on.
+- **"AI translation now"** in the player's subtitle panel for any video with a public address.
+- **Search**: every source is named with what it gave (count / none / not connected / no answer); Hebrew and Russian
+  titles are found without a TMDb key (Wikidata -> IMDb id).
+- **Accounts**: quick setup (Telegram and Real-Debrid, one press each), Telegram without typing API details (the helper
+  hands them out when its owner stored them), an interrupted phone sign-in resumes at the code step.
+- **Kodi 5.0.1**: live channels (inputstream.adaptive) start at a quality the connection can carry on every device.
+- Home shows the main menu like the Kodi build; the YouTube page has ready-made topics.
 
 ## TeleNova 5.0.0 (2026-11-18) - apps for Android and iOS, every file type in the browser, weak connections
 
