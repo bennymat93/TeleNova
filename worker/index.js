@@ -96,6 +96,15 @@ export async function handle(request, env) {
     if (!/^\d{3,12}$/.test(id) || !/^[0-9a-f]{32}$/.test(hash)) return new Response(JSON.stringify({error: 'not_set'}), {status: 404, headers: h});
     return new Response(JSON.stringify({id, hash}), {headers: h});
   }
+  // where the owner's AI subtitle server is reachable over https right now, and its access token. Both are stored by
+  // the PC itself each time its tunnel starts (kodi-build/server/tunnel.py -> wrangler secret put AI_SERVER_URL /
+  // AI_SERVER_TOKEN). Only allowed origins get here.
+  if (url.pathname === '/ai') {
+    const h = cors(origin, okOrigins); h.set('content-type', 'application/json'); h.set('cache-control', 'no-store');
+    const at = String(env.AI_SERVER_URL || '').trim().replace(/\/+$/, ''), tok = String(env.AI_SERVER_TOKEN || '').trim();
+    if (!/^https:\/\/[a-z0-9.-]+$/i.test(at) || !/^[\w-]{20,80}$/.test(tok)) return new Response(JSON.stringify({error: 'not_set'}), {status: 404, headers: h});
+    return new Response(JSON.stringify({url: at, token: tok}), {headers: h});
+  }
   const target = allowed(request.headers.get('x-tn-target') || '', env);
   if (!target) return fail(403, 'host', origin, okOrigins);
 

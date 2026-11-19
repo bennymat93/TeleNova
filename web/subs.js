@@ -394,12 +394,44 @@
     catch (e) { return ''; }
   };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // 5.2.2: the owner's server over https with nothing to set up. The PC opens a tunnel and stores its current address
+  // and access token in the helper Worker; the site asks the helper (GET /ai). Kept 10 minutes; asked again after a
+  // failure, because the free tunnel gets a new address whenever the PC restarts.
+  const BUILTIN_HELPER = 'https://telenova-helper.hmi-analyzer.workers.dev';
+  let srvAuto = null, srvAutoAt = 0, srvAutoP = null;
+  async function srvLookup(force) {
+    if (srvUrl()) return {url: srvUrl(), token: ''};          // an address the viewer typed wins
+    if (!force && srvAuto && Date.now() - srvAutoAt < 600000) return srvAuto;
+    if (!srvAutoP) {
+      srvAutoP = (async () => {
+        const bases = [];
+        try { const h = TN && TN.settings && TN.settings.helper && TN.settings.helper(); if (h && !/\.invalid(\/|$)/.test(h)) bases.push(h); } catch (e) { /* no setting */ }
+        if (!bases.includes(BUILTIN_HELPER)) bases.push(BUILTIN_HELPER);
+        for (const b of bases) {
+          try {
+            const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 8000);
+            const r = await fetch(b.replace(/\/+$/, '') + '/ai', {signal: ctl.signal, cache: 'no-store'});
+            clearTimeout(tm);
+            if (!r.ok) continue;
+            const j = await r.json();
+            if (j && /^https:\/\/[a-z0-9.-]+$/i.test(String(j.url)) && /^[\w-]{20,80}$/.test(String(j.token))) return {url: String(j.url), token: String(j.token)};
+          } catch (e) { /* the next address */ }
+        }
+        return null;
+      })();
+    }
+    try { srvAuto = await srvAutoP; srvAutoAt = Date.now(); } finally { srvAutoP = null; }
+    return srvAuto;
+  }
   const subsrv = {
     kinds: ['subs'], label: 'AI server', langs: ['he'],
-    enabled: () => !!srvUrl(),
+    enabled: () => true,                         // its address comes from the setting or from the helper, at use
+    lookup: srvLookup,
     async find(q) {
-      const base = srvUrl();
-      if (!base || !/^https?:\/\//i.test(String(q.url || ''))) return [];
+      if (!/^https:\/\//i.test(String(q.url || ''))) return [];      // the server reads the video itself: it needs a public address
+      const srv = await srvLookup(false);
+      const base = srv && srv.url;
+      if (!base) return [];
       const job = {url: q.url, title: q.title || '', season: q.season || 0, episode: q.episode || 0, imdb: q.imdb || '',
         tmdb: q.tmdb || '', position: Number(q.position) || 0, mode: 'ai'};
       if (q.youtube_id) job.youtube_id = q.youtube_id;
@@ -408,8 +440,12 @@
       return [{
         label: 'BN AI', lang: 'he', source: 'subsrv', score: -0.5,
         fetchVtt: memo(async () => {
-          const opt = (m, b) => ({method: m, via: 'direct', timeout: 15000, headers: b ? {'Content-Type': 'application/json'} : undefined, body: b ? JSON.stringify(b) : undefined});
-          let r = await S._fetch(base + '/jobs', opt('POST', job));
+          const opt = (m, b) => ({method: m, via: 'direct', timeout: 20000, body: b ? JSON.stringify(b) : undefined,
+            headers: Object.assign({}, b ? {'Content-Type': 'application/json'} : {}, srv.token ? {'X-BN-Token': srv.token} : {})});
+          let r;
+          try { r = await S._fetch(base + '/jobs', opt('POST', job)); }
+          catch (e) { srvAutoAt = 0; throw new Error('AI server: no answer (is the PC on?)'); }     // the address may have changed: asked again next time
+          if (r.status === 401 || r.status >= 500) srvAutoAt = 0;
           if (!r.ok) throw new Error('AI server ' + r.status);
           const id = String(((await r.json()) || {}).id || '');
           if (!/^[\w-]{1,80}$/.test(id)) throw new Error('AI server: no job');
