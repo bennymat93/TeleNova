@@ -664,6 +664,19 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         webView.scrollView.refreshControl?.isEnabled = !keyboardUp
         webView.scrollView.alwaysBounceVertical = !keyboardUp
         updateTgButton()
+        // iOS pushes the page up to show a field above the keyboard and does not always put it back: the page's
+        // header (back button, title) then stays under the status bar. Put the page back inside its limits.
+        if !keyboardUp {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in self?.settleScroll() }
+        }
+    }
+
+    private func settleScroll() {
+        let sv = webView.scrollView
+        let maxY = max(0, sv.contentSize.height - sv.bounds.height)
+        let y = min(max(sv.contentOffset.y, 0), maxY)
+        if abs(y - sv.contentOffset.y) > 0.5 { sv.setContentOffset(CGPoint(x: 0, y: y), animated: true) }
+        webView.evaluateJavaScript("window.scrollTo(window.scrollX, Math.min(window.scrollY, Math.max(0, (document.scrollingElement||document.documentElement).scrollHeight - innerHeight)))", completionHandler: nil)
     }
 
     private func setUpOfflineBar() {

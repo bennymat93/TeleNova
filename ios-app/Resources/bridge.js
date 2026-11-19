@@ -12,6 +12,35 @@
   window.__tnNative = true;
   try { Object.defineProperty(navigator, 'standalone', {configurable: true, get: function () { return true; }}); } catch (e) { /* stays as it is */ }
 
+  // ---- iOS look: denser, closer to a native app (owner, 2026-11-19: "smaller buttons, use the space") -------------
+  // Only inside the iOS app (class tnios on <html>); the web site itself is unchanged. Sizes stay at or above the
+  // 36-44 pt touch range. The header no longer slides away while scrolling: its back button must always be there.
+  document.documentElement.classList.add('tnios');
+  var IOS_CSS = [
+    'html.tnios[data-shell="phone"],html.tnios[data-shell="tablet"]{--ctl:38px;--gutter:12px;--gap:10px;--top-h:44px;',
+    '  --fs-1:11px;--fs-2:13px;--fs-3:15px;--fs-4:18px;--fs-5:20px;--fs-6:24px;--sp-4:12px;--sp-5:16px;--sp-6:24px;',
+    '  --r:12px;--r-s:8px;--card-w:100px;--wide-w:144px;--sq-w:96px;--land-w:220px;--tabs-h:50px}',
+    'html.tnios[data-shell="tablet"]{--gutter:20px;--card-w:128px;--wide-w:188px;--sq-w:120px;--land-w:250px}',
+    'html.tnios .btn{padding:0 14px;font-size:var(--fs-3)}',
+    'html.tnios .btn.ghost,html.tnios .chip{min-height:34px}',
+    'html.tnios .panel{padding:var(--sp-4);margin-top:var(--sp-4)}',
+    'html.tnios .setrow{min-height:48px;padding:8px var(--sp-3)}',
+    'html.tnios .pagehead{margin:var(--sp-3) 0 var(--sp-2)}',
+    'html.tnios input,html.tnios select,html.tnios textarea{font-size:16px}',      /* 16 px: iOS does not zoom a field */
+    'html.tnios[data-shell="phone"] .tabs{height:calc(50px + var(--safe-b))}',
+    'html.tnios[data-shell="phone"] .tab svg,html.tnios[data-shell="phone"] .tab .ico{width:22px;height:22px}',
+    'html.tnios.hdr-hide .top{transform:none!important}',
+    'html.tnios[data-shell="phone"] .top{padding-left:6px;padding-right:6px}'
+  ].join('\n');
+  function addIosCss() {
+    if (document.getElementById('tn-ios-css')) return;
+    var st = document.createElement('style');
+    st.id = 'tn-ios-css';
+    st.textContent = IOS_CSS;
+    (document.head || document.documentElement).appendChild(st);     // after style.css: these rules win
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addIosCss); else addIosCss();
+
   // ---- Telegram sign-in ------------------------------------------------------------------------------------------
   // web/tg.js (web 5.1.0) calls dropPending() and setFlood() when a sign-in succeeds and when it is wiped, but defines
   // neither, so every sign-in stopped with an error at its last step. Until the page defines its own (its own then

@@ -5,6 +5,12 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19, owner's screenshot (2.5 on iPhone, Telegram sign-in page): the page header with the back button
+  was hidden under the status bar after typing; asked for smaller buttons, better use of space, iOS adaptation.
+  Done in the app only (web/ unchanged): `bridge.js` adds class `tnios` + a denser stylesheet (`IOS_CSS`:
+  --ctl 38, gutter 12, smaller fonts / panels / setrows / tab bar, 16 px fields so iOS never zooms, header never
+  auto-hides); Swift `settleScroll()` puts the page back inside its limits after the keyboard closes. Check the
+  tour pictures of the next build (the whole UI is denser now).
 - 2026-11-19 (Opus 5.5). Owner: "find and fix everything shown wrong or cut, fix scrolling everywhere". Added a
   layout tour (`-selftest -tour`, `runTour` in WebViewController.swift; workflow uploads `tour-phone/`, `tour-pad/`
   with `tour.json` + top/bottom pictures of 28 pages). Result of build 11: every page scrolls to its end, nothing
