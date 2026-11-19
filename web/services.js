@@ -618,7 +618,7 @@
     const ss = add(list, row(t('sv_subsites'), t('sv_subsites_hint')));
     const subNames = ['wizdom', 'opensubs', 'yify', 'ktuvit', 'subsrv', 'subs_ai'], subOn = subNames.filter((n) => TN.providerOn(n)).length;
     ss.setState(subOn ? 'on' : 'off', subOn + ' / ' + subNames.length);
-    ss.acts.append(linkBtn('btn ghost', t('m_library'), '#/library'));
+    ss.acts.append(linkBtn('btn ghost', t('sv_open'), '#/srcedit/subs'));
     // X09 the AI subtitle server
     add(list, urlRow({name: t('sv_srv'), hint: t('sv_srv_hint'), setting: 'subs_server_url', placeholder: 'https://my-pc.example.ts.net', test: testers.srv}));
 
@@ -633,24 +633,21 @@
     // ---------------- TV, backup, tracking
     list = group('sv_g_tv');
     const iptv = add(list, row(t('sv_iptv'), t('sv_iptv_hint')));
-    iptv.setState('on'); iptv.acts.append(linkBtn('btn ghost', t('sv_open'), '#/live'));
+    iptv.setState('on'); iptv.acts.append(linkBtn('btn ghost', t('sv_open'), '#/srcedit/live'));
     const gd = add(list, row(t('sv_gd'), t('sv_gd_hint')));
     gd.setState(sval('gdrive_client') ? 'on' : 'off', sval('gdrive_client') ? t('sv_set') : t('sv_unset'));
     gd.acts.append(linkBtn('btn ghost', t('sv_open'), '#/gdrive'));
     const tr = row(t('sv_trakt'), t('sv_trakt_hint'));           // a link, as in Kodi: not counted as a service of this browser
     tr.setState('off', 'trakt.tv');
-    tr.acts.append(linkBtn('btn ghost', t('sv_trakt_act'), PAGES.trakt), linkBtn('btn ghost', t('sv_site'), PAGES.trakt_site), linkBtn('btn ghost', t('m_history'), '#/history'));
+    tr.acts.append(linkBtn('btn ghost', t('sv_trakt_act'), PAGES.trakt), linkBtn('btn ghost', t('sv_site'), PAGES.trakt_site));
     list.append(tr);
 
     // ---------------- sync and devices (X14, X15)
     list = group('sv_g_sync');
-    const sy = row(t('sv_sync_row'), t('sv_sync_hint'));
-    sy.querySelector('.tag').remove();
-    sy.acts.append(linkBtn('btn', t('m_backup'), '#/backup'), linkBtn('btn ghost', t('m_users'), '#/users'), linkBtn('btn ghost', t('m_device'), '#/device'));
     const pr = row(t('sv_pair'), t('sv_pair_hint'));
     pr.querySelector('.tag').remove();
-    pr.acts.append(linkBtn('btn ghost', t('sv_tg_connect'), '#/tglogin'), linkBtn('btn ghost', t('m_bn'), '#/bn'));
-    list.append(sy, pr);
+    pr.acts.append(linkBtn('btn ghost', t('sv_tg_connect'), '#/tglogin'));
+    list.append(pr);
 
     // ---------------- tools
     list = group('sv_tools');
@@ -660,7 +657,6 @@
     tRow.acts.append(
       TN.button('btn', t('sv_update'), () => updateApp(tRow.say)),
       TN.button('btn ghost', t('sv_repair'), async () => { await TN.clearCaches(); tRow.say(t('sv_done')); setTimeout(() => location.reload(), 800); }),
-      linkBtn('btn ghost', t('m_status'), '#/status'), linkBtn('btn ghost', t('m_help'), '#/help'),
       TN.button('btn ghost', t('sv_reset'), () => {
         if (!resetArmed) { resetArmed = true; return tRow.say(t('sv_reset_q')); }
         TN.drop('cfg'); tRow.say(t('sv_done')); setTimeout(() => location.reload(), 600);

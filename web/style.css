@@ -608,3 +608,61 @@ html[data-shell="phone"] .menu.mainmenu small{display:none}
 details.sv_adv{margin-top:var(--sp-4,16px)}details.sv_adv>summary{cursor:pointer;font-weight:600;padding:12px 0;font-size:1.05em}
 html[data-shell="phone"] .menu.mainmenu>.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;grid-template-columns:none}
 html[data-shell="phone"] .menu.mainmenu>.tile b{white-space:normal;overflow:visible;text-overflow:clip;font-size:13.5px;line-height:1.2;max-width:100%}
+
+/* ===================== 6.0 design pass: less empty space, smaller controls, one look =====================
+   Measured on a 375 px phone and a 1280 px desktop: the welcome card, menu tiles and single wide buttons took a
+   quarter of the screen or more. Controls are now sized to their text, single actions are centred, cards are
+   tighter, and the same radius / surface / shadow is used everywhere. */
+:root{--ctl:38px;--r-s:10px;--r:14px}
+html[data-shell="phone"]{--ctl:40px;--fs-6:24px;--fs-5:20px}
+html[data-shell="tablet"]{--ctl:40px}
+.btn{padding:0 14px;font-size:var(--fs-2);font-weight:600;gap:6px;max-width:100%;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;
+  transition:filter var(--t-fast,.15s),transform var(--t-fast,.15s),box-shadow var(--t-fast,.15s)}
+.btn:hover{filter:brightness(1.08)}.btn:active{transform:translateY(1px)}
+.btn .ico{width:18px;height:18px;margin-inline-end:4px}
+/* no button stretched across the screen */
+html[data-shell="phone"] .hero .actions .btn:first-child{flex:0 1 auto}
+.actions,.links{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.actions>*+*,.links>*+*{margin-inline-start:0}
+.actions>*,.links>*{margin-bottom:0}
+/* the welcome card: as tall as its text, its two buttons side by side */
+.hero.plain{height:auto;min-height:0;max-height:none;padding:var(--sp-5) var(--gutter) var(--sp-4);align-items:flex-start}
+html[data-shell="desktop"] .hero.plain,html[data-shell="tablet"] .hero.plain{height:auto;min-height:0;padding-top:var(--sp-5);padding-bottom:var(--sp-5)}
+.hero.plain .actions{margin-top:var(--sp-3);flex-wrap:nowrap}
+.hero.plain .actions .btn{flex:1 1 0;min-width:0}
+html[data-shell="desktop"] .hero.plain .actions .btn,html[data-shell="tv"] .hero.plain .actions .btn{flex:0 1 auto}
+html[data-shell="phone"] .hero{min-height:200px;height:52vw}
+html[data-shell="phone"] .hero.plain{min-height:0;height:auto}
+/* All in one on a fresh device: framed, its text, the button in the middle */
+.aio-first{margin:var(--sp-3) 0 var(--sp-4);padding:12px 16px 14px;border:1.5px solid var(--accent);border-radius:var(--r);background:var(--s1);text-align:center}
+.aio-first .btn{min-width:160px}
+/* menu tiles: compact everywhere but on the television */
+.menu{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:var(--sp-3)}
+.tile{min-height:96px;padding:12px;border-radius:var(--r);transition:border-color var(--t-fast,.15s),background var(--t-fast,.15s),transform var(--t-fast,.15s)}
+.tile:hover{border-color:var(--accent);transform:translateY(-1px)}
+.tile .ic{width:42px;height:42px;margin-bottom:6px}.tile .ic .ico{width:22px;height:22px}
+.tile b{font-size:var(--fs-2)}.tile small{font-size:var(--fs-1)}
+html[data-shell="phone"] .menu,html[data-shell="tablet"] .menu{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+html[data-shell="phone"] .tile,html[data-shell="tablet"] .tile{min-height:58px;padding:8px 10px;column-gap:10px}
+html[data-shell="phone"] .tile .ic,html[data-shell="tablet"] .tile .ic{width:36px;height:36px;font-size:18px}
+html[data-shell="phone"] .tile small{display:none}
+html[data-shell="phone"] .tile b{grid-row:1 / span 2;align-self:center;white-space:normal;line-height:1.2}
+html[data-shell="tv"] .tile{min-height:132px}
+/* the main menu on Home: four per line on a phone, icon over name */
+html[data-shell="phone"] .menu.mainmenu{grid-template-columns:repeat(4,1fr);gap:6px}
+html[data-shell="phone"] .menu.mainmenu>.tile{min-height:68px;padding:8px 4px;gap:4px}
+html[data-shell="phone"] .menu.mainmenu>.tile .ic{width:32px;height:32px}
+html[data-shell="phone"] .menu.mainmenu>.tile b{font-size:12px}
+.menu.mainmenu{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+.menu.mainmenu>*{min-height:80px}
+/* panels and headings: less air between them */
+.panel{padding:var(--sp-4);margin-top:var(--sp-4);border-radius:var(--r)}
+h2{margin:var(--sp-5) 0 var(--sp-2)}
+.hero+h2,.panel>h2:first-child,.sv_quick h2,.aio h2{margin-top:0}
+html[data-shell="phone"] .panel{padding:12px 14px}
+/* a panel or card with a single action: the action in the middle */
+.panel>.links:only-of-type:has(>:only-child),.empty .links,.state .links{justify-content:center}
+/* inputs: one height with the buttons */
+.bk_in,.input,input[type="text"].bk_in,input[type="password"].bk_in{min-height:var(--ctl)}
+/* a softer, more even surface */
+.panel,.tile,.sv_quick,.aio-first,.src_row{box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 1px 2px rgba(0,0,0,.25)}

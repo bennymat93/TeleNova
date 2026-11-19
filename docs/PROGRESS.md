@@ -85,6 +85,8 @@ FIXES IDENTIFIED: 29  |  Fixed: 28 |  Pending: 1
 
 ## Next
 
+Done 19/11: v6.0 - one version 6.0.0 for Kodi, web and apps; design pass (smaller buttons, less scrolling, shortcut buttons removed).
+
 Owner's instruction (18/11): work economically - targeted tests, no wide fan-out, early local commits.
 
 0. Web player: every file type (MKV / AVI / TS, HEVC, AC3 / DTS) through a fallback engine, and a better player (owner, 18/11). Not started.

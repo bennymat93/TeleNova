@@ -1183,9 +1183,9 @@ const HOME = {
     provider('aio').then((A) => {
       if (!A || !A.fresh() || !first.isConnected) return;
       const b = labelButton('btn', 'key', N('aio_first_btn'), () => go('#/aio'));
-      b.style.cssText = 'font-size:1.15em;padding:14px 26px;min-height:56px';
       const p = document.createElement('p'); p.className = 'hint'; p.textContent = N('aio_first');
-      first.style.cssText = 'margin:0 0 18px;padding:16px;border:2px solid var(--accent);border-radius:14px';
+      p.style.margin = '0 0 10px';
+      first.className = 'aio-first';
       first.append(p, b);
       b.setAttribute('data-autofocus', '');
     }).catch(() => {});
@@ -1238,7 +1238,7 @@ function pageHome(arg, ctx) {
   } else {
     const a = linkBtn('btn', N('home_add_key'), '#/settings/accounts');
     a.setAttribute('data-autofocus', '');
-    put1(hero({kicker: 'BN Stream', title: N('home_welcome'), text: N('home_welcome_txt'), actions: [a, linkBtn('btn ghost', X('tg_connect'), '#/tglogin'), linkBtn('btn ghost', t('classics'), '#/movies')]}));
+    put1(hero({kicker: 'BN Stream', title: N('home_welcome'), text: N('home_welcome_txt'), actions: [a, linkBtn('btn ghost', X('tg_connect'), '#/tglogin')]}));
   }
   // one-time banners: install the app (with the iOS way), add a TMDb key
   if (!get('install_seen', 0) && !standalone() && (installEvt || IOS) && !tv) {
@@ -1441,7 +1441,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-5.2.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-6.0.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest" target="_blank" rel="noopener">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
@@ -1687,13 +1687,10 @@ function pageSettings(arg) {
     l.append(setRow(t('s_live'), '', selectBox(Object.entries(t('lists')), cfg.live, (v) => setCfg('live', v), t('s_live'))));
     l.append(setRow(t('s_radio'), '', selectBox(Object.entries(t('countries')), cfg.radio, (v) => setCfg('radio', v), t('s_radio'))));
     l.append(setRow(t('s_family'), t('s_family_txt'), null));
-    const m = list(N('set_more'));
-    m.append(setRow(N('m_library'), N('ms_library'), linkBtn('btn ghost', N('core_open'), '#/library'), true));
-    m.append(setRow(N('m_services'), N('ms_services'), linkBtn('btn ghost', N('core_open'), '#/services'), true));
   } else if (tab === 'accounts') {
     const me = store.live().find((u) => u.id === store.current());
     const l = list(N('set_accounts'));
-    l.append(setRow(X('s_user'), me ? userName(me) : '', linkBtn('btn ghost', N('m_users'), '#/users'), true));
+    l.append(setRow(X('s_user'), me ? userName(me) : '', null, true));
     const fromAccount = !cfg.tmdb && (synced.tmdb_key || synced.tmdb_token);
     const box = document.createElement('div');
     box.className = 'secret';
@@ -1703,7 +1700,6 @@ function pageSettings(arg) {
     inp.onchange = () => { cfg.tmdb = inp.value.trim(); put('cfg', cfg); emit('settings', 'tmdb'); saved(); };
     box.append(iconButton('iconbtn', 'eye', N('set_show'), () => { inp.type = inp.type === 'password' ? 'text' : 'password'; }));
     l.append(setRow(X('tmdb'), X('tmdb_hint') + (fromAccount ? ' ' + X('s_tmdb_synced') : ''), box));
-    l.append(setRow(N('m_services'), N('ms_services'), linkBtn('btn ghost', N('core_open'), '#/services'), true));
     group.insertAdjacentHTML('beforeend', `<h2>${esc(X('tg_title'))}</h2><div class="panel settings tgpanel" style="margin-top:0"><p class="hint">${esc(X('tg_about'))}</p><div id="tgui"></div></div>`);
     drawTgBox();
     note(X('s_store2'));
@@ -1717,18 +1713,13 @@ function pageSettings(arg) {
     l.append(setRow(t('s_clear'), '', wipe(t('s_clear'), N('core_favs_clear_q'), () => { store.clearFavs(); emit('favs', null); }), true));
     l.append(setRow(X('hist_clear'), '', wipe(X('hist_clear'), N('core_hist_clear_q'), () => store.clearHistory()), true));
     l.append(setRow(X('sh_clear'), '', wipe(X('sh_clear'), N('core_sh_clear_ask'), () => store.clearSearches()), true));
-    const m = list(N('set_more'));
-    m.append(setRow(N('m_backup'), N('ms_backup'), linkBtn('btn ghost', N('core_open'), '#/backup'), true));
-    m.append(setRow(N('m_gdrive'), N('ms_gdrive'), linkBtn('btn ghost', N('core_open'), '#/gdrive'), true));
     note(X('s_store2'));
   } else {
     const l = list(N('set_app'));
     const isIn = standalone();
     l.append(setRow(X('install'), isIn ? N('pwa_installed') : installEvt ? N('pwa_txt') : IOS ? N('pwa_ios') : N('pwa_manual'),
       installEvt && !isIn ? labelButton('btn', 'install', X('install'), () => { installNow(); route(true); }) : null, true));
-    l.append(setRow(N('core_version', WEB_VERSION), N('core_sw', N(navigator.serviceWorker && navigator.serviceWorker.controller ? 'core_sw_on' : 'core_sw_off')), linkBtn('btn ghost', N('m_about'), '#/about'), true));
-    l.append(setRow(N('m_help'), N('ms_help'), linkBtn('btn ghost', N('core_open'), '#/help'), true));
-    l.append(setRow(N('m_status'), N('ms_status'), linkBtn('btn ghost', N('core_open'), '#/status'), true));
+    l.append(setRow(N('core_version', WEB_VERSION), N('core_sw', N(navigator.serviceWorker && navigator.serviceWorker.controller ? 'core_sw_on' : 'core_sw_off')), null, true));
   }
 }
 
