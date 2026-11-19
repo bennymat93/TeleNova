@@ -5,6 +5,9 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19: build 9 (run 44469278111) VERIFIED the single backup file (`oneBackupFiles` one path, size 6).
+  Next build: bundled web 5.4.0 + exported UTType for `.tncfg` (restore picker). The picker itself cannot be
+  driven in CI - owner's device only.
 - 2026-11-19, asked by the web session (owner: the full backup is ONE file, a new one overwrites the old):
   `FileStore.singleFiles` - a download named exactly `BN_Stream_backup.tncfg` replaces
   `Documents/Backups/BN_Stream_backup.tncfg`; all other names keep numbered copies. Self-test keys:

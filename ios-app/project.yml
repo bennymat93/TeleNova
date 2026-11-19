@@ -81,6 +81,16 @@ targets:
               - public.plain-text
               - public.xml
               - public.data
+              - io.github.bennymat93.telenova.tncfg
+        # the full backup / settings file of the page (.tncfg): declared, so the restore picker and the Files app
+        # know the extension (an unknown extension may be greyed out in the picker)
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: io.github.bennymat93.telenova.tncfg
+            UTTypeDescription: BN Stream backup
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [tncfg]
+              public.mime-type: [application/octet-stream]
         UIApplicationShortcutItems:
           - UIApplicationShortcutItemType: files
             UIApplicationShortcutItemTitle: "קבצי האפליקציה"
