@@ -753,6 +753,27 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
           const rj = await rd.json().catch(() => ({}));
           out.rdDeviceCode = {status: rd.status, hasDeviceCode: !!rj.device_code, hasUserCode: !!rj.user_code};
         } catch (e) { out.helperError = String(e); }
+        // Telegram phone sign-in, end to end, with a number that cannot exist (+999...): Telegram answers
+        // PHONE_NUMBER_INVALID, so no code is sent to anyone. Proves: library loads, API details arrive, the socket
+        // to Telegram opens, the request goes out and an answer comes back and is shown.
+        try {
+          const t0 = Date.now(), tl = [];
+          const TG = await self.TN.tg();
+          if (TG.ensureApi && !TG.hasApi()) await TG.ensureApi();
+          out.tgHasApi = TG.hasApi();
+          TG.login('phone', false, '+9991234567');
+          let answered = false;
+          for (let i = 0; i < 90; i++) {
+            await wait(500);
+            const st = TG.step ? TG.step() : null, e = TG.error ? TG.error() : '';
+            const mark = TG.state() + '/' + (st ? st.step : '-') + (e ? ' ! ' + e : '');
+            if (!tl.length || tl[tl.length - 1].m !== mark) tl.push({ms: Date.now() - t0, m: mark});
+            if (st && st.step === 'phone' && !answered) { answered = true; TG.answer('+9991234567'); }
+            if (answered && e) break;
+          }
+          out.tgPhoneTimeline = tl;
+          try { await TG.cancel(); } catch (e) { /* none */ }
+        } catch (e) { out.tgPhoneError = String(e); }
         out.tgShims = typeof self.dropPending === 'function' && typeof self.setFlood === 'function';
         try { self.dropPending(); self.setFlood(0); out.tgShimsRun = true; } catch (e) { out.tgShimsRun = String(e); }
         try {
