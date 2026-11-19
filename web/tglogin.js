@@ -157,13 +157,13 @@
         out.push(el('p', 'hint', t('tg_qr_how')), ...keepBox(), TN.button('btn', t('tgl_qr_start'), () => TG.login('qr', ui.keep)));
       } else {
         const f = el('form', 'tgl-box');
-        f.append(input(t('tg_phone_label'), 'tel', 'phone', {value: ui.phone, autocomplete: 'tel', inputMode: 'tel'}), ...keepBox(), TN.button('btn', t('tgl_phone_go'), null));
+        f.append(input(t('tg_phone_label'), 'tel', 'phone', {value: ui.phone, autocomplete: 'tel', inputMode: 'tel', placeholder: '0521234567'}), ...keepBox(), TN.button('btn', t('tgl_phone_go'), null));
         f.onsubmit = (e) => {
           e.preventDefault();
           const v = f.elements.phone.value.trim();
-          if (!TG.normalizePhone(v)) { box.querySelector('.tgerr').textContent = t('e_phone'); return; }
+          if (!TG.normalizePhone(v)) { const er = box.querySelector('.tgerr'); if (er) er.textContent = t('e_phone'); else alert(t('e_phone')); return; }
           ui.phone = v; ui.pending = v;
-          TG.login('phone', ui.keep);
+          TG.login('phone', ui.keep, v);
         };
         out.push(f);
       }
@@ -225,7 +225,7 @@
       if (st.step === 'phone' || st.step === 'code' || st.step === 'password') {
         const f = el('form', 'tgl-box' + (st.step === 'code' ? ' tgl-code' : ''));
         const out = [];
-        if (st.step === 'phone') f.append(input(t('tg_phone_label'), 'tel', 'v', {value: ui.phone, autocomplete: 'tel', inputMode: 'tel'}));
+        if (st.step === 'phone') f.append(input(t('tg_phone_label'), 'tel', 'v', {value: ui.phone, autocomplete: 'tel', inputMode: 'tel', placeholder: '0521234567'}));
         else if (st.step === 'code') {
           const via = st.via === 'sms' ? 'tgl_via_sms' : st.via === 'call' ? 'tgl_via_call' : st.via === 'email' ? 'tgl_via_email' : st.via === 'app' ? 'tgl_via_app' : 'tgl_via_other';
           out.push(el('p', 'hint', t(via, st.phone || '')));

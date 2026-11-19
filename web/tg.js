@@ -394,8 +394,11 @@
       }
     }
   }
-  async function login(how, keep) {
-    if (state === 'login' || state === 'on') return;
+  async function login(how, keep, typed) {
+    if (state === 'on') return;
+    // an earlier attempt still running (a QR code, a phone login that never got an answer) is closed first:
+    // before, a press here did nothing at all
+    if (state === 'login') { try { if (cancelLogin) await cancelLogin(); } catch (e) { /* already gone */ } }
     if (!creds()) return set('off', {error: A.X('e_api')});
     if (!(await lock())) return set('other_tab');
     let cancelled = false;
@@ -417,9 +420,11 @@
       if (client) await close();                 // a fresh connection for a fresh login
       // ... except for a phone sign-in that was interrupted: its code is good only on the connection it was asked on
       let pend = how === 'phone' ? getPending() : null;
+      if (pend && typed && normalizePhone(typed) && normalizePhone(typed) !== pend.phone) { pend = null; dropPending(); }
       if (how !== 'phone') dropPending();
-      try { await open(true, pend ? pend.session : ''); }
-      catch (e) { if (!pend) throw e; pend = null; dropPending(); if (client) await close(); await open(true); }
+      const opened = (s) => Promise.race([open(true, s), new Promise((res, rej) => setTimeout(() => rej(new Error('TIMEOUT')), 25000))]);
+      try { await opened(pend ? pend.session : ''); }
+      catch (e) { if (!pend) throw e; pend = null; dropPending(); if (client) await close(); await opened(''); }
       const apiCreds = {apiId: Number(creds().id), apiHash: creds().hash};
       if (how === 'qr') {
         await client.signInUserWithQrCode(apiCreds, {
