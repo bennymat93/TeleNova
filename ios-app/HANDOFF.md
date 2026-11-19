@@ -5,6 +5,14 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19 (Opus 5.5). Owner: "find and fix everything shown wrong or cut, fix scrolling everywhere". Added a
+  layout tour (`-selftest -tour`, `runTour` in WebViewController.swift; workflow uploads `tour-phone/`, `tour-pad/`
+  with `tour.json` + top/bottom pictures of 28 pages). Result of build 11: every page scrolls to its end, nothing
+  sticks out sideways; the only real cut was the display-size row on phones -> fixed in `web/style.css` (commit
+  6591dda, one hunk). False alarms to ignore: `div.sv_list` (inside a closed <details>), `#/movies` (grid grows
+  while measuring), ellipsis on card subtitles (intended). App side: solid strip behind the status bar (content
+  showed through behind the clock in the owner's screenshot). Next build: check `tour-phone/23-settings-top.png`
+  shows all four display-size buttons.
 - 2026-11-19: build 9 (run 44469278111) VERIFIED the single backup file (`oneBackupFiles` one path, size 6).
   Next build: bundled web 5.4.0 + exported UTType for `.tncfg` (restore picker). The picker itself cannot be
   driven in CI - owner's device only.

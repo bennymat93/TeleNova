@@ -29,6 +29,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var downloads: [ObjectIdentifier: URL] = [:]
     private let menuButton = UIButton(type: .system)
     private let offlineBar = UIButton(type: .system)
+    private let statusShade = UIView()                     // solid strip behind the clock: page content never shows there
     private let tgButton = UIButton(type: .system)          // "confirm the sign-in in the Telegram app"
     private var tgLogin: URL?
     private var keyboardUp = false
@@ -86,6 +87,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         webView.scrollView.delegate = self                            // no pinch zoom: the page has its own size control
         view.addSubview(webView)
 
+        statusShade.backgroundColor = WebViewController.background
+        statusShade.isUserInteractionEnabled = false
+        view.addSubview(statusShade)
         setUpOfflineBar()
         setUpMenuButton()
         setUpTgButton()
@@ -113,6 +117,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         tgButton.frame = CGRect(x: (view.bounds.width - tgWidth) / 2, y: view.bounds.height - view.safeAreaInsets.bottom - 132,
                                 width: tgWidth, height: 50)
         let top = view.safeAreaInsets.top
+        statusShade.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: top)
+        statusShade.isHidden = top < 1
         offlineBar.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: top + 34)
         // the offline bar sits above the page, not over its top bar
         let barHeight: CGFloat = offlineBar.isHidden ? 0 : top + 34
