@@ -5,6 +5,11 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19 (after 2.0 b7), asked by the web session for web 5.2.1 "move the setup to another device": URL scheme
+  `bnstream` registered; `bnstream://setup/<payload>` and a scanned / pasted `...#setup=<payload>` link load the
+  page with `#setup=<payload>` and reload it (`handleIncoming`). The workflow opens `bnstream://setup/...` in the
+  simulator and saves `phone-setup-link.png` - LOOK AT IT in the next green build (must show the Backup page with
+  the code box). `window.TeleNovaNative` is defined at document start; the data store is the default persistent one.
 - 2026-11-19 01:30 UTC. CURRENT RELEASE: iOS app 2.0, build 7 (run 44427144401 green, bot commit ef09550):
   `ios/TeleNova-Web-2.0.ipa` (8,450,890 bytes) + GitHub release `ios-2.0-b7` (made by the workflow's new last
   step - it works). Version now comes from `ios-app/VERSION` (not from the web version); bundled web copy 5.2.0.

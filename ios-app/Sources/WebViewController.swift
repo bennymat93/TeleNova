@@ -189,7 +189,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     @discardableResult
     func handleIncoming(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !t.isEmpty, t.count < 2000 else { return false }
+        guard !t.isEmpty, t.count < 4000 else { return false }
         if let r = t.range(of: "pair=\\d{3,12}\\.[0-9a-fA-F]{32}", options: .regularExpression) {
             go(hash: "#" + String(t[r]), reload: true)           // the page reads #pair= when it starts
             return true
@@ -209,7 +209,18 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             UIApplication.shared.open(u, options: [:], completionHandler: nil)   // a Telegram sign-in code: Telegram confirms it
             return true
         }
-        if t.lowercased().hasPrefix("telenova:") {
+        // "move the whole setup to another device" (web 5.2.1): bnstream://setup/<payload> from the page's
+        // "Open in the BN Stream app" button, or the https link itself (scanned / pasted): .../web/#setup=<payload>
+        if let r = t.range(of: "^bnstream://setup/[A-Za-z0-9_-]+$", options: [.regularExpression, .caseInsensitive]) {
+            let payload = String(t[r]).components(separatedBy: "/").last ?? ""
+            go(hash: "#setup=" + payload, reload: true)
+            return true
+        }
+        if let r = t.range(of: "#setup=[A-Za-z0-9_-]+$", options: .regularExpression) {
+            go(hash: String(t[r]), reload: true)
+            return true
+        }
+        if t.lowercased().hasPrefix("telenova:") || t.lowercased().hasPrefix("bnstream:") {
             let frag = URLComponents(string: t)?.fragment ?? ""
             go(hash: frag.isEmpty ? "#/" : "#" + frag, reload: false)
             return true
@@ -322,7 +333,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if mode == .live && webView.url?.scheme == "https" { offlineBar.isHidden = true; view.setNeedsLayout() }
-        if let h = pendingLink { pendingLink = nil; go(hash: h, reload: h.hasPrefix("#pair=")) }
+        if let h = pendingLink { pendingLink = nil; go(hash: h, reload: h.hasPrefix("#pair=") || h.hasPrefix("#setup=")) }
         if selftest && !selftestDone { selftestDone = true; runSelftest() }
     }
 

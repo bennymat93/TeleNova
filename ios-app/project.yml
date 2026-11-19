@@ -71,7 +71,7 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: io.github.bennymat93.telenova
             CFBundleTypeRole: Viewer
-            CFBundleURLSchemes: [telenova]
+            CFBundleURLSchemes: [telenova, bnstream]
         CFBundleDocumentTypes:
           - CFBundleTypeName: BN Stream files
             CFBundleTypeRole: Viewer
