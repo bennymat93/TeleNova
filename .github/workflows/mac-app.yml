@@ -1,0 +1,81 @@
+# BN Stream for Mac: builds mac-app/ (a WKWebView around web/), universal, ad-hoc signed (not a developer signature),
+# runs it once on the runner (self-test, two window sizes, pictures), commits mac/BN-Stream-macOS-<version>.zip and
+# publishes the GitHub release mac-<version>. No secrets: only the repository's GITHUB_TOKEN.
+name: mac-app
+on:
+  push:
+    branches: [gh-pages]
+    paths:
+      - 'mac-app/**'
+      - '!mac-app/**/*.md'
+      - '.github/workflows/mac-app.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: mac-app
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          xcodebuild -version
+          which xcodegen || brew install xcodegen
+      - name: Prepare
+        run: bash mac-app/build.sh prepare
+      - name: Build the app
+        run: bash mac-app/build.sh app
+      - name: Check the app
+        run: |
+          set -euo pipefail
+          A="mac-app/build/out/BN Stream.app"
+          plutil -p "$A/Contents/Info.plist" | grep -E "CFBundleShortVersionString|CFBundleIdentifier|LSMinimumSystemVersion|CFBundleURLSchemes" -A2
+          lipo -info "$A/Contents/MacOS/BN Stream"
+          test -f "$A/Contents/Resources/web/index.html" && test -f "$A/Contents/Resources/bridge.js"
+          codesign -dv "$A" 2>&1 | head -5
+          ls -la mac-app/build/*.zip
+      - name: Run once (self-test, window sizes, pictures)
+        run: |
+          OUT="$PWD/mac-app/build/selftest"; mkdir -p "$OUT"
+          open -n "mac-app/build/out/BN Stream.app" --args -selftest -out "$OUT"
+          for i in $(seq 1 120); do [ -f "$OUT/done.txt" ] && break; sleep 3; done
+          screencapture -x "$OUT/screen.png" || true
+          pkill -f "BN Stream.app" || true
+          ls -la "$OUT"; cat "$OUT/selftest.json" | head -80 || echo "NO RESULT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mac-run
+          path: |
+            mac-app/build/selftest
+            mac-app/build/*.log
+      - name: Commit to mac/ and publish the release
+        if: github.ref == 'refs/heads/gh-pages'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          V="$(bash mac-app/build.sh version)"
+          git config user.name "telenova-mac"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p mac
+          for f in mac/BN-Stream-macOS-*.zip; do [ -e "$f" ] && git rm -q --cached "$f" && rm -f "$f"; done
+          cp "mac-app/build/BN-Stream-macOS-$V.zip" mac/
+          git add "mac/BN-Stream-macOS-$V.zip"
+          if ! git diff --cached --quiet; then
+            git commit -q -m "Mac app: mac/BN-Stream-macOS-$V.zip (build $GITHUB_RUN_NUMBER)"
+            ok=0
+            for i in 1 2 3 4; do if git pull --rebase --autostash origin gh-pages && git push origin HEAD:gh-pages; then ok=1; break; fi; sleep 6; done
+            [ $ok = 1 ]
+          fi
+          TAG="mac-$V"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "mac-app/build/BN-Stream-macOS-$V.zip" --clobber
+          else
+            gh release create "$TAG" "mac-app/build/BN-Stream-macOS-$V.zip" --target gh-pages --latest=false --title "BN Stream for Mac $V" \
+              --notes "Universal app (Apple silicon + Intel), macOS 12 or newer. Not signed by a developer: first open with right-click > Open (or System Settings > Privacy & Security > Open Anyway). Guide: https://bennymat93.github.io/TeleNova/mac/"
+          fi
