@@ -5,6 +5,9 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19 CURRENT RELEASE: iOS 2.6.1 (release `ios-2.6.1`, run 44569213767): web 5.4.4, Drive sign-in sheet,
+  page below the status bar. Simulator: the whole Telegram phone path works (API details from the helper, connect,
+  SendCode, "code" step in ~4 s, iPhone + iPad); that test was then removed (rate limits on the owner's API id).
 - 2026-11-19, owner: every release goes up one: v2.6.1, v2.6.2, ... `ios-app/VERSION` = series ("2.6"); the
   workflow step "Version" counts releases `ios-2.6.N` and builds 2.6.(N+1); release tag `ios-2.6.N`, file
   `BN-Stream-iOS-2.6.N.ipa`, `ios/TeleNova-Web-2.6.N.ipa`. New series = edit VERSION (e.g. 2.7 -> 2.7.1).
