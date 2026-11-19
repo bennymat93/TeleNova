@@ -50,9 +50,19 @@ enum FileStore {
         return url
     }
 
+    // The full backup of the page (web 5.3.3) is ONE file: a new one replaces the old one (the owner's rule:
+    // "every new backup overwrites the existing one"). Every other file keeps its numbered copies.
+    static let singleFiles: Set<String> = ["BN_Stream_backup.tncfg"]
+
     static func destination(for name: String) -> URL {
         let dir = docs.appendingPathComponent(folder(for: name))
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let clean = sanitize(name)
+        if singleFiles.contains(clean) {
+            let url = dir.appendingPathComponent(clean)
+            try? FileManager.default.removeItem(at: url)          // the caller writes the new file to this path
+            return url
+        }
         return unique(in: dir, name: name)
     }
 

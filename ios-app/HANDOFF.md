@@ -5,6 +5,11 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19, asked by the web session (owner: the full backup is ONE file, a new one overwrites the old):
+  `FileStore.singleFiles` - a download named exactly `BN_Stream_backup.tncfg` replaces
+  `Documents/Backups/BN_Stream_backup.tncfg`; all other names keep numbered copies. Self-test keys:
+  `oneBackupFiles` must hold exactly one path, `oneBackupSize` must be 6 (the second save). Pushed as the next
+  build - check those two keys.
 - 2026-11-19 01:45 UTC. CURRENT RELEASE: iOS 2.0 build 8 (run 44429344023 green, bot commit f195387, release
   `ios-2.0-b8`), bundled web 5.2.1, self-test passed on iPhone + iPad. `bnstream://` check: the simulator showed the
   system question "Open in BN Stream?" (so the scheme is registered and reaches the app), but nobody taps it in

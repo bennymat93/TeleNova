@@ -743,6 +743,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
           const big = new Uint8Array(2 * 1024 * 1024 + 5); big[big.length - 1] = 7;
           const r = await window.TeleNovaNative.save(new Blob([big]), 'selftest-big.srt');
           out.bigSave = r;
+          await window.TeleNovaNative.save(new Blob(['first full backup, longer text']), 'BN_Stream_backup.tncfg');
+          out.oneBackup = await window.TeleNovaNative.save(new Blob(['second']), 'BN_Stream_backup.tncfg');
           await wait(1500);
         } catch (e) { out.exportError = String(e); }
         return JSON.stringify(out);
@@ -766,6 +768,10 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         out["files"] = FileStore.listing()
         let big = FileStore.docs.appendingPathComponent("Subtitles/selftest-big.srt")
         out["bigSize"] = ((try? FileManager.default.attributesOfItem(atPath: big.path))?[.size] as? NSNumber)?.intValue ?? -1
+        let backups = FileStore.listing().filter { $0.hasPrefix("Backups/BN_Stream_backup") }
+        let one = FileStore.docs.appendingPathComponent("Backups/BN_Stream_backup.tncfg")
+        out["oneBackupFiles"] = backups
+        out["oneBackupSize"] = ((try? FileManager.default.attributesOfItem(atPath: one.path))?[.size] as? NSNumber)?.intValue ?? -1
         out["safeArea"] = ["top": view.safeAreaInsets.top, "bottom": view.safeAreaInsets.bottom]
         out["bundleWebIndex"] = LocalServer.shared.hasFiles
         out["appVersion"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
