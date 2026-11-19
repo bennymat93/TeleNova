@@ -5,6 +5,11 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- 2026-11-19 01:45 UTC. CURRENT RELEASE: iOS 2.0 build 8 (run 44429344023 green, bot commit f195387, release
+  `ios-2.0-b8`), bundled web 5.2.1, self-test passed on iPhone + iPad. `bnstream://` check: the simulator showed the
+  system question "Open in BN Stream?" (so the scheme is registered and reaches the app), but nobody taps it in
+  CI, so the LANDING on the Backup page with the code box is NOT verified - only on the owner's device, or by
+  adding a tap to the workflow. Sent to the owner. Nothing in progress.
 - 2026-11-19 (after 2.0 b7), asked by the web session for web 5.2.1 "move the setup to another device": URL scheme
   `bnstream` registered; `bnstream://setup/<payload>` and a scanned / pasted `...#setup=<payload>` link load the
   page with `#setup=<payload>` and reload it (`handleIncoming`). The workflow opens `bnstream://setup/...` in the
