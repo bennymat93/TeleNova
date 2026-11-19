@@ -837,7 +837,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private static let tourPages = ["#/", "#/movies", "#/tv", "#/live", "#/radio", "#/telegram", "#/youtube", "#/topics",
         "#/search", "#/searchhist", "#/hub", "#/library", "#/catalog", "#/mine", "#/favs", "#/history", "#/users",
         "#/services", "#/backup", "#/gdrive", "#/status", "#/help", "#/about", "#/settings", "#/settings/accounts",
-        "#/tglogin", "#/device", "#/bn"]
+        "#/tglogin", "#/device", "#/bn", "#/aio"]
 
     private static let measureJS = """
     const W = innerWidth, H = innerHeight, out = {hash: location.hash, w: W, h: H};
