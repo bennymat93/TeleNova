@@ -52,4 +52,5 @@
     <string name="offline_copy">אין חיבור לאתר: מוצג העותק המובנה. \"רענון\" בתפריט האפליקציה ינסה שוב.</string>
     <string name="sc_refresh">רענון</string>
     <string name="f_working">עובד...</string>
+    <string name="offline_clock">תעודת האבטחה של האתר נדחתה - בדקו את התאריך והשעה במכשיר. מוצג העותק המובנה.</string>
 </resources>

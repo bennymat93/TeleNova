@@ -7,6 +7,7 @@
   'use strict';
   if (window.__tnShell) return;
   window.__tnShell = 1;
+  window.TeleNovaAndroid = true;                 // the page's test for "inside the Android app" (also "BNStream/" in the user agent)
   var seq = 0, pend = {}, wired = false, relays = {};
   function unb64(s) {
     var bin = atob(s || ''), a = new Uint8Array(bin.length), i = 0;

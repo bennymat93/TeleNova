@@ -22,8 +22,8 @@ tasks.register('syncWeb', Sync) {
     }
 }
 
-android.sourceSets.main.assets.srcDirs += new File(projectDir, 'build/generated/tn/assets')
-android.sourceSets.main.res.srcDirs += new File(projectDir, 'build/generated/tn/res')
+android.sourceSets.main.assets.srcDirs += genDir.get().dir('assets').asFile
+android.sourceSets.main.res.srcDirs += genDir.get().dir('res').asFile
 tasks.named('preBuild') { dependsOn 'syncWeb' }
 
 // WEB_VERSION of the bundled copy (web/version.js): the app compares it with the site to decide which one to show.

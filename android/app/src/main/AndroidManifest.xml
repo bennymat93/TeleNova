@@ -44,6 +44,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="telenova" />
             </intent-filter>
+            <!-- "move the whole setup to another device": the site's "Open in the BN Stream app" link bnstream://setup/<payload> -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="bnstream" android:host="setup" />
+            </intent-filter>
             <!-- Telegram links: opened on the Telegram page of the app -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

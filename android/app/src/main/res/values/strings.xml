@@ -53,4 +53,5 @@
     <string name="offline_copy">The site cannot be reached: the built-in copy is shown. \"Refresh\" in the app menu tries again.</string>
     <string name="sc_refresh">Refresh</string>
     <string name="f_working">Working...</string>
+    <string name="offline_clock">The security certificate of the site was refused - check the date and time of the device. The built-in copy is shown.</string>
 </resources>

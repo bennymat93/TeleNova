@@ -52,4 +52,5 @@
     <string name="offline_copy">Сайт недоступен: показана встроенная копия. «Обновить» в меню приложения попробует снова.</string>
     <string name="sc_refresh">Обновить</string>
     <string name="f_working">Выполняется...</string>
+    <string name="offline_clock">Сертификат сайта отклонён - проверьте дату и время на устройстве. Показана встроенная копия.</string>
 </resources>

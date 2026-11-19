@@ -16,8 +16,8 @@ android {
         applicationId 'io.github.bennymat93.telenova'
         minSdk 24            // service worker requests can be answered from the APK only from Android 7
         targetSdk 34
-        versionCode 3
-        versionName '1.1.0'
+        versionCode 4
+        versionName '2.0.0'
     }
     signingConfigs {
         release {
@@ -42,6 +42,10 @@ android {
     }
     lint { checkReleaseBuilds false }
 }
+
+// Build output lives outside the repository (%USERPROFILE%\.telenova-build): folders under the project are scanned and
+// synced by other programs, which kept files open and failed the build ("Failed to delete some children").
+layout.buildDirectory = new File(System.getProperty('user.home'), '.telenova-build/app')
 
 apply from: '../sync_web.gradle'
 

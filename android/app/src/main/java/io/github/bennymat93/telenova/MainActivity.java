@@ -85,6 +85,7 @@ public class MainActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean tv;
     private volatile boolean live;            // true: the site is shown; false: the files inside the APK
+    private boolean sslFailed;                // the site's certificate was refused in this run
     private boolean liveFailed;               // the site could not be loaded in this run -> built-in copy
     private String shellJs = "";
     private boolean docStartScript;
@@ -204,7 +205,7 @@ public class MainActivity extends Activity {
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
         // "Android TV" makes the page choose its TV layout (remote-control navigation) on TV devices and boxes
-        s.setUserAgentString(s.getUserAgentString() + (tv ? " Android TV" : "") + " TeleNovaApp/" + BuildConfig.VERSION_NAME);
+        s.setUserAgentString(s.getUserAgentString() + (tv ? " Android TV" : "") + " TeleNovaApp/" + BuildConfig.VERSION_NAME + " BNStream/" + BuildConfig.VERSION_NAME);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);     // embedded players (trailers)
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
         web.setFocusable(true);
@@ -331,6 +332,13 @@ public class MainActivity extends Activity {
             if (r.isForMainFrame() && live && isApp(r.getUrl())) fallBack();
         }
 
+        /** A certificate the device refuses (very often: the device clock is wrong). Never accepted; the built-in copy is shown. */
+        @Override public void onReceivedSslError(WebView v, android.webkit.SslErrorHandler handler, android.net.http.SslError error) {
+            handler.cancel();
+            String u = error == null ? null : error.getUrl();
+            if (live && u != null && isApp(Uri.parse(u))) { sslFailed = true; fallBack(); }
+        }
+
         @Override public void onReceivedHttpError(WebView v, WebResourceRequest r, WebResourceResponse resp) {
             if (r.isForMainFrame() && live && isApp(r.getUrl()) && resp.getStatusCode() >= 400) fallBack();
         }
@@ -346,7 +354,7 @@ public class MainActivity extends Activity {
             ui.removeCallbacks(liveTimeout);
             liveFailed = true; live = false;
             web.loadUrl(BASE + startHash);
-            Toast.makeText(this, R.string.offline_copy, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, sslFailed ? R.string.offline_clock : R.string.offline_copy, Toast.LENGTH_LONG).show();
         });
     }
 
@@ -473,7 +481,7 @@ public class MainActivity extends Activity {
     /** "Refresh": the page again from the site, and the service worker looks for a new web version. */
     private void refresh() {
         if (web == null) return;
-        liveFailed = false; live = wantLive(); pageReady = false;
+        liveFailed = false; sslFailed = false; live = wantLive(); pageReady = false;
         web.evaluateJavascript(SW_UPDATE, null);
         web.reload();
         checkSiteVersion();
@@ -490,6 +498,10 @@ public class MainActivity extends Activity {
         if (ACTION_FILES.equals(a)) { ui.post(this::openFiles); return ""; }
         if (ACTION_REFRESH.equals(a)) { ui.post(() -> { if (pageReady) refresh(); }); return ""; }
         if (Intent.ACTION_VIEW.equals(a) && d != null) {
+            if ("bnstream".equals(d.getScheme())) {            // bnstream://setup/<payload> -> the page's #setup=<payload>
+                String seg = d.getLastPathSegment();
+                return "setup".equals(d.getHost()) && seg != null && seg.matches("[A-Za-z0-9_-]{40,4000}") ? "#setup=" + seg : "";
+            }
             if ("telenova".equals(d.getScheme()) || isApp(d)) {
                 String f = d.getEncodedFragment();
                 String tail = f == null || f.isEmpty() ? "" : "#" + f;

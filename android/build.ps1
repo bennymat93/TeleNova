@@ -17,7 +17,8 @@ try {
     & .\gradlew.bat --console=plain assembleRelease
     if ($LASTEXITCODE -ne 0) { throw "Gradle failed ($LASTEXITCODE)" }
 } finally { Pop-Location }
-$apk = Join-Path $here 'app\build\outputs\apk\release\app-release.apk'
+# the build folder is outside the repository (see app/build.gradle)
+$apk = Join-Path $env:USERPROFILE '.telenova-build\app\outputs\apk\release\app-release.apk'
 $out = Join-Path $here '..\apk'
 New-Item -ItemType Directory -Force $out | Out-Null
 Copy-Item $apk (Join-Path $out 'TeleNova.apk') -Force

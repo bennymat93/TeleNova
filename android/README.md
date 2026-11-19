@@ -13,6 +13,9 @@ It copies `web/` into the app (Gradle task `syncWeb`, see `sync_web.gradle`; `we
 builds the signed release and writes `apk/TeleNova.apk` + `apk/version.json`. After a web release: run it again, raise
 `versionCode` / `versionName` in `app/build.gradle` first.
 
+The Gradle build folder is outside the repository (`%USERPROFILE%\.telenova-build`): folders under the project are
+scanned / synced by other programs, which kept files open and failed builds ("Failed to delete some children").
+
 Needs Android Studio (its JDK, `C:\Program Files\Android\Android Studio\jbr`), the Android SDK (platform 36) and the
 release key in `%USERPROFILE%\.telenova-keys\` (`telenova-release.jks` + `keystore.properties`). The key is NOT in the
 repository and must be backed up: an APK signed with another key cannot be installed over the existing app.
@@ -51,13 +54,19 @@ repository and must be backed up: an APK signed with another key cannot be insta
   opens the `tg://login` link in the Telegram app.
 - **Name.** The app is called "BN Stream" on screen. The package id (`io.github.bennymat93.telenova`) and the download
   name (`apk/TeleNova.apk`) are unchanged, so existing installs update and existing links keep working.
+- **Markers and storage.** The page can test `window.TeleNovaAndroid === true`, `window.TeleNovaNative`, or
+  `BNStream/<version>` in the user agent. The WebView uses its default persistent storage (localStorage, IndexedDB,
+  cookies, service worker): it survives app updates and is removed only with the app or "clear data".
+- **A refused certificate** (most often a wrong device clock, common on TV boxes) is never accepted: the built-in
+  copy is shown with a note to check the date and time.
 - **Zoom.** Text zoom is fixed at 100% and pinch / control zoom is off: the page has its own display-size control.
 - **Full screen** video: system bars hidden, landscape on phones / tablets, screen kept on while a video plays.
 - **Files.** A file the page "downloads" (`a[download]` on a `blob:` address: backups, exported settings, playlists,
   small Telegram files) is saved in the app folder (`Android/data/io.github.bennymat93.telenova/files/` - Backups,
   Settings, Subtitles, Playlists, Downloads) and a dialog offers to open the Files screen. A file field of the page
   (`<input type=file>`) asks "app folder / device". Import and export use the system file picker - no storage permission.
-- **Links.** `https://bennymat93.github.io/TeleNova/web/#pair=...` and `telenova://...#...` open inside the app; `t.me`
+- **Links.** `https://bennymat93.github.io/TeleNova/web/#pair=...` and `telenova://...#...` open inside the app, and so does the "move the setup to another device" link
+  (`.../web/#setup=...`, or `bnstream://setup/<payload>` from the site's "Open in the BN Stream app"); `t.me`
   links and links shared from other apps open on the Telegram / YouTube page (others: the "paste a link" box, with the
   link on the clipboard). `target=_blank` links open in another app.
 - **Permissions:** `INTERNET` only.
