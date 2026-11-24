@@ -180,6 +180,10 @@
           if (Math.abs(g.s - s) <= 1.2 && (bestS === null || Math.abs(g.s - s) < Math.abs(bestS - s))) bestS = g.s;
           if (Math.abs(g.e - e) <= 1.2 && g.e > (bestS != null ? bestS : s) && (bestE === null || Math.abs(g.e - e) < Math.abs(bestE - e))) bestE = g.e;
         }
+        // a line never starts or ends in silence: a time inside a pause goes to the speech next to it (up to 2.5 s)
+        const inSpeech = (t) => segs.some((g) => t >= g.s - 0.05 && t <= g.e + 0.05);
+        if (bestS == null && !inSpeech(s)) { const nx = segs.find((g) => g.s > s && g.s - s <= 2.5); if (nx) bestS = nx.s; }
+        if (bestE == null && !inSpeech(e)) { const pv = segs.filter((g) => g.e < e && e - g.e <= 2.5 && g.e > (bestS != null ? bestS : s)).pop(); if (pv) bestE = pv.e; }
         if (bestS != null) s = bestS;
         if (bestE != null) e = bestE + 0.15;
       }
