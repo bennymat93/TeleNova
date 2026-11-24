@@ -468,6 +468,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
                 replyHandler(nil, "bad"); return
             }
             googleSignIn(u) { replyHandler(true, nil) }
+        case "clipRead": replyHandler(UIPasteboard.general.string ?? "", nil)
+        case "clipWrite": UIPasteboard.general.string = (body["text"] as? String) ?? ""; replyHandler(true, nil)
+        case "update": checkAppUpdate(); replyHandler(true, nil)
         case "files": showFiles(); replyHandler(true, nil)
         case "import": importFiles(); replyHandler(true, nil)
         case "scan": scanPair(); replyHandler(true, nil)
@@ -637,6 +640,36 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             UserDefaults.standard.set(Double((f.origin.y - r.minY) / (r.maxY - r.minY)), forKey: "menuPosY")
             UIView.animate(withDuration: 0.2) { self.placeMenuButton() }
         }
+    }
+
+    // ------------------------------------------------------------------ "Update everything": a newer app release?
+    // The newest IPA is a GitHub release "ios-<version>"; when it is newer than this app, the viewer is offered it.
+    private func checkAppUpdate() {
+        let mine = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0"
+        guard let url = URL(string: "https://api.github.com/repos/bennymat93/TeleNova/releases?per_page=40") else { return }
+        var req = URLRequest(url: url); req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            guard let data = data, let list = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return }
+            let tags = list.compactMap { $0["tag_name"] as? String }.filter { $0.hasPrefix("ios-") }.map { String($0.dropFirst(4)) }
+            func parts(_ v: String) -> [Int] { v.split(separator: ".").map { Int($0.filter(\.isNumber)) ?? 0 } }
+            func newer(_ a: String, _ b: String) -> Bool {
+                let x = parts(a), y = parts(b)
+                for i in 0..<max(x.count, y.count) { let p = i < x.count ? x[i] : 0, q = i < y.count ? y[i] : 0; if p != q { return p > q } }
+                return false
+            }
+            guard let best = tags.max(by: { newer($1, $0) }), newer(best, mine) else { return }
+            DispatchQueue.main.async {
+                guard let self = self, !self.selftest else { return }
+                let a = UIAlertController(title: "גרסה חדשה של האפליקציה: \(best)",
+                                          message: "מותקנת \(mine). אפשר להוריד את קובץ ה-IPA החדש ולהתקין אותו מעל הקיים (הנתונים נשמרים).",
+                                          preferredStyle: .alert)
+                a.addAction(UIAlertAction(title: "להורדה", style: .default) { _ in
+                    if let u = URL(string: "https://github.com/bennymat93/TeleNova/releases/tag/ios-\(best)") { UIApplication.shared.open(u) }
+                })
+                a.addAction(UIAlertAction(title: "אחר כך", style: .cancel))
+                self.show(a)
+            }
+        }.resume()
     }
 
     // ------------------------------------------------------------------ Google sign-in (Drive)
@@ -814,6 +847,36 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
           out.playback = {time: Math.round(v.currentTime * 10) / 10, w: v.videoWidth, h: v.videoHeight, err: v.error ? v.error.code : 0};
           v.pause(); v.remove();
         } catch (e) { out.playError = String(e); }
+        try {
+          out.bnNative = !!(window.BNNative && BNNative.fullUpdate && BNNative.clipRead && BNNative.clipWrite);
+          await BNNative.clipWrite('bn-clip-test-61');
+          out.clipRoundTrip = (await navigator.clipboard.readText()) === 'bn-clip-test-61';
+          location.hash = '#/hub'; await wait(2500);
+          const inp = document.querySelector('#view input[type=search], #view input[type=text], .top input');
+          if (inp) { inp.focus(); inp.click(); }
+          await wait(1200);
+          const bar = document.querySelector('.osk_bar');
+          out.oskBar = !!(bar && bar.getBoundingClientRect().height > 0);
+          if (bar) {
+            const bs = bar.querySelectorAll('button');
+            bs[0] && bs[0].click(); await wait(600);                       // keyboard
+            const keys = Array.from(document.querySelectorAll('.osk_kbd .osk_k'));
+            const letter = keys.find((k) => k.textContent.trim().length === 1 && !/[0-9 ⇧⌫⏎✕]/.test(k.textContent));
+            const before = inp ? inp.value : '';
+            if (letter) letter.click();
+            await wait(300);
+            out.oskTyped = inp ? inp.value !== before : false;
+            const langKey = keys.find((k) => /🌐/.test(k.textContent));
+            const l1 = langKey ? langKey.textContent : '';
+            if (langKey) langKey.click();
+            await wait(300);
+            const k2 = Array.from(document.querySelectorAll('.osk_kbd .osk_k')).find((k) => /🌐/.test(k.textContent));
+            out.oskLangCycle = !!(k2 && k2.textContent !== l1);
+            if (inp) inp.value = '';
+            bs[1] && bs[1].click(); await wait(800);                       // paste
+            out.oskPasted = inp ? inp.value.indexOf('bn-clip-test-61') >= 0 : false;
+          }
+        } catch (e) { out.oskError = String(e); }
         out.tgShims = typeof self.dropPending === 'function' && typeof self.setFlood === 'function';
         try { self.dropPending(); self.setFlood(0); out.tgShimsRun = true; } catch (e) { out.tgShimsRun = String(e); }
         try {

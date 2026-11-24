@@ -193,6 +193,24 @@
     if (++tries > 240) clearInterval(timer);
   }, 250);
 
+
+  // ---- BNNative (web 6.1): the system clipboard and "Update everything" ----------------------------------------
+  // navigator.clipboard in a WKWebView asks for permission or refuses; the app's own clipboard always works.
+  var bn = {
+    platform: 'ios',
+    clipRead: function () { return mh.postMessage({op: 'clipRead'}).then(function (s) { return String(s || ''); }); },
+    clipWrite: function (text) { return mh.postMessage({op: 'clipWrite', text: String(text == null ? '' : text)}).then(function () { return true; }); },
+    // the page refreshes its own files after this; the app looks for a newer app release and offers it
+    fullUpdate: function () { return mh.postMessage({op: 'update'}); }
+  };
+  window.BNNative = bn;
+  try {
+    var cb = navigator.clipboard || {};
+    if (!navigator.clipboard) Object.defineProperty(navigator, 'clipboard', {configurable: true, value: cb});
+    cb.readText = bn.clipRead;
+    cb.writeText = bn.clipWrite;
+  } catch (e) { /* BNNative still works */ }
+
   window.TeleNovaNative = {
     helper: HELPER,                                                    // the built-in relay's address
     platform: 'ios',

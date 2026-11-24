@@ -250,8 +250,42 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
         case "gauth":
             guard let s = body["url"] as? String, let u = URL(string: s), u.host == "accounts.google.com" else { replyHandler(nil, "bad"); return }
             googleSignIn(u) { replyHandler(true, nil) }
+        case "clipRead": replyHandler(NSPasteboard.general.string(forType: .string) ?? "", nil)
+        case "clipWrite":
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString((body["text"] as? String) ?? "", forType: .string)
+            replyHandler(true, nil)
+        case "update": checkAppUpdate(); replyHandler(true, nil)
         default: replyHandler(nil, "unknown op")
         }
+    }
+
+    // "Update everything": a newer Mac release (GitHub release "mac-<version>") is offered
+    private func checkAppUpdate() {
+        let mine = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0"
+        guard let url = URL(string: "https://api.github.com/repos/bennymat93/TeleNova/releases?per_page=40") else { return }
+        var req = URLRequest(url: url); req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            guard let data = data, let list = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return }
+            let tags = list.compactMap { $0["tag_name"] as? String }.filter { $0.hasPrefix("mac-") }.map { String($0.dropFirst(4)) }
+            func parts(_ v: String) -> [Int] { v.split(separator: ".").map { Int($0.filter(\.isNumber)) ?? 0 } }
+            func newer(_ a: String, _ b: String) -> Bool {
+                let x = parts(a), y = parts(b)
+                for i in 0..<max(x.count, y.count) { let p = i < x.count ? x[i] : 0, q = i < y.count ? y[i] : 0; if p != q { return p > q } }
+                return false
+            }
+            guard let best = tags.max(by: { newer($1, $0) }), newer(best, mine) else { return }
+            DispatchQueue.main.async {
+                guard let self = self, !self.selftest, let w = self.view.window else { return }
+                let a = NSAlert()
+                a.messageText = "A newer BN Stream for Mac: \(best)"
+                a.informativeText = "Installed: \(mine). Download the new version and replace the app in Applications (your data stays)."
+                a.addButton(withTitle: "Download"); a.addButton(withTitle: "Later")
+                a.beginSheetModal(for: w) { r in
+                    if r == .alertFirstButtonReturn, let u = URL(string: "https://bennymat93.github.io/TeleNova/mac/") { NSWorkspace.shared.open(u) }
+                }
+            }
+        }.resume()
     }
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor { view.window ?? NSWindow() }
@@ -367,6 +401,36 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
               v.pause(); v.remove(); } catch (e) { out.playError = String(e); }
         try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['selftest'], {type: 'application/octet-stream'}));
               a.download = 'BN_Stream_backup.tncfg'; document.body.appendChild(a); a.click(); a.remove(); await wait(2000); } catch (e) { out.downloadError = String(e); }
+        try {
+          out.bnNative = !!(window.BNNative && BNNative.fullUpdate && BNNative.clipRead && BNNative.clipWrite);
+          await BNNative.clipWrite('bn-clip-test-61');
+          out.clipRoundTrip = (await navigator.clipboard.readText()) === 'bn-clip-test-61';
+          location.hash = '#/hub'; await wait(2500);
+          const inp = document.querySelector('#view input[type=search], #view input[type=text], .top input');
+          if (inp) { inp.focus(); inp.click(); }
+          await wait(1200);
+          const bar = document.querySelector('.osk_bar');
+          out.oskBar = !!(bar && bar.getBoundingClientRect().height > 0);
+          if (bar) {
+            const bs = bar.querySelectorAll('button');
+            bs[0] && bs[0].click(); await wait(600);
+            const keys = Array.from(document.querySelectorAll('.osk_kbd .osk_k'));
+            const letter = keys.find((k) => k.textContent.trim().length === 1 && !/[0-9 ⇧⌫⏎✕]/.test(k.textContent));
+            const before = inp ? inp.value : '';
+            if (letter) letter.click();
+            await wait(300);
+            out.oskTyped = inp ? inp.value !== before : false;
+            const langKey = keys.find((k) => /🌐/.test(k.textContent));
+            const l1 = langKey ? langKey.textContent : '';
+            if (langKey) langKey.click();
+            await wait(300);
+            const k2 = Array.from(document.querySelectorAll('.osk_kbd .osk_k')).find((k) => /🌐/.test(k.textContent));
+            out.oskLangCycle = !!(k2 && k2.textContent !== l1);
+            if (inp) inp.value = '';
+            bs[1] && bs[1].click(); await wait(800);
+            out.oskPasted = inp ? inp.value.indexOf('bn-clip-test-61') >= 0 : false;
+          }
+        } catch (e) { out.oskError = String(e); }
         try { location.hash = '#/backup'; await wait(2500);
               const f = document.querySelector('input[type=file]'); out.fileInputs = document.querySelectorAll('input[type=file]').length;
               if (f) { f.click(); await wait(1500); } } catch (e) { out.fileError = String(e); }
