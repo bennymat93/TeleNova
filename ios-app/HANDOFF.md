@@ -5,6 +5,11 @@ feels native, same functions as the browser version, file management (import / e
 He also asked that this file is kept current so another account can continue smoothly.
 
 ## STATE (update this block first)
+- **WORKFLOWS STAY DISABLED between releases (owner, 2026-11-24):** the macOS runners are kept for the owner's other
+  app (noctua). For a release: enable ios-app, dispatch, wait; then enable mac-app, dispatch, wait (one at a time);
+  then DISABLE both again. `timeout 40 gh api -X PUT repos/bennymat93/TeleNova/actions/workflows/<f>.yml/enable`,
+  `... -X POST .../<f>.yml/dispatches -f ref=gh-pages`, `... -X PUT .../<f>.yml/disable`. No re-runs unless a step
+  really failed. A push to ios-app/ or mac-app/ does nothing while they are disabled.
 - 2026-11-20: the ios-app and mac-app workflows now rewrite the versioned download links themselves in
   ios/README-app.md, ios/index.html, mac/index.html, guide.html, README.md, DOWNLOADS.md in the same bot commit.
 - 2026-11-19: ONE version 6.0.0 for the whole project (owner). `ios-app/VERSION` = 6.0.0; the workflow uses a full
