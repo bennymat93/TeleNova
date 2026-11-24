@@ -808,6 +808,16 @@
       // half a film (no picture / no sound) is not playing it: the built-in engine first, the notice only if it cannot
       if (!s.compatTried && !s.hls && !s.live) tryCompat(v.currentTime).then((ok) => { if (!ok && alive()) softCard(); }); else softCard();
     }
+    // 6.1: a file that loads but never starts - no error, the clock stays at 0 (WebM VP9 / Opus in WebKit) - goes to the
+    // built-in engine like a file the browser refuses. Only when data is there (not a slow network) for ~8 s.
+    let stuckN = 0;
+    const stuckT = setInterval(() => {
+      if (!alive() || s.failed || s.compat || s.compatTried || s.hls || s.live || v.paused || v.seeking) { stuckN = 0; return; }
+      let ahead = 0;
+      try { for (let i = 0; i < v.buffered.length; i++) ahead = Math.max(ahead, v.buffered.end(i)); } catch (e) { /* none */ }
+      if (v.currentTime < 0.3 && v.readyState >= 1 && ahead > 1.5) { if (++stuckN >= 4) { clearInterval(stuckT); tryCompat(0); } } else stuckN = 0;
+    }, 2000);
+    s.cleanup.push(() => clearInterval(stuckT));
 
     // ---------- the source
     function start(url, mime, at) {
