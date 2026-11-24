@@ -1197,6 +1197,14 @@ const HOME = {
       const m = MENU.find((x) => x[0] === key);
       if (m) box.append(menuTile(m[0], m[1]));
     }
+    // 6.1: update everything - the last tile, as the System update of the Kodi build's main menu
+    const up = document.createElement('button');
+    up.type = 'button';
+    up.className = 'tile tile_upd';
+    up.setAttribute('data-key', 'm:update');
+    up.innerHTML = `<span class="ic">${icon('download')}</span><b>${esc(N('home_upd'))}</b><small>${esc(N('home_upd_s'))}</small>`;
+    up.onclick = () => { if (up.disabled) return; up.disabled = true; fullUpdate((m) => { up.querySelector('small').textContent = m; }); };
+    box.append(up);
     root.append(box);
   },
   sections(root) {
@@ -1441,7 +1449,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-6.0.2.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-6.1.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest" target="_blank" rel="noopener">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
@@ -1940,6 +1948,26 @@ async function clearCaches() {
   emit('clearcache', null);
 }
 let swAsked = false;
+// 6.1: "Update everything" on Home - the build's System update, for the site and the apps: the app itself (when its
+// shell offers BNNative.fullUpdate - the Android / iOS / Mac wrappers), the newest site files through the service
+// worker, every cached list and picture dropped, then a fresh start. Settings, accounts and lists stay.
+async function fullUpdate(say) {
+  say(N('home_upd_run'));
+  try { if (window.BNNative && typeof window.BNNative.fullUpdate === 'function') window.BNNative.fullUpdate(); } catch (e) { /* the site part still runs */ }
+  let latest = '';
+  try { const r = await fetch('version.js?u=' + Date.now(), {cache: 'reload'}); latest = ((await r.text()).match(/WEB_VERSION = '([^']+)'/) || [])[1] || ''; } catch (e) { latest = ''; }
+  try {
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration().catch(() => null);
+    if (reg) {
+      await reg.update().catch(() => {});
+      const w = reg.waiting || reg.installing;
+      if (w) { swAsked = true; try { w.postMessage({type: 'SKIP_WAITING'}); } catch (e) { /* the reload still brings the files */ } }
+    }
+  } catch (e) { /* no service worker: the cache drop and the reload do it */ }
+  await clearCaches();
+  say(latest && latest !== WEB_VERSION ? N('home_upd_new', latest) : N('home_upd_same', WEB_VERSION));
+  setTimeout(() => location.reload(), 1500);
+}
 function pageAbout() {
   page('about');
   const swOn = !!(navigator.serviceWorker && navigator.serviceWorker.controller);

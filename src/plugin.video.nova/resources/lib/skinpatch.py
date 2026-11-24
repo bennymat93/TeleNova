@@ -188,6 +188,10 @@ KB_PASTE = 'RunPlugin(plugin://plugin.video.nova/?a=clip_paste)'
 KB_HIST = 'RunPlugin(plugin://plugin.video.nova/?a=clip_menu)'
 KB_PASTE_LABEL = 'הדבק'
 KB_HIST_LABEL = 'היסטוריית העתקות'
+# 6.1: "Copy" - what is typed in the keyboard goes to the device clipboard and the history (not in a password box)
+KB_COPY_MARK = '<!-- BN copy v1 -->'
+KB_COPY = 'RunPlugin(plugin://plugin.video.nova/?a=clip_copy)'
+KB_COPY_LABEL = 'העתקה'
 
 
 def _kb_button(cid, label, run, prop):
@@ -212,19 +216,33 @@ def _kb_button(cid, label, run, prop):
     return pad + pad.join(lines)
 
 
+def _kb_copy():
+    b = _kb_button(3013, KB_COPY_LABEL, KB_COPY, 'bn.clip.hist')
+    # enabled while the keyboard holds text and is not a password box (Kodi shows that one as stars)
+    b = re.sub(r'<enable>.*?</enable>', '<enable>!String.IsEmpty(Control.GetLabel(312)) + !String.Contains(Control.GetLabel(312),*)</enable>', b)
+    return '\n' + '\t' * 4 + KB_COPY_MARK + b
+
+
 def keyboard_buttons(xml):
     """"Paste" (grey and not clickable while nothing is copied) and "Clipboard history" in the button column of the
     on-screen keyboard, right under the voice-search button. -> 1 when the file was changed, 0 when already there."""
     p = os.path.join(xml, 'DialogKeyboard.xml')
     t = open(p, encoding='utf-8', newline='').read()
     if KB_MARK in t:
-        return 0
+        if KB_COPY_MARK in t:
+            return 0
+        m = re.search(r'<control type="button" id="3012">.*?</control>', t, re.S)
+        if not m:
+            return 0
+        t = t[:m.end()] + _kb_copy() + t[m.end():]
+        open(p, 'w', encoding='utf-8', newline='').write(t)
+        return 1
     m = re.search(r'<control type="button" id="3010">.*?</control>', t, re.S)
     if not m:
         m = re.search(r'<include content="DefaultDialogButton">\s*<param name="id" value="301" />.*?</include>', t, re.S)
     assert m, 'keyboard button column not found'
     add = ('\n' + '\t' * 4 + KB_MARK + _kb_button(3011, KB_PASTE_LABEL, KB_PASTE, 'bn.clip.has')
-           + _kb_button(3012, KB_HIST_LABEL, KB_HIST, 'bn.clip.hist'))
+           + _kb_button(3012, KB_HIST_LABEL, KB_HIST, 'bn.clip.hist') + _kb_copy())
     t = t[:m.end()] + add + t[m.end():]
     open(p, 'w', encoding='utf-8', newline='').write(t)
     return 1

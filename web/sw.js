@@ -5,7 +5,7 @@
 // WP-3 (Telegram playback): the Range proxy for /tgstream/ below; nobody else edits this file.
 importScripts('version.js');
 const CACHE = 'bn-web-' + self.WEB_VERSION;
-const SHELL = ['./', 'index.html', 'style.css', 'version.js', 'i18n.js', 'shell_core.js', 'app.js', 'syncdoc.js', 'store.js', 'websync.js', 'sealed.js', 'tg.js',
+const SHELL = ['./', 'index.html', 'style.css', 'version.js', 'i18n.js', 'shell_core.js', 'app.js', 'osk.js', 'syncdoc.js', 'store.js', 'websync.js', 'sealed.js', 'tg.js',
                'channels_il.json', 'icon.png', 'icon-180.png', 'icon-192.png', 'manifest.webmanifest'];
 // every module file of the plan (web_plan.md section 3). Precached when it exists; a file a package has not written
 // yet is skipped without failing the install.

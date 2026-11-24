@@ -141,6 +141,8 @@ def root():
     # type, the status page and the update report (each was its own line in the main menu)
     folder(_he('גיבוי, שחזור ו-Google Drive', 'Backup, restore and Google Drive'), url(a='bk_menu'), icon('backup'))
     folder(_he('הגדרות ומערכת', 'Settings and system'), url(a='sys_menu'), 'DefaultAddonProgram.png')
+    folder('[COLOR gold]%s[/COLOR]' % _he('עדכון מלא של הבילד', 'Update the whole build'), url(a='sysreport'), 'DefaultAddonsUpdates.png',
+           plot=sysupdate.s('running'))
     end(cache=False)
 
 
@@ -799,6 +801,7 @@ def router(p):
         'bk_auto': lambda: backup.auto_backup(every_days=0),
         'clip_paste': lambda: __import__('resources.lib.clipui', fromlist=['x']).paste_now(),
         'clip_menu': lambda: __import__('resources.lib.clipui', fromlist=['x']).history_menu(),
+        'clip_copy': lambda: __import__('resources.lib.clipui', fromlist=['x']).copy_now(),
     }
     if a == 'list':
         m, path = p.pop('m'), p.pop('path')
@@ -814,7 +817,7 @@ def router(p):
 
 ACTIONS = {'src_iptv', 'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc', 'ac_pick', 'sh_clear', 'sh_remove', 'sh_add', 'user_do', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
            'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu', 'pair_send', 'pair_receive', 'web_pair',
-           'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go', 'clip_paste', 'clip_menu'}
+           'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go', 'clip_paste', 'clip_menu', 'clip_copy'}
 
 
 def system_update():

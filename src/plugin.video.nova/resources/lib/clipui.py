@@ -29,6 +29,7 @@ STR = {
     'act_del': (u'מחק מההיסטוריה', 'Delete from history'),
     'act_clear': (u'נקה היסטוריה (ההצמדות נשארות)', 'Clear history (pinned stay)'),
     'pinned': (u'מוצמד', 'pinned'),
+    'copied': (u'הועתק', 'Copied'),
     'unreadable': (u'במכשיר הזה אין גישה ללוח ההעתקה של המערכת - השתמש בהיסטוריה', 'This device clipboard cannot be read - use the history'),
 }
 
@@ -85,6 +86,20 @@ def paste_now():
             _notify('failed')
     finally:
         _busy.release()
+
+
+def copy_now():
+    """6.1: the keyboard's "Copy": the text typed so far -> the device clipboard + the history."""
+    text = clip.clean(xbmc.getInfoLabel('Control.GetLabel(312)') or '')
+    if not text or '*' * len(text) == text:          # empty, or a password box (shown as stars)
+        return
+    try:
+        clip.system_write(text)
+    except Exception:
+        pass
+    store().add(text, used=True)
+    _set('bn.clip.hist', True)
+    _notify('copied')
 
 
 def history_menu():
