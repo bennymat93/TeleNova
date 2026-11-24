@@ -233,5 +233,6 @@
   root.addEventListener('hashchange', () => { if (wrapEl()) wrapEl().hidden = true; closeKbd(false); });
 
   // for the tests
-  TN.osk = {LAYOUTS, ORDER, remember, hist, isText, isSecret, open: openKbd, close: closeKbd};
+  // (TN is frozen: the tests reach the keyboard through its own name)
+  root.BN_OSK = {LAYOUTS, ORDER, remember, hist, isText, isSecret, open: openKbd, close: closeKbd};
 })(typeof self !== 'undefined' ? self : this);

@@ -12,6 +12,9 @@ const eq = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), m + ' (got '
 ok(C.toMs(1.5) === 1500n && C.toMs(-3) === 0n && C.toMs('x') === 0n && C.toMs(0.0004) === 0n, 'seconds -> engine milliseconds');
 eq([C.fromMs(1500n), C.fromMs(0n), C.fromMs(undefined)], [1.5, 0, 0], 'engine milliseconds -> seconds');
 
+// 6.1.1: the engine runs without its worker - inside it AC3 / E-AC3 / DTS decoders did not open (DDP5.1 releases stopped)
+ok(/enableWorker:\s*false/.test(fs.readFileSync(path.join(WEB, 'compat.js'), 'utf8')), 'engine worker stays off (sound decoders)');
+
 const tracks = [
   {mode: 'showing', cues: [{startTime: 1, endTime: 5, text: 'one'}, {startTime: 4, endTime: 8, text: 'two'}]},
   {mode: 'hidden', cues: [{startTime: 0, endTime: 100, text: 'hidden'}]},

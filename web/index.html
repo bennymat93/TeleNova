@@ -6,7 +6,7 @@
      drawer when Telegram is connected). Frames: the trailer (YouTube), Internet Archive and Dailymotion players.
      Telegram: its own web sockets. Pictures, streams and catalogue requests go to many hosts (channel lists, radio
      stations) - https only. No inline scripts: the "old browser" check lives in version.js. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; media-src 'self' https: blob:; connect-src 'self' https: wss://*.web.telegram.org; frame-src https://www.youtube-nocookie.com https://archive.org https://www.dailymotion.com https://geo.dailymotion.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; media-src 'self' https: blob:; connect-src 'self' https: blob: wss://*.web.telegram.org; frame-src https://www.youtube-nocookie.com https://archive.org https://www.dailymotion.com https://geo.dailymotion.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <meta name="color-scheme" content="dark light">

@@ -102,7 +102,10 @@
     const st = {t: Number(opts.at) || 0, dur: NaN, paused: true, ended: false, vol: v.volume, muted: v.muted, rate: 1, ready: 0, seeking: false,
                 err: null, w: 0, h: 0, dead: false, info: {}, seekAt: 0};
     const fire = (name) => { if (!st.dead) { try { v.dispatchEvent(new Event(name)); } catch (e) { /* closed */ } } };
-    const player = new AV({container: box, enableHardware: true, enableWebCodecs: true, enableWorker: true, isLive: !!opts.live,
+    const player = new AV({container: box, enableHardware: true, enableWebCodecs: true,
+      // 6.1.1: no engine worker - inside it every WebAssembly sound decoder failed to open (AC3, E-AC3 / DDP5.1, DTS:
+      // 'open audio decoder failed, -48'), the sound stopped the picture after ~4 s; on the page they all play
+      enableWorker: false, isLive: !!opts.live,
       // the browser's own pipeline whenever it can take every stream (MKV with H.264 + AAC): least CPU, real <video>
       preLoadTime: 6});
     const E = AV.Events || {};
