@@ -1006,7 +1006,9 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         await wait(2000);
         const names = ['mp4_h264_aac.mp4', 'mov_h264_aac.mov', 'mp4_hevc_aac.mp4', 'mkv_h264_aac.mkv', 'mkv_h264_ac3.mkv',
           'mkv_h264_eac3.mkv', 'mkv_h264_dts.mkv', 'mkv_hevc_aac.mkv', 'mkv_hevc_eac3.mkv', 'mkv_h264_flac.mkv', 'avi_mpeg4_mp3.avi',
-          'ts_h264_aac.ts', 'webm_vp9_opus.webm', 'webm_vp8_opus.webm', 'audio.mp3', 'audio.flac', 'audio.m4a'];
+          'ts_h264_aac.ts', 'webm_vp9_opus.webm', 'webm_vp8_opus.webm', 'audio.mp3', 'audio.flac', 'audio.m4a',
+          'mkv_hevc10_eac351.mkv', 'mkv_h264_dts51.mkv', 'mkv_hevc_2160p.mkv'];
+        const full = {'mkv_hevc10_eac351.mkv': 1, 'mkv_h264_dts51.mkv': 1, 'mkv_hevc_2160p.mkv': 1};
         const P = await TN.provider('player');
         const out = {compatSupported: null, results: []};
         try { const c = await TN.provider('compat'); out.compatSupported = c.supported(); } catch (e) { out.compatError = String(e); }
@@ -1017,15 +1019,19 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
           try {
             P.open({url: new URL('_samples/' + n, location.href).href, title: n});
             let best = 0, seen = '';
-            for (let i = 0; i < 50; i++) {
+            const t0 = Date.now(), toEnd = !!full[n];
+            for (let i = 0; i < (toEnd ? 150 : 50); i++) {
               await wait(400);
               const v = document.querySelector('.pl-video');
               if (v && v.currentTime > best) best = v.currentTime;
               const root = document.getElementById('pl-root');
               const txt = root ? (root.innerText || '').replace(/\\s+/g, ' ').trim() : '';
               if (txt && txt.length > seen.length) seen = txt.slice(0, 220);
-              if (best > 3) break;
+              if (!toEnd && best > 3) break;
+              if (toEnd && best >= 7.6) break;
             }
+            if (toEnd) { r.full = best >= 7.6; r.wallSec = Math.round((Date.now() - t0) / 100) / 10; r.speed = Math.round(best / ((Date.now() - t0) / 1000) * 100) / 100;
+              const cp = document.querySelector('.cp-box, [class*=cp-]'); r.engine = /built-in|המובנה|встро/i.test(seen) ? 'built-in' : 'browser'; }
             const v = document.querySelector('.pl-video');
             r.time = Math.round(best * 10) / 10;
             r.plays = best > 1.5;

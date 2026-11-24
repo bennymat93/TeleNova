@@ -18,6 +18,7 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
     private var pendingLink: String?
 
     let selftest = ProcessInfo.processInfo.arguments.contains("-selftest")
+    private let playtest = ProcessInfo.processInfo.arguments.contains("-playtest")
     private var selftestDone = false
     private var openPanelSeen = false
     private lazy var outDir: URL = {
@@ -159,7 +160,7 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if let h = pendingLink { pendingLink = nil; go(hash: h, reload: true) }
-        if selftest && !selftestDone { selftestDone = true; runSelftest() }
+        if selftest && !selftestDone { selftestDone = true; if playtest { runPlaytest() } else { runSelftest() } }
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { webView.reload() }
@@ -371,6 +372,59 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
                        let j = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] { o.merge(j) { a, _ in a } }
                     self.measure(tag, sizes, i + 1, acc + [o], done)
                 }
+            }
+        }
+    }
+
+    // CI only ("-selftest -forceOffline -playtest -out <dir>"): the sample files of make_samples.sh (copied into the
+    // web copy of the test build) through the app's own player; the hard ones (HEVC 10-bit + E-AC3 5.1, DTS 5.1,
+    // 2160p HEVC) must play to the end, and the speed of decoding is measured
+    private func runPlaytest() {
+        try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+        let js = """
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        for (let i = 0; i < 40 && !self.TN; i++) await wait(250);
+        await wait(2000);
+        const names = ['mp4_h264_aac.mp4', 'mkv_h264_ac3.mkv', 'mkv_hevc_eac3.mkv', 'avi_mpeg4_mp3.avi', 'webm_vp9_opus.webm',
+          'mkv_hevc10_eac351.mkv', 'mkv_h264_dts51.mkv', 'mkv_hevc_2160p.mkv'];
+        const full = {'mkv_hevc10_eac351.mkv': 1, 'mkv_h264_dts51.mkv': 1, 'mkv_hevc_2160p.mkv': 1};
+        const P = await TN.provider('player');
+        const out = {results: []};
+        for (const n of names) {
+          const r = {file: n};
+          const head = await fetch('_samples/' + n, {method: 'HEAD'}).catch(() => null);
+          if (!head || !head.ok) { r.missing = true; out.results.push(r); continue; }
+          try {
+            P.open({url: new URL('_samples/' + n, location.href).href, title: n});
+            let best = 0, seen = '';
+            const t0 = Date.now(), toEnd = !!full[n];
+            for (let i = 0; i < (toEnd ? 150 : 50); i++) {
+              await wait(400);
+              const v = document.querySelector('.pl-video');
+              if (v && v.currentTime > best) best = v.currentTime;
+              const root = document.getElementById('pl-root');
+              const txt = root ? (root.innerText || '').replace(/\\s+/g, ' ').trim() : '';
+              if (txt && txt.length > seen.length) seen = txt.slice(0, 220);
+              if (!toEnd && best > 3) break;
+              if (toEnd && best >= 7.6) break;
+            }
+            r.time = Math.round(best * 10) / 10; r.plays = best > 1.5; r.text = seen;
+            if (toEnd) { r.full = best >= 7.6; r.wallSec = Math.round((Date.now() - t0) / 100) / 10; r.speed = Math.round(best / ((Date.now() - t0) / 1000) * 100) / 100; }
+          } catch (e) { r.error = String(e); }
+          try { P.close(); } catch (e) { /* closed */ }
+          await wait(800);
+          out.results.push(r);
+        }
+        return JSON.stringify(out);
+        """
+        webView.callAsyncJavaScript(js, arguments: [:], in: nil, in: .page) { [weak self] r in
+            guard let self = self else { return }
+            var out: [String: Any] = [:]
+            if case .success(let v) = r, let s = v as? String, let d = s.data(using: .utf8),
+               let j = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] { out = j }
+            else if case .failure(let e) = r { out["jsError"] = "\(e)" }
+            if let d = try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]) {
+                try? d.write(to: self.outDir.appendingPathComponent("playtest.json"))
             }
         }
     }

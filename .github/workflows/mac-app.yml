@@ -46,6 +46,17 @@ jobs:
           screencapture -x "$OUT/screen.png" || true
           pkill -f "BN Stream.app" || true
           ls -la "$OUT"; cat "$OUT/selftest.json" | head -80 || echo "NO RESULT"
+      - name: Play test (sample files, the hard ones to the end)
+        run: |
+          brew install ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+          cp -R "mac-app/build/out/BN Stream.app" /tmp/playtest.app
+          bash ios-app/make_samples.sh "/tmp/playtest.app/Contents/Resources/web"
+          codesign --force --deep --sign - /tmp/playtest.app
+          OUT="$PWD/mac-app/build/selftest/play"; mkdir -p "$OUT"
+          open -n /tmp/playtest.app --args -selftest -forceOffline -playtest -out "$OUT"
+          for i in $(seq 1 150); do [ -f "$OUT/playtest.json" ] && break; sleep 3; done
+          pkill -f playtest.app || true
+          cat "$OUT/playtest.json" || echo "NO PLAYTEST"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

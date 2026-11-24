@@ -22,6 +22,12 @@ mk avi_mpeg4_mp3.avi     -c:v mpeg4 -q:v 5 -c:a libmp3lame
 mk ts_h264_aac.ts        -c:v libx264 -pix_fmt yuv420p -c:a aac -f mpegts
 mk webm_vp9_opus.webm    -c:v libvpx-vp9 -b:v 300k -c:a libopus
 mk webm_vp8_opus.webm    -c:v libvpx -b:v 300k -c:a libopus
+# the hard ones (owner's iPad: Real-Debrid / Telegram releases): 8 s each, must play to the end with sound
+V8="-f lavfi -i testsrc2=size=1920x1080:rate=24:duration=8"
+A51="-f lavfi -i sine=frequency=440:sample_rate=48000:duration=8"
+ffmpeg -hide_banner -loglevel error -y $V8 $A51 -c:v libx265 -pix_fmt yuv420p10le -x265-params log-level=error -c:a eac3 -ac 6 -shortest "$OUT/mkv_hevc10_eac351.mkv" || echo "could not make hevc10 eac3"
+ffmpeg -hide_banner -loglevel error -y $V8 $A51 -c:v libx264 -pix_fmt yuv420p -c:a dca -strict -2 -ac 6 -shortest "$OUT/mkv_h264_dts51.mkv" || echo "could not make dts"
+ffmpeg -hide_banner -loglevel error -y -f lavfi -i testsrc2=size=3840x2160:rate=24:duration=8 $A51 -c:v libx265 -preset ultrafast -pix_fmt yuv420p10le -x265-params log-level=error -c:a eac3 -ac 6 -shortest "$OUT/mkv_hevc_2160p.mkv" || echo "could not make 2160p"
 ffmpeg -hide_banner -loglevel error -y $A -c:a libmp3lame "$OUT/audio.mp3" || true
 ffmpeg -hide_banner -loglevel error -y $A -c:a flac "$OUT/audio.flac" || true
 ffmpeg -hide_banner -loglevel error -y $A -c:a aac "$OUT/audio.m4a" || true
