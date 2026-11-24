@@ -91,8 +91,8 @@ Done 19/11: v6.0 - one version 6.0.0 for Kodi, web and apps; design pass (smalle
 
 Owner's instruction (18/11): work economically - targeted tests, no wide fan-out, early local commits.
 
-0. Web player: every file type (MKV / AVI / TS, HEVC, AC3 / DTS) through a fallback engine, and a better player (owner, 18/11). Not started.
-1. Playback on a slow / poor connection, every version (owner, 18/11): quality by measured speed, larger buffer, step down instead of stopping. Not started.
+0. Web player: every file type (MKV / AVI / TS, HEVC, AC3 / DTS) through a fallback engine (`web/compat.js`, since 5.1). Done.
+1. Playback on a slow / poor connection, every version: done (Kodi `t_slowwatch.py`, `t_linkspeed.py`; web player buffer / step down).
 2. TV channels: 91 play since 4.3.0 (29 Israeli + 62 world). Owner's decisions: Al Jazeera, Russian state channels, the 7 FAST feeds; logos for 54 world channels.
 3. Link shortlist items 5 and 9: run against the real account and real files.
 4. BUG-014: read `tv_fail.json` after real use.
