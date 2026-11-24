@@ -43,6 +43,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private let selftest = ProcessInfo.processInfo.arguments.contains("-selftest")
     private let forceOffline = ProcessInfo.processInfo.arguments.contains("-forceOffline")
     private let tour = ProcessInfo.processInfo.arguments.contains("-tour")
+    private let playtest = ProcessInfo.processInfo.arguments.contains("-playtest")
     private var selftestDone = false
 
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
@@ -347,7 +348,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if mode == .live && webView.url?.scheme == "https" { offlineBar.isHidden = true; view.setNeedsLayout() }
         if let h = pendingLink { pendingLink = nil; go(hash: h, reload: h.hasPrefix("#pair=") || h.hasPrefix("#setup=")) }
-        if selftest && !selftestDone { selftestDone = true; if tour { runTour() } else { runSelftest() } }
+        if selftest && !selftestDone { selftestDone = true; if playtest { runPlaytest() } else if tour { runTour() } else { runSelftest() } }
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
@@ -928,6 +929,61 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
                         self.runTour(i + 1, results + [o])
                     }
                 }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ play test (CI only, "-selftest -forceOffline -playtest")
+    // Opens every file of web/_samples (made by make_samples.sh in the simulator build) in the app's own player and
+    // records whether it plays - natively or through the built-in engine (compat.js) - and what the player says.
+    private func runPlaytest() {
+        let js = """
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        for (let i = 0; i < 40 && !self.TN; i++) await wait(250);
+        await wait(2000);
+        const names = ['mp4_h264_aac.mp4', 'mov_h264_aac.mov', 'mp4_hevc_aac.mp4', 'mkv_h264_aac.mkv', 'mkv_h264_ac3.mkv',
+          'mkv_h264_eac3.mkv', 'mkv_h264_dts.mkv', 'mkv_hevc_aac.mkv', 'mkv_hevc_eac3.mkv', 'mkv_h264_flac.mkv', 'avi_mpeg4_mp3.avi',
+          'ts_h264_aac.ts', 'webm_vp9_opus.webm', 'webm_vp8_vorbis.webm', 'audio.mp3', 'audio.flac', 'audio.m4a'];
+        const P = await TN.provider('player');
+        const out = {compatSupported: null, results: []};
+        try { const c = await TN.provider('compat'); out.compatSupported = c.supported(); } catch (e) { out.compatError = String(e); }
+        for (const n of names) {
+          const r = {file: n};
+          const head = await fetch('_samples/' + n, {method: 'HEAD'}).catch(() => null);
+          if (!head || !head.ok) { r.missing = true; out.results.push(r); continue; }
+          try {
+            P.open({url: new URL('_samples/' + n, location.href).href, title: n});
+            let best = 0, seen = '';
+            for (let i = 0; i < 50; i++) {
+              await wait(400);
+              const v = document.querySelector('.pl-video');
+              if (v && v.currentTime > best) best = v.currentTime;
+              const root = document.getElementById('pl-root');
+              const txt = root ? (root.innerText || '').replace(/\\s+/g, ' ').trim() : '';
+              if (txt && txt.length > seen.length) seen = txt.slice(0, 220);
+              if (best > 3) break;
+            }
+            const v = document.querySelector('.pl-video');
+            r.time = Math.round(best * 10) / 10;
+            r.plays = best > 1.5;
+            r.w = v ? v.videoWidth : 0; r.err = v && v.error ? v.error.code : 0;
+            r.text = seen;
+          } catch (e) { r.error = String(e); }
+          try { P.close(); } catch (e) { /* closed */ }
+          await wait(800);
+          out.results.push(r);
+        }
+        return JSON.stringify(out);
+        """
+        webView.callAsyncJavaScript(js, arguments: [:], in: nil, in: .page) { r in
+            var out: [String: Any] = [:]
+            switch r {
+            case .success(let v):
+                if let s = v as? String, let d = s.data(using: .utf8), let o = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] { out = o }
+            case .failure(let e): out["jsError"] = "\(e)"
+            }
+            if let d = try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]) {
+                try? d.write(to: FileStore.docs.appendingPathComponent("playtest.json"))
             }
         }
     }
