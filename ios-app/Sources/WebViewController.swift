@@ -973,6 +973,64 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
           await wait(800);
           out.results.push(r);
         }
+        // ---- AI subtitles from the sound, end to end through the player's own button; Gemini is a stand-in that
+        // records what would be sent (the owner's key is never used by tests) and answers with one line per chunk
+        out.ai = [];
+        self.__tnAiTestKey = 'TEST';
+        const sent = [];
+        const realFetch = window.fetch;
+        window.fetch = async function (u, init) {
+          if (String(u).indexOf('generativelanguage.googleapis.com') >= 0) {
+            const body = JSON.parse(init.body);
+            const part = body.contents[0].parts.find((x) => x.inline_data);
+            const n = sent.length + 1;
+            sent.push({model: String(u).split('/models/')[1].split(':')[0], mime: part.inline_data.mime_type, b64: part.inline_data.data.length});
+            if (n <= 3) {
+              const bin = atob(part.inline_data.data), u8 = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+              const ext = /aac/.test(part.inline_data.mime_type) ? 'aac' : /wav/.test(part.inline_data.mime_type) ? 'wav' : /mp3/.test(part.inline_data.mime_type) ? 'mp3' : 'bin';
+              await window.TeleNovaNative.save(new Blob([u8]), 'aichunk-' + n + '.' + ext.replace('aac', 'adts'));
+            }
+            const txt = JSON.stringify({cues: [{s: 0.5, e: 2.5, t: 'בדיקה ' + n}]});
+            return new Response(JSON.stringify({candidates: [{content: {parts: [{text: txt}]}}]}), {status: 200, headers: {'content-type': 'application/json'}});
+          }
+          return realFetch.apply(this, arguments);
+        };
+        for (const src of ['_samples/speech_hls/index.m3u8', '_samples/speech.mp4']) {
+          const r = {src};
+          const head = await realFetch(src, {method: 'HEAD'}).catch(() => null);
+          if (!head || !head.ok) { r.missing = true; out.ai.push(r); continue; }
+          const before = sent.length;
+          try {
+            P.open({url: new URL(src, location.href).href, title: 'AI test'});
+            await wait(3500);
+            const sb = document.querySelector('.pl-subs'); if (sb) sb.click();
+            await wait(800);
+            const btn = Array.from(document.querySelectorAll('#pl-root button, #pl-root [role=button], #pl-root .pl-act')).find((b) => /✦/.test(b.textContent || ''));
+            r.button = !!btn;
+            if (btn) btn.click();
+            let cues = 0, label = '';
+            for (let i = 0; i < 75; i++) {
+              await wait(400);
+              const v = document.querySelector('.pl-video');
+              const tr = v && Array.from(v.textTracks).find((t) => t.mode === 'showing');
+              cues = tr && tr.cues ? tr.cues.length : 0; label = tr ? tr.label : '';
+              if (cues >= 2) break;
+            }
+            const v = document.querySelector('.pl-video');
+            const tr = v && Array.from(v.textTracks).find((t) => t.mode === 'showing');
+            r.cues = cues; r.label = label; r.requests = sent.length - before;
+            r.firstCue = tr && tr.cues && tr.cues.length ? {s: tr.cues[0].startTime, t: tr.cues[0].text} : null;
+            r.audioCtx = !!self.__tnAiCtx && self.__tnAiCtx.state;
+            const root = document.getElementById('pl-root');
+            r.text = root ? (root.innerText || '').replace(/\s+/g, ' ').slice(0, 200) : '';
+          } catch (e) { r.error = String(e); }
+          try { P.close(); } catch (e) { /* closed */ }
+          await wait(1000);
+          out.ai.push(r);
+        }
+        out.aiSent = sent;
+        window.fetch = realFetch;
         return JSON.stringify(out);
         """
         webView.callAsyncJavaScript(js, arguments: [:], in: nil, in: .page) { r in

@@ -231,10 +231,26 @@
           } catch (e) { /* not seekable */ }
         };
         setTimeout(keepBehind, 1500);
-      } else {
-        // a film: what is already buffered ahead is not fetched again - ask hls.js for it once more from the playhead
-        try { o.hls.stopLoad(); o.hls.startLoad(v.currentTime); } catch (e) { /* the next fragments still come */ }
       }
+      // what hls.js loaded BEFORE the button was pressed (the buffer ahead of the picture, 30-60 s) does not load again:
+      // those fragments are fetched once more here, in order, so the first lines come at once
+      (async () => {
+        try {
+          const lv = o.hls.levels && o.hls.levels[o.hls.currentLevel >= 0 ? o.hls.currentLevel : 0];
+          const frags = (lv && lv.details && lv.details.fragments) || [];
+          const now = v.currentTime || 0;
+          let end = now;
+          try { for (let i = 0; i < v.buffered.length; i++) if (v.buffered.start(i) <= now + 1) end = Math.max(end, v.buffered.end(i)); } catch (e) { /* none */ }
+          for (const f of frags) {
+            if (stopped) return;
+            if (f.start + f.duration <= now || f.start >= end) continue;
+            const r = await fetch(f.url, {credentials: 'omit', signal: ctl.signal});
+            if (!r.ok) continue;
+            onFrag(null, {frag: f, payload: await r.arrayBuffer()});
+          }
+          flush();
+        } catch (e) { /* the next fragments still come */ }
+      })();
     } else if (o.compat) {
       how = '';
     } else if (o.url) {

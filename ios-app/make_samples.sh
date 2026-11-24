@@ -26,3 +26,17 @@ ffmpeg -hide_banner -loglevel error -y $A -c:a libmp3lame "$OUT/audio.mp3" || tr
 ffmpeg -hide_banner -loglevel error -y $A -c:a flac "$OUT/audio.flac" || true
 ffmpeg -hide_banner -loglevel error -y $A -c:a aac "$OUT/audio.m4a" || true
 ls -la "$OUT"
+# speech for the AI-from-sound test: a known English sentence (macOS say), as HLS (TS segments) and as MP4
+if command -v say >/dev/null 2>&1; then
+  say -o "$OUT/speech.aiff" "Hello. This is a test of the subtitles. The weather today is sunny and warm. We are going to the beach this afternoon, and then we will have dinner with our friends. Tomorrow it will rain, so we will stay at home and watch a film. Thank you for watching, and see you next time." || true
+  if [ -f "$OUT/speech.aiff" ]; then
+    D="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/speech.aiff" | cut -d. -f1)"; D=$((D + 1))
+    mkdir -p "$OUT/speech_hls"
+    ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=25:duration=$D" -i "$OUT/speech.aiff" \
+      -c:v libx264 -pix_fmt yuv420p -c:a aac -ar 48000 -shortest -f hls -hls_time 4 -hls_playlist_type vod \
+      -hls_segment_filename "$OUT/speech_hls/s%03d.ts" "$OUT/speech_hls/index.m3u8" || true
+    ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=25:duration=$D" -i "$OUT/speech.aiff" \
+      -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart "$OUT/speech.mp4" || true
+  fi
+fi
+ls -la "$OUT" "$OUT/speech_hls" 2>/dev/null || true
