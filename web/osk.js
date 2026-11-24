@@ -110,7 +110,7 @@
       btn('osk_b', '⌨ ' + t('osk_kbd'), () => (kbdOpen ? closeKbd(true) : openKbd())),
       btn('osk_b', '📋 ' + t('osk_paste'), paste),
       btn('osk_b', '⧉ ' + t('osk_copy'), copy),
-      btn('osk_b', '🕘 ' + t('osk_hist'), showHist));
+      btn('osk_b', '🕘 ' + t('osk_hist'), () => showHist()));
     kbd = doc.createElement('div');
     kbd.className = 'osk_kbd';
     kbd.hidden = true;
@@ -183,6 +183,7 @@
     try { if (TN.copy) TN.copy(text); else await root.navigator.clipboard.writeText(text); } catch (er) { /* the history still has it */ }
   }
   function showHist(note) {
+    if (typeof note !== 'string') note = '';           // (a button's click passes the button)
     build();
     if (!list.hidden && !note) { list.hidden = true; return; }
     kbd.hidden = true;
