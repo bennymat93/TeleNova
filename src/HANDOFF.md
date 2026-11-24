@@ -11,7 +11,7 @@
 החלטה שלו) – ובינתיים להמשיך בכל השאר.
 
 <!-- IN-PROGRESS:START -->
-### IN PROGRESS – עודכן 2026-11-19 21:00(להמשיך מכאן)
+### IN PROGRESS – עודכן 2026-11-24 12:00(להמשיך מכאן)
 **הנחיות הבעלים (18/11, מחייבות):** לעבוד חסכוני (בלי ריבוי סוכנים, בדיקות ממוקדות); לעדכן את הבלוק הזה כל כמה דקות (`python src/tools/handoff_block.py "<תאריך שעה>" <קובץ טקסט>` או עריכה בין הסימונים); האפליקציות מציגות את האתר החי – עדכון רשת מגיע אליהן ברענון.
 
 **עצירה מסודרת 18/11 ~23:00 – הנחיית הבעלים (נמסרה דרך סשן ה-iOS): התקציב מוקדש קודם ל-IPA, אחריו ל-APK; כל השאר ממתין לחשבון אחר.** הסשן הראשי עצר אחרי שחרור 5.0.0 מלא (לא נשאר שום דבר חצי-משוחרר). מי שממשיך: להתחיל מ"נשאר" למטה.
@@ -21,6 +21,8 @@
 - **כניסה לטלגרם ברשת נכשלה תמיד בשלב האחרון** ("אין חיבור לטלגרם" אחרי קוד + 2FA – דיווח הבעלים): `web/tg.js` קרא ל-`dropPending()` / `setFlood()` שלא הוגדרו. תוקן על ידי סשן ה-iOS (קומיט 6ba19d5) וחי באתר; גרסת הרשת הועלתה ל-5.1.1 כדי שעותקים מותקנים יתרעננו. **לא אומת בכניסה אמיתית** – הבעלים צריך לרענן ולנסות שוב.
 - **ה-helper Worker פרוס** (סשן ה-iOS, wrangler היה מחובר במחשב): `https://telenova-helper.hmi-analyzer.workers.dev`; `TN.settings.helper()` ב-`web/app.js` נופל אליו כברירת מחדל. לכן "רשת = כמו במחשב" כבר לא חסום: לעבור על `docs/web-audit/web-features.md` סעיף 3 ועל `ios-app/WEB_CHANGES_NEEDED.md` ("Sign-in findings": טלגרם – המשך כניסה שנקטעה, קישור tg://login, ספירת flood; Real-Debrid – כשל poll אחד מפיל את הכניסה ב-`rd.js`, `direct_verification_url`, טוקן שגוי מוצג כ"מחובר"; שורת ה-helper ב"חשבונות ושירותים" עדיין מציגה "לא הוגדר").
 - בקשות נוספות של הבעלים שנאמרו בסשן ה-iOS ועוד לא טופלו בצד הרשת: לשפר את מנגנון ההתחברות לחשבונות (בעיקר טלגרם), לתקן את ההתחברות ל-Real-Debrid, שם האפליקציות "BN Stream".
+
+**24/11 – שלב 3 נסגר:** `docs/WEAKNESSES.md` עודכן למצב 6.0.1 (טבלת מצב ל-W-01..W-13 + W-14..W-18 חדשים: כספת 'הכל באחד', מנהרת שרת הכתוביות, אפליקציות לא חתומות, קישורים שמתיישנים, מסמכים שלא מתעדכנים). חדש: `qa/t_links.py` – כל קישור מקומי באתר ובמסמכים מצביע על קובץ קיים (אחרי ה-404 של ה-IPA); ברשימת הבדיקות. PROGRESS: שלבים 3 100%, 4 40%, 5 50%; נשאר הסקין עצמו.
 
 **19/11 – 6.0.1: תפריטי Kodi כמו באתר.** הוסרה שורת היסטוריית החיפושים מהתפריט הראשי (המקלדת כבר מציעה חיפושים קודמים; `?a=search_hist` עדיין עובד), 'חיבור כולל' בשורה קצרה, אייקון נפרד להגדרות / מצב / עדכון / טלגרם / כתוביות. נבדק ב-Kodi החי דרך JSON-RPC (פורט 9090 הוא TCP גולמי, לא HTTP – `Invoke-RestMethod` נתקע עליו): תפריט ראשי, עריכת מקורות, הגדרות ומערכת, גיבוי. Kodi נתקע קודם בלולאת שגיאות שמע (DSERR_NODRIVER) – אותחל כשלא ניגן.
 
@@ -131,7 +133,7 @@ git add -A; git commit; git push origin gh-pages   # ואז לוודא את repo
 cd "C:\My Projects\novaTV Addon\src"
 python -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read(),f,feature_version=(3,8)) for f in glob.glob(r'plugin.*\**\*.py',recursive=True)]; print('ok')"
 python qa\undef.py "C:\My Projects\novaTV Addon\src"
-foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs','t_linkspeed','t_slowwatch','t_recommend','t_linklogin','t_aio'){ python "qa\$t.py" }
+foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs','t_linkspeed','t_slowwatch','t_recommend','t_linklogin','t_aio','t_links'){ python "qa\$t.py" }
 cd qa\agentC; python test_all.py; python test_rd.py; cd ..\..; python qa\t_profiles.py plugin.video.nova\resources\lib
 python qa\web\run_web_tests.py   # כל בדיקות הרשת + ה-Worker
 python qa\deploy_local.py; & qa\qa_live.ps1      # על Kodi הראשי, כשהוא לא מנגן (deploy_local מעתיק גם json מ-resources)

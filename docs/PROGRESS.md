@@ -6,14 +6,14 @@ Updated 2026-11-18 19:40, after TeleNova 4.3.0 (web version 5.0, 62 tested world
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PROGRESS  ▓▓▓▓░░░░░░░░░░░░░░░░  Overall: 38%
+PROGRESS  ▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░  Overall: 55%
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ Phase 0 — Map the build                  100%
 ✅ Phase 1 — Design research                100%
 ▶️ Phase 2 — Intensive QA                    30%   ← CURRENT
-⏳ Phase 3 — Weakness analysis               60%
-⏳ Phase 4 — Screen adaptation                0%
-⏳ Phase 5 — Redesign and UX                  0%
+✅ Phase 3 — Weakness analysis              100%  (docs/WEAKNESSES.md, status 24/11)
+▶️ Phase 4 — Screen adaptation               40%  (web: 375 / 1280 px measured, 6.0; skin not yet)
+▶️ Phase 5 — Redesign and UX                 50%  (web + apps 6.0 design pass, Kodi menus 6.0.1)
 ▶️ Phase 6 — Fix, verify, regress            45%
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Extra tracks asked for by the owner
@@ -36,7 +36,7 @@ FIXES IDENTIFIED: 29  |  Fixed: 28 |  Pending: 1
 | 0 Map | structure map · Kodi API check · `docs/ARCHITECTURE.md` · checkers (kodi-addon-checker, xmllint, pyflakes) | pyflakes-style check (`src/qa/undef.py`) and Python 3.8 syntax run on every change; the rest open |
 | 1 Research | 10-foot UI · competitors · visual language · UX · player and subtitles · Kodi specifics · Design Rules | `docs/DESIGN_PRINCIPLES.md` (35 rules) |
 | 2 QA | functionality · performance · visual · code and security | Telegram playback and search, subtitles, exit; live-profile suites (`qa_live.ps1`) |
-| 3 Weaknesses | list · alternatives · decisions | three entered below; `docs/WEAKNESSES.md` not written |
+| 3 Weaknesses | list · alternatives · decisions | `docs/WEAKNESSES.md`: 18 entries with status 24/11 |
 | 4 Screens | `<res>` entries · relative layout · safe area · text overflow · RTL · checker tool · screenshots | - |
 | 5 Redesign | design system · focus · home · states · OSD · performance · 2-3 directions | - |
 | 6 Fix | by severity · tests · regression · fresh-eyes review | fixes below, each with a test |
@@ -96,6 +96,6 @@ Owner's instruction (18/11): work economically - targeted tests, no wide fan-out
 2. TV channels: 91 play since 4.3.0 (29 Israeli + 62 world). Owner's decisions: Al Jazeera, Russian state channels, the 7 FAST feeds; logos for 54 world channels.
 3. Link shortlist items 5 and 9: run against the real account and real files.
 4. BUG-014: read `tv_fail.json` after real use.
-5. Phases 3-5 (weaknesses document, screens, redesign).
+5. Phases 4-5 left: the skin at 16:9 / during playback / RTL and its six invalid XML files.
 6. Owner's decisions: TorBox. OpenSubtitles: the "http 400" was our bug (BUG-028) - test the key again.
 7. Needs the owner's devices: iPad touch repair (4.2.3), car box TMDb route (4.2.4), two physical devices pairing + the 2FA step (4.2.0).

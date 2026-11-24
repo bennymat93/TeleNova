@@ -200,3 +200,68 @@ that is said. (PROGRESS, Phase 3: "three entered below; `docs/WEAKNESSES.md` not
 ---
 Entries: 13. With a recorded decision: W-01, W-02 (partly), W-04, W-06, W-07, W-10, W-11, W-12, W-13. Undecided or
 silent: W-03 (PIN), W-05, W-08 (open), W-09.
+
+## Status on 2026-11-24 (TeleNova 6.0.1: Kodi add-ons, web, Android, iOS, Mac)
+
+Re-checked against the code and the releases since 4.0.x. The entries above stay as written (history); this table
+says where each one stands now, and W-14 - W-18 are weaknesses that appeared with the newer parts.
+
+| ID | Now | Evidence / what is left |
+|---|---|---|
+| W-01 | open, mitigated | failover chain since 4.0.2; 91 channels play (29 Israeli + 62 world, 4.3.0); All_Subs still patched by guard |
+| W-02 | open | still not run with real accounts: Xtream, OpenSubtitles key, StremThru, real Telegram sign-in on the apps, physical iPhone / iPad / Mac / Android phone; the apps were checked on emulators / simulators / CI only |
+| W-03 | **superseded** | the password backup (`.tncfg`) and All in one are sealed with PBKDF2-SHA256, 310 000 rounds, from the owner's password (`aio.py`, `web/aio.js`); the old account-id seal is only read, not written |
+| W-04 | **fixed 4.2.0** | BUG-010: no Telegram session in any file; each device signs in itself (pairing / linked sign-in, `linklogin.py`) |
+| W-05 | open, smaller | server still outside the repository; it now answers only with a token over an https tunnel (no Gemini key over plain http); still needs the owner's PC on |
+| W-06 | decided | pay channels stay out; owner's decisions pending on Al Jazeera, Russian state channels, the 7 FAST feeds |
+| W-07 | open, by design | pacing + hiding heavy files; Premium not considered |
+| W-08 | partly closed | Phase 3 = this file. Phase 4/5: web 6.0 design pass (measured at 375 px and 1280 px: no control above 12 % of the phone screen, shortcut buttons removed, compact tiles), Kodi menus aligned in 6.0.1. Not done: the skin itself (16:9 / playback / RTL check, its six invalid XML files) |
+| W-09 | open, larger | every release now also commits the APK (8.4 MB), IPA (8 MB) and Mac zip (8.5 MB) besides the 100 MB build; no decision on Git LFS / releases-only hosting |
+| W-10 | decided | kept at the owner's request |
+| W-11 | open | TorBox still not decided |
+| W-12 | open | plus: Kodi on this PC looped on audio errors (DirectSound "default" device not found) - fixed 20/11 by pointing it at the Realtek speakers through WASAPI; WASAPI exclusive can silence other programs while Kodi plays |
+| W-13 | open | still the owner's live Kodi; `deploy_local.py` + `qa_live.ps1` only |
+
+## W-14 All in one lives in one place and behind one password
+
+- **What**: one user name + password fetch the full setup from the helper Worker's KV (`/aio`).
+- **Impact**: a weak password can be guessed offline by anyone who obtains a vault id; the Worker / KV / Cloudflare
+  account is a single point - if it is lost, All in one is lost (the password backup file still works).
+- **In place**: PBKDF2 310 000 rounds, the id and the key come from the same derivation (the server never sees the
+  password), 20 wrong tries per hour per IP.
+- **Alternatives**: a second copy of the vault on Google Drive; a longer password rule. **Decision**: owner's.
+
+## W-15 The AI subtitle server is reachable only while the PC is on, through a quick tunnel
+
+- **What**: `tunnel.py` opens a Cloudflare quick tunnel whose address changes with every start and publishes it to
+  the Worker.
+- **Impact**: apps away from home get AI subtitles only when the PC is on; a restart leaves a few seconds with a stale
+  address.
+- **Alternatives**: a named tunnel (fixed address, needs a domain on Cloudflare). **Decision**: open.
+
+## W-16 Unsigned apps
+
+- **What**: the iOS IPA is unsigned (needs the owner's signing), the Mac app is ad-hoc signed (Gatekeeper asks
+  "Open anyway" the first time), the Android APK is self-signed (outside Play).
+- **Impact**: harder installation; iOS sideloaded apps expire with the signing certificate.
+- **Alternatives**: Apple Developer account (paid) / TestFlight; Play Store. **Decision**: owner's (money).
+
+## W-17 Versioned download links rot
+
+- **What**: pages linked `ios/TeleNova-Web-5.1.0.ipa` after the file was replaced - the owner got a 404 (20/11).
+- **Fixed**: links updated; the iOS / Mac release now rewrites every versioned link (guide, README, DOWNLOADS,
+  `ios/`, `mac/`) in the same commit. Android uses a fixed name (`apk/TeleNova.apk`).
+- **Check (24/11)**: `src/qa/t_links.py` - every local link on the site's pages and docs must point at a file in the
+  repository (33 links); it is in the HANDOFF test list, run before every push.
+
+## W-18 The records drift from the code
+
+- **What**: PROGRESS listed the web player for every file type and slow-connection playback as "not started" after
+  both had shipped (5.1); the board percentages were last set at 4.3.0.
+- **Impact**: another session may redo finished work or skip open work.
+- **In place**: HANDOFF "IN PROGRESS" is updated with every release. **Left**: PROGRESS board updated 24/11 with this
+  file.
+
+---
+Entries: 18. Closed or superseded: W-03, W-04. Owner's decision needed: W-06 (channels), W-11 (TorBox), W-14,
+W-16. Open technical work: W-08 (skin), W-09, W-15.
