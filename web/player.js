@@ -1080,6 +1080,8 @@
     // (the owner's subtitle server, or Gemini over the best English subtitle); else the subtitle that is on now,
     // translated into the viewer's language; else one clear line that says what is missing.
     async function aiNow() {
+      // the sound of the video may be read by aisubs.js: iOS lets a page start audio work only inside the tap itself
+      try { if (!G.__tnAiCtx && (G.AudioContext || G.webkitAudioContext)) G.__tnAiCtx = new (G.AudioContext || G.webkitAudioContext)(); if (G.__tnAiCtx.state === 'suspended') G.__tnAiCtx.resume(); } catch (e) { /* no Web Audio */ }
       const sv = await subsSvc();
       if (!sv || !alive()) return;
       s.subsBusy = t('pl_ai_wait'); say(s.subsBusy); if (s.panelKind === 'subs') redraw();
@@ -1111,6 +1113,20 @@
         } catch (e) { /* the line below says what is missing */ }
       }
       if (!alive()) return;
+      // 6.1: AI from the SOUND of the video (aisubs.js): Gemini hears and translates - live TV included, no PC
+      if (!s.aiAudio) {
+        try {
+          if (!G.TNAISubs) await TN.loadScript('aisubs.js');
+          const run = await G.TNAISubs.start({video: v, hls: s.hls || null, url: s.url, live: !!s.live, compat: !!s.compat,
+            lang: sv.prefLang ? sv.prefLang() : TN.lang(), title: o.title || ''},
+            (kind, text) => { if (!alive()) return; if (kind === 'on' || kind === 'wait') { s.subsBusy = ''; say(''); } if (text && kind !== 'on') flash(text); });
+          if (!alive()) { run.stop(); return; }
+          s.aiAudio = run; s.cleanup.push(() => { if (s.aiAudio) { s.aiAudio.stop(); s.aiAudio = null; } });
+          s.subsBusy = ''; say('');
+          if (s.panelKind === 'subs') redraw();
+          return;
+        } catch (e) { if (e && (e.code === 'nokey' || e.code === 'cannot')) { s.subsBusy = ''; say(''); if (s.panelKind === 'subs') redraw(); return; } }
+      }
       s.subsBusy = ''; say(''); flash(t('pl_ai_none'));
       if (s.panelKind === 'subs') redraw();
     }
