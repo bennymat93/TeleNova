@@ -21,7 +21,7 @@ mk mkv_h264_flac.mkv     -c:v libx264 -pix_fmt yuv420p -c:a flac
 mk avi_mpeg4_mp3.avi     -c:v mpeg4 -q:v 5 -c:a libmp3lame
 mk ts_h264_aac.ts        -c:v libx264 -pix_fmt yuv420p -c:a aac -f mpegts
 mk webm_vp9_opus.webm    -c:v libvpx-vp9 -b:v 300k -c:a libopus
-mk webm_vp8_vorbis.webm  -c:v libvpx -b:v 300k -c:a libvorbis
+mk webm_vp8_opus.webm    -c:v libvpx -b:v 300k -c:a libopus
 ffmpeg -hide_banner -loglevel error -y $A -c:a libmp3lame "$OUT/audio.mp3" || true
 ffmpeg -hide_banner -loglevel error -y $A -c:a flac "$OUT/audio.flac" || true
 ffmpeg -hide_banner -loglevel error -y $A -c:a aac "$OUT/audio.m4a" || true

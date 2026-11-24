@@ -943,7 +943,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         await wait(2000);
         const names = ['mp4_h264_aac.mp4', 'mov_h264_aac.mov', 'mp4_hevc_aac.mp4', 'mkv_h264_aac.mkv', 'mkv_h264_ac3.mkv',
           'mkv_h264_eac3.mkv', 'mkv_h264_dts.mkv', 'mkv_hevc_aac.mkv', 'mkv_hevc_eac3.mkv', 'mkv_h264_flac.mkv', 'avi_mpeg4_mp3.avi',
-          'ts_h264_aac.ts', 'webm_vp9_opus.webm', 'webm_vp8_vorbis.webm', 'audio.mp3', 'audio.flac', 'audio.m4a'];
+          'ts_h264_aac.ts', 'webm_vp9_opus.webm', 'webm_vp8_opus.webm', 'audio.mp3', 'audio.flac', 'audio.m4a'];
         const P = await TN.provider('player');
         const out = {compatSupported: null, results: []};
         try { const c = await TN.provider('compat'); out.compatSupported = c.supported(); } catch (e) { out.compatError = String(e); }
