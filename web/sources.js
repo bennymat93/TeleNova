@@ -82,7 +82,14 @@
   //   the picture quality needs) + plays in this browser 20 (the file's real codecs when read, else its name; what
   //   only the built-in engine plays gets half) + language 15 + picture 10. Not tested = at most 60, dead = 0.
   const NEED_MBIT = (q) => (q >= 2160 ? 18 : q >= 1080 ? 6 : q >= 720 ? 3 : q >= 480 ? 1.5 : 4);
-  function recOf(r, langPref, netBps) {
+  // 6.1.3: what a file needs per second (Mbit): its size over the running time when both are known (+15 % for the
+  // peaks of the stream), else what its picture quality usually needs
+  function needMbit(r, runtime) {
+    const size = Number(r.size) || 0;
+    return size > 0 && runtime > 0 ? size * 8 / runtime / 1e6 * 1.15 : NEED_MBIT(r.quality || 0);
+  }
+  const HEADROOM = 1.5;
+  function recOf(r, langPref, netBps, runtime) {
     const p = r.probe || null;
     if (r.dead || (p && p.ok === false)) return {pct: 0, tier: 'low', flags: ['dead']};
     const flags = [];
@@ -97,7 +104,8 @@
     const line = netBps > 0 ? netBps * 0.75 / 1e6 : 0, src = p && p.mbit ? p.mbit : 0;
     const have = src && line ? Math.min(src, line) : src || line;
     let speed = 13;
-    if (have) { const k = have / NEED_MBIT(r.quality || 0); speed = k >= 2 ? 25 : k >= 1 ? 12.5 + 12.5 * (k - 1) : Math.max(0, 5 * (k - 0.6) / 0.4); }
+    const need = needMbit(r, runtime || 0);
+    if (have) { const k = have / need; speed = k >= 2 ? 25 : k >= 1 ? 12.5 + 12.5 * (k - 1) : Math.max(0, 5 * (k - 0.6) / 0.4); }
     const v = p && p.verdict, tg = tags(r.label || '');
     const hard = /hevc|h265|x265|av1/i.test(tg.codec || '') || /ac3|dts|truehd|eac3/i.test(tg.audio || '') || /\.(mkv|avi|ts)$/i.test(r.label || '');
     const plays = v ? (v.play === 'no' ? 8 : 20) : hard ? 10 : 16;
@@ -108,11 +116,35 @@
     if (untested) { pct = Math.min(pct, 60); flags.push('untested'); }
     if (r.status === 'external' || r.status === 'torrent') pct = Math.min(pct, 30);
     pct = Math.max(0, Math.min(100, Math.round(pct)));
-    return {pct, tier: pct >= 85 ? 'top' : pct >= 70 ? 'good' : pct >= 50 ? 'fair' : 'low', flags};
+    // 6.1.3: "safe" = it will play smoothly now: tested and answered (or cached at Real-Debrid), plays in this
+    // browser, and the source and this connection give it half as much again as it needs (when known)
+    const works2 = (p && p.ok === true) || r.status === 'cached';
+    const fast = (!src || src >= need * HEADROOM) && (!line || line >= need * HEADROOM);
+    const safe = !!(works2 && fast && !(v && v.play === 'no') && r.status !== 'external' && r.status !== 'torrent');
+    if (safe) flags.push('safe');
+    return {pct, tier: pct >= 85 ? 'top' : pct >= 70 ? 'good' : pct >= 50 ? 'fair' : 'low', flags, safe};
   }
   const REC_TEXT = {top: 'src_rec_top', good: 'src_rec_good', fair: 'src_rec_fair', low: 'src_rec_low'};
-  let netBps = 0;                                  // this connection's last measured speed (bits / s), 0 = unknown
-  const rec = (r, pref) => (r.rec = recOf(r, pref, netBps)).pct;
+  let netBps = 0, runtimeSec = 0;                  // this connection's speed (bits / s) and the title's length, 0 = unknown
+  const rec = (r, pref) => (r.rec = recOf(r, pref, netBps, runtimeSec)).pct;
+  const safeOf = (r) => (r.rec && r.rec.safe ? 0 : 1);
+  // 6.1.3: one list over every source: what will play smoothly now first, then the number, then the old order
+  function bestRows(rows, langPref, net, runtime) {
+    if (net != null) netBps = net;
+    if (runtime != null) runtimeSec = runtime;
+    const pref = langPref || '';
+    rows.forEach((r) => rec(r, pref));
+    const q = (r) => (r.quality > 1080 ? 900 : r.quality || 0);
+    return rows.map((r, i) => [r, i]).sort(([a, i], [b, j]) => safeOf(a) - safeOf(b) || probeRank(a) - probeRank(b) || b.rec.pct - a.rec.pct ||
+      (STATUS_RANK[a.status] || 0) - (STATUS_RANK[b.status] || 0) || q(b) - q(a) || i - j).map((x) => x[0]);
+  }
+  // 6.1.3: the source of a row for the filter: the group (tgsearch, rd, addons, ia, yt, dm, ...)
+  const kindOf = (r) => r.group || 'other';
+  function onlyKinds(rows, hidden) {
+    const h = new Set(hidden || []);
+    const kept = rows.filter((r) => !h.has(kindOf(r)));
+    return kept.length ? kept : rows;
+  }
   function sortRows(rows, langPref) {
     const pref = langPref || '';
     const has = (r) => (pref && String(r.lang || '').split(',').includes(pref) ? 1 : 0);
@@ -217,7 +249,7 @@
   const pad2 = (n) => String(n).padStart(2, '0');
   const epCode = (q) => (q.type === 'tv' ? `S${pad2(q.season)}E${pad2(q.episode)}` : '');
   function clock(s) { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return (h ? h + ':' + pad2(m) : m) + ':' + pad2(s % 60); }
-  const pure = {quality, sizeBytes, langs, sizeText, tags, ytId, parseStream, sortRows, recOf, releaseKey, dedup, filterRows, sniff, verdict, streamId,
+  const pure = {quality, sizeBytes, langs, sizeText, tags, ytId, parseStream, sortRows, recOf, needMbit, bestRows, onlyKinds, kindOf, releaseKey, dedup, filterRows, sniff, verdict, streamId,
     addonBase, addonName, keyOf, epCode, clock};
   if (typeof module === 'object' && module.exports) { module.exports = pure; return; }
   const TN = G.TN;
@@ -238,7 +270,10 @@
       src_filters: 'סינון וסדר', src_minq: 'איכות מינימלית', src_any: 'הכול', src_hidecam: 'הסתר צילומי קולנוע (CAM)', src_lang: 'שפה מועדפת',
       src_lang_only: 'הצג רק את השפה המועדפת (כשהיא ידועה)', src_tgfirst: 'טלגרם ראשון ברשימה', src_auto: 'נגן אוטומטית את הקישור הטוב ביותר',
       src_next_try: 'הקישור לא עבד, מנסה את הבא...', src_newtab: 'נפתח בלשונית חדשה', src_notmdb: 'בלי מפתח TMDb החיפוש מוגבל (אין מזהה IMDb).',
-      src_dur: 'משך %s', src_stop: 'עצור', src_subs: 'הגדרות כתוביות', src_rd_ready: 'הקישור מוכן. מנגן...'},
+      src_dur: 'משך %s', src_stop: 'עצור', src_subs: 'הגדרות כתוביות', src_rd_ready: 'הקישור מוכן. מנגן...',
+      src_srcs: 'מקורות:', src_all: 'הכול', src_order: 'סדר', src_order_best: 'הטוב ביותר לחיבור שלי ראשון', src_order_src: 'לפי מקור',
+      src_bestlist: 'כל המקורות · הטוב ביותר לחיבור הנוכחי ראשון', src_smooth: 'ינוגן חלק', src_net: 'החיבור עכשיו: %s מגה-ביט',
+      src_autotest: 'בדוק אוטומטית את הקישורים המובילים בכל חיפוש'},
     en: {src_title: 'Sources', src_play: '▶ Play', src_find: 'Looking for sources...', src_none: 'No source that a browser can play was found.',
       src_tg: 'Telegram', src_rd: 'Real-Debrid', src_addons: 'Addon servers', src_ia: 'Internet Archive', src_yt: 'YouTube', src_dm: 'Dailymotion', src_other: 'Other',
       src_cached: 'Ready', src_rdq: 'Checked at RD', src_direct: 'Direct', src_torrent: 'Torrent · via RD', src_external: 'Opens on the site',
@@ -252,7 +287,10 @@
       src_filters: 'Filter and order', src_minq: 'Minimum quality', src_any: 'Any', src_hidecam: 'Hide cinema recordings (CAM)', src_lang: 'Preferred language',
       src_lang_only: 'Show only the preferred language (when it is known)', src_tgfirst: 'Telegram first in the list', src_auto: 'Play the best link automatically',
       src_next_try: 'That link did not work, trying the next one...', src_newtab: 'Opens in a new tab', src_notmdb: 'Without a TMDb key the search is limited (no IMDb id).',
-      src_dur: 'Length %s', src_stop: 'Stop', src_subs: 'Subtitle settings', src_rd_ready: 'The link is ready. Playing...'},
+      src_dur: 'Length %s', src_stop: 'Stop', src_subs: 'Subtitle settings', src_rd_ready: 'The link is ready. Playing...',
+      src_srcs: 'Sources:', src_all: 'All', src_order: 'Order', src_order_best: 'Best for my connection first', src_order_src: 'By source',
+      src_bestlist: 'All sources · best for this connection first', src_smooth: 'Plays smoothly', src_net: 'Connection now: %s Mbit',
+      src_autotest: 'Test the top links by itself on every search'},
     ru: {src_title: 'Источники', src_play: '▶ Смотреть', src_find: 'Ищем источники...', src_none: 'Не найдено источника, который браузер может воспроизвести.',
       src_tg: 'Telegram', src_rd: 'Real-Debrid', src_addons: 'Серверы дополнений', src_ia: 'Internet Archive', src_yt: 'YouTube', src_dm: 'Dailymotion', src_other: 'Другое',
       src_cached: 'Готово', src_rdq: 'Проверка в RD', src_direct: 'Напрямую', src_torrent: 'Торрент · через RD', src_external: 'Откроется на сайте',
@@ -266,12 +304,16 @@
       src_filters: 'Фильтр и порядок', src_minq: 'Минимальное качество', src_any: 'Любое', src_hidecam: 'Скрыть экранные копии (CAM)', src_lang: 'Предпочитаемый язык',
       src_lang_only: 'Показывать только предпочитаемый язык (когда он известен)', src_tgfirst: 'Telegram первым в списке', src_auto: 'Автоматически включать лучшую ссылку',
       src_next_try: 'Ссылка не сработала, пробуем следующую...', src_newtab: 'Откроется в новой вкладке', src_notmdb: 'Без ключа TMDb поиск ограничен (нет IMDb id).',
-      src_dur: 'Длительность %s', src_stop: 'Стоп', src_subs: 'Настройки субтитров', src_rd_ready: 'Ссылка готова. Запускаем...'},
+      src_dur: 'Длительность %s', src_stop: 'Стоп', src_subs: 'Настройки субтитров', src_rd_ready: 'Ссылка готова. Запускаем...',
+      src_srcs: 'Источники:', src_all: 'Все', src_order: 'Порядок', src_order_best: 'Лучшее для моего соединения первым', src_order_src: 'По источникам',
+      src_bestlist: 'Все источники · лучшее для этого соединения первым', src_smooth: 'Без остановок', src_net: 'Соединение сейчас: %s Мбит',
+      src_autotest: 'Проверять лучшие ссылки при каждом поиске'},
   });
   const t = TN.t, esc = TN.esc;
   const cfg = (k, d) => TN.settings.get('sources_' + k, d);
   const filters = () => ({minq: Number(cfg('minq', 0)) || 0, hideCam: cfg('hidecam', true) !== false, lang: cfg('lang', '') || TN.lang(),
-    strictLang: cfg('langonly', false) === true, tgFirst: cfg('tgfirst', true) !== false, auto: cfg('auto', false) === true});
+    strictLang: cfg('langonly', false) === true, tgFirst: cfg('tgfirst', true) !== false, auto: cfg('auto', false) === true,
+    order: cfg('order', 'best') === 'src' ? 'src' : 'best', hidden: [].concat(cfg('hidden', []) || []).map(String), autoTest: cfg('autotest', true) !== false});
 
   // ------------------------------------------------------------ registry and addon servers
   const extra = new Map();                       // name -> fn(req, {signal}) -> rows
@@ -325,7 +367,7 @@
 
   // ------------------------------------------------------------ find: every group, progressively
   const groupOrder = () => (filters().tgFirst ? ['tgsearch', 'rd', 'addons', 'ia', 'yt', 'dm'] : ['rd', 'addons', 'tgsearch', 'ia', 'yt', 'dm']);
-  const groupLabel = (g) => t({tgsearch: 'src_tg', rd: 'src_rd', addons: 'src_addons', ia: 'src_ia', yt: 'src_yt', dm: 'src_dm'}[g] || 'src_other');
+  const groupLabel = (g) => t({_best: 'src_bestlist', tgsearch: 'src_tg', rd: 'src_rd', addons: 'src_addons', ia: 'src_ia', yt: 'src_yt', dm: 'src_dm'}[g] || 'src_other');
   function withTimeout(p, ms, signal) {
     return new Promise((res, rej) => {
       const to = setTimeout(() => rej(new Error('timeout')), ms);
@@ -374,18 +416,27 @@
     const f = filters();
     const names = Object.keys(out.groups), order = groupOrder();
     const gs = order.filter((g) => names.includes(g)).concat(names.filter((g) => !order.includes(g)));
+    const kinds = gs.map((g) => ({name: g, n: out.groups[g].length})).filter((k) => k.n);
     let all = [], hidden = 0;
-    for (const g of gs) {
+    netBps = liveNet;                              // 6.1.3: the speed measured for this search only (0 = not yet / unknown)
+    runtimeSec = (Number(out.req && out.req.runtime) || 0) * 60;
+    const off = new Set(f.hidden.filter((g) => kinds.some((k) => k.name === g)));
+    const use = off.size >= kinds.length ? gs : gs.filter((g) => !off.has(g));     // hiding all = showing all
+    if (f.order === 'best') {
+      for (const g of use) { const raw = out.groups[g], kept = showAll ? raw : filterRows(raw, f); hidden += raw.length - kept.length; all = all.concat(kept); }
+      const d = dedup(bestRows(all, f.lang));
+      return {groups: d[0].length ? [{name: '_best', rows: d[0].slice(0, 60)}] : [], hidden, folded: d[1], kinds, off: [...off]};
+    }
+    for (const g of use) {
       const raw = out.groups[g], kept = showAll ? raw : filterRows(raw, f);
       hidden += raw.length - kept.length;
-      try { netBps = Number(TN.get('net_bw', 0)) || 0; } catch (e) { netBps = 0; }
       kept.forEach((r) => rec(r, f.lang));
       all = all.concat(g === 'tgsearch' ? kept.slice().sort((a, b) => probeRank(a) - probeRank(b) || rec(b, f.lang) - rec(a, f.lang)) : sortRows(kept, f.lang));
     }
     const d = dedup(all);
     const by = {};
     for (const r of d[0]) (by[r.group] = by[r.group] || []).push(r);
-    return {groups: gs.filter((g) => by[g]).map((g) => ({name: g, rows: by[g].slice(0, 40)})), hidden, folded: d[1]};
+    return {groups: use.filter((g) => by[g]).map((g) => ({name: g, rows: by[g].slice(0, 40)})), hidden, folded: d[1], kinds, off: [...off]};
   }
   async function iaRows(q) {
     const docs = await TN.archive({q: q.original || q.title, rows: 8});
@@ -507,6 +558,7 @@
       '.src_set input[type=url],.src_set select{flex:1 1 220px;min-width:0;min-height:44px;background:var(--panel);color:var(--text);border:1px solid var(--muted);border-radius:10px;padding:9px 14px;font:inherit}' +
       '.src_set label.sw{display:flex;gap:10px;align-items:center;margin:8px 0;min-height:36px}.src_set label.sw input{width:22px;height:22px;flex:none}' +
       '.src_set label.sel{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}.src_set label.sel select{flex:0 1 200px}' +
+      '.src_kinds{gap:6px;align-items:center;flex-wrap:wrap}.src_kinds .btn{min-height:38px;padding:6px 12px;font-size:14px}' +
       'html.tv .src_row{padding:14px;font-size:19px}html.tv .src_row:focus{outline:4px solid var(--accent)}html.tv .src_bd,html.tv .src_st{font-size:15px}';
     document.head.append(s);
   }
@@ -525,6 +577,7 @@
       String(r.lang || '').split(',').filter(Boolean).map((l) => bd(l.toUpperCase(), 'lang')).join(''),
       bd(sizeText(r.size)), r.dur ? `<span>${esc(t('src_dur', r.dur))}</span>` : '', r.seeds ? `<span dir="ltr">👤 ${r.seeds}</span>` : '',
       r.also && r.also.length ? `<span>${esc(t('src_dup', r.also.length))}</span>` : '',
+      rc.safe ? bd(t('src_smooth'), 'good') : '',
       p ? (p.ok === true ? bd(t('src_ok') + (p.mbit ? ' · ' + t('src_speed', p.mbit) : ''), 'good') : p.ok === false ? bd(t('src_dead'), 'warn') : `<span>${esc(t('src_untest'))}</span>`) : '',
       v && v.play === 'no' ? bd(t('src_nocodec'), 'warn') : '', sn && sn.subs && sn.he ? bd(t('src_hesub'), 'good') : '',
       r.status === 'external' ? `<span>${esc(t('src_newtab'))}</span>` : '',
@@ -595,22 +648,48 @@
     TN.modal(`<div class="src_box"><p class="msg">${esc(t('src_need_rd'))}</p><div id="src_rdp" class="panel src_set"></div></div>`);
     TN.provider('rd').then((rd) => rd && rd.settingsPanel(document.getElementById('src_rdp'))).catch(() => {});
   }
-  let current = null;
+  // 6.1.3: this connection's speed at the time of the search (up to 2 reads, 1 + 3 MB, at most ~8 s; kept 5 minutes)
+  async function measureNet(signal) {
+    try {
+      const at = Number(TN.get('net_bw_t', 0)) || 0, bw = Number(TN.get('net_bw', 0)) || 0;
+      if (bw > 0 && Date.now() - at < 300000) return bw;
+    } catch (e) { /* measure */ }
+    let best = 0;
+    for (const bytes of [1000000, 3000000]) {
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 4000);
+      if (signal) signal.addEventListener('abort', () => ctl.abort(), {once: true});
+      const t0 = Date.now();
+      try {
+        const r = await fetch('https://speed.cloudflare.com/__down?bytes=' + bytes, {credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store', signal: ctl.signal});
+        if (!r.ok) break;
+        const n = (await r.arrayBuffer()).byteLength;
+        best = Math.max(best, n * 8 / Math.max(0.05, (Date.now() - t0) / 1000));
+        if (Date.now() - t0 > 1500) break;            // a slow line: the first read is enough
+      } catch (e) { break; } finally { clearTimeout(to); }
+    }
+    if (best > 50000) { try { TN.put('net_bw', Math.round(best)); TN.put('net_bw_t', Date.now()); } catch (e) { /* not kept */ } }
+    return best;
+  }
+  let current = null, liveNet = 0;
   async function pick(req, opts) {
     if (current) current.abort();
     const ctl = new AbortController();
     current = ctl;
     style();
     TN.modal(`<div class="src_box"><h3 dir="auto" id="src_h">${esc(req.title || t('src_title'))}</h3><div id="src_resume"></div>` +
-      `<div class="links" id="src_top"></div><p class="hint" id="src_prog" role="status">${esc(t('src_find'))}</p><div id="src_list"></div><div id="src_errs"></div>` +
+      `<div class="links" id="src_top"></div><div class="links src_kinds" id="src_kinds"></div><p class="hint" id="src_prog" role="status">${esc(t('src_find'))}</p><div id="src_list"></div><div id="src_errs"></div>` +
       `<div class="links"><button class="btn ghost" id="src_set">⚙ ${esc(t('src_settings'))}</button>` +
       (req.id ? `<button class="btn ghost" id="src_det">${esc(t('src_details'))}</button>` : '') + '</div><div id="src_setbox"></div></div>');
     const $ = (id) => document.getElementById(id);
     const sheet = $('src_list'), top = $('src_top');
-    let q = req, last = null, showAll = false, shown = [], testing = false, autoDone = !!(opts && opts.noAuto);
+    let q = req, last = null, showAll = false, shown = [], testing = false, autoDone = !!(opts && opts.noAuto), autoTested = false, net = 0;
     $('src_set').onclick = () => { const b = $('src_setbox'); if (b.firstChild) b.innerHTML = ''; else settingsPanel(b, () => last && draw(last)); };
     if ($('src_det')) $('src_det').onclick = () => TN.openTitle(req.type === 'tv' ? 'tv' : 'movie', req.id);
     const alive = () => current === ctl && document.body.contains(sheet);
+    let netDone = false;                         // the link tests and auto-play wait for the speed reading
+    liveNet = 0;
+    measureNet(ctl.signal).then((b) => { net = b; if (current === ctl) liveNet = b > 50000 ? b : 0; }).catch(() => {})
+      .then(() => { netDone = true; if (alive() && last) draw(last); });
     const draw = (out) => {
       if (!alive()) { ctl.abort(); return; }
       last = out;
@@ -636,7 +715,31 @@
         g.rows.forEach((r) => sheet.append(rowEl(r, q, ctx)));
       }
       if (focusAt >= 0) { const again = sheet.querySelectorAll('.src_row')[focusAt]; if (again) again.focus(); }
+      const kb = $('src_kinds');
+      if (kb) {
+        kb.innerHTML = '';
+        const f0 = filters();
+        if (ar.kinds.length > 1) {                    // 6.1.3: filter by source
+          const lab = document.createElement('span'); lab.className = 'hint'; lab.textContent = t('src_srcs'); kb.append(lab);
+          const allOn = !ar.off.length;
+          const chip = (label, on, fn) => { const b = TN.button('btn' + (on ? '' : ' ghost'), label, fn); b.setAttribute('aria-pressed', on ? 'true' : 'false'); kb.append(b); };
+          chip(t('src_all'), allOn, () => { TN.settings.set('sources_hidden', []); draw(out); });
+          ar.kinds.forEach((k) => chip(groupLabel(k.name) + ' (' + k.n + ')', !allOn && !ar.off.includes(k.name), () => {
+            const h = new Set(f0.hidden);
+            if (allOn) { ar.kinds.forEach((x) => h.add(x.name)); h.delete(k.name); }      // from "all": this source only
+            else if (h.has(k.name)) h.delete(k.name); else h.add(k.name);
+            const left = ar.kinds.filter((x) => !h.has(x.name)).length;
+            TN.settings.set('sources_hidden', left ? [...h] : []); draw(out);
+          }));
+        }
+        kb.append(TN.button('btn ghost', t('src_order') + ': ' + t(f0.order === 'best' ? 'src_order_best' : 'src_order_src'),
+          () => { TN.settings.set('sources_order', f0.order === 'best' ? 'src' : 'best'); draw(out); }));
+      }
       top.innerHTML = '';
+      // 6.1.3: once everything answered (and the line was measured), the top links are tested by themselves -
+      // the first one is then a sure one. Started before the buttons are drawn, so "Stop" shows while it runs.
+      const done0 = out.done >= out.total;
+      if (done0 && netDone && !autoTested && !testing && filters().autoTest && shown.length) { autoTested = true; testing = true; setTimeout(() => runTest(8), 0); }
       const best = shown.find((r) => playable(r) && !r.ext && !r.yt && !r.dead && !(r.probe && (r.probe.ok === false || (r.probe.verdict && r.probe.verdict.play === 'no'))));
       if (best) top.append(TN.button('btn', t('src_best'), () => play(best, q, ctx)));
       if (shown.some((r) => r.tg || (r.url && (r.status === 'cached' || r.status === 'direct')))) {
@@ -644,6 +747,7 @@
       }
       const done = out.done >= out.total;
       let msg = !done ? t('src_loading', out.done, out.total) : (shown.length ? '' : t('src_none'));
+      if (net > 0 && shown.length) msg += (msg ? ' · ' : '') + t('src_net', Math.round(net / 1e5) / 10);
       if (done && !shown.length && !q.imdb && !TN.hasTmdbKey()) msg += ' ' + t('src_notmdb');
       $('src_prog').textContent = msg;
       if (ar.hidden) {
@@ -652,12 +756,13 @@
         $('src_prog').append(p);
       }
       $('src_errs').innerHTML = out.errors.map((e) => `<p class="src_err" dir="auto">${esc(e.from)}: ${esc(t('src_err'))} (${esc(e.msg)})</p>`).join('');
-      if (done && !autoDone && filters().auto && best && !resumeBlocked()) { autoDone = true; play(best, q, ctx); }
+      // 6.1.3: once everything answered, the top links are tested by themselves - the first one is then a sure one
+      if (done && netDone && !testing && !autoDone && filters().auto && best && !resumeBlocked()) { autoDone = true; play(best, q, ctx); }
     };
     const resumeBlocked = () => !alive() || !!$('src_setbox').firstChild;
-    async function runTest() {
+    async function runTest(limit) {
       testing = true;
-      const rows = shown.filter((r) => !r.probe && (r.tg || (r.url && (r.status === 'cached' || r.status === 'direct')))).slice(0, 24);
+      const rows = shown.filter((r) => !r.probe && (r.tg || (r.url && (r.status === 'cached' || r.status === 'direct')))).slice(0, limit || 24);
       let n = 0;
       const one = async (r) => {
         if (!testing || !alive()) return;
@@ -697,6 +802,7 @@
         `<label class="sw"><input type="checkbox" id="src_fc"${f.hideCam ? ' checked' : ''}><span>${esc(t('src_hidecam'))}</span></label>` +
         `<label class="sw"><input type="checkbox" id="src_ft"${f.tgFirst ? ' checked' : ''}><span>${esc(t('src_tgfirst'))}</span></label>` +
         `<label class="sw"><input type="checkbox" id="src_fa"${f.auto ? ' checked' : ''}><span>${esc(t('src_auto'))}</span></label>` +
+        `<label class="sw"><input type="checkbox" id="src_fx"${f.autoTest ? ' checked' : ''}><span>${esc(t('src_autotest'))}</span></label>` +
         `<h4>${esc(t('src_addons'))}</h4><div id="src_al"></div>` +
         `<form class="links" id="src_af"><input id="src_ai" type="url" inputmode="url" dir="ltr" placeholder="https://.../manifest.json" aria-label="${esc(t('src_addon_url'))}">` +
         `<button class="btn" type="submit">${esc(t('src_add'))}</button></form><p class="hint" id="src_am" role="status"></p><div id="src_rd"></div>` +
@@ -708,6 +814,7 @@
       el.querySelector('#src_fc').onchange = (e) => set('hidecam', !!e.target.checked);
       el.querySelector('#src_ft').onchange = (e) => set('tgfirst', !!e.target.checked);
       el.querySelector('#src_fa').onchange = (e) => set('auto', !!e.target.checked);
+      el.querySelector('#src_fx').onchange = (e) => set('autotest', !!e.target.checked);
       const list = el.querySelector('#src_al');
       addons().forEach((b) => {
         const row = document.createElement('div');

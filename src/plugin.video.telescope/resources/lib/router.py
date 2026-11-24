@@ -1435,20 +1435,36 @@ def play(p):
         xbmcgui.Dialog().ok(common.ADDON_NAME, '%s\n%s\n%s' % (L(30078), title, why))
         return _resolve_fail()
     autoplay = common.setting_bool('autoplay', False) and not p.get('select')
+    from . import recommend
+    everything = sources
+    sources = recommend.only(everything, _hidden_kinds())
     choice = 0
     if not autoplay or sources[0].get('probe') != 'ok':
-        items = []
-        for s in sources:
-            li = common.make_listitem(_source_label(s), _source_line2(s))
-            li.setArt({'icon': common.ICON, 'thumb': common.ICON})
-            items.append(li)
-        head = '%s - %d %s' % (L(30079), len(sources), L(30083))
-        checks = _checks_text(LAST_STATS)
-        if checks:
-            head += DOT + checks
-        choice = xbmcgui.Dialog().select(head, items, useDetails=True)
-        if choice < 0:
-            return _resolve_fail()
+        while True:
+            sources = recommend.only(everything, _hidden_kinds())
+            kinds = recommend.kinds(everything)
+            items = []
+            if len(kinds) > 1:          # 6.1.3: the first row filters the list by source
+                li = common.make_listitem('[COLOR gold]%s[/COLOR]' % Lf(30971, _kinds_text(kinds, _hidden_kinds())), L(30972))
+                li.setArt({'icon': 'DefaultAddonsSearch.png', 'thumb': 'DefaultAddonsSearch.png'})
+                items.append(li)
+            for s in sources:
+                li = common.make_listitem(_source_label(s), _source_line2(s))
+                li.setArt({'icon': common.ICON, 'thumb': common.ICON})
+                items.append(li)
+            head = '%s - %d %s' % (L(30079), len(sources), L(30083))
+            checks = _checks_text(LAST_STATS)
+            if checks:
+                head += DOT + checks
+            choice = xbmcgui.Dialog().select(head, items, useDetails=True)
+            if choice < 0:
+                return _resolve_fail()
+            if len(kinds) > 1:
+                if choice == 0:
+                    _choose_kinds(kinds)
+                    continue
+                choice -= 1
+            break
     want = {'season': target.get('season'), 'episode': target.get('episode')}
     path = None
     for k in range(choice, min(len(sources), choice + 4)):
@@ -1473,6 +1489,34 @@ def play(p):
     common.set_video_info(li, info)
     li.setContentLookup(False)
     xbmcplugin.setResolvedUrl(HANDLE, True, li)
+
+
+def _hidden_kinds():
+    return [x for x in (common.setting('src_hidden', '') or '').split(',') if x]
+
+
+def _kind_name(k):
+    from . import recommend
+    return recommend.KIND_NAME.get(k) or k.capitalize()
+
+
+def _kinds_text(kinds, hidden):
+    shown = [_kind_name(k) for k, _ in kinds if k not in hidden]
+    return L(30973) if len(shown) == len(kinds) or not shown else ', '.join(shown)
+
+
+def _choose_kinds(kinds):
+    """6.1.3: which sources to list (kept for the next searches too); none chosen = all of them"""
+    hidden = _hidden_kinds()
+    names = ['%s (%d)' % (_kind_name(k), n) for k, n in kinds]
+    pre = [i for i, (k, _) in enumerate(kinds) if k not in hidden]
+    got = xbmcgui.Dialog().multiselect(L(30974), names, preselect=pre)
+    if got is None:
+        return
+    keep = set(kinds[i][0] for i in got)
+    others = [k for k in hidden if k not in [x for x, _ in kinds]]     # hidden sources not in this list stay hidden
+    new = others + ([] if not keep else [k for k, _ in kinds if k not in keep])
+    common.set_setting('src_hidden', ','.join(new))
 
 
 def _rd_resolve(s, want=None):

@@ -75,5 +75,19 @@ det = R.details(out[0], 'en')
 ok(len(det) >= 6 and 'Recommendation' in det[0] and any('tested' in x for x in det), 'details window lines')
 ok(R.badge({'file': 'old row'}) == '' and R.details({'file': 'old row'}) == [], 'a row from an old cache (no number): no badge')
 
+# 6.1.3: smooth-now links first, filter by source
+tight = link('tight 4K 1.1x', gb=40.0, quality=2160, speed=int(40 * 1024 ** 3 / RUNTIME * 1.1), he_sub_inside=True)
+roomy = link('roomy 1080p', gb=3.0)
+ok(R.safe(roomy, 0, RUNTIME) and not R.safe(tight, 0, RUNTIME), 'a link the source gives barely as fast as it needs is not safe')
+ok(not R.safe(link('u', probe='untested'), 0, RUNTIME), 'an untested link is not safe')
+ok(not R.safe(roomy, int(3 * 1024 ** 3 / RUNTIME), RUNTIME), 'a slow connection makes a link unsafe')
+ok(R.safe({'backend': 'rd', 'rd_cached': True, 'probe': 'rd', 'size': 0}, 0, RUNTIME), 'a cached Real-Debrid file is safe')
+o2 = R.rank([tight, link('untested', probe='untested', speed=0), roomy], 0, RUNTIME)
+ok(o2[0]['file'] == 'roomy 1080p' and o2[0]['safe'], 'the smooth link is first (%s)' % [c['file'] for c in o2])
+mix = [{'backend': 'tg'}, {'backend': 'rd'}, {'backend': 'telemedia'}, {'backend': 'stremio'}]
+ok(R.kinds(mix) == [('tg', 2), ('rd', 1), ('stremio', 1)], 'sources counted: Telegram (bots + channels), RD, Stremio')
+ok([c['backend'] for c in R.only(mix, ['tg'])] == ['rd', 'stremio'], 'a hidden source is left out')
+ok(len(R.only(mix, ['tg', 'rd', 'stremio'])) == 4, 'hiding everything shows everything')
+
 print('RECOMMEND TESTS OK' if not bad else 'RECOMMEND TESTS FAILED %d' % len(bad))
 sys.exit(1 if bad else 0)

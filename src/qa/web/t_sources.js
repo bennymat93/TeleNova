@@ -54,4 +54,15 @@ const sorted = S.sortRows([row('C.720p.mp4'), row('A.1080p.mp4', {probe: {ok: tr
   row('B.1080p.mp4', {status: 'cached'})], '');
 eq(sorted.map((r) => r.label[0]).join(''), 'ABCD', 'the list: tested and recommended first, dead last');
 yes(sorted.every((r) => r.rec && typeof r.rec.pct === 'number'), 'every row carries its number');
+// 6.1.3: one list over all sources, smooth-now first; filter by source
+const big = row('A.2160p.HEVC.mkv', {group: 'tgsearch', status: 'tg', size: 40e9, probe: {ok: true, mbit: 20, verdict: {play: 'yes'}}});
+const sure = row('B.1080p.mp4', {group: 'rd', status: 'cached', size: 3e9});
+const dead = row('C.720p.mp4', {group: 'addons', probe: {ok: false}});
+const best = S.bestRows([big, dead, sure], '', 30e6, 6000);
+eq(best.map((r) => r.label[0]).join(''), 'BAC', 'a ready link the line carries beats a tested 4K that is too heavy; dead last');
+yes(best[0].rec.safe && !best[1].rec.safe, 'safe flag');
+yes(S.needMbit({size: 3e9}, 6000) > 4 && S.needMbit({quality: 2160}, 0) === 18, 'need from size and length, else from quality');
+eq(S.onlyKinds([big, sure, dead], ['rd']).map((r) => r.label[0]).join(''), 'AC', 'a hidden source is left out');
+eq(S.onlyKinds([big], ['tgsearch']).length, 1, 'hiding everything shows everything');
+yes(!S.recOf(row('slow.1080p.mp4', {status: 'cached', size: 4e9}), '', 3e6, 6000).safe, 'a connection slower than the file needs: not safe');
 console.log('t_sources OK (' + n + ' checks)');

@@ -959,3 +959,23 @@ msgstr "Всё подключено. Остался Telegram: экран вхо�
 msgctxt "#30970"
 msgid "Saved. From now on, on every new device: All in one + the same user name and password."
 msgstr "Сохранено. Теперь на любом новом устройстве: «Всё в одном» + те же имя и пароль."
+
+msgctxt "#30971"
+msgid "Sources shown: %s (press to choose)"
+msgstr "Показаны источники: %s (нажмите для выбора)"
+
+msgctxt "#30972"
+msgid "Telegram, Real-Debrid and the other sources: choose which ones are listed. The best link for this connection is always first."
+msgstr "Telegram, Real-Debrid и другие: выберите, какие показывать. Лучшая ссылка для этого соединения всегда первая."
+
+msgctxt "#30973"
+msgid "all"
+msgstr "все"
+
+msgctxt "#30974"
+msgid "Show links from"
+msgstr "Показывать ссылки из"
+
+msgctxt "#30975"
+msgid "Hidden sources"
+msgstr "Скрытые источники"

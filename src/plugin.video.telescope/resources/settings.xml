@@ -65,6 +65,7 @@
         <setting id="keep_unprobed" type="bool" label="32039" default="false"/>
         <setting id="max_results" type="slider" label="32040" default="25" range="5,5,100" option="int"/>
         <setting id="autoplay" type="bool" label="32041" default="false"/>
+        <setting id="src_hidden" type="text" label="30975" default="" visible="false"/>
         <setting id="search_limit" type="slider" label="32042" default="100" range="20,10,300" option="int"/>
         <setting id="search_timeout" type="slider" label="32043" default="12" range="6,2,60" option="int"/>
     </category>

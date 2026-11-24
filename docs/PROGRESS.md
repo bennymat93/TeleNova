@@ -85,6 +85,9 @@ FIXES IDENTIFIED: 29  |  Fixed: 28 |  Pending: 1
 | Live QA on the owner's profile (`qa_live.ps1`, channel rounds, audit) | done | crawl 167 screens 0 errors; playback 10/11 (Internet Archive film at the 60 s limit, also on 12/11); stress 0; TV rounds 16/16; audit 41/41 logos + guide |
 | Package 4.1.2, docs, publish | done | build 100.3 MB in 2 parts |
 
+## 6.1.3 (2026-11-24)
+Done: filter links by source (Kodi + web); smooth-on-this-connection-first ordering; web measures the line at each search and auto-tests the top 8.
+
 ## Next
 
 Done 19/11: v6.0 - one version 6.0.0 for Kodi, web and apps; design pass (smaller buttons, less scrolling, shortcut buttons removed).

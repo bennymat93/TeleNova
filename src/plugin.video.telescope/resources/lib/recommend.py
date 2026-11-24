@@ -125,17 +125,72 @@ def rate(c, link=0, runtime=0):
             'parts': {'match': round(right, 1), 'works': works, 'speed': speed, 'he': he, 'pic': pic}}
 
 
+HEADROOM = 1.5        # 6.1.3: a "safe" link has half as much again as it needs, on the line and at the source
+
+
+def safe(c, link=0, runtime=0):
+    """6.1.3: will this link play smoothly right now? It was opened and answered (or is a cached Real-Debrid
+    file), it is the right file, the device shows it, and - when the rates are known - both the source and this
+    connection give it at least HEADROOM times what it needs per second. Safe links are always listed first, so the
+    first link is the one that plays without stops; among them the number decides (quality, Hebrew ...)."""
+    if c.get('heavy') or c.get('device_warn') or c.get('loose') or c.get('smooth') is False:
+        return False
+    if (c.get('match') or 85) < 60:
+        return False
+    probe = c.get('probe') or 'untested'
+    if not (probe == 'ok' or c.get('rd_cached') or probe == 'rd'):
+        return False
+    need = _need(c, runtime)
+    if need:
+        for have in (c.get('speed') or 0, link * SHARE if link else 0):
+            if have and have < need * HEADROOM:
+                return False
+    return True
+
+
 def rank(rows, link=0, runtime=0):
-    """adds 'rec' (0-100), 'rec_tier', 'rec_parts', 'rec_flags' to every row and returns them best first.
-    Equal numbers keep the order they came in (the engine's own ranking)."""
+    """adds 'rec' (0-100), 'rec_tier', 'rec_parts', 'rec_flags', 'safe' to every row and returns them best
+    first: 6.1.3 the links that will play smoothly now first, then the number. Equal keep the engine's order."""
     for i, c in enumerate(rows):
         r = rate(c, link, runtime)
         c['rec'], c['rec_tier'], c['rec_parts'], c['rec_flags'] = r['pct'], r['tier'], r['parts'], r['flags']
+        c['safe'] = safe(c, link, runtime)
         c['_i'] = i
-    rows = sorted(rows, key=lambda c: (-c['rec'], c['_i']))
+    rows = sorted(rows, key=lambda c: (not c['safe'], -c['rec'], c['_i']))
     for c in rows:
         del c['_i']
     return rows
+
+
+def kind(c):
+    """6.1.3: the source a row comes from, for the "filter by source" choice: 'tg' (Telegram, bots and channels
+    alike), 'rd' (Real-Debrid), else the backend's own name (stremio ...)."""
+    b = (c.get('backend') or 'tg').lower()
+    return 'tg' if b in ('tg', 'telemedia') else b
+
+
+KIND_NAME = {'tg': 'Telegram', 'rd': 'Real-Debrid', 'stremio': 'Stremio'}
+
+
+def kinds(rows):
+    """[(kind, how many)] in the order they first appear in the list"""
+    out = []
+    for c in rows:
+        k = kind(c)
+        for i, (x, n) in enumerate(out):
+            if x == k:
+                out[i] = (x, n + 1)
+                break
+        else:
+            out.append((k, 1))
+    return out
+
+
+def only(rows, hidden):
+    """the rows whose source is not hidden; when that would leave nothing, all of them"""
+    hidden = set(hidden or ())
+    kept = [c for c in rows if kind(c) not in hidden]
+    return kept or list(rows)
 
 
 def words(lang):

@@ -959,3 +959,23 @@ msgstr ""
 msgctxt "#30970"
 msgid "Saved. From now on, on every new device: All in one + the same user name and password."
 msgstr ""
+
+msgctxt "#30971"
+msgid "Sources shown: %s (press to choose)"
+msgstr ""
+
+msgctxt "#30972"
+msgid "Telegram, Real-Debrid and the other sources: choose which ones are listed. The best link for this connection is always first."
+msgstr ""
+
+msgctxt "#30973"
+msgid "all"
+msgstr ""
+
+msgctxt "#30974"
+msgid "Show links from"
+msgstr ""
+
+msgctxt "#30975"
+msgid "Hidden sources"
+msgstr ""

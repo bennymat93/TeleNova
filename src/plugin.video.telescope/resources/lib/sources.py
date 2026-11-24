@@ -1330,6 +1330,11 @@ class Finder(object):
         if unfit or unfit2:
             job.stats = dict(job.stats or {}, device_hidden=unfit + unfit2)
         result = [self._public(c) for c in self.order_groups(rows, max(40, int(self.s.get('max_results', 25))))]
+        try:                                    # 6.1.3: the free search is ordered like the title search
+            from . import recommend
+            result = recommend.rank(result, self.link_rate(), 0)
+        except Exception as exc:
+            self.log('recommendation: %s' % exc)
         if result:
             self.cache.set(key, result, 900)
         job.update(100, 'done')

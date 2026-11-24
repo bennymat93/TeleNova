@@ -959,3 +959,23 @@ msgstr "הכול מחובר. נשאר טלגרם: מסך החיבור נפתח �
 msgctxt "#30970"
 msgid "Saved. From now on, on every new device: All in one + the same user name and password."
 msgstr "נשמר. מעכשיו, בכל מכשיר חדש: "חיבור כולל" + אותו משתמש וסיסמה."
+
+msgctxt "#30971"
+msgid "Sources shown: %s (press to choose)"
+msgstr "מקורות מוצגים: %s (לחצו לבחירה)"
+
+msgctxt "#30972"
+msgid "Telegram, Real-Debrid and the other sources: choose which ones are listed. The best link for this connection is always first."
+msgstr "טלגרם, Real-Debrid ושאר המקורות: בחרו אילו יוצגו. הקישור הטוב ביותר לחיבור הנוכחי תמיד ראשון."
+
+msgctxt "#30973"
+msgid "all"
+msgstr "הכול"
+
+msgctxt "#30974"
+msgid "Show links from"
+msgstr "הצג קישורים מ-"
+
+msgctxt "#30975"
+msgid "Hidden sources"
+msgstr "מקורות מוסתרים"
