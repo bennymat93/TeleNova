@@ -23,6 +23,10 @@ def apply(xml):
         n += focus_label(xml)  # 4.2.8
     except Exception:
         pass
+    try:
+        n += wellformed(xml)   # 6.0.2
+    except Exception:
+        pass
     item = ('\n\t<item>\n\t\t<label>%s</label>\n\t\t<icon>osd/fullscreen/buttons/subs3.png</icon>\n'
             '\t\t<onclick>%s</onclick>\n\t\t<visible>!VideoPlayer.Content(LiveTV)</visible>\n\t</item>') % (AI_LABEL, AI_RUN)
     # item-list players (advanced, netflix): right after "search subtitles"
@@ -78,6 +82,28 @@ def apply(xml):
         n += 1
     n += _menu_button(xml)
     n += bn_player(xml)
+    return n
+
+
+# ------------------------------------------------------------------ 6.0.2: well-formed XML
+# Six stock FENtastic files were not well-formed XML: bare '&' inside plugin addresses (left from POV, which the build
+# no longer carries) and one comment closed with '--->'. Kodi's own parser forgives both, every XML checker stops at
+# them. '&amp;' is read by Kodi as the same '&', so the screens do exactly what they did.
+_BARE_AMP = re.compile(r'&(?!(?:amp|lt|gt|quot|apos|#[0-9]+|#x[0-9a-fA-F]+);)')
+
+
+def wellformed(xml):
+    n = 0
+    for fn in sorted(os.listdir(xml)):
+        if not fn.endswith('.xml'):
+            continue
+        p = os.path.join(xml, fn)
+        t = open(p, encoding='utf-8', newline='').read()
+        new = _BARE_AMP.sub('&amp;', t)
+        new = re.sub(r'(<!--(?:(?!-->).)*?)-+-->', lambda m: m.group(1).rstrip('-') + ' -->', new, flags=re.S)
+        if new != t:
+            open(p, 'w', encoding='utf-8', newline='').write(new)
+            n += 1
     return n
 
 
