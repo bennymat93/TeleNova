@@ -166,7 +166,7 @@ jobs:
           # every page that links the IPA by its versioned name follows the new file
           for f in ios/README-app.md ios/index.html guide.html README.md DOWNLOADS.md; do
             [ -f "$f" ] || continue
-            sed -i '' -E "s/TeleNova-Web-[0-9][0-9.]*\.ipa/TeleNova-Web-$V.ipa/g; s/BN-Stream-iOS-[0-9][0-9.]*\.ipa/BN-Stream-iOS-$V.ipa/g; s#releases/download/ios-[0-9][0-9.]*/#releases/download/ios-$V/#g" "$f"
+            sed -i '' -E "s/TeleNova-Web-[0-9][0-9.]*\.ipa/TeleNova-Web-$V.ipa/g; s/BN-Stream-iOS-[0-9][0-9.]*\.ipa/BN-Stream-iOS-$V.ipa/g; s#releases/download/ios-[0-9][0-9.]*/#releases/download/ios-$V/#g; s/הורדת BN Stream [0-9][0-9.]* [(]IPA/הורדת BN Stream $V (IPA/g" "$f"
             git add "$f"
           done
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
