@@ -53,4 +53,11 @@
     <string name="sc_refresh">רענון</string>
     <string name="f_working">עובד...</string>
     <string name="offline_clock">תעודת האבטחה של האתר נדחתה - בדקו את התאריך והשעה במכשיר. מוצג העותק המובנה.</string>
+    <string name="upd_title">גרסה חדשה של BN Stream</string>
+    <string name="upd_text">גרסה %1$s זמינה (במכשיר הזה %2$s). להוריד ולהתקין עכשיו? ההגדרות וההתחברויות נשמרות.</string>
+    <string name="upd_yes">התקנה</string>
+    <string name="upd_no">לא עכשיו</string>
+    <string name="upd_loading">מוריד את הגרסה החדשה...</string>
+    <string name="upd_failed">לא ניתן היה להוריד את העדכון. נסו שוב מאוחר יותר.</string>
+    <string name="upd_allow">כדי להתקין את העדכון, אשרו ל-BN Stream להתקין אפליקציות במסך הבא, ואז חזרו.</string>
 </resources>

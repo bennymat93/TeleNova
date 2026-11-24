@@ -13,7 +13,7 @@
   // file, which the app saves in its own folder (the full backup over the old one). Hidden before any page code runs.
   try { delete window.showSaveFilePicker; } catch (e) { /* not there */ }
   try { if ('showSaveFilePicker' in window) Object.defineProperty(window, 'showSaveFilePicker', {value: undefined, configurable: true, writable: true}); } catch (e) { /* stays */ }                 // the page's test for "inside the Android app" (also "BNStream/" in the user agent)
-  var seq = 0, pend = {}, wired = false, relays = {};
+  var seq = 0, pend = {}, wired = false, relays = {}, pendV = {};
   function unb64(s) {
     var bin = atob(s || ''), a = new Uint8Array(bin.length), i = 0;
     for (; i < bin.length; i++) a[i] = bin.charCodeAt(i);
@@ -37,6 +37,14 @@
           delete relays[rk];
           var meta; try { meta = JSON.parse(d.slice(j + 1)); } catch (e) { meta = {status: 502, headers: {}}; }
           rp.done({meta: meta, parts: rp.parts});
+          return;
+        }
+        if (i === 1 && d.charAt(0) === 'V') {                                   // a value answer: V:<k>:<json>
+          var vj = d.indexOf(':', 2), vk = d.slice(2, vj), vf = pendV[vk];
+          if (!vf) return;
+          delete pendV[vk];
+          var val = null; try { val = JSON.parse(d.slice(vj + 1)); } catch (e) { val = null; }
+          vf(val);
           return;
         }
         if (pend[k]) { var f = pend[k]; delete pend[k]; f(d.slice(0, i)); }
@@ -182,6 +190,38 @@
   document.addEventListener('DOMContentLoaded', fab);
   setInterval(fab, 1500);
 
+  // ---- the page's own keyboard (web/osk.js marks <html class="osk_on">): the app keeps Android's keyboard closed
+  // meanwhile, so two keyboards never cover the screen
+  var oskLast = null, oskMarked = [];
+  function oskQuiet(el) {                          // inputmode="none": Chrome shows no virtual keyboard for this field
+    if (!el || !/^(INPUT|TEXTAREA)$/.test(el.tagName) || el.hasAttribute('data-tn-im')) return;
+    el.setAttribute('data-tn-im', el.getAttribute('inputmode') || '');
+    el.setAttribute('inputmode', 'none');
+    oskMarked.push(el);
+  }
+  function oskState() {
+    var on = document.documentElement.classList.contains('osk_on');
+    if (on === oskLast) return;
+    oskLast = on;
+    post({t: 'osk', on: on});
+    if (on) oskQuiet(document.activeElement);
+    else {
+      oskMarked.forEach(function (el) {
+        var was = el.getAttribute('data-tn-im');
+        if (was) el.setAttribute('inputmode', was); else el.removeAttribute('inputmode');
+        el.removeAttribute('data-tn-im');
+      });
+      oskMarked = [];
+    }
+  }
+  try { new MutationObserver(oskState).observe(document.documentElement, {attributes: true, attributeFilter: ['class']}); } catch (e) { /* old engine */ }
+  // a field focused while the page's keyboard is open (it sends its letters there) stays quiet too
+  document.addEventListener('focusin', function (e) { if (oskLast) oskQuiet(e.target); }, true);
+  // the field that opened the page's keyboard: marked before the keyboard draws (focusin comes before osk_on)
+  document.addEventListener('focusin', function (e) {
+    if (document.documentElement.classList.contains('tv')) oskQuiet(e.target);
+  }, true);
+
   // ---- the helper Worker, built into the app (HelperRelay.java) -------------------------------------------------
   // web/helper.js sends requests for hosts without browser CORS to <helper address>/p with the target in X-TN-Target.
   // Here that address is a name that never reaches the network: fetch() to it is answered by the app itself. The same
@@ -235,6 +275,37 @@
   }, 250);
 
   // the same small API as the iOS app (ios-app/Resources/bridge.js), so the page can test one name
+  // ---- BNNative: what the page may ask the app for (web/app.js fullUpdate, web/osk.js clipboard) -----------------
+  function askV(o, ms) {
+    return new Promise(function (res) {
+      var B = bridge();
+      if (!B) return res(null);
+      var k = 'v' + (++seq); o.k = k; pendV[k] = res;
+      setTimeout(function () { if (pendV[k]) { delete pendV[k]; res(null); } }, ms || 15000);
+      try { B.postMessage(JSON.stringify(o)); } catch (e) { delete pendV[k]; res(null); }
+    });
+  }
+  window.BNNative = {
+    platform: 'android',
+    // the newest app: the app reads apk/version.json; a newer APK is offered (download + install, the system asks);
+    // -> {newer, version}. The page then refreshes its own files as it always does.
+    fullUpdate: function () { return askV({t: 'update'}, 20000); },
+    clipRead: function () { return askV({t: 'clipread'}).then(function (v) { return typeof v === 'string' ? v : ''; }); },
+    clipWrite: function (text) { return askV({t: 'clipwrite', text: String(text == null ? '' : text)}).then(function (v) { return v === true; }); }
+  };
+  // A WebView refuses navigator.clipboard.readText (no permission prompt exists there): both calls go to the app.
+  try {
+    var cb = navigator.clipboard || {};
+    var readT = function () { return window.BNNative.clipRead(); };
+    var writeT = function (t) { return window.BNNative.clipWrite(t).then(function (ok) { if (!ok) throw new DOMException('Write refused', 'NotAllowedError'); }); };
+    if (navigator.clipboard) {
+      try { Object.defineProperty(cb, 'readText', {value: readT, configurable: true, writable: true}); } catch (e) { cb.readText = readT; }
+      try { Object.defineProperty(cb, 'writeText', {value: writeT, configurable: true, writable: true}); } catch (e) { cb.writeText = writeT; }
+    } else {
+      Object.defineProperty(navigator, 'clipboard', {value: {readText: readT, writeText: writeT}, configurable: true});
+    }
+  } catch (e) { /* the page keeps its own fallback */ }
+
   window.TeleNovaNative = {
     helper: HELPER,
     platform: 'android',

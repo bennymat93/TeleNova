@@ -3,7 +3,9 @@
 //   web/**                      -> assets/web/**            (served by the app on the site's own https origin)
 //   web/icon-192.png            -> launcher icon (old Android)
 //   web/icon-maskable-512.png   -> adaptive launcher icon foreground
-def webDir = new File(rootProject.projectDir, '../web')
+// TN_WEB_DIR (optional): a clean copy of web/ to bundle instead of the working tree - build.ps1 -Committed makes one
+// from the last commit, so a release never carries another session's unfinished web edits.
+def webDir = System.getenv('TN_WEB_DIR') ? new File(System.getenv('TN_WEB_DIR')) : new File(rootProject.projectDir, '../web')
 def genDir = layout.buildDirectory.dir('generated/tn')
 
 tasks.register('syncWeb', Sync) {

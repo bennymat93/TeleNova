@@ -54,4 +54,11 @@
     <string name="sc_refresh">Refresh</string>
     <string name="f_working">Working...</string>
     <string name="offline_clock">The security certificate of the site was refused - check the date and time of the device. The built-in copy is shown.</string>
+    <string name="upd_title">A new version of BN Stream</string>
+    <string name="upd_text">Version %1$s is available (this device has %2$s). Download and install it now? Your settings and sign-ins stay.</string>
+    <string name="upd_yes">Install</string>
+    <string name="upd_no">Not now</string>
+    <string name="upd_loading">Downloading the new version...</string>
+    <string name="upd_failed">The update could not be downloaded. Try again later.</string>
+    <string name="upd_allow">To install the update, allow BN Stream to install apps on the next screen, then come back.</string>
 </resources>

@@ -53,4 +53,11 @@
     <string name="sc_refresh">Обновить</string>
     <string name="f_working">Выполняется...</string>
     <string name="offline_clock">Сертификат сайта отклонён - проверьте дату и время на устройстве. Показана встроенная копия.</string>
+    <string name="upd_title">Новая версия BN Stream</string>
+    <string name="upd_text">Доступна версия %1$s (на этом устройстве %2$s). Скачать и установить сейчас? Настройки и входы сохранятся.</string>
+    <string name="upd_yes">Установить</string>
+    <string name="upd_no">Не сейчас</string>
+    <string name="upd_loading">Загрузка новой версии...</string>
+    <string name="upd_failed">Не удалось скачать обновление. Попробуйте позже.</string>
+    <string name="upd_allow">Чтобы установить обновление, разрешите BN Stream устанавливать приложения на следующем экране и вернитесь.</string>
 </resources>

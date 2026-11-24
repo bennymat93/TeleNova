@@ -69,6 +69,13 @@ repository and must be backed up: an APK signed with another key cannot be insta
   it is offered but never returns, which left the full-backup button doing nothing.
 - **A refused certificate** (most often a wrong device clock, common on TV boxes) is never accepted: the built-in
   copy is shown with a note to check the date and time.
+- **BNNative** (page -> app): `fullUpdate()` (reads `apk/version.json`, offers a newer APK, downloads it, checks the
+  SHA-256, opens the system installer - `Updater.java`), `clipRead()` / `clipWrite(text)`; `navigator.clipboard.readText`
+  / `writeText` are routed to them (a WebView refuses clipboard reads). While the page's own keyboard is open
+  (`<html class="osk_on">`, web/osk.js) the focused field gets `inputmode="none"` and the WebView asks for no system
+  keyboard, so two keyboards never cover a TV screen.
+- **Releases bundle the committed web/**: `build.ps1 -Committed` exports `web/` from the last commit (another session
+  may be editing the working tree).
 - **Zoom.** Text zoom is fixed at 100% and pinch / control zoom is off: the page has its own display-size control.
 - **Full screen** video: system bars hidden, landscape on phones / tablets, screen kept on while a video plays.
 - **Files.** A file the page "downloads" (`a[download]` on a `blob:` address: backups, exported settings, playlists,

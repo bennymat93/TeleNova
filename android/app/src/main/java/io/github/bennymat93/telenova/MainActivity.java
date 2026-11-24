@@ -106,6 +106,20 @@ public class MainActivity extends Activity {
 
     private static final class Save { File tmp; File dir; String name; OutputStream out; }
 
+    /**
+     * While the page's own keyboard is open (web/osk.js sets class="osk_on" on <html>), the WebView asks Android for no
+     * keyboard: otherwise the system keyboard opened on top of the page's one (seen on Android TV). Remote and hardware
+     * keys still reach the page; the system keyboard comes back as soon as the page's keyboard closes.
+     */
+    static final class TnWebView extends WebView {
+        boolean noIme;
+        TnWebView(Context c) { super(c); }
+        @Override public android.view.inputmethod.InputConnection onCreateInputConnection(android.view.inputmethod.EditorInfo out) {
+            return noIme ? null : super.onCreateInputConnection(out);
+        }
+        @Override public boolean onCheckIsTextEditor() { return !noIme && super.onCheckIsTextEditor(); }
+    }
+
     // ------------------------------------------------------------------ life cycle
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -119,7 +133,7 @@ public class MainActivity extends Activity {
 
         rootView = new FrameLayout(this);
         rootView.setBackgroundColor(0xff0b0d12);
-        web = new WebView(this);
+        web = new TnWebView(this);
         web.setBackgroundColor(0xff0b0d12);
         rootView.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(rootView);
@@ -150,6 +164,7 @@ public class MainActivity extends Activity {
         super.onResume();
         // back in the app: the service worker looks for a new web version (the page shows its own "reload" notice)
         if (web != null && pageReady) web.evaluateJavascript(SW_UPDATE, null);
+        Updater.resume(this);                                   // back from "allow installing apps": install now
     }
 
     @Override protected void onStop() {
@@ -575,6 +590,18 @@ public class MainActivity extends Activity {
             k = o.optString("k");
             String t = o.optString("t"), id = o.optString("id");
             switch (t) {
+                case "osk": {                                 // the page's own keyboard (web/osk.js) opened / closed
+                    boolean on = o.optBoolean("on");
+                    if (web instanceof TnWebView && ((TnWebView) web).noIme != on) {
+                        ((TnWebView) web).noIme = on;
+                        android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                        if (imm != null) {
+                            if (on) imm.hideSoftInputFromWindow(web.getWindowToken(), 0);
+                            imm.restartInput(web);
+                        }
+                    }
+                    return;
+                }
                 case "play":
                     if (o.optBoolean("on")) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                     else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -583,6 +610,29 @@ public class MainActivity extends Activity {
                 case "menu": showMenu(); return;
                 case "refresh": refresh(); return;
                 case "relay": relay(o, k, reply); return;
+                case "clipread": {
+                    ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    CharSequence clip = null;
+                    if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip() != null && cm.getPrimaryClip().getItemCount() > 0)
+                        clip = cm.getPrimaryClip().getItemAt(0).coerceToText(this);
+                    value(reply, k, JSONObject.quote(clip == null ? "" : clip.toString()));
+                    return;
+                }
+                case "clipwrite": {
+                    ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    boolean ok = false;
+                    if (cm != null) { cm.setPrimaryClip(ClipData.newPlainText("BN Stream", o.optString("text"))); ok = true; }
+                    value(reply, k, ok ? "true" : "false");
+                    return;
+                }
+                case "update": {
+                    final String uk = k;
+                    Updater.check(this, (newer, name) -> {
+                        try { value(reply, uk, new JSONObject().put("newer", newer).put("version", name == null ? JSONObject.NULL : name).toString()); }
+                        catch (Exception e) { value(reply, uk, "null"); }
+                    });
+                    return;
+                }
                 case "relay-abort": { HelperRelay.Call c = relayCalls.remove(k); if (c != null) c.cancel(); return; }
                 case "tgqr": {                                   // the QR sign-in link, confirmed in the Telegram app of this device
                     String u = o.optString("url");
@@ -672,6 +722,12 @@ public class MainActivity extends Activity {
     private void cancelRelays() {
         for (HelperRelay.Call c : relayCalls.values()) c.cancel();
         relayCalls.clear();
+    }
+
+    /** The answer to a BNNative call of the page: V:<k>:<json>. */
+    private void value(JavaScriptReplyProxy reply, String k, String json) {
+        if (k == null || k.isEmpty()) return;
+        try { if (web != null) reply.postMessage("V:" + k + ":" + json); } catch (Exception e) { /* the page is gone */ }
     }
 
     private void abortSaves() {

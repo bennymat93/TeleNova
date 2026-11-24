@@ -2,12 +2,13 @@
 #   powershell -ExecutionPolicy Bypass -File android\build.ps1            (the next number of the series)
 #   powershell -ExecutionPolicy Bypass -File android\build.ps1 -DryRun    (only says which number it would be)
 #   powershell -ExecutionPolicy Bypass -File android\build.ps1 -Version 6.0.0   (one exact version, to align with Kodi / web)
+#   ... -Committed   (bundle web/ from the last commit, not the working tree - use it for releases)
 # Version: every release goes up by one inside the series of android\VERSION (e.g. "2.6" -> 2.6.1, 2.6.2, ...). The
 # number is the count of published GitHub releases apk-<series>.N plus one - the same rule as the iOS app
 # (ios-app/VERSION). versionCode = major*10000 + minor*100 + N, so every release installs over the one before.
 # Needs: Android Studio (its JDK is used) and the Android SDK; the release key in %USERPROFILE%\.telenova-keys\
 # (keystore.properties + telenova-release.jks - never in the repository).
-param([switch]$DryRun, [string]$Version = '')
+param([switch]$DryRun, [string]$Version = '', [switch]$Committed)
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -46,11 +47,26 @@ if (-not (Test-Path (Join-Path $here 'local.properties'))) {
 if (-not (Test-Path (Join-Path $env:USERPROFILE '.telenova-keys\keystore.properties'))) {
     throw 'The release key is missing: %USERPROFILE%\.telenova-keys\keystore.properties (an APK signed with another key cannot update the installed app).'
 }
+# -Committed: bundle web/ as it is in the last commit (a clean copy outside the repository), not the working tree -
+# another session may be in the middle of editing web/ on this checkout.
+$webDir = Join-Path $here '..\web'
+if ($Committed) {
+    $tmp = Join-Path $env:USERPROFILE '.telenova-build\web-committed'
+    if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
+    New-Item -ItemType Directory -Force $tmp | Out-Null
+    $zip = Join-Path $tmp 'web.zip'
+    & git -C (Join-Path $here '..') archive --format=zip -o $zip HEAD web
+    if ($LASTEXITCODE -ne 0) { throw 'git archive failed' }
+    Expand-Archive -Path $zip -DestinationPath $tmp -Force
+    Remove-Item $zip
+    $webDir = Join-Path $tmp 'web'
+    $env:TN_WEB_DIR = $webDir
+}
 Push-Location $here
 try {
     & .\gradlew.bat --console=plain assembleRelease
     if ($LASTEXITCODE -ne 0) { throw "Gradle failed ($LASTEXITCODE)" }
-} finally { Pop-Location }
+} finally { Pop-Location; Remove-Item Env:TN_WEB_DIR -ErrorAction SilentlyContinue }
 # the build folder is outside the repository (see app/build.gradle)
 $apk = Join-Path $env:USERPROFILE '.telenova-build\app\outputs\apk\release\app-release.apk'
 $out = Join-Path $here '..\apk'
@@ -59,7 +75,7 @@ Copy-Item $apk (Join-Path $out 'TeleNova.apk') -Force
 $gradle = Get-Content (Join-Path $here 'app\build.gradle') -Raw
 $name = [regex]::Match($gradle, "versionName '([^']+)'").Groups[1].Value
 $code = [regex]::Match($gradle, 'versionCode (\d+)').Groups[1].Value
-$web = [regex]::Match((Get-Content (Join-Path $here '..\web\version.js') -Raw), "WEB_VERSION\s*=\s*'([^']+)'").Groups[1].Value
+$web = [regex]::Match((Get-Content (Join-Path $webDir 'version.js') -Raw), "WEB_VERSION\s*=\s*'([^']+)'").Groups[1].Value
 $sha = (Get-FileHash (Join-Path $out 'TeleNova.apk') -Algorithm SHA256).Hash.ToLower()
 $json = '{"versionName": "' + $name + '", "versionCode": ' + $code + ', "webVersion": "' + $web + '", "file": "TeleNova.apk", "sha256": "' + $sha + '"}'
 [IO.File]::WriteAllText((Join-Path $out 'version.json'), $json + "`n")
