@@ -1023,7 +1023,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             r.firstCue = tr && tr.cues && tr.cues.length ? {s: tr.cues[0].startTime, t: tr.cues[0].text} : null;
             r.audioCtx = !!self.__tnAiCtx && self.__tnAiCtx.state;
             const root = document.getElementById('pl-root');
-            r.text = root ? (root.innerText || '').replace(/\s+/g, ' ').slice(0, 200) : '';
+            r.text = root ? (root.innerText || '').replace(/\\s+/g, ' ').slice(0, 200) : '';
           } catch (e) { r.error = String(e); }
           try { P.close(); } catch (e) { /* closed */ }
           await wait(1000);
