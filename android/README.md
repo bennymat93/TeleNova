@@ -9,10 +9,10 @@ native shell. Package `io.github.bennymat93.telenova`, minSdk 24 (Android 7), Ja
 powershell -ExecutionPolicy Bypass -File android\build.ps1
 ```
 
-**Version numbers.** Every release goes up by one inside the series in `android/VERSION` (now `2.6` -> 2.6.1, 2.6.2,
+**Version numbers.** Every release goes up by one inside the series in `android/VERSION` (now `6.1` -> 6.1.N,
 ...), the same rule as the iOS app (`ios-app/VERSION`). `build.ps1` counts the published GitHub releases
 `apk-<series>.N`, builds `<series>.(N+1)` and writes `versionName` / `versionCode` (`major*10000 + minor*100 + N`) into
-`app/build.gradle` - do not edit them by hand; `build.ps1 -DryRun` only prints the next number. After commit + push:
+`app/build.gradle` - do not edit them by hand; it stops when the number is not above the published `apk/version.json`; `build.ps1 -DryRun` only prints the next number. After commit + push:
 `gh release create apk-X.Y.Z BN-Stream-Android-X.Y.Z.apk --target gh-pages --latest --title "BN Stream Android X.Y.Z"`
 (the script prints the exact line). A new series = edit `android/VERSION`. One exact version (to align with Kodi / web, e.g. 6.0.0) =
 `build.ps1 -Version 6.0.0`; the next plain build of series 6.0 is then 6.0.1.

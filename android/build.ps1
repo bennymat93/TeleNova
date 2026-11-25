@@ -34,6 +34,11 @@ $vName = "$major.$minor.$patch"
 $vCode = $major * 10000 + $minor * 100 + $patch
 Write-Host "Version $vName (code $vCode) - releases of $series so far: $done"
 if ($DryRun) { return }
+$pubFile = Join-Path $here '..\apk\version.json'    # never build a number that cannot install over the published APK
+if (Test-Path $pubFile) {
+    $pubCode = [int](Get-Content $pubFile -Raw | ConvertFrom-Json).versionCode
+    if ($vCode -le $pubCode) { throw "versionCode $vCode is not greater than the published $pubCode (apk/version.json): raise android/VERSION or pass -Version" }
+}
 $gradleFile = Join-Path $here 'app\build.gradle'
 $g = Get-Content $gradleFile -Raw
 $g = [regex]::Replace($g, "versionCode \d+", "versionCode $vCode")
