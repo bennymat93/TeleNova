@@ -212,6 +212,8 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        // http addons / direct links inside the https page (the browser site allows them for media the same way)
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         s.setSupportMultipleWindows(true);
         s.setJavaScriptCanOpenWindowsAutomatically(true);
         s.setAllowFileAccess(false);
