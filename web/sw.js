@@ -69,12 +69,20 @@ async function tgFirst(clients, msg, wait, signal) {
     }));
   });
 }
-async function tgServe(req, key, signal) {
+async function tgServe(req, key, signal, clientId) {
   const fail = (status) => new Response(null, {status, headers: {'Cache-Control': 'no-store'}});
   signal = signal || req.signal;
   if (signal && signal.aborted) return fail(499);   // 6.1.5: nobody waits for this answer any more
-  const all = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
-  const info = await tgFirst(all, {tgplay: 'info', key}, TG_WAIT, signal);
+  // 6.2.1: the window that made the request (the <video>'s page) is asked first and alone, so a frozen background
+  // tab cannot hold the answer back; every window is asked only when that one does not know the key.
+  let own = null;
+  try { own = clientId ? await self.clients.get(clientId) : null; } catch (err) { own = null; }
+  let all = own ? [own] : [];
+  let info = own ? await tgFirst(all, {tgplay: 'info', key}, 3000, signal) : null;
+  if (!info && !(signal && signal.aborted)) {
+    all = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
+    info = await tgFirst(all, {tgplay: 'info', key}, TG_WAIT, signal);
+  }
   if (signal && signal.aborted) return fail(499);
   if (!info || !info.ok) return fail(info && info.status ? info.status : 503);
   const size = info.size, header = req.headers.get('range');
@@ -107,12 +115,16 @@ self.tgRange = tgRange;                          // for the tests
 self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
   const tgm = u.origin === location.origin && e.request.method === 'GET' && /\/tgstream\/([A-Za-z0-9_-]{8,64})$/.exec(u.pathname);
-  if (tgm) { e.respondWith(tgServe(e.request, tgm[1]).catch(() => new Response(null, {status: 503}))); return; }
+  if (tgm) { e.respondWith(tgServe(e.request, tgm[1], null, e.clientId).catch(() => new Response(null, {status: 503}))); return; }
   if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.includes('/api/')) return;
   // network first (a new version shows at once), the cached shell when offline
   // 6.1.7: past the browser's HTTP cache too, so a new version never stores the old files
   e.respondWith(fetch(e.request, {cache: 'no-cache'}).then((r) => {
-    if (r.ok) { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
+    // 6.2.1: only whole 200 answers without a query (version.js?u=... would grow the cache without end; a 206 Range
+    // answer cannot be stored and its put rejected unhandled). The offline match ignores the query anyway.
+    if (r.status === 200 && r.type === 'basic' && !e.request.headers.has('range') && !u.search) {
+      const copy = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+    }
     return r;
   }).catch(() => caches.match(e.request, {ignoreSearch: true}).then((r) => r || (e.request.mode === 'navigate' ? caches.match('index.html') : Response.error()))));
 });

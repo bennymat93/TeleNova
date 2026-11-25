@@ -18,11 +18,9 @@ from urllib.parse import quote, quote_plus, urlencode
 
 import xbmc
 import xbmcgui
-
-from .common import monitor
 import xbmcplugin
 
-from .common import T, ui_lang, load, save, log, ADDON_PATH, ADDON
+from .common import T, ui_lang, load, save, log, ADDON_PATH
 
 # ------------------------------------------------------------------ registry
 # id, add-on, (he, en, ru), category, search template ({q} = url-quoted query) or None = browse only
@@ -429,8 +427,8 @@ def telegram_sources(mediatype, tmdb_id, season=None, episode=None, title=''):
     except Exception as e:
         log('telegram sources: %s' % e, xbmc.LOGWARNING)
         items = []
-    p = next(x for x in PROVIDERS if x[0] == 'telescope')
-    return [(p, items)] if items else []
+    p = next((x for x in PROVIDERS if x[0] == 'telescope'), None)
+    return [(p, items)] if (p and items) else []
 
 
 def play_with_fallback(pov_url, query, alt_query='', timeout=240, season=None, episode=None, show='', alt_show='',

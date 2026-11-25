@@ -253,7 +253,9 @@
   const pad2 = (n) => String(n).padStart(2, '0');
   const epCode = (q) => (q.type === 'tv' ? `S${pad2(q.season)}E${pad2(q.episode)}` : '');
   function clock(s) { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return (h ? h + ':' + pad2(m) : m) + ':' + pad2(s % 60); }
-  const pure = {quality, sizeBytes, langs, sizeText, tags, ytId, parseStream, sortRows, recOf, needMbit, bestRows, onlyKinds, kindOf, releaseKey, dedup, filterRows, sniff, verdict, streamId,
+  // 6.2.1: an add-on answer -> its stream list (an object or a missing list gives none)
+  const streamsOf = (j) => (Array.isArray(j && j.streams) ? j.streams : []);
+  const pure = {streamsOf, quality, sizeBytes, langs, sizeText, tags, ytId, parseStream, sortRows, recOf, needMbit, bestRows, onlyKinds, kindOf, releaseKey, dedup, filterRows, sniff, verdict, streamId,
     addonBase, addonName, keyOf, epCode, clock};
   if (typeof module === 'object' && module.exports) { module.exports = pure; return; }
   const TN = G.TN;
@@ -327,11 +329,20 @@
   async function addonRows(base, req, signal) {
     const id = streamId(req);
     if (!id) return [];
-    const r = await fetch(`${base}/stream/${req.type === 'tv' ? 'series' : 'movie'}/${encodeURIComponent(id)}.json`,
-      {signal, credentials: 'omit', referrerPolicy: 'no-referrer'});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json();
-    return ((j && j.streams) || []).map((s) => parseStream(s, addonName(base)));
+    // 6.2.1: the fetch itself is dropped after 25 s (find()'s withTimeout only stops waiting for it); no AbortSignal.any
+    // (older Safari)
+    const ac = typeof AbortController === 'function' ? new AbortController() : null;
+    const off = () => ac.abort();
+    const to = ac ? setTimeout(off, 25000) : 0;
+    if (ac && signal) { if (signal.aborted) ac.abort(); else signal.addEventListener('abort', off, {once: true}); }
+    try {
+      const r = await fetch(`${base}/stream/${req.type === 'tv' ? 'series' : 'movie'}/${encodeURIComponent(id)}.json`,
+        {signal: ac ? ac.signal : signal, credentials: 'omit', referrerPolicy: 'no-referrer'});
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      // 6.2.1: an add-on that answers streams as an object (not a list) gives no rows instead of a TypeError
+      return streamsOf(j).map((s) => parseStream(s, addonName(base)));
+    } finally { clearTimeout(to); if (ac && signal) signal.removeEventListener('abort', off); }
   }
 
   // ------------------------------------------------------------ request completion (imdb id, names, year)

@@ -61,7 +61,6 @@ def open_url(url):
 
 def show(url, title='TeleNova'):
     """opens the page and shows its address with a QR code (for a phone) until the viewer closes the window"""
-    import xbmc
     import xbmcgui
     from urllib.parse import quote
     from .common import ui_lang

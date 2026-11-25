@@ -256,7 +256,7 @@
         if (lastStream && tgp.close) tgp.close(lastStream);
         lastStream = h.key;
         return pl.open({url: h.url, title, mime, resumeKey, release: title});
-      } catch (e) { if (!e || (e.code !== 'TGPLAY_NO_SW' && e.message !== 'TGPLAY_NO_SW')) throw e; }
+      } catch (e) { const c = (e && (e.code || e.message)) || ''; if (!/^TGPLAY_NO_SW/.test(String(c))) throw e; }
     }
     if (size > BLOB_MAX) throw fail('too_big', t('gd_too_big'));
     // no service worker: the whole file, in parts, into memory

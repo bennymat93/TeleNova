@@ -65,4 +65,5 @@ yes(S.needMbit({size: 3e9}, 6000) > 4 && S.needMbit({quality: 2160}, 0) === 18, 
 eq(S.onlyKinds([big, sure, dead], ['rd']).map((r) => r.label[0]).join(''), 'AC', 'a hidden source is left out');
 eq(S.onlyKinds([big], ['tgsearch']).length, 1, 'hiding everything shows everything');
 yes(!S.recOf(row('slow.1080p.mp4', {status: 'cached', size: 4e9}), '', 3e6, 6000).safe, 'a connection slower than the file needs: not safe');
+eq([S.streamsOf({streams: {a: 1}}), S.streamsOf(null), S.streamsOf({}), S.streamsOf({streams: [1]})], [[], [], [], [1]], '6.2.1: streams that are not a list');
 console.log('t_sources OK (' + n + ' checks)');

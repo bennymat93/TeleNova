@@ -88,6 +88,9 @@ FIXES IDENTIFIED: 29  |  Fixed: 28 |  Pending: 1
 ## 6.1.3 (2026-11-24)
 Done: filter links by source (Kodi + web); smooth-on-this-connection-first ordering; web measures the line at each search and auto-tests the top 8.
 
+## 6.5.0 (2026-11-25) - V6.5
+Done: sync phase 2 (clock-skew fix via the Telegram server offset, keyed list merges incl. EPG, optional sync passphrase envelope for keys, Kodi sync screen); web V6.5 redesign (elevation / 3D, Lite look, the ⋯ menu); web and Kodi bug fixes; Kodi skin depth patch; Russian Kodi guide. Open: Android / iOS / Mac 6.5 app builds (own sessions); passphrase on two real devices (owner).
+
 ## Next
 
 Done 19/11: v6.0 - one version 6.0.0 for Kodi, web and apps; design pass (smaller buttons, less scrolling, shortcut buttons removed).

@@ -1,5 +1,7 @@
 # TeleNova – Handoff
 
+- **שוחרר: TeleNova 6.5.0 (V6.5)** (25/11): סנכרון שלב 2 הושלם – תיקון שעון (offset מול שרת הטלגרם), מיזוג רשימות לפי מפתח (כולל EPG), סיסמת סנכרון אופציונלית למפתחות (`syncseal.py`, מעטפת `secrets`, גם ב-web/websync.js), מסך סנכרון ב-Kodi (`sync_ui.py`: קטגוריות, מכשירים, סיסמה). web: עיצוב V6.5 (elevation/3D + מראה קל Lite), תפריט ⋯, תיקוני באגים web/Kodi; Kodi: skinpatch עומק, מדריך רוסי. מדריך guide.html עודכן (V6.5). בדיקות חדשות: t_helpcenter, t_skindepth, t_web65. **פתוח:** אפליקציות Android/iOS/Mac 6.5 (shells בקוד, בנייה בסשנים שלהן); אימות סיסמת סנכרון על שני מכשירים אמיתיים (בעלים).
+
 - **שוחרר: TeleNova 6.2.0** (25/11): סנכרון מלא שלב 1 – web/אפליקציות שותפים מלאים במסמך הסנכרון (twins.js, websync.js stamp/apply, כלל הצטרפות, תאריך לכל מפתח, מחיקות), Kodi: SESSION_RX, LOCAL מורחב, שמירת סקשנים של עמיתים, גיבוי בלי קובצי session. מסך סנכרון בהגדרות web. סקירה: 14 ממצאים תוקנו. מדריך + README עודכנו. **שלב 2 פתוח (docs/SYNC-PLAN.md):** סיסמת סנכרון אופציונלית, מיזוג רשימות לפי מפתח, הסרת "last" לסיכות שנמחקו בדפדפן, מסך סנכרון מורחב ב-Kodi.
 
 - **שוחרר: TeleNova 6.1.7** (25/11): QA מקיף (7 תחומים, 23 סוכנים, 10 מאומתים): realdebrid 429/5xx לא נפסל 6 שעות; rpc תשובה לא-JSON = service_down; CSP מאפשר http (אפליקציות); sw.js מעקף HTTP cache (cache:reload/no-cache); watchdog גם ל-hls.js; גיבוי zip רגיל בלי מפתחות (רק בגיבוי המוצפן); שחזור לא מעתיק הגדרות מכשיר. נשלח לסשנים: android/VERSION ל-6.1 + שמירה, טקסט גרסת Mac בדפים. **הבא:** סנכרון מלא בין Kodi/iOS/APK/web + מדריכים.
@@ -149,7 +151,7 @@ git add -A; git commit; git push origin gh-pages   # ואז לוודא את repo
 cd "C:\My Projects\novaTV Addon\src"
 python -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read(),f,feature_version=(3,8)) for f in glob.glob(r'plugin.*\**\*.py',recursive=True)]; print('ok')"
 python qa\undef.py "C:\My Projects\novaTV Addon\src"
-foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs','t_linkspeed','t_slowwatch','t_recommend','t_linklogin','t_aio','t_links'){ python "qa\$t.py" }
+foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs','t_linkspeed','t_slowwatch','t_recommend','t_linklogin','t_aio','t_links','t_helpcenter'){ python "qa\$t.py" }
 cd qa\agentC; python test_all.py; python test_rd.py; cd ..\..; python qa\t_profiles.py plugin.video.nova\resources\lib
 python qa\web\run_web_tests.py   # כל בדיקות הרשת + ה-Worker
 python qa\deploy_local.py; & qa\qa_live.ps1      # על Kodi הראשי, כשהוא לא מנגן (deploy_local מעתיק גם json מ-resources)

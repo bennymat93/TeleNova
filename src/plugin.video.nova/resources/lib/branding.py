@@ -13,7 +13,6 @@ import shutil
 import subprocess
 
 import xbmc
-import xbmcgui
 import xbmcvfs
 
 from .common import ADDON, MEDIA, log

@@ -54,8 +54,14 @@
     'aio_done', 'clip_hist', 'art', 'rd_dead', 'subs_offsets', 'helper_token', 'tn_gd', 'tn_gd_state', 'tn_gdrive', 'user', 'player_resume',
     'subs_ktuvit', 'synced', 'sync_meta', 'cfg', 'iptv_probe',
     // 6.2.0: the same device-only keys as Kodi's autosync.LOCAL
-    'lite', 'ui_sounds', 'open_on_start', 'readahead', 'cache_mb', 'max_mbit']);
+    'lite', 'ui_sounds', 'open_on_start', 'readahead', 'cache_mb', 'max_mbit',
+    // 6.3.0: the owner's sync passphrase stays on this device
+    'sync_pass']);
   const LOCAL_RX = /^(tn_gd\w*|\w+_done|last_\w+|\w+_ts|\w+_time|debug|port|device_profile)$/;
+  // 6.3.0 (B4): exactly Kodi's autosync.LOCAL (one list; src/qa/t_autosync.py runs both over the same keys)
+  const KODI_LOCAL_RX = new RegExp('^(debug|port|device_profile|deps_zip|wizard_shown|sub_server|lite_done|depov_done|wizard_fix|tune_done|' +
+    'lite|ui_sounds|open_on_start|readahead|cache_mb|max_mbit|' +
+    '\\w+_done|last_\\w+|\\w+_ts|\\w+_time|kodion\\..*|.*\\.port)$');
   // 6.2.0: the Telegram login of a device never enters the document - whatever the key is called
   const SESSION_RX = /session|auth_?key|string_?sess/i;
   const isLocal = (k) => { const b = String(k).replace(/^bn[:_]/, ''); return LOCAL.includes(b) || LOCAL_RX.test(b) || SESSION_RX.test(String(k)); };
@@ -94,8 +100,10 @@
     pins: {enc(v, old, last) {
              if (!Array.isArray(v)) return undefined;
              const out = v.filter((p) => p && p.id).map(pinTok);
-             const had = Array.isArray(last) ? last.filter((p) => p && p.id) : [];
-             const hadTok = (t) => had.some((p) => (p.username && botKey(p.username) === botKey(t)) || String(p.id) === t);
+             // 6.3.0 (B1): `last` is either the tokens this browser last sent (strings, what websync passes) or chats
+             const had = Array.isArray(last) ? last.filter((p) => typeof p === 'string' ? p.trim() : p && p.id) : [];
+             const hadTok = (t) => had.some((p) => (typeof p === 'string' ? botKey(p) === botKey(t)
+               : (p.username && botKey(p.username) === botKey(t)) || String(p.id) === t));
              for (const t of String(typeof old === 'string' ? old : '').split(',').map((x) => x.trim()).filter(Boolean)) {
                if (/^-?\d{3,20}$/.test(t) || out.some((x) => botKey(x) === botKey(t)) || hadTok(t)) continue;
                out.push(t);
@@ -170,7 +178,7 @@
     },
   };
 
-  const api = {TWINS, TNCFG, WEB_STORES, LOCAL, LOCAL_RX, SESSION_RX, CODECS, IPTV, isLocal, botKey, NOVA, TELE, FILES, WEB};
+  const api = {TWINS, TNCFG, WEB_STORES, LOCAL, LOCAL_RX, KODI_LOCAL_RX, SESSION_RX, CODECS, IPTV, isLocal, botKey, NOVA, TELE, FILES, WEB};
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.TNTwins = Object.freeze(api);
 })(typeof globalThis !== 'undefined' ? globalThis : this);

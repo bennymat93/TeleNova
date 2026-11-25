@@ -330,6 +330,193 @@ for mod in (users,):
     for k, v in mod.STR.items():
         check(len(v) == 3 and all(v), 'string %s in three languages' % k)
 
+
+# ---- 6.3.0
+class Clocked(Device):
+    """a device whose clock is off by `off` seconds; the cloud's server time is SRV[0] (its mark: 'n:server time')"""
+
+    def __init__(self, name, cloud, off, srv):
+        Device.__init__(self, name, cloud)
+        self.off, self.srv = off, srv
+
+    def clock(self):
+        return self.srv[0] + self.off
+
+    def cloud_mark(self):
+        return '' if self.cloud.doc is None else getattr(self.cloud, 'mark', 'v%d' % self.cloud.n)
+
+    def cloud_put(self, doc):
+        m = Device.cloud_put(self, doc)
+        if m:
+            self.cloud.mark = '%d:%d' % (self.cloud.n, self.srv[0])
+        return self.cloud.mark if m else ''
+
+
+SRV = [1800000000]
+cl = Cloud()
+S, Fd = Clocked('S', cl, -1800, SRV), Clocked('Fd', cl, 7200, SRV)       # 30 minutes slow, 2 hours fast
+Fd.watch('x', 1)
+autosync.cycle(Fd, Fd.clock())
+autosync.cycle(S, S.clock())
+S.sett['plugin.video.nova']['gemini_key'] = 'S0'                       # S writes once, so it learns too
+autosync.cycle(S, S.clock())
+check(abs(Fd.meta.get('skew', 0) + 7200) < 1 and abs(S.meta.get('skew', 0) - 1800) < 1,
+      'L1: each device learns the offset of its clock: %r / %r' % (Fd.meta.get('skew'), S.meta.get('skew')))
+check(autosync.skew_of({'skew': 10 ** 9}) == 0 and autosync.skew_of({'skew': True}) == 0, 'L1: an absurd offset is not used')
+SRV[0] += 100
+Fd.sett['plugin.video.nova']['tmdb_key'] = 'FAST'
+autosync.cycle(Fd, Fd.clock())
+SRV[0] += 100                                                          # later in real time, on the slow device
+S.sett['plugin.video.nova']['tmdb_key'] = 'SLOW'
+autosync.cycle(S, S.clock())
+for _ in range(2):
+    autosync.cycle(Fd, Fd.clock())
+    autosync.cycle(S, S.clock())
+check(Fd.sett['plugin.video.nova']['tmdb_key'] == 'SLOW' and S.sett['plugin.video.nova']['tmdb_key'] == 'SLOW',
+      'L1: the later change wins although its device\'s clock is 2.5 hours behind the other: %r' % Fd.sett['plugin.video.nova']['tmdb_key'])
+SRV[0] += 100
+Fd.sett['plugin.video.nova']['new_key_x'] = 'v'
+S.sett['plugin.video.nova']['new_key_y'] = 'w'
+autosync.cycle(Fd, Fd.clock())
+autosync.cycle(S, S.clock())
+st_ = [cl.doc['settings']['plugin.video.nova'][k][1] for k in ('new_key_x', 'new_key_y')]
+check(all(abs(x - SRV[0]) < 5 for x in st_), 'L1: once learned, both devices stamp on the server\'s clock: %r vs %r' % (st_, SRV[0]))
+# without a learned offset: a change of this round still goes after the account's stamp of the same key (B2)
+cl2 = Cloud()
+P1, P2 = Device('P1', cl2), Device('P2', cl2)
+autosync.cycle(P1, 50000)
+P1.sett['plugin.video.nova']['tmdb_key'] = 'P1'
+autosync.cycle(P1, 50010)
+autosync.cycle(P2, 40000)                                              # a slow clock that never uploaded
+P2.sett['plugin.video.nova']['tmdb_key'] = 'P2'
+P1.sett['plugin.video.nova']['gemini_key'] = 'G'
+autosync.cycle(P1, 50020)                                              # the account moves on (mark changes)
+autosync.cycle(P2, 40100)
+check(cl2.doc['settings']['plugin.video.nova']['tmdb_key'] == ['P2', 50011], 'L1/B2: re-stamped after the account\'s stamp: %r' % cl2.doc['settings']['plugin.video.nova']['tmdb_key'])
+cl2.doc['settings']['plugin.video.nova']['gemini_key'] = ['G2', 50020 + 10 ** 7]         # a broken writer far in the future
+cl2.n += 1
+P2.sett['plugin.video.nova']['gemini_key'] = 'P2G'
+autosync.cycle(P2, 40200)
+pp = {'k': ['v', 40200]}
+check(autosync._restamp(pp, 'k', ['x', 10 ** 8], 40200) == 40200 + 86401 and pp['k'] == ['v', 40200 + 86401] and
+      cl2.doc['settings']['plugin.video.nova']['gemini_key'][1] == 50020 + 10 ** 7,
+      'L1: an account stamp counts as a day ahead at most (a broken stamp never spreads)')
+
+# devices, keyed lists: two Kodi devices add different IPTV lists at the same time - both stay (P1)
+cl3 = Cloud()
+K3, K4 = Device('K3', cl3), Device('K4', cl3)
+K3.files['iptv.json'] = {'m3u': ['http://one'], 'epg': []}
+rounds([K3, K4], 60000)
+check(list(cl3.doc.get('devices', {}).keys()) == [K3.meta['device_id']] and cl3.doc['devices'][K3.meta['device_id']]['sv'] == syncdoc.LEVEL,
+      'the device that wrote is listed (a device that only reads is listed with its first write - no extra uploads)')
+check(set(cl3.doc.get('keyed', {}).get('iptv', {}).keys()) == {'http://one'}, 'the keyed IPTV list is in the document: %r' % cl3.doc.get('keyed'))
+K3.files['iptv.json'] = {'m3u': ['http://one', 'http://three'], 'epg': []}
+K4.files['iptv.json'] = {'m3u': ['http://one', 'http://four'], 'epg': []}
+autosync.cycle(K3, 60100)
+autosync.cycle(K4, 60101)
+rounds([K3, K4], 60200)
+want = {'m3u': ['http://one', 'http://four', 'http://three'], 'epg': []}
+check(K3.files['iptv.json']['m3u'] and sorted(K3.files['iptv.json']['m3u']) == sorted(want['m3u']) and K4.files['iptv.json'] == K3.files['iptv.json'],
+      'P1: both new lists survive on both devices: %r / %r' % (K3.files['iptv.json'], K4.files['iptv.json']))
+check(sorted(cl3.doc.get('devices', {}).keys()) == sorted([K3.meta['device_id'], K4.meta['device_id']]) and
+      all(e['kind'] == 'kodi' for e in cl3.doc['devices'].values()), 'devices: both Kodi devices listed after both wrote')
+K4.files['iptv.json'] = {'m3u': [u for u in K4.files['iptv.json']['m3u'] if u != 'http://one'], 'epg': []}
+rounds([K3, K4], 60300)
+check('http://one' not in K3.files['iptv.json']['m3u'], 'P1: a removal travels')
+puts = cl3.puts
+rounds([K3, K4], 60400)
+check(cl3.puts == puts, 'P1: idle devices do not write: %d -> %d' % (puts, cl3.puts))
+# an older device (no keyed list, no devices) writes the document: the plain value is kept, nothing is lost
+old = json.loads(json.dumps(cl3.doc))
+old.pop('keyed', None)
+old.pop('devices', None)
+old['files']['iptv.json'] = [{'m3u': ['http://three', 'http://old'], 'epg': []}, 70000]
+cl3.doc, cl3.n = old, cl3.n + 1
+rounds([K3, K4], 70010)
+check(sorted(K3.files['iptv.json']['m3u']) == ['http://old', 'http://three'] and K4.files['iptv.json'] == K3.files['iptv.json'] and
+      'keyed' in cl3.doc, 'P1: an older device\'s newer list is taken whole and the keyed list comes back: %r' % K3.files['iptv.json'])
+
+# the secrets envelope (P2): two devices with the passphrase, one without
+cl4 = Cloud()
+E1, E2, E3 = Device('E1', cl4), Device('E2', cl4), Device('E3', cl4)
+E1.passphrase = E2.passphrase = lambda: 'owner words'
+E1.sett['plugin.video.nova']['tmdb_key'] = 'SECRET-TMDB'
+autosync.cycle(E1, 80000)
+raw = json.dumps(cl4.doc)
+check('SECRET-TMDB' not in raw and isinstance(cl4.doc.get('secrets'), dict), 'P2: keys travel sealed only')
+autosync.cycle(E2, 80010)
+check(E2.sett['plugin.video.nova']['tmdb_key'] == 'SECRET-TMDB', 'P2: a device with the passphrase gets them')
+E3.sett['plugin.video.nova']['tmdb_key'] = 'E3-OWN'
+r = autosync.cycle(E3, 80020)
+check(r['locked'] and E3.sett['plugin.video.nova']['tmdb_key'] == 'E3-OWN' and 'E3-OWN' not in json.dumps(cl4.doc), 'P2: without it nothing is read and its own key is not put in plain text')
+E2.sett['plugin.video.nova']['tmdb_key'] = 'NEW-TMDB'
+rounds([E1, E2, E3], 80100)
+check(E1.sett['plugin.video.nova']['tmdb_key'] == 'NEW-TMDB' and 'NEW-TMDB' not in json.dumps(cl4.doc), 'P2: a change travels sealed')
+puts = cl4.puts
+rounds([E1, E2, E3], 80200)
+check(cl4.puts == puts, 'P2: an idle sealed document is not re-written: %d -> %d' % (puts, cl4.puts))
+# an older device (sync level 2) in 'devices' makes the doc not capable(): an opened envelope must still go up sealed
+lowdoc = json.loads(json.dumps(cl4.doc))
+lowdoc.setdefault('devices', {})['old-box'] = {'sv': 2, 'kind': 'kodi', 'name': 'old', 'at': 80250}
+cl4.doc, cl4.n = lowdoc, cl4.n + 1
+salt0 = json.dumps(cl4.doc['secrets'].get('salt'))
+E1.sett['plugin.video.nova']['gemini_key'] = 'E1-GEM'
+autosync.cycle(E1, 80300)
+raw = json.dumps(cl4.doc)
+check(isinstance(cl4.doc.get('secrets'), dict) and 'NEW-TMDB' not in raw and 'E1-GEM' not in raw,
+      'P2: below sync level 3 an opened envelope is sealed again, no plain keys: %s' % raw[:300])
+check(json.dumps(cl4.doc['secrets'].get('salt')) == salt0, 'P2: the envelope keeps its salt')
+autosync.cycle(E2, 80310)
+check(E2.sett['plugin.video.nova']['gemini_key'] == 'E1-GEM', 'P2: the resealed key still reaches the other device')
+
+# categories (P3): switched off here = neither sent nor written here; the account's data passes through
+cl5 = Cloud()
+G1, G2 = Device('G1', cl5), Device('G2', cl5)
+G1.sett['plugin.video.nova']['tmdb_key'] = 'G1'
+rounds([G1, G2], 90000)
+G2.cats = lambda: {'settings': False}
+G2.sett['plugin.video.nova']['tmdb_key'] = 'G2-LOCAL'
+G1.sett['plugin.video.nova']['gemini_key'] = 'G1-GEM'
+G2.watch('g2film', 90100)
+rounds([G1, G2], 90100)
+check(G2.sett['plugin.video.nova']['gemini_key'] == '' and G1.sett['plugin.video.nova']['tmdb_key'] == 'G1', 'P3: settings off: none taken, none sent')
+check(cl5.doc['settings']['plugin.video.nova']['gemini_key'][0] == 'G1-GEM' and 'g2film' in G1.history(), 'P3: the rest still travels, the account keeps its settings')
+# a document of a later release: read, never written over (B3)
+cl6 = Cloud()
+H1 = Device('H1', cl6)
+autosync.cycle(H1, 95000)
+fut = json.loads(json.dumps(cl6.doc))
+fut['v'], fut['newpart'] = 3, {'x': 1}
+cl6.doc, cl6.n = fut, cl6.n + 1
+H1.sett['plugin.video.nova']['tmdb_key'] = 'LOCAL'
+puts = cl6.puts
+r = autosync.cycle(H1, 95100)
+check(r['update'] and cl6.puts == puts and cl6.doc['newpart'] == {'x': 1}, 'B3: a later version is read only')
+cl6.doc['v'] = 2
+cl6.n += 1
+autosync.cycle(H1, 95200)
+check(cl6.doc.get('newpart') == {'x': 1} and cl6.doc['settings']['plugin.video.nova']['tmdb_key'][0] == 'LOCAL', 'B3: an unknown part survives this device\'s write')
+# B4: Kodi's device-only list and the browser's are one list
+KEYS = ['debug', 'port', 'device_profile', 'deps_zip', 'wizard_shown', 'sub_server', 'lite', 'ui_sounds', 'open_on_start', 'readahead',
+        'cache_mb', 'max_mbit', 'x_done', 'last_x', 'a_ts', 'a_time', 'kodion.a', 'a.port', 'tmdb_key', 'gemini_key', 'sub_server_remote',
+        'lite_mode', 'portal', 'rd_token', 'stremio_servers', 'pinned_chats']
+import shutil as _sh, subprocess as _sp
+node = _sh.which('node')
+if node:
+    js = ("const TW=require(process.argv[1]);const k=JSON.parse(process.argv[2]);process.stdout.write(JSON.stringify(k.map(x=>TW.KODI_LOCAL_RX.test(x))))")
+    res = _sp.run([node, '-e', js, os.path.join(HERE, '..', '..', 'web', 'twins.js'), json.dumps(KEYS)], stdout=_sp.PIPE).stdout
+    check(json.loads(res.decode('utf-8')) == [bool(autosync.LOCAL.match(k)) for k in KEYS], 'B4: the browser\'s device-only list is Kodi\'s')
+# the sync screen's strings and the devices lines
+sync_ui = importlib.import_module('resources.lib.sync_ui')
+for k, v in sync_ui.STR.items():
+    check(len(v) == 3 and all(v), 'sync_ui string %s in three languages' % k)
+cs = importlib.import_module('resources.lib.cloudsync')
+for k in ('update', 'locked', 'sync_screen'):
+    check(len(cs.STR[k]) == 3 and all(cs.STR[k]), 'cloudsync string %s in three languages' % k)
+sys.modules['resources.lib.common'].ui_lang = lambda: 'en'
+lines = sync_ui.device_rows([('a', {'kind': 'kodi', 'sv': 3, 'name': 'Living room', 'at': 0}, True), ('b', {'kind': 'web', 'sv': 3}, False)])
+check(lines[0].startswith('Living room (this device)') and lines[1].startswith('Web'), 'devices lines: %r' % lines)
+
 for b in bad:
     print('FAIL', b)
 print('AUTOSYNC TESTS OK' if not bad else 'AUTOSYNC TESTS: %d problems' % len(bad))

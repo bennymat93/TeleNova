@@ -212,7 +212,6 @@ def show_top(handle, section):
 
 
 def show_search(handle, section, q=''):
-    import xbmcgui
     import xbmcplugin
     if not q:
         from . import searchhist
@@ -284,7 +283,6 @@ def _safe(fn, *a):
 
 
 def show_hub_search(handle, q=''):
-    import xbmcgui
     import xbmcplugin
     if not q:
         from . import searchhist

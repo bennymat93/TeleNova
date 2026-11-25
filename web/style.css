@@ -13,28 +13,34 @@
   --panel:var(--s1);--panel2:var(--s2);--muted:var(--text3);--ring:var(--focus);
   --fs-1:12px;--fs-2:14px;--fs-3:16px;--fs-4:20px;--fs-5:26px;--fs-6:36px;
   --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--sp-8:64px;
-  --gap:16px;--r-s:8px;--r:14px;
-  --e1:0 1px 2px rgba(0,0,0,.4);--e2:0 8px 24px rgba(0,0,0,.5);--e3:0 24px 64px rgba(0,0,0,.6);
+  --gap:16px;--r-xs:6px;--r-s:10px;--r:14px;--r-l:18px;--r-pill:999px;
+  --fw-r:400;--fw-m:600;--fw-b:700;--lh-t:1.25;--lh:1.5;
+  /* 6.5 elevation: e0 flat · e1 panels, tiles, chips · e2 posters, toasts, raised buttons · e3 hover, menus · e4 sheets, dialogs */
+  --e0:none;--e1:0 1px 0 rgba(255,255,255,.04) inset,0 1px 3px rgba(0,0,0,.35);--e2:0 2px 4px rgba(0,0,0,.3),0 8px 20px rgba(0,0,0,.35);
+  --e3:0 6px 12px rgba(0,0,0,.35),0 18px 40px rgba(0,0,0,.45);--e4:0 12px 24px rgba(0,0,0,.4),0 32px 72px rgba(0,0,0,.55);
+  --glow:0 0 0 3px #e2b13c,0 10px 30px rgba(0,0,0,.5);
   --t-fast:120ms;--t:200ms;--t-slow:320ms;--ease:cubic-bezier(.2,0,0,1);
-  --ctl:40px;--gutter:32px;--rail-w:72px;--top-h:64px;--tabs-h:0px;--radio-h:0px;--safe-b:0px;
+  --ctl:38px;--ctl-s:32px;--gutter:32px;--rail-w:72px;--top-h:64px;--tabs-h:0px;--radio-h:0px;--safe-b:0px;
   --card-w:168px;--wide-w:240px;--sq-w:150px;--land-w:300px;--focus-w:3px;--focus-off:2px}
 :root[data-theme="light"]{color-scheme:light;
   --bg:#f4f5f8;--s1:#ffffff;--s2:#e9ecf2;--s3:#dde1ea;--line:#d5dae3;--line-strong:#7b8494;
-  --text:#141821;--text2:#4a5364;--text3:#5d6676;--accent-text:#7a5600;--focus:#7a5600;--danger:#b3261e;--ok:#1a7f4b}
+  --text:#141821;--text2:#4a5364;--text3:#5d6676;--accent-text:#7a5600;--focus:#7a5600;--danger:#b3261e;--ok:#1a7f4b;
+  --e1:0 1px 2px rgba(20,24,33,.08);--e2:0 2px 4px rgba(20,24,33,.06),0 8px 20px rgba(20,24,33,.1);--e3:0 6px 12px rgba(20,24,33,.08),0 18px 40px rgba(20,24,33,.14);--e4:0 12px 24px rgba(20,24,33,.1),0 32px 72px rgba(20,24,33,.18);}
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light;
   --bg:#f4f5f8;--s1:#ffffff;--s2:#e9ecf2;--s3:#dde1ea;--line:#d5dae3;--line-strong:#7b8494;
-  --text:#141821;--text2:#4a5364;--text3:#5d6676;--accent-text:#7a5600;--focus:#7a5600;--danger:#b3261e;--ok:#1a7f4b}}
+  --text:#141821;--text2:#4a5364;--text3:#5d6676;--accent-text:#7a5600;--focus:#7a5600;--danger:#b3261e;--ok:#1a7f4b;
+  --e1:0 1px 2px rgba(20,24,33,.08);--e2:0 2px 4px rgba(20,24,33,.06),0 8px 20px rgba(20,24,33,.1);--e3:0 6px 12px rgba(20,24,33,.08),0 18px 40px rgba(20,24,33,.14);--e4:0 12px 24px rgba(20,24,33,.1),0 32px 72px rgba(20,24,33,.18);}}
 @supports (padding:env(safe-area-inset-bottom)){:root{--safe-b:env(safe-area-inset-bottom)}}
-html[data-shell="phone"]{--gutter:16px;--rail-w:0px;--top-h:48px;--tabs-h:56px;--gap:12px;--ctl:44px;--fs-6:28px;--fs-5:22px;
+html[data-shell="phone"]{--gutter:16px;--rail-w:0px;--top-h:48px;--tabs-h:56px;--gap:12px;--ctl:40px;--fs-6:24px;--fs-5:20px;
   --card-w:104px;--wide-w:150px;--sq-w:104px;--land-w:230px}
-html[data-shell="tablet"]{--gutter:24px;--top-h:56px;--ctl:44px;--card-w:136px;--wide-w:200px;--sq-w:128px;--land-w:260px}
+html[data-shell="tablet"]{--gutter:24px;--top-h:56px;--ctl:40px;--card-w:136px;--wide-w:200px;--sq-w:128px;--land-w:260px}
 @media (min-width:1280px){html[data-shell="desktop"]{--rail-w:232px}}
 @media (min-width:1700px){html[data-shell="desktop"]{--card-w:184px;--wide-w:264px;--land-w:340px}}
 /* TV: 1rem = 16 px of a 1920-wide canvas, whatever CSS width the set reports; every size below is in rem */
 html[data-shell="tv"]{font-size:calc(100vw / 120);
   --fs-1:1.5rem;--fs-2:1.625rem;--fs-3:1.75rem;--fs-4:2.125rem;--fs-5:2.75rem;--fs-6:3.75rem;
   --sp-1:.25rem;--sp-2:.5rem;--sp-3:.75rem;--sp-4:1rem;--sp-5:1.5rem;--sp-6:2rem;--sp-7:3rem;--sp-8:4rem;
-  --gap:2.5rem;--r-s:.5rem;--r:.875rem;--ctl:3.5rem;--gutter:6rem;--rail-w:8rem;--top-h:0px;
+  --gap:2.5rem;--r-xs:.375rem;--r-s:.625rem;--r:.875rem;--r-l:1.125rem;--ctl:3.5rem;--ctl-s:2.75rem;--glow:0 0 0 .25rem #e2b13c,0 1rem 2.5rem rgba(0,0,0,.5);--gutter:6rem;--rail-w:8rem;--top-h:0px;
   --card-w:15.25rem;--wide-w:23.5rem;--sq-w:13rem;--land-w:26rem;--focus-w:.25rem;--focus-off:.25rem}
 html.has-radio{--radio-h:64px}
 html[data-shell="tv"].has-radio{--radio-h:5rem}
@@ -202,7 +208,7 @@ html[data-shell="phone"] .pagehead.solo{display:none}
 /* ---- cards */
 .card{position:relative;display:flex;flex-direction:column;min-width:0;background:none;border:0;padding:0;margin:0;color:inherit;font:inherit;text-align:start;cursor:pointer;
   border-radius:var(--r);transition:transform var(--t) var(--ease)}
-.card .img{position:relative;display:block;width:100%;aspect-ratio:2/3;border-radius:var(--r);background:var(--s2) center/cover no-repeat;overflow:hidden;transition:filter var(--t-fast)}
+.card .img{position:relative;display:block;width:100%;aspect-ratio:2/3;border-radius:var(--r);background:var(--s2) center/cover no-repeat;overflow:hidden;box-shadow:var(--e2);transition:transform var(--t) var(--ease),box-shadow var(--t) var(--ease)}
 .card.wide .img,.card.live .img,.card.tg .img{aspect-ratio:16/9;background-size:contain;background-origin:content-box;padding:6% 12%}
 .card.wide.cover .img,.card.land .img{aspect-ratio:16/9;background-size:cover;background-origin:padding-box;padding:0}
 .card.square .img,.card.radio .img{aspect-ratio:1/1;background-size:contain;background-origin:content-box;padding:14%}
@@ -216,7 +222,6 @@ html[data-shell="phone"] .pagehead.solo{display:none}
 html[data-shell="phone"] .card .t{font-size:var(--fs-2)}html[data-shell="phone"] .card .s{font-size:var(--fs-1)}
 .card .prog{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.28)}
 .card .prog i{display:block;height:100%;background:var(--accent)}
-html[data-input="pointer"] .card:hover .img{filter:brightness(1.1)}
 .card.dim .img{opacity:.6}
 .badge{position:absolute;top:8px;z-index:1;background:var(--live);color:#fff;font-size:var(--fs-1);font-weight:700;letter-spacing:.03em;line-height:1.5;padding:0 7px;border-radius:calc(var(--r-s) / 2)}
 html[dir="rtl"] .badge{right:8px}html[dir="ltr"] .badge{left:8px}
@@ -570,7 +575,6 @@ html[data-shell="phone"] .radiobar .favlabel{display:none}
   .chips>*+*,.actions>*+*,.links>*+*{margin-inline-start:var(--sp-2)}
   .actions>*,.links>*{margin-bottom:var(--sp-2)}
 }
-@media (hover:none){html[data-input="pointer"] .card:hover .img{filter:none}}
 @media (orientation:landscape) and (max-height:520px){
   html[data-shell="phone"] .top{position:static}
   html[data-shell="phone"] .sheet{max-height:100vh;border-radius:0}
@@ -613,9 +617,6 @@ html[data-shell="phone"] .menu.mainmenu>.tile b{white-space:normal;overflow:visi
    Measured on a 375 px phone and a 1280 px desktop: the welcome card, menu tiles and single wide buttons took a
    quarter of the screen or more. Controls are now sized to their text, single actions are centred, cards are
    tighter, and the same radius / surface / shadow is used everywhere. */
-:root{--ctl:38px;--r-s:10px;--r:14px}
-html[data-shell="phone"]{--ctl:40px;--fs-6:24px;--fs-5:20px}
-html[data-shell="tablet"]{--ctl:40px}
 .btn{padding:0 14px;font-size:var(--fs-2);font-weight:600;gap:6px;max-width:100%;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;
   transition:filter var(--t-fast,.15s),transform var(--t-fast,.15s),box-shadow var(--t-fast,.15s)}
 .btn:hover{filter:brightness(1.08)}.btn:active{transform:translateY(1px)}
@@ -665,7 +666,7 @@ html[data-shell="phone"] .panel{padding:12px 14px}
 /* inputs: one height with the buttons */
 .bk_in,.input,input[type="text"].bk_in,input[type="password"].bk_in{min-height:var(--ctl)}
 /* a softer, more even surface */
-.panel,.tile,.sv_quick,.aio-first,.src_row{box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 1px 2px rgba(0,0,0,.25)}
+.panel,.tile,.sv_quick,.aio-first,.src_row{box-shadow:var(--e1)}
 
 /* 6.1: our keyboard (he / en / ru), paste, copy and clipboard history - osk.js */
 .osk{position:fixed;inset-inline:0;bottom:0;z-index:900;display:flex;flex-direction:column;gap:6px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));
@@ -692,3 +693,98 @@ html[data-shell="phone"] .osk_k{min-height:42px;font-size:16px}
 html[data-shell="tv"] .osk_k{min-height:56px;font-size:22px;max-width:80px}
 .tile_upd{font:inherit;color:inherit;text-align:inherit;cursor:pointer;border-style:dashed}
 .tile_upd[disabled]{opacity:.7;cursor:progress}
+
+/* ===================== 6.5 design layer: one elevation scale, smaller tidy controls, quiet depth =====================
+   Only transform / box-shadow / opacity animate (cheap to paint). html.lite (shell_core wantLite: TV, <=2 GB, ?lite=1,
+   Settings > General) drops shadows, blur and sheen; prefers-reduced-motion keeps the global "no transition" rule. */
+/* buttons: one height scale, one radius scale, three variants */
+.btn{border-radius:var(--r-s);font-weight:var(--fw-m);letter-spacing:.01em;
+  background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,0) 60%) var(--accent);box-shadow:var(--e2);
+  transition:transform var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease),filter var(--t-fast)}
+.btn:active{transform:translateY(1px);box-shadow:var(--e1)}
+.btn.ghost{background:var(--s2);box-shadow:inset 0 0 0 1px var(--line-strong)}
+.btn.ghost:active{box-shadow:inset 0 0 0 1px var(--line-strong)}
+.btn.quiet{background:none;color:var(--text);box-shadow:none}
+.btn.quiet:hover{background:var(--s2)}
+.btn.sm{min-height:var(--ctl-s);padding:0 12px;font-size:var(--fs-1)}
+.btn.icon{width:var(--ctl);min-width:var(--ctl);padding:0;border-radius:var(--r-pill)}
+.btn.icon .ico{margin:0}
+.btn.icon.sm{width:var(--ctl-s);min-width:var(--ctl-s)}
+.btn.danger{background:var(--danger)}
+.btn.ghost.danger{background:var(--s2)}
+.btn[disabled]{box-shadow:none}
+/* chips: 32 px pills */
+.chip{min-height:var(--ctl-s);padding:0 12px;border-radius:var(--r-pill);border-color:var(--line);box-shadow:var(--e1);
+  transition:background var(--t-fast),border-color var(--t-fast)}
+html[data-input="touch"] .chip,html[data-shell="phone"] .chip{min-height:36px}
+html[data-shell="tv"] .chip{min-height:var(--ctl-s)}
+/* the close button: 36 px to the eye, 44 px to the finger */
+.close{width:36px;height:36px;font-size:20px;background:rgba(0,0,0,.55);box-shadow:var(--e2)}
+.close::before{content:"";position:absolute;inset:-4px}
+html[data-shell="tv"] .close{width:3rem;height:3rem}
+/* surfaces */
+.panel,.tile,.sv_quick,.aio-first,.src_row{box-shadow:var(--e1)}
+.sug,.popmenu{box-shadow:var(--e3);border-radius:var(--r)}
+.sheet,.dialog{box-shadow:var(--e4);border-radius:var(--r-l)}
+html[data-shell="phone"] .sheet:not(.sz-player){border-radius:var(--r-l) var(--r-l) 0 0}
+.sheet.sz-player{box-shadow:none;border-radius:0}
+.toast{border-radius:var(--r-pill);padding:8px 16px;box-shadow:var(--e2)}
+.toast button{border-radius:var(--r-pill)}
+.osk_k,.osk_h{border-radius:var(--r-s)}
+.osk{box-shadow:var(--e4)}
+/* navigation */
+.rail-i{border-radius:var(--r)}
+.rail-i[aria-current="page"]{background:var(--s2);box-shadow:var(--e1)}
+html[data-shell="tv"] .rail{box-shadow:var(--e4)}
+@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+  html[data-shell="phone"]:not(.lite) .tabs{background:rgba(11,13,18,.78);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px)}
+  :root[data-theme="light"][data-shell="phone"]:not(.lite) .tabs{background:rgba(255,255,255,.8)}}
+@media (prefers-color-scheme:light){@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+  :root:not([data-theme="dark"])[data-shell="phone"]:not(.lite) .tabs{background:rgba(255,255,255,.8)}}}
+.rowh .rownav button{box-shadow:var(--e1)}
+/* typography: smaller card titles; the global scale stays (TV readability) */
+.card .t{font-size:var(--fs-2);font-weight:var(--fw-m);line-height:var(--lh-t)}
+.card .s{font-size:var(--fs-1)}
+html[data-shell="tv"] .card .t{font-size:var(--fs-2)}
+/* posters: a lift and a light sheen on hover (pointer only), a bigger lift and glow on TV focus */
+.card .img::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,0) 45%);transition:opacity var(--t) var(--ease)}
+@media (hover:hover){
+  html[data-input="pointer"] .card:hover .img{transform:translateY(-4px) scale(1.04);box-shadow:var(--e3)}
+  html[data-input="pointer"] .card:hover .img::after{opacity:1}}
+.card:focus-visible .img{transform:translateY(-2px) scale(1.03);box-shadow:var(--e3)}
+html[data-shell="tv"] .card:focus .img,html[data-shell="tv"] .card:focus-visible .img{transform:scale(1.08);box-shadow:var(--glow)}
+.card.skel .img{box-shadow:none}
+.card.skel .img::after{display:none}
+/* player */
+.pl-btn.big{width:64px;height:64px;box-shadow:var(--e2)}.pl-btn.big .ico{width:32px;height:32px}
+html[data-shell="tv"] .pl-btn.big{width:5rem;height:5rem}
+/* lite: flat and still (TV keeps only its focus scale) */
+html.lite{--e1:none;--e2:none;--e3:none;--e4:none}
+html.lite[data-shell="tv"] .card:focus .img{box-shadow:0 0 0 var(--focus-w) var(--focus)}
+html.lite .btn{background:var(--accent)}
+html.lite .btn.ghost{background:var(--s2)}
+html.lite .btn.quiet{background:none}
+html.lite .btn.danger{background:var(--danger)}
+html.lite .btn.ghost.danger{background:var(--s2)}
+html.lite .card .img::after{display:none}
+html.lite .card .img{transition:transform var(--t-fast)}
+html.lite[data-input="pointer"] .card:hover .img{transform:none}
+html.lite .skel .img,html.lite .skel .t,html.lite .skel .s,html.lite .skelbox,html.lite .skel.hrow .himg,html.lite .skel.hrow .htxt b{animation:none;background:var(--s2)}
+html.lite .sheet,html.lite .dialog,html.lite .popmenu,html.lite .sug{border:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){html[data-input="pointer"] .card:hover .img,.card:focus-visible .img{transform:none}
+  .skel .img,.skel .t,.skel .s,.skelbox{background:var(--s2)}}
+/* 6.5: tidy action rows - primary buttons, then one round "⋯" for the rest (same height as every .btn) */
+.actions .moreacts{flex:none!important;width:var(--ctl);min-width:var(--ctl);height:var(--ctl);min-height:var(--ctl);padding:0;border-radius:50%}
+.actions .moreacts .ico{width:22px;height:22px}
+html[data-shell="tv"] .actions .moreacts .ico{width:2rem;height:2rem}
+.acts-hold{display:none!important}
+.actions .btn .ico{width:20px;height:20px}
+html[data-shell="tv"] .actions .btn .ico{width:1.75rem;height:1.75rem}
+.links .btn{min-height:var(--ctl)}
+.syncpanel .btn,.passrow .btnrow .btn{min-width:9rem}
+/* 6.5: sync passphrase row (Settings > Accounts > Sync) */
+.passrow{margin-top:var(--sp-3);display:flex;flex-direction:column;gap:var(--sp-2)}
+.passrow .passlab{display:flex;flex-direction:column;gap:6px;font-weight:600;color:var(--text)}
+.passrow .input{max-width:24rem}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}

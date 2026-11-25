@@ -10,7 +10,10 @@
 // Pure: no DOM, no storage, no network. Runs in the browser (window.SyncDoc) and in Node (require). Tested against
 // the Python original in src/qa/web/.
 (function (root) {
-  const VERSION = 2, MAX_HISTORY = 500, MAX_SEARCHES = 60, MAX_REMOVED = 1000;
+  const VERSION = 2, LEVEL = 3, MAX_HISTORY = 500, MAX_SEARCHES = 60, MAX_REMOVED = 1000, DAY = 86400, MAX_TOMBS = 300;
+  // 6.3.0: the parts this code merges by their own rule; any other top-level part passes through (syncdoc.py KNOWN)
+  const KNOWN = ['v', 'users', 'data', 'settings', 'files', 'devices', 'keyed'];
+  const WHO = ['v', 'devices', 'device', 'stamp'];
   const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
   const dict = () => Object.create(null);          // a map whose keys come from other devices ("__proto__" is a key like any other)
 
@@ -199,6 +202,11 @@
     else if (typeof v === 'string') { const s = strip(v); f = PYFLOAT.test(s) ? Number(s.replace(/_/g, '')) : 0; }
     return f === f && Math.abs(f) !== Infinity ? f : 0;
   }
+  function stamp(v) {                              // 6.3.0: a change time as a whole number (syncdoc.py stamp)
+    if (v === false || v === null || v === undefined || v === '') return 0;
+    const f = Math.floor(num(v));
+    return f === 0 ? 0 : f;
+  }
   function pyStr(v) {                              // Python's str() of a JSON value
     if (typeof v === 'string') return v;
     if (v === null || v === undefined) return 'None';
@@ -351,8 +359,8 @@
       for (const k of Object.keys(src)) {
         const pair = src[k];
         if (!isPair(pair)) continue;
-        const cur = has(out, k) ? out[k] : null;
-        if (!cur || cmpTuple([num(pair[1]), canon(pair[0])], [num(cur[1]), canon(cur[0])]) > 0) out[k] = [pair[0], num(pair[1])];
+        const cur = has(out, k) ? out[k] : null, ts = stamp(pair[1]);     // 6.3.0: whole seconds (B6)
+        if (!cur || cmpTuple([ts, canon(pair[0])], [cur[1], canon(cur[0])]) > 0) out[k] = [pair[0], ts];
       }
     }
     return out;
@@ -380,15 +388,168 @@
     for (const uid of new Set(Object.keys(da).concat(Object.keys(db)))) if (!dead.has(uid)) data[uid] = merge_user_data(get(da, uid), get(db, uid));
     const sa = asDict(get(a, 'settings')), sb = asDict(get(b, 'settings')), settings = dict();
     for (const aid of new Set(Object.keys(sa).concat(Object.keys(sb)))) settings[aid] = merge_stamped(get(sa, aid), get(sb, aid));
-    return {v: VERSION, users, data, settings, files: merge_stamped(get(a, 'files'), get(b, 'files'))};
+    const out = {v: Math.max(VERSION, stamp(get(a, 'v')), stamp(get(b, 'v'))), users, data, settings, files: merge_stamped(get(a, 'files'), get(b, 'files'))};
+    const devices = merge_devices(get(a, 'devices'), get(b, 'devices'));
+    if (Object.keys(devices).length) out.devices = devices;
+    const keyed = merge_keyed(get(a, 'keyed'), get(b, 'keyed'));
+    if (Object.keys(keyed).length) out.keyed = keyed;
+    // 6.3.0 (B3): a part this code does not know passes through; both copies have it: the larger canonical text
+    for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) {
+      if (KNOWN.includes(k)) continue;
+      if (!has(a, k) || !has(b, k)) out[k] = has(a, k) ? a[k] : b[k];
+      else out[k] = cmpStr(canon(a[k]), canon(b[k])) >= 0 ? a[k] : b[k];
+    }
+    return out;
+  }
+  // 6.3.0: {id: {sv, kind, name, at}} x2 -> per device the entry with the later 'at'
+  function merge_devices(a, b) {
+    const out = dict();
+    for (const src of [asDict(a), asDict(b)]) {
+      for (const k of Object.keys(src)) {
+        const e = src[k];
+        if (!isDict(e)) continue;
+        const cur = has(out, k) ? out[k] : null;
+        if (!cur || cmpTuple([stamp(get(e, 'at')), canon(e)], [stamp(get(cur, 'at')), canon(cur)]) > 0) out[k] = e;
+      }
+    }
+    return out;
+  }
+  function merge_keyed(a, b) {                     // 6.3.0: {list: {item key: [item | null, time]}} x2, item by item
+    a = asDict(a); b = asDict(b);
+    const out = dict();
+    for (const n of new Set(Object.keys(a).concat(Object.keys(b)))) out[n] = merge_stamped(asDict(a[n]), asDict(b[n]));
+    return out;
+  }
+  function capable(doc, level = LEVEL) {           // 6.3.0: every device listed understands sync level `level`
+    const devs = get(doc, 'devices');
+    if (!isDict(devs) || !Object.keys(devs).length) return false;
+    return Object.keys(devs).every((k) => isDict(devs[k]) && stamp(get(devs[k], 'sv')) >= level);
   }
   function same(a, b) {                            // two documents hold the same content (who wrote them and when does not count)
     const core = (d) => {
       d = truthy(d) ? d : empty();
       const or = (v, e) => (truthy(v) ? v : e);
-      return canon({users: or(get(d, 'users'), []), data: or(get(d, 'data'), {}), settings: or(get(d, 'settings'), {}), files: or(get(d, 'files'), {})});
+      const out = {users: or(get(d, 'users'), []), data: or(get(d, 'data'), {}), settings: or(get(d, 'settings'), {}), files: or(get(d, 'files'), {})};
+      for (const k of Object.keys(d)) {
+        const v = d[k];
+        if (has(out, k) || WHO.includes(k) || v === null || v === undefined) continue;
+        if ((isDict(v) || Array.isArray(v)) && !Object.keys(v).length) continue;
+        out[k] = v;
+      }
+      return canon(out);
     };
     return core(a) === core(b);
+  }
+
+  // ---------------------------------------------------------------- 6.3.0: keyed lists (syncdoc.py, P1)
+  const TELE = 'plugin.video.telescope';
+  const KEYED = [
+    ['stremio', TELE, 'stremio_servers', 'text', '\n'],
+    ['pins', TELE, 'pinned_chats', 'text', ','],
+    ['bots', TELE, 'bots', 'text', ','],
+    ['iptv', 'files', 'iptv.json', 'rows', 'm3u'],
+    ['epg', 'files', 'iptv.json', 'rows', 'epg'],          // 6.5.0: the IPTV guide list (same plain value as iptv)
+    ['providers', 'files', 'providers.json', 'map', ''],
+  ];
+  const tokKey = (arg, t) => (arg === ',' ? t.replace(/^@+/, '').toLowerCase() : t);
+  function items_of(spec, value) {
+    const [, , , kind, arg] = spec, out = [], seen = new Set();
+    const add = (k, v) => { if (k && !seen.has(k) && v !== null && v !== undefined) { seen.add(k); out.push([k, v]); } };
+    if (kind === 'text') {
+      if (typeof value === 'string') for (let t of value.split(/[\n,]+/)) { t = strip(t); if (t) add(tokKey(arg, t), t); }
+    } else if (kind === 'rows') {
+      const part = get(value, arg);
+      for (const e of asList(part)) {
+        if (typeof e === 'string') add(strip(e), e);
+        else if (isDict(e) && typeof get(e, 'url') === 'string') add(strip(e.url), e);
+      }
+    } else if (kind === 'map') {
+      if (isDict(value)) for (const k of Object.keys(value).sort(cmpStr)) add(k, value[k]);
+    }
+    return out;
+  }
+  function flat_of(spec, items, base) {
+    const [, , , kind, arg] = spec;
+    if (kind === 'text') return items.map((x) => x[1]).join(arg);
+    const out = dict();
+    if (kind === 'rows') {
+      if (isDict(base)) for (const k of Object.keys(base)) out[k] = base[k];
+      if (items.length || has(out, arg)) out[arg] = items.map((x) => x[1]);   // 6.5.0: no empty list the file never had
+      return out;
+    }
+    for (const [k, v] of items) out[k] = v;
+    return out;
+  }
+  function sectionOf(doc, spec, make) {
+    if (spec[1] === 'files') {
+      if (make && !isDict(get(doc, 'files'))) doc.files = dict();
+      return isDict(get(doc, 'files')) ? doc.files : null;
+    }
+    if (make) {
+      if (!isDict(get(doc, 'settings'))) doc.settings = dict();
+      if (!isDict(get(doc.settings, spec[1]))) doc.settings[spec[1]] = dict();
+    }
+    const s = get(doc, 'settings'), sec = isDict(s) ? get(s, spec[1]) : undefined;
+    return isDict(sec) ? sec : null;
+  }
+  function flat_pair(doc, spec) {
+    const sec = isDict(doc) ? sectionOf(doc, spec, false) : null;
+    const p = sec ? get(sec, spec[2]) : undefined;
+    return isPair(p) ? p : null;
+  }
+  function keyed_ops(spec, last, value, ts) {      // what changed in a list here since this device held `last`
+    const ops = dict();
+    if (!Array.isArray(last)) return ops;
+    const was = new Map();
+    for (const p of last) if (isPair(p)) was.set(p[0], p[1]);
+    const now = items_of(spec, value), keys = new Set();
+    for (const [k, v] of now) { keys.add(k); if (!was.has(k) || canon(was.get(k)) !== canon(v)) ops[k] = [v, ts]; }
+    for (const k of was.keys()) if (!keys.has(k)) ops[k] = [null, ts];
+    return ops;
+  }
+  // after a merge: the keyed list and the plain value agree (syncdoc.py settle). 6.5.0: lists sharing one plain value
+  // (iptv / epg in iptv.json) are settled together, against the newest item of all of them before any was settled
+  function settle(doc, spec) {
+    const group = KEYED.filter((s) => s[1] === spec[1] && s[2] === spec[2]);
+    if (!group.some((s) => s[0] === spec[0])) group.push(spec);
+    const keyed = asDict(get(doc, 'keyed'));
+    let kmax = 0;
+    for (const s of group) {
+      const S = asDict(get(keyed, s[0]));
+      for (const k of Object.keys(S)) if (isPair(S[k])) kmax = Math.max(kmax, stamp(S[k][1]));
+    }
+    let out = null;
+    for (const s of group) { const r = settleOne(doc, s, kmax); if (s[0] === spec[0]) out = r; }
+    return out;
+  }
+  function settleOne(doc, spec, kmax) {
+    const name = spec[0], keyed = asDict(get(doc, 'keyed')), src = asDict(get(keyed, name)), K = dict();
+    for (const k of Object.keys(src)) if (isPair(src[k])) K[k] = src[k];
+    const F = flat_pair(doc, spec);
+    if (!F && !Object.keys(K).length) return null;
+    const fval = F ? F[0] : null, fts = F ? stamp(F[1]) : 0;
+    const fitems = F ? items_of(spec, fval) : [], fkeys = new Set(fitems.map((x) => x[0]));
+    const isNone = (v) => v === null || v === undefined;
+    if (F && fts > kmax) {
+      for (const [k, v] of fitems) { const cur = has(K, k) ? K[k] : null; if (!cur || canon(cur[0]) !== canon(v)) K[k] = [v, fts]; }
+      for (const k of Object.keys(K)) if (!isNone(K[k][0]) && !fkeys.has(k)) K[k] = [null, fts];
+    } else {
+      for (const [k, v] of fitems) if (!has(K, k)) K[k] = [v, fts];
+    }
+    for (const k of Object.keys(K)) K[k] = [isNone(K[k][0]) ? null : K[k][0], stamp(K[k][1])];
+    const tombs = Object.keys(K).filter((k) => K[k][0] === null).sort((x, y) => cmpTuple([-K[x][1], x], [-K[y][1], y]));
+    for (const k of tombs.slice(MAX_TOMBS)) delete K[k];
+    const live = Object.keys(K).filter((k) => K[k][0] !== null);
+    const liveSet = new Set(live);
+    const order = fitems.map((x) => x[0]).filter((k) => liveSet.has(k))
+      .concat(live.filter((k) => !fkeys.has(k)).sort((x, y) => cmpTuple([K[x][1], x], [K[y][1], y])));
+    const items = order.map((k) => [k, K[k][0]]);
+    const nv = flat_of(spec, items, fval);
+    const nts = Math.max(fts, ...Object.keys(K).map((k) => K[k][1]));
+    if (!isDict(get(doc, 'keyed'))) doc.keyed = dict();
+    doc.keyed[name] = K;
+    sectionOf(doc, spec, true)[spec[2]] = [nv, nts];
+    return items;
   }
   function changed_settings(merged, current) {     // what must be written on this device: {addon id: {key: value}}
     const out = dict();
@@ -404,7 +565,8 @@
     return out;
   }
 
-  const api = {VERSION, MAX_HISTORY, MAX_SEARCHES, MAX_REMOVED, PyFloat, parse, canon, copy, cmpStr, when, num, strip, dict, get,
+  const api = {VERSION, LEVEL, DAY, KNOWN, KEYED, MAX_HISTORY, MAX_SEARCHES, MAX_REMOVED, PyFloat, parse, canon, copy, cmpStr, when, num, stamp, strip, dict, get,
+               merge_devices, merge_keyed, capable, items_of, flat_of, flat_pair, keyed_ops, settle,
                merge_users, live_users, merge_history, progress_of, with_progress, progress_points, merge_removed, merge_favourites, merge_searches, merge_marks, merge_user_data,
                merge_stamped, stamp_changes, empty, merge, same, changed_settings};
   if (typeof module === 'object' && module.exports) module.exports = api;

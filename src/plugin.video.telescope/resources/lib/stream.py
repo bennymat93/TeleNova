@@ -118,9 +118,13 @@ class ChunkStore(object):
         return bool(size) and key[2] < (size - 1) // CHUNK and len(data) < CHUNK
 
     def note_size(self, chat, msg, size):
-        if len(self.sizes) > 400:
-            self.sizes.clear()
-        self.sizes[(chat, msg)] = size
+        # evict only the oldest entries: clearing the map dropped the size of the file that is playing, and then
+        # _short() let a short mid-file chunk into the cache (the shift guard 3.3 exists to stop)
+        with self.lock:
+            self.sizes.pop((chat, msg), None)
+            self.sizes[(chat, msg)] = size
+            while len(self.sizes) > 400:
+                self.sizes.pop(next(iter(self.sizes)))
 
     ACTIVE = 4.0      # s: a connection that asked for a chunk this recently is being read
 
@@ -192,7 +196,7 @@ class ChunkStore(object):
                     self.cache.move_to_end(key)
                     self.stats['hits'] += 1
                     return data
-            self.stats['miss'] += 1
+                self.stats['miss'] += 1
             fut = self._start(key)
             if fut is None:
                 continue
@@ -319,8 +323,9 @@ class ChunkStore(object):
             budget -= 1
 
     def speed(self):
-        t = self.stats['fetch_time']
-        return (self.stats['bytes'] / t) if t else 0
+        with self.lock:
+            t, b = self.stats['fetch_time'], self.stats['bytes']
+        return (b / t) if t else 0
 
 
 class _Server(ThreadingMixIn, HTTPServer):

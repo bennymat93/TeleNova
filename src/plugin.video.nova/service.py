@@ -566,7 +566,6 @@ def align_job():
     """a subtitle placed by All_Subs (guard v10 sets BN.LastSubFile) is timed for some release, not necessarily this
     file: the subtitle server aligns it to this video's speech (offset + frame-rate drift, server/subalign.py) and the
     synced copy replaces it. Only .srt; nothing happens when the server is away or the file is already in sync."""
-    import requests
     win, mon, seen = xbmcgui.Window(10000), monitor(), ''
     waiting, since = '', 0.0
     while not mon.waitForAbort(2):

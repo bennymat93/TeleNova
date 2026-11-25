@@ -493,6 +493,11 @@
     setUsers: (list) => A.store.setUsers(list, true),
     putUserData: (uid, d) => A.store.putData(uid, d, true),
     takeSettings: (v) => { A.put('synced', v); A.onSettings(v); },
+    // 6.3.0: this browser's clock (the sync learns the server's offset at each upload), its name in the list of
+    // devices, and the owner's passphrase for the keys (bn_sync_pass: this browser only, never synced - twins.LOCAL)
+    clock: () => Date.now() / 1000,
+    deviceName: () => { const ua = (root.navigator && root.navigator.userAgent) || ''; return /Android/i.test(ua) ? 'Android' : /iPhone|iPad/i.test(ua) ? 'iOS' : /Mac/i.test(ua) ? 'Mac' : /Windows/i.test(ua) ? 'Windows' : 'Browser'; },
+    passphrase: () => { const p = A.get('sync_pass', ''); return typeof p === 'string' ? p : ''; },
     cloudFind: async () => A.WS.mine(await cloudList()),
     async cloudGet(item) {
       if (item.size > MAX_DOC) return null;

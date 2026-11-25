@@ -163,7 +163,7 @@
       pl_vlc: 'פתח ב-VLC', pl_kodi: 'פתח ב-Kodi', pl_m3u: 'קובץ רשימת ניגון (.m3u)', pl_share: 'שיתוף לאפליקציה',
       pl_kodi_how: 'ב-Kodi: העתיקו את הקישור והדביקו אותו ב"Play URL" של ממשק הדפדפן של Kodi, או שתפו אותו לאפליקציית Kore / Yatse. כותר מהקטלוג ממשיך ב-BN Stream שב-Kodi מאותה נקודה (נקודת ההמשך מסונכרנת).',
       pl_vlc_how: 'אם VLC לא נפתח: העתיקו את הקישור ובחרו ב-VLC "פתח זרם רשת", או פתחו את קובץ רשימת הניגון.',
-      pl_tg_open: 'פתח בטלגרם', pl_tg_dl: 'הורד ונגן כאן', pl_tg_save: 'שמור למכשיר', pl_tg_progress: 'מוריד מטלגרם... %s%', pl_tg_big: 'הקובץ גדול מדי להורדה כאן (%s).',
+      pl_tg_open: 'פתח בטלגרם', pl_tg_dl: 'הורד ונגן כאן', pl_reload: 'טען מחדש את הדף', pl_tg_save: 'שמור למכשיר', pl_tg_progress: 'מוריד מטלגרם... %s%', pl_tg_big: 'הקובץ גדול מדי להורדה כאן (%s).',
       pl_tg_saved: 'הקובץ נשמר. פתחו אותו ב-VLC או ב-Kodi.', pl_tg_login: 'התחברות לטלגרם', pl_subs_inside_no: 'בקובץ יש כנראה כתוביות עברית מובנות, אבל הדפדפן לא יודע להציג כתוביות שבתוך קובץ MKV. בחרו כתוביות מהרשת, או פתחו את הקובץ בנגן אחר (הגדרות ניגון).', pl_speed: 'מהירות', pl_normal: 'רגילה', pl_quality: 'איכות', pl_auto: 'אוטומטי', pl_fit: 'תמונה', pl_fit_contain: 'כל התמונה',
       pl_fit_cover: 'מילוי המסך', pl_autonext: 'נגן את הפרק הבא אוטומטית', pl_track: 'רצועה %s',
       pl_audio_none: 'הדפדפן לא מציג את רצועות השמע של הקובץ הזה. כדי לבחור שפה פתחו אותו בנגן אחר.', pl_audio_one: 'בקובץ הזה רצועת שמע אחת.',
@@ -188,7 +188,7 @@
       pl_vlc: 'Open in VLC', pl_kodi: 'Open in Kodi', pl_m3u: 'Playlist file (.m3u)', pl_share: 'Share to an app',
       pl_kodi_how: 'In Kodi: copy the link and paste it into "Play URL" of Kodi\'s web interface, or share it to the Kore / Yatse app. A title from the catalogue continues in BN Stream on Kodi from the same point (the resume point is synced).',
       pl_vlc_how: 'If VLC does not open: copy the link and choose "Open Network Stream" in VLC, or open the playlist file.',
-      pl_tg_open: 'Open in Telegram', pl_tg_dl: 'Download and play here', pl_tg_save: 'Save to device', pl_tg_progress: 'Downloading from Telegram... %s%', pl_tg_big: 'The file is too large to download here (%s).',
+      pl_tg_open: 'Open in Telegram', pl_tg_dl: 'Download and play here', pl_reload: 'Reload the page', pl_tg_save: 'Save to device', pl_tg_progress: 'Downloading from Telegram... %s%', pl_tg_big: 'The file is too large to download here (%s).',
       pl_tg_saved: 'The file was saved. Open it in VLC or Kodi.', pl_tg_login: 'Connect Telegram', pl_subs_inside_no: 'This file probably has Hebrew subtitles inside, but a browser cannot show subtitles that are inside an MKV file. Choose subtitles found online, or open the file in another player (playback settings).', pl_speed: 'Speed', pl_normal: 'Normal', pl_quality: 'Quality', pl_auto: 'Automatic', pl_fit: 'Picture', pl_fit_contain: 'Whole picture',
       pl_fit_cover: 'Fill the screen', pl_autonext: 'Play the next episode automatically', pl_track: 'Track %s',
       pl_audio_none: 'This browser does not show the sound tracks of this file. To choose a language, open it in another player.', pl_audio_one: 'This file has one sound track.',
@@ -213,7 +213,7 @@
       pl_vlc: 'Открыть в VLC', pl_kodi: 'Открыть в Kodi', pl_m3u: 'Файл плейлиста (.m3u)', pl_share: 'Поделиться с приложением',
       pl_kodi_how: 'В Kodi: скопируйте ссылку и вставьте её в «Play URL» веб-интерфейса Kodi или отправьте в приложение Kore / Yatse. Фильм из каталога продолжится в BN Stream на Kodi с того же места (точка продолжения синхронизируется).',
       pl_vlc_how: 'Если VLC не открылся: скопируйте ссылку и выберите в VLC «Открыть URL», либо откройте файл плейлиста.',
-      pl_tg_open: 'Открыть в Telegram', pl_tg_dl: 'Скачать и смотреть здесь', pl_tg_save: 'Сохранить на устройство', pl_tg_progress: 'Скачиваем из Telegram... %s%', pl_tg_big: 'Файл слишком большой для скачивания здесь (%s).',
+      pl_tg_open: 'Открыть в Telegram', pl_tg_dl: 'Скачать и смотреть здесь', pl_reload: 'Перезагрузить страницу', pl_tg_save: 'Сохранить на устройство', pl_tg_progress: 'Скачиваем из Telegram... %s%', pl_tg_big: 'Файл слишком большой для скачивания здесь (%s).',
       pl_tg_saved: 'Файл сохранён. Откройте его в VLC или Kodi.', pl_tg_login: 'Подключить Telegram', pl_subs_inside_no: 'В файле, вероятно, есть встроенные субтитры на иврите, но браузер не умеет показывать субтитры внутри MKV. Выберите субтитры из сети или откройте файл в другом плеере (настройки воспроизведения).', pl_speed: 'Скорость', pl_normal: 'Обычная', pl_quality: 'Качество', pl_auto: 'Авто', pl_fit: 'Изображение', pl_fit_contain: 'Весь кадр',
       pl_fit_cover: 'Заполнить экран', pl_autonext: 'Включать следующую серию автоматически', pl_track: 'Дорожка %s',
       pl_audio_none: 'Браузер не показывает звуковые дорожки этого файла. Чтобы выбрать язык, откройте его в другом плеере.', pl_audio_one: 'В этом файле одна звуковая дорожка.',
@@ -486,6 +486,7 @@
     function seekTo(x, quiet) {
       const d = total();
       if (!d || s.live) return;
+      s.userSeek = true;
       s.seekTo = Math.max(0, Math.min(d - 0.5, x));
       draw();
       clearTimeout(s.seekT);
@@ -679,7 +680,10 @@
       if (!s.tgp) return [];
       const out = [], link = (s.tgh && s.tgh.tgLink) || '';
       const ref = s.tgh ? {key: s.tgh.key} : tgRef();
-      if (why === 'nosw' || why === 'open') out.push({label: t('pl_tg_dl'), keep: true, act: async () => {
+      // 6.2.1: a hard reload (Shift+Reload) leaves the page without its service worker: a normal reload gives it back
+      // only when reloading can help (TGPLAY_NO_SW_RELOAD); a browser without service workers loops on reload
+      if (why === 'nosw' && s.swReload) out.push({label: t('pl_reload'), pri: true, keep: true, act: () => { try { location.reload(); } catch (e) { /* not here */ } }});
+      if (why === 'nosw' || why === 'open') out.push({label: t('pl_tg_dl'), pri: why === 'nosw' && !s.swReload, keep: true, act: async () => {
         hideCard(); spin.hidden = false;
         const ctl = G.AbortController ? new AbortController() : null;
         s.cleanup.push(() => ctl && ctl.abort());
@@ -840,9 +844,27 @@
       if (s.hls) { try { s.hls.destroy(); } catch (e) { /* gone */ } s.hls = null; }
       spin.hidden = false;
       s.netTries = 0; s.wdGen = (s.wdGen || 0) + 1;
-      const begin = () => { if (at > 0) { const set = () => { try { v.currentTime = at; } catch (e) { /* later */ } }; if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, {once: true}); } play(); };
+      // 6.2.1: a network-retry seek of the previous source must not land on this one
+      if (s.netSet) { v.removeEventListener('loadedmetadata', s.netSet); s.netSet = null; s.netWait = false; }
       // 6.1.5: iPhone / iPad play HLS themselves (hls.js there stalls)
       const iosHls = (/iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) && !!v.canPlayType('application/vnd.apple.mpegurl');
+      // 6.2.1: the resume seek belongs to this start() only (gen): a source switch before the metadata drops it
+      const begin = () => {
+        if (at > 0) {
+          const gen = s.wdGen;
+          const set = () => { if (!alive() || s.wdGen !== gen) return; try { v.currentTime = at; } catch (e) { /* later */ } };
+          if (v.readyState >= 1) set();
+          else { v.addEventListener('loadedmetadata', set, {once: true}); s.cleanup.push(() => v.removeEventListener('loadedmetadata', set)); }
+          // Safari's own HLS may ignore a seek made at loadedmetadata: once more at canplay when it did not take
+          if (isHlsUrl(url, mime) && iosHls) {
+            // 6.5: never after the viewer moved (resume card "Start from beginning", seek bar, keys): s.userSeek
+            s.userSeek = false;
+            const again = () => { if (!alive() || s.wdGen !== gen || s.userSeek) return; try { if (Math.abs(v.currentTime - at) > 2) v.currentTime = at; } catch (e) { /* later */ } };
+            v.addEventListener('canplay', again, {once: true}); s.cleanup.push(() => v.removeEventListener('canplay', again));
+          }
+        }
+        play();
+      };
       if (isHlsUrl(url, mime) && iosHls) { v.src = url; begin(); watch(); }
       else if (isHlsUrl(url, mime)) {
         ensureHls().then((Hls) => {
@@ -924,7 +946,7 @@
           const at = v.currentTime; spin.hidden = false;
           if (s.hls) { try { s.hls.recoverMediaError(); s.hls.startLoad(at); } catch (e) { /* the card next round */ } play(); return; }
           try { v.load(); } catch (e) { /* reloaded below */ }
-          const set = () => { try { v.currentTime = at; } catch (e) { /* later */ } play(); };
+          const set = () => { if (!alive() || s.wdGen !== gen) return; try { v.currentTime = at; } catch (e) { /* later */ } play(); };
           if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, {once: true});
           return;
         }
@@ -947,13 +969,19 @@
         s.tgh = h;
         s.cleanup.push(() => tgp.close(h.key));
         // 6.1.6: the length known -> the file's bitrate sizes Telegram's read-ahead
-        if (typeof tgp.setDuration === 'function') v.addEventListener('loadedmetadata', () => { try { if (isFinite(v.duration) && v.duration > 0) tgp.setDuration(h.key, v.duration); } catch (e) { /* later */ } }, {once: true});
         say('');
         start(h.url, h.mime);
+        // 6.2.1: added after start() and tied to its gen, so a compat / source switch never reports a foreign length
+        if (typeof tgp.setDuration === 'function') {
+          const gen = s.wdGen;
+          const dur = () => { if (!alive() || s.wdGen !== gen || s.tgh !== h || s.url !== h.url) return; try { if (isFinite(v.duration) && v.duration > 0) tgp.setDuration(h.key, v.duration); } catch (e) { /* later */ } };
+          v.addEventListener('loadedmetadata', dur, {once: true}); s.cleanup.push(() => v.removeEventListener('loadedmetadata', dur));
+        }
       } catch (e) {
         if (!alive()) return;
         say('');
         const code = String((e && (e.code || e.message)) || '');
+        s.swReload = /TGPLAY_NO_SW_RELOAD/.test(code);
         fail(/TGPLAY_NO_SW/.test(code) ? 'nosw' : /TG_NO_LOGIN|AUTH_KEY|SESSION_REVOKED/.test(code) ? 'login' : 'tg', {text: tgp.errorText ? tgp.errorText(e) : t('pl_fail')});
       }
     }
@@ -1001,16 +1029,16 @@
       if (!alive() || s.hls || !v.error) return;
       // 6.1.5: a dropped connection on a plain file: the same link again after 1, 2, 4 s, from the same place
       if (v.error.code === 2 && !s.compat && !isHlsUrl(s.url, s.mime) && (s.netTries || 0) < 3) {
-        const url = s.url, at = s.pos ? s.pos() : v.currentTime, was = !v.paused;
+        const url = s.url, at = s.pos ? s.pos() : v.currentTime, was = !v.paused, gen = s.wdGen;
         const wait = 1000 * Math.pow(2, s.netTries++);
         spin.hidden = false; s.netBusy = true;
         setTimeout(() => {
           s.netBusy = false;
-          if (!alive() || s.url !== url || s.failed) return;
+          if (!alive() || s.url !== url || s.failed || s.wdGen !== gen) return;
           // 6.1.5: one pending 'set' at a time; play at once (it waits for data); netWait until it loads
           if (s.netSet) v.removeEventListener('loadedmetadata', s.netSet);
           v.src = url; s.netWait = true;
-          const set = () => { s.netSet = null; s.netWait = false; try { if (at > 0) v.currentTime = at; } catch (e) { /* later */ } if (was || !s.started) play(); };
+          const set = () => { s.netSet = null; s.netWait = false; if (!alive() || s.wdGen !== gen) return; try { if (at > 0) v.currentTime = at; } catch (e) { /* later */ } if (was || !s.started) play(); };
           s.netSet = set;
           v.addEventListener('loadedmetadata', set, {once: true});
           if (was || !s.started) play();

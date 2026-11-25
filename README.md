@@ -4,7 +4,7 @@ Kodi 21 build and add-on repository: Hebrew / English / Russian interface, one c
 merged IPTV with automatic numbering, radio, AI Hebrew subtitles, and a built-in Telegram engine.
 
 **Install:** Kodi > Settings > File manager > Add source > `https://bennymat93.github.io/TeleNova/` > Add-ons >
-Install from zip file > `repository.telenova-6.2.0.zip`, then install **NovaTV Wizard** from the repository.
+Install from zip file > `repository.telenova-6.5.0.zip`, then install **NovaTV Wizard** from the repository.
 Guides: [user guide](https://bennymat93.github.io/TeleNova/guide.html) ·
 [adding sources](https://bennymat93.github.io/TeleNova/sources_guide.html)
 
@@ -33,11 +33,11 @@ folder, never deleted. For the Microsoft Store version of Kodi use the wizard in
 
 | Add-on | Version | What it does |
 | --- | --- | --- |
-| `plugin.video.nova` (TeleNova) | 6.2.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
-| `plugin.video.telescope` (TeleNova Telegram) | 6.2.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
-| `plugin.program.novawizard` (TeleNova Wizard) | 6.2.0 | Installs and updates the build (multi-part download, SHA-256 check) |
+| `plugin.video.nova` (TeleNova) | 6.5.0 | The hub: TMDb catalogue, every title opens its list of links, search across every source, IPTV, radio, history, favourites, accounts, subtitles |
+| `plugin.video.telescope` (TeleNova Telegram) | 6.5.0 | The Telegram engine: exact movie / episode matching, link testing, range-streaming proxy. Own settings screen |
+| `plugin.program.novawizard` (TeleNova Wizard) | 6.5.0 | Installs and updates the build (multi-part download, SHA-256 check) |
 | `resource.uisounds.nova` | 1.0.0 | Navigation sounds |
-| `repository.telenova` | 6.2.0 | This repository |
+| `repository.telenova` | 6.5.0 | This repository |
 
 The add-on ids are unchanged so that settings, history and favourites survive the update; only the names changed.
 
@@ -196,6 +196,18 @@ version really did (`docs/web-audit/`):
   redirect addresses resolved (Glglz played after 35 s, now ~20 s); a service check that answered "http 400" shows
   as an error, not "active"; Internet Archive / YouTube no longer listed as "not installed"; IPTV stays "active"
   when one guide source is down; the OpenSubtitles / Ktuvit texts say "off by default" again (4.2.2 had changed them).
+
+## TeleNova 6.5.0 (V6.5) - sync phase 2 and a new look
+
+- **Sync clock fix**: each device learns its clock offset from the Telegram server, so a device with a wrong clock no
+  longer lets old changes overwrite new ones.
+- **Keyed list merges**: history, favourites, searches, IPTV / EPG lists merge item by item instead of whole-list wins.
+- **Sync passphrase (optional)**: keys and tokens travel sealed in the sync document (`secrets` envelope,
+  PBKDF2 + HMAC, Kodi `syncseal.py` and web `websync.js`); the passphrase stays on each device.
+- **Kodi sync screen**: TeleNova > Backup & sync > Sync settings - categories per device, the account's devices, the
+  passphrase.
+- **Web V6.5**: redesign with elevation / 3D cards, a Lite look for weak devices, the ⋯ menu, many fixes.
+- **Kodi**: skin depth patch, Russian guide, bug fixes.
 
 ## TeleNova 6.2.0 - full sync between Kodi, the apps and the web
 

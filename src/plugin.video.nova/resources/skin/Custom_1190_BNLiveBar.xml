@@ -29,10 +29,12 @@
 		</control>
 		<!-- 1.4.11: "Subtitles" - live Hebrew subtitles (AI / automatic / off), resources/lib/livesubs.py -->
 		<control type="button" id="9400">
-			<left>40</left><top>40</top><width>300</width><height>84</height>
+			<left>40</left><top>48</top><width>280</width><height>64</height>
 			<label>$INFO[Window(Home).Property(BN.LiveSubsLabel)]</label>
 			<font>font13</font><align>center</align><aligny>center</aligny>
-			<textcolor>FFF5F5F5</textcolor><focusedcolor>FF101010</focusedcolor>
+			<textcolor>FFF5F5F5</textcolor><focusedcolor>FF101010</focusedcolor><shadowcolor>80000000</shadowcolor>
+			<animation effect="zoom" start="100" end="106" time="160" tween="cubic" easing="out" center="auto">Focus</animation>
+			<animation effect="zoom" start="106" end="100" time="160" tween="cubic" easing="out" center="auto">UnFocus</animation>
 			<texturenofocus border="20" colordiffuse="CC1A1A1A">bn/panel.png</texturenofocus>
 			<texturefocus border="20" colordiffuse="FFE8BE5A">bn/panel.png</texturefocus>
 			<onclick>Dialog.Close(1190)</onclick>
@@ -40,10 +42,12 @@
 			<ondown>9100</ondown><onright>9401</onright><onleft>9200</onleft><onup>9300</onup>
 		</control>
 		<control type="button" id="9401">
-			<left>356</left><top>40</top><width>230</width><height>84</height>
+			<left>336</left><top>48</top><width>220</width><height>64</height>
 			<label>$INFO[Window(Home).Property(BN.ExitTvLabel)]</label>
 			<font>font13</font><align>center</align><aligny>center</aligny>
-			<textcolor>FFF5F5F5</textcolor><focusedcolor>FF101010</focusedcolor>
+			<textcolor>FFF5F5F5</textcolor><focusedcolor>FF101010</focusedcolor><shadowcolor>80000000</shadowcolor>
+			<animation effect="zoom" start="100" end="106" time="160" tween="cubic" easing="out" center="auto">Focus</animation>
+			<animation effect="zoom" start="106" end="100" time="160" tween="cubic" easing="out" center="auto">UnFocus</animation>
 			<texturenofocus border="20" colordiffuse="CC1A1A1A">bn/panel.png</texturenofocus>
 			<texturefocus border="20" colordiffuse="FFE8BE5A">bn/panel.png</texturefocus>
 			<onclick>Dialog.Close(1190)</onclick>
@@ -60,20 +64,28 @@
 		<control type="label">
 			<left>40</left><top>578</top><width>1500</width><height>44</height>
 			<font>font13</font><align>right</align><aligny>center</aligny>
-			<textcolor>FFE0E0E0</textcolor>
+			<textcolor>FFE0E0E0</textcolor><shadowcolor>80000000</shadowcolor>
 			<label>[B]$INFO[VideoPlayer.ChannelNumberLabel,,  ]$INFO[VideoPlayer.ChannelName][/B]$INFO[System.Time,   ·   ]$INFO[VideoPlayer.VideoResolution,   ·   ,p]$INFO[VideoPlayer.AudioCodec,   ·   ]$INFO[VideoPlayer.AudioChannels, ,ch]</label>
+			<visible>String.StartsWith(System.Language,Hebrew)</visible>
+		</control>
+		<control type="label">
+			<left>40</left><top>578</top><width>1500</width><height>44</height>
+			<font>font13</font><align>left</align><aligny>center</aligny>
+			<textcolor>FFE0E0E0</textcolor><shadowcolor>80000000</shadowcolor>
+			<label>[B]$INFO[VideoPlayer.ChannelNumberLabel,,  ]$INFO[VideoPlayer.ChannelName][/B]$INFO[System.Time,   ·   ]$INFO[VideoPlayer.VideoResolution,   ·   ,p]$INFO[VideoPlayer.AudioCodec,   ·   ]$INFO[VideoPlayer.AudioChannels, ,ch]</label>
+			<visible>!String.StartsWith(System.Language,Hebrew)</visible>
 		</control>
 		<control type="label">
 			<left>40</left><top>628</top><width>1500</width><height>40</height>
 			<font>font12</font><align>right</align><aligny>center</aligny>
-			<textcolor>FFE8BE5A</textcolor>
+			<textcolor>FFE8BE5A</textcolor><shadowcolor>80000000</shadowcolor>
 			<label>$INFO[VideoPlayer.Title,עכשיו: ]$INFO[VideoPlayer.NextTitle,   ·   הבא: ]$INFO[VideoPlayer.NextStartTime, (,)]</label>
 			<visible>String.StartsWith(System.Language,Hebrew)</visible>
 		</control>
 		<control type="label">
 			<left>40</left><top>628</top><width>1500</width><height>40</height>
 			<font>font12</font><align>left</align><aligny>center</aligny>
-			<textcolor>FFE8BE5A</textcolor>
+			<textcolor>FFE8BE5A</textcolor><shadowcolor>80000000</shadowcolor>
 			<label>$INFO[VideoPlayer.Title,Now: ]$INFO[VideoPlayer.NextTitle,   ·   Next: ]$INFO[VideoPlayer.NextStartTime, (,)]</label>
 			<visible>!String.StartsWith(System.Language,Hebrew)</visible>
 		</control>
@@ -89,6 +101,10 @@
 			<ondown>9200</ondown>
 			<itemlayout width="380" height="380">
 				<control type="image">
+					<left>16</left><top>18</top><width>360</width><height>203</height>
+					<texture colordiffuse="80000000" border="12">bn/panel.png</texture>
+				</control>
+				<control type="image">
 					<left>10</left><top>10</top><width>360</width><height>203</height>
 					<texture colordiffuse="FFD6DAE0" border="12">bn/panel.png</texture>
 				</control>
@@ -98,28 +114,36 @@
 					<texture background="true" fallback="DefaultTVShows.png">$INFO[ListItem.Art(thumb)]</texture>
 				</control>
 				<control type="progress">
-					<left>10</left><top>216</top><width>360</width><height>8</height>
+					<left>10</left><top>218</top><width>360</width><height>5</height>
 					<info>ListItem.Property(progress)</info>
+					<texturebg colordiffuse="40FFFFFF">colors/white.png</texturebg>
+					<midtexture colordiffuse="FFE8BE5A">colors/white.png</midtexture>
 					<visible>!String.IsEmpty(ListItem.Property(now))</visible>
 				</control>
 				<control type="label">
 					<left>10</left><top>230</top><width>360</width><height>44</height>
-					<font>font13</font><align>right</align><textcolor>FFE0E0E0</textcolor>
+					<font>font13</font><align>right</align><textcolor>FFE0E0E0</textcolor><shadowcolor>80000000</shadowcolor>
 					<label>$INFO[ListItem.Label]</label>
 				</control>
 				<control type="label">
 					<left>10</left><top>272</top><width>360</width><height>36</height>
-					<font>font12</font><align>right</align><textcolor>FFA0A0A0</textcolor>
+					<font>font12</font><align>right</align><textcolor>FFA0A0A0</textcolor><shadowcolor>80000000</shadowcolor>
 					<label>$INFO[ListItem.Label2]</label>
 				</control>
 			</itemlayout>
 			<focusedlayout width="380" height="380">
+				<control type="group">
+					<animation effect="zoom" start="100" end="104" time="160" tween="cubic" easing="out" center="190,120" reversible="true" condition="Control.HasFocus(9100)">Conditional</animation>
 				<control type="image">
 					<left>2</left><top>2</top><width>376</width><height>219</height>
 					<texture colordiffuse="FFE8BE5A" border="14">bn/panel.png</texture>
 					<visible>Control.HasFocus(9100)</visible>
 				</control>
 				<control type="image">
+					<left>16</left><top>18</top><width>360</width><height>203</height>
+					<texture colordiffuse="80000000" border="12">bn/panel.png</texture>
+				</control>
+				<control type="image">
 					<left>10</left><top>10</top><width>360</width><height>203</height>
 					<texture colordiffuse="FFD6DAE0" border="12">bn/panel.png</texture>
 				</control>
@@ -129,27 +153,30 @@
 					<texture background="true" fallback="DefaultTVShows.png">$INFO[ListItem.Art(thumb)]</texture>
 				</control>
 				<control type="progress">
-					<left>10</left><top>216</top><width>360</width><height>8</height>
+					<left>10</left><top>218</top><width>360</width><height>5</height>
 					<info>ListItem.Property(progress)</info>
+					<texturebg colordiffuse="40FFFFFF">colors/white.png</texturebg>
+					<midtexture colordiffuse="FFE8BE5A">colors/white.png</midtexture>
 					<visible>!String.IsEmpty(ListItem.Property(now))</visible>
 				</control>
 				<control type="label">
 					<left>10</left><top>230</top><width>360</width><height>44</height>
-					<font>font13</font><align>right</align><textcolor>FFFFFFFF</textcolor><scroll>true</scroll>
+					<font>font13</font><align>right</align><textcolor>FFFFFFFF</textcolor><shadowcolor>80000000</shadowcolor><scroll>true</scroll>
 					<label>[B]$INFO[ListItem.Label][/B]</label>
 				</control>
 				<control type="label">
 					<left>10</left><top>272</top><width>360</width><height>36</height>
-					<font>font12</font><align>right</align><textcolor>FFE8BE5A</textcolor>
+					<font>font12</font><align>right</align><textcolor>FFE8BE5A</textcolor><shadowcolor>80000000</shadowcolor>
 					<label>$INFO[ListItem.Label2]</label>
+				</control>
 				</control>
 			</focusedlayout>
 			<content target="videos">plugin://plugin.video.nova/?a=lb_epg&amp;r=$INFO[VideoPlayer.ChannelName]$INFO[System.Time(hh:mm)]</content>
 		</control>
 		<!-- separator -->
 		<control type="image">
-			<left>1588</left><top>600</top><width>2</width><height>440</height>
-			<texture colordiffuse="66FFFFFF">colors/white.png</texture>
+			<left>1588</left><top>600</top><width>1</width><height>440</height>
+			<texture colordiffuse="33FFFFFF">colors/white.png</texture>
 		</control>
 		<!-- channel column (right) -->
 		<control type="list" id="9200">

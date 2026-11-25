@@ -315,7 +315,8 @@ def screen(handle, url):
 
     row('%s' % (s('summary') % summary_counts(states)), 'refresh', s('title'), 'DefaultIconInfo.png')
     row(label(s('backup'), sync_state, sync_detail).replace(s(sync_state), s('sync_on') if sync_state == 'on' else
-                                                           s('sync_off') if sync_state == 'off' else s('login')),
+                                                           s('sync_off') if sync_state == 'off' else
+                                                           s('error') if sync_state == 'error' else s('login')),
         'backup', cloudsync.s('explain'), 'DefaultAddonProgram.png')
     row(s('export'), 'export', '', 'DefaultAddonProgram.png')
     row(s('import'), 'import', '', 'DefaultAddonProgram.png')

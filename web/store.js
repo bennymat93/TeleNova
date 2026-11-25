@@ -9,7 +9,11 @@
 // Pure logic over a localStorage-like object: runs in the browser (window.Store) and in Node (tests: src/qa/web/t_store.js).
 (function (root) {
   function make(storage, SD, opt = {}) {
-    const clock = opt.now || (() => Date.now() / 1000);
+    // 6.3.0 (L1): stamps on the account's clock - the offset the sync learned on this browser (bn_sync_meta.skew)
+    const skew = () => {
+      try { const m = JSON.parse(storage.getItem('bn_sync_meta') || '{}'); const s = Number(m && m.skew); return isFinite(s) && Math.abs(s) <= 7 * 86400 ? s : 0; } catch (e) { return 0; }
+    };
+    const clock = opt.now || (() => Date.now() / 1000 + skew());
     const FIRST = 'u1';
     const listeners = [];
     const changed = (what) => listeners.forEach((f) => { try { f(what); } catch (e) {} });

@@ -15,6 +15,20 @@
   }
   function posterSize(shell, dpr) { return shell === 'tv' || (dpr || 1) >= 2 ? (shell === 'phone' ? 'w342' : 'w500') : shell === 'phone' ? 'w185' : 'w342'; }
   function backdropSize(shell) { return shell === 'phone' ? 'w780' : 'w1280'; }
+  // 6.5: lite look (no shadows, blur, sheen) for weak devices. pref 'on' | 'off' | anything else = auto;
+  // auto is on for the TV shell, a device that reports 2 GB of memory or less, or ?lite=1 in the address.
+  function wantLite(pref, shell, mem, search) {
+    if (pref === 'on') return true;
+    if (pref === 'off') return false;
+    if (/[?&]lite=1(?:&|$)/.test(String(search || ''))) return true;
+    const m = Number(mem);
+    return shell === 'tv' || (m > 0 && m <= 2);
+  }
+  // 6.5: the version as the interface names it: '6.5.0' -> 'V6.5' (the full number stays in the details)
+  function verLabel(v) {
+    const m = /^(\d+)\.(\d+)/.exec(String(v || ''));
+    return m ? 'V' + m[1] + '.' + m[2] : String(v || '');
+  }
 
   // ---------------------------------------------------------------- navigation tables
   // [page key, icon id, group]. Kodi root order inside each group; youtube + topics are home-screen items in Kodi.
@@ -202,7 +216,7 @@
 
   const api = {isTvUA, pickShell, posterSize, backdropSize, MENU, GROUPS, RAIL, TABS, PARENT, parentOf, backHash, navOwner,
                PROVIDER_GROUP, providerOnIn, httpsOnly, picOf, histTarget, continueWatching, leftText, kodiPlay,
-               HOME_ROWS, homeRows, moveRow, gridStep, pickDir, pickOverlap};
+               HOME_ROWS, homeRows, moveRow, gridStep, pickDir, pickOverlap, wantLite, verLabel};
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.ShellCore = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

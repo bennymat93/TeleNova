@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """4.1.0: the merge rules of the continuous sync. Whatever two devices did, in whatever order the copies meet,
 both end with the same document and nobody's change is lost. No Kodi, no network."""
-import copy, importlib.util, io, itertools, os, random, sys
+import copy, importlib.util, io, itertools, json, os, random, shutil, subprocess, sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -147,6 +147,165 @@ check(sd.with_progress(hp, sd.progress_points(hp)) == hp, 'points read back from
 check(sd.progress_of({'progress': {'t': True}}) is None and sd.progress_of({'progress': {'t': 0}}) is None, 'no point')
 m = dict((h['key'], h) for h in sd.merge_history([H('movie:1', 120)], hp))
 check(m['movie:1'].get('progress') == {'t': 600, 'd': 5400}, 'the point wins the merge with its time')
+
+
+# ---- 6.3.0 (B3): a part this code does not know passes through, 'v' is the highest seen
+d1x = dict(d1, future={'x': 1}, v=2)
+d2x = dict(d2, future={'x': 2}, other=[1], v=3)
+mx = sd.merge(d1x, d2x)
+check(mx['future'] == {'x': 2} and mx['other'] == [1] and mx['v'] == 3, 'B3: unknown parts pass, the larger copy wins, v = max: %r' % {k: mx.get(k) for k in ('future', 'other', 'v')})
+check(sd.canon(sd.merge(d1x, d2x)) == sd.canon(sd.merge(d2x, d1x)), 'B3: still independent of the order')
+check(not sd.same(d1, dict(d1, future={'x': 1})) and sd.same(d1, dict(d1, devices={'k': {'sv': 3}})), 'B3: an unknown part is content, the device list is not')
+# ---- 6.3.0 (B6): stamps are whole seconds
+check(sd.merge_stamped({'k': ['a', 5.7]}, {}) == {'k': ['a', 5]} and sd.merge_stamped({'k': ['a', 5.7]}, {'k': ['b', 5]}) == {'k': ['b', 5]},
+      'B6: a float stamp is floored (and then compared)')
+check(sd.stamp('7.9') == 7 and sd.stamp(None) == 0 and sd.stamp(float('nan')) == 0 and sd.stamp([1]) == 0 and sd.stamp(-0.5) == -1, 'B6: stamp()')
+# ---- 6.3.0: devices
+dv = sd.merge({'devices': {'a': {'sv': 3, 'at': 5, 'kind': 'kodi'}}}, {'devices': {'a': {'sv': 2, 'at': 4}, 'b': {'sv': 3, 'at': 1}}})
+check(dv['devices'] == {'a': {'sv': 3, 'at': 5, 'kind': 'kodi'}, 'b': {'sv': 3, 'at': 1}} and sd.capable(dv), 'devices: the later entry wins; capable')
+check(not sd.capable({'devices': {'a': {'sv': 3}, 'b': {'sv': 2}}}) and not sd.capable({}) and not sd.capable({'devices': {}}), 'capable: every device listed, at least one')
+
+# ---- 6.3.0 (P1): keyed lists
+PINS = [s for s in sd.KEYED if s[0] == 'pins'][0]
+IPTV = [s for s in sd.KEYED if s[0] == 'iptv'][0]
+TELE = sd.TELE
+
+
+def kdoc(flat, ts, keyed=None, devs=True):
+    d = {'settings': {TELE: {'pinned_chats': [flat, ts]}}}
+    if keyed is not None:
+        d['keyed'] = {'pins': keyed}
+    if devs:
+        d['devices'] = {'x': {'sv': 3, 'at': 1}}
+    return d
+
+
+check(sd.items_of(PINS, ' @A, b ,a,\n-100123') == [['a', '@A'], ['b', 'b'], ['-100123', '-100123']], 'items of a comma list (one key each)')
+check(sd.keyed_ops(PINS, [['a', 'a'], ['b', 'b']], 'a,c', 10) == {'c': ['c', 10], 'b': [None, 10]}, 'ops: added and removed since last held')
+check(sd.keyed_ops(PINS, None, 'a', 10) == {}, 'no ops before the device held the list once (the join rule)')
+# two devices change the list at the same time: A adds x (time 100), B removes b (time 101, its plain value wins)
+base = {'a': ['a', 10], 'b': ['b', 10]}
+A = kdoc('a,b,x', 100, dict(base, x=['x', 100]))
+B = kdoc('a', 101, dict(base, b=[None, 101]))
+for m in (sd.merge(A, B), sd.merge(B, A)):
+    sd.settle(m, PINS)
+    check(m['settings'][TELE]['pinned_chats'] == ['a,x', 101], 'keyed: both changes survive: %r' % m['settings'][TELE]['pinned_chats'])
+# an older device (no keyed list) wrote the plain value later: its whole list is the truth at its time
+m = sd.merge(kdoc('a,x', 101, {'a': ['a', 10], 'x': ['x', 100], 'b': [None, 101]}), {'settings': {TELE: {'pinned_chats': ['b,z', 200]}}})
+sd.settle(m, PINS)
+check(m['settings'][TELE]['pinned_chats'] == ['b,z', 200] and m['keyed']['pins']['a'] == [None, 200] and m['keyed']['pins']['b'] == ['b', 200],
+      'keyed: a newer plain value from an older device is taken whole: %r' % m['keyed']['pins'])
+# a first keyed round: the plain value seeds the list
+m = {'settings': {TELE: {'pinned_chats': ['p,q', 50]}}}
+check(sd.settle(m, PINS) == [['p', 'p'], ['q', 'q']] and m['keyed']['pins'] == {'p': ['p', 50], 'q': ['q', 50]}, 'keyed: seeded from the plain value')
+check(sd.settle({'settings': {}}, PINS) is None, 'no such list: nothing')
+# iptv rows keep their other fields
+m = {'files': {'iptv.json': [{'m3u': [{'name': 'A', 'url': 'http://a'}], 'free': {'on': 1}}, 5]},
+     'keyed': {'iptv': {'http://b': [{'name': 'B', 'url': 'http://b'}, 6]}}}
+sd.settle(m, IPTV)
+check(m['files']['iptv.json'] == [{'m3u': [{'name': 'A', 'url': 'http://a'}, {'name': 'B', 'url': 'http://b'}], 'free': {'on': 1}}, 6], 'keyed rows: %r' % m['files']['iptv.json'])
+# 6.5.0: the guide list (epg) is keyed too, in the same plain value as the iptv rows
+EPG = [s for s in sd.KEYED if s[0] == 'epg'][0]
+check(sd.items_of(EPG, {'epg': [' http://g1 ', 'http://g2', 'http://g1'], 'm3u': []}) == [['http://g1', ' http://g1 '], ['http://g2', 'http://g2']],
+      'epg: items of the guide list (one key each)')
+# A removes guide g1 (time 100); B adds m3u row c (time 101, its plain value still holds g1): both changes survive
+eb = {'g1': ['http://g1', 10], 'g2': ['http://g2', 10]}
+ib = {'http://a': [{'url': 'http://a'}, 10]}
+EA = {'files': {'iptv.json': [{'m3u': [{'url': 'http://a'}], 'epg': ['http://g2']}, 100]},
+      'keyed': {'iptv': dict(ib), 'epg': {'http://g1': [None, 100], 'http://g2': ['http://g2', 10]}}}
+EB = {'files': {'iptv.json': [{'m3u': [{'url': 'http://a'}, {'url': 'http://c'}], 'epg': ['http://g1', 'http://g2']}, 101]},
+      'keyed': {'iptv': dict(ib, **{'http://c': [{'url': 'http://c'}, 101]}), 'epg': {'http://g1': ['http://g1', 10], 'http://g2': ['http://g2', 10]}}}
+for m in (sd.merge(EA, EB), sd.merge(EB, EA)):
+    for spec in sd.KEYED:
+        sd.settle(m, spec)
+    check(m['files']['iptv.json'][0] == {'m3u': [{'url': 'http://a'}, {'url': 'http://c'}], 'epg': ['http://g2']},
+          'epg keyed: a guide removed on one device and a list added on another both survive: %r' % m['files']['iptv.json'])
+# an older device (no keyed lists) wrote iptv.json later: its guide list is the truth at its time
+m = sd.merge(EA, {'files': {'iptv.json': [{'m3u': [], 'epg': ['http://g9']}, 300]}})
+for spec in sd.KEYED:
+    sd.settle(m, spec)
+check(m['files']['iptv.json'] == [{'m3u': [], 'epg': ['http://g9']}, 300] and m['keyed']['epg']['http://g2'] == [None, 300],
+      'epg keyed: a newer plain value from an older device is taken whole: %r' % m['keyed']['epg'])
+# property: 200 random operations on 4 devices, merged in any order, settle to one result
+prng = random.Random(7)
+for round_ in range(12):
+    devs_k = []
+    for dvi in range(4):
+        k = {}
+        for _ in range(50):
+            key = prng.choice('abcdefgh')
+            k[key] = [prng.choice([None, key, key.upper()]), prng.randint(1, 40)]
+        devs_k.append(kdoc(','.join(prng.sample('abcdefgh', prng.randint(0, 5))), prng.randint(1, 45), k))
+    outs = set()
+    for order in itertools.permutations(range(4)):
+        cur = None
+        for i in order:
+            cur = sd.merge(cur, devs_k[i])
+        sd.settle(cur, PINS)
+        outs.add(sd.canon(cur))
+    if len(outs) != 1:
+        bad.append('keyed property round %d: %d different results' % (round_, len(outs)))
+        break
+
+# ---- 6.3.0 (P2): the secrets envelope
+_ss = importlib.util.spec_from_file_location('syncseal', os.path.join(HERE, '..', 'plugin.video.nova', 'resources', 'lib', 'syncseal.py'))
+seal_mod = importlib.util.module_from_spec(_ss)
+_ss.loader.exec_module(seal_mod)
+pairs = {'plugin.video.nova': {'tmdb_key': ['K', 5]}, TELE: {'rd_token': ['R', 6]}}
+env = seal_mod.seal(pairs, 'horse battery', b'0123456789abcdef', rounds=20000)
+check(seal_mod.open_env(env, 'horse battery') == pairs and seal_mod.open_env(env, 'wrong') is None and seal_mod.open_env(env, '') is None,
+      'P2: opens with the passphrase only')
+check(seal_mod.seal(pairs, 'horse battery', b'0123456789abcdef', rounds=20000) == env, 'P2: the same content gives the same envelope (no re-upload)')
+bad_env = dict(env, data=env['data'][:-4] + 'AAA=')
+check(seal_mod.open_env(bad_env, 'horse battery') is None, 'P2: a damaged envelope is refused')
+st_ = {'a': {'tmdb_key': [1, 1], 'lang': [2, 2], 'rd_refresh': [3, 3], 'bot_request': [4, 4]}}
+check(seal_mod.take_secrets(st_) == {'a': {'tmdb_key': [1, 1], 'rd_refresh': [3, 3]}} and st_ == {'a': {'lang': [2, 2], 'bot_request': [4, 4]}}, 'P2: which keys are sealed')
+
+# ---- 6.3.0: the browser's port gives the same bytes (merge with unknown parts / float stamps / devices / keyed, settle,
+# the envelope)
+NODE = shutil.which('node')
+WEB = os.path.normpath(os.path.join(HERE, '..', '..', 'web'))
+if NODE and os.path.exists(os.path.join(WEB, 'syncdoc.js')):
+    vec = []
+    for i in range(30):
+        a, b = rand_doc(i), rand_doc(i + 100)
+        a['future'], b['future'] = {'n': prng.randint(0, 3)}, {'n': prng.randint(0, 3)}
+        a['v'], b['v'] = 2, prng.choice([2, 3])
+        a['settings']['nova']['f'] = ['x', prng.choice([1.5, 2, 2.75])]
+        a['devices'] = {'d1': {'sv': 3, 'at': prng.randint(1, 5)}}
+        b['devices'] = {'d1': {'sv': 3, 'at': prng.randint(1, 5), 'name': 'B'}, 'd2': {'sv': 3, 'at': 1}}
+        a['settings'][TELE] = {'pinned_chats': [','.join(prng.sample('abcdef', 3)), prng.randint(1, 30)]}
+        b['keyed'] = {'pins': dict((c, [prng.choice([None, c]), prng.randint(1, 30)]) for c in prng.sample('abcdefg', 4))}
+        # 6.5.0: iptv rows + guide list share iptv.json
+        a.setdefault('files', {})['iptv.json'] = [{'m3u': [{'url': 'http://' + c} for c in prng.sample('mnop', 2)],
+                                                   'epg': ['http://g' + c for c in prng.sample('wxyz', 2)], 'free': {'on': 1}}, prng.randint(1, 30)]
+        b['keyed']['epg'] = dict(('http://g' + c, [prng.choice([None, 'http://g' + c]), prng.randint(1, 30)]) for c in prng.sample('wxyz', 3))
+        b['keyed']['iptv'] = dict(('http://' + c, [prng.choice([None, {'url': 'http://' + c}]), prng.randint(1, 30)]) for c in prng.sample('mnop', 2))
+        vec.append([a, b])
+    py = []
+    for a, b in vec:
+        m = sd.merge(a, b)
+        for spec in sd.KEYED:
+            sd.settle(m, spec)
+        py.append(sd.canon(m))
+    js = ("const SD=require(process.argv[1]);let s='';process.stdin.on('data',d=>s+=d).on('end',async()=>{"
+          "const v=SD.parse(s);const out=[];for(const [a,b] of v.vec){const m=SD.merge(a,b);for(const sp of SD.KEYED)SD.settle(m,sp);out.push(SD.canon(m));}"
+          "const WS=require(process.argv[2]).make(SD);const e=await WS.seal(v.pairs,'horse battery',new Uint8Array(Buffer.from('0123456789abcdef')),20000);"
+          "const o=await WS.openEnv(v.env,'horse battery');process.stdout.write(JSON.stringify({out,env:e,opened:SD.canon(o)}));});")
+    r = subprocess.run([NODE, '-e', js, os.path.join(WEB, 'syncdoc.js'), os.path.join(WEB, 'websync.js')],
+                       input=json.dumps({'vec': vec, 'pairs': pairs, 'env': env}).encode('utf-8'), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        res = json.loads(r.stdout.decode('utf-8'))
+    except ValueError:
+        res = None
+        bad.append('parity: node failed: %s' % r.stderr.decode('utf-8', 'replace')[-400:])
+    if res:
+        diff = [i for i in range(len(py)) if py[i] != res['out'][i]]
+        check(not diff, 'parity: Python and the browser merge / settle to the same bytes (vectors %s)' % diff[:5])
+        check(res['env'] == env, 'parity: the browser seals to the same envelope')
+        check(res['opened'] == sd.canon(pairs), 'parity: the browser opens a Kodi envelope')
+else:
+    print('(node not found: the parity part is skipped)')
 
 
 for b in bad:

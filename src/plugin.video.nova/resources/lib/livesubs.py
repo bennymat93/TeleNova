@@ -10,7 +10,6 @@ The server re-streams the channel together with its subtitles (server/livesubs.p
 when it is said; the picture runs a few seconds behind the broadcast for that."""
 import json
 import re
-import time
 
 from .common import ADDON, ui_lang, log
 

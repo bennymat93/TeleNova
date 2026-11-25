@@ -43,7 +43,7 @@
 			</control>
 			<control type="label">
 				<left>400</left><top>80</top><width>1000</width><height>40</height>
-				<font>font27</font><align>left</align><aligny>center</aligny><textcolor>B3FFFFFF</textcolor>
+				<font>font27</font><align>left</align><aligny>center</aligny><textcolor>B3FFFFFF</textcolor><shadowcolor>80000000</shadowcolor>
 				<label>קטע: $INFO[Player.ChapterName,, - ]$INFO[Player.Chapter]/$INFO[Player.ChapterCount]</label>
 				<visible>Integer.IsGreater(Player.ChapterCount,1)</visible>
 			</control>
@@ -62,8 +62,20 @@
 			<control type="group">
 				<left>50</left><right>50</right><bottom>190</bottom><height>440</height>
 				<visible>String.IsEqual(Window(Home).Property(BN.OSDInfo),1)</visible>
+				<animation type="Visible" reversible="false"><effect type="fade" start="0" end="100" time="200"/><effect type="slide" start="0,40" end="0,0" time="220" tween="cubic" easing="out"/></animation>
+				<animation type="Hidden" reversible="false"><effect type="fade" start="100" end="0" time="150"/><effect type="slide" start="0,0" end="0,40" time="150" tween="cubic" easing="in"/></animation>
+				<!-- depth: a dark copy offset down-right under the rounded panel -->
 				<control type="image">
-					<texture colordiffuse="CC0B0E14">colors/white.png</texture>
+					<left>8</left><top>10</top><width>100%</width><height>100%</height>
+					<texture colordiffuse="80000000" border="20">bn/panel.png</texture>
+				</control>
+				<control type="image">
+					<left>0</left><top>0</top><width>100%</width><height>100%</height>
+					<texture colordiffuse="E60B0E14" border="20">bn/panel.png</texture>
+				</control>
+				<control type="image">
+					<left>28</left><top>30</top><width>266</width><height>400</height>
+					<texture colordiffuse="80000000" border="20">bn/panel.png</texture>
 				</control>
 				<control type="image">
 					<left>20</left><top>20</top><width>266</width><height>400</height>
@@ -95,7 +107,7 @@
 			</control>
 			<!-- codec badges over the progress bar -->
 			<control type="grouplist">
-				<right>50</right><bottom>138</bottom><width>900</width><height>36</height>
+				<right>50</right><bottom>138</bottom><width>900</width><height>30</height>
 				<orientation>horizontal</orientation><align>right</align><itemgap>10</itemgap><usecontrolcoords>true</usecontrolcoords>
 				<include content="BNBadge"><param name="text" value="$INFO[VideoPlayer.VideoResolution]P"/><param name="visible" value="!String.IsEmpty(VideoPlayer.VideoResolution)"/></include>
 				<include content="BNBadge"><param name="text" value="$INFO[VideoPlayer.HdrType]"/><param name="visible" value="!String.IsEmpty(VideoPlayer.HdrType)"/></include>
@@ -104,8 +116,9 @@
 			</control>
 			<!-- thin progress bar: buffer + played -->
 			<control type="group">
-				<left>50</left><right>50</right><bottom>120</bottom><height>8</height>
+				<left>50</left><right>50</right><bottom>120</bottom><height>6</height>
 				<control type="image"><texture colordiffuse="40FFFFFF">colors/white.png</texture></control>
+				<control type="image"><top>0</top><height>1</height><texture colordiffuse="66FFFFFF">colors/white.png</texture></control>
 				<control type="progress">
 					<info>Player.ProgressCache</info>
 					<texturebg colordiffuse="00FFFFFF">colors/white.png</texturebg>
@@ -121,15 +134,19 @@
 			<control type="label">
 				<left>50</left><bottom>30</bottom><width>300</width><height>70</height>
 				<font>font27</font><align>left</align><aligny>center</aligny>
-				<label>$INFO[Player.Time] / $INFO[Player.Duration]</label>
+				<label>$INFO[Player.Time] / $INFO[Player.Duration]</label><shadowcolor>80000000</shadowcolor>
 			</control>
 			<!-- the row -->
-			<include content="BNText"><param name="id" value="701"/><param name="x" value="340"/><param name="w" value="160"/><param name="label" value="סנכרון"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=sync_menu)"/><param name="left" value="706"/><param name="right" value="702"/></include>
-			<include content="BNText"><param name="id" value="702"/><param name="x" value="510"/><param name="w" value="160"/><param name="label" value="כתוביות"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=subs_menu)"/><param name="left" value="701"/><param name="right" value="601"/></include>
-			<include content="BNIconBtn"><param name="id" value="601"/><param name="x" value="740"/><param name="icon" value="previous"/><param name="label" value="הקודם"/><param name="action" value="PlayerControl(Previous)"/><param name="left" value="702"/><param name="right" value="602"/></include>
-			<include content="BNIconBtn"><param name="id" value="602"/><param name="x" value="830"/><param name="icon" value="rewind"/><param name="label" value="הרצה אחורה"/><param name="action" value="PlayerControl(Rewind)"/><param name="left" value="601"/><param name="right" value="201"/></include>
+			<include content="BNText"><param name="id" value="701"/><param name="x" value="440"/><param name="w" value="160"/><param name="label" value="סנכרון"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=sync_menu)"/><param name="left" value="706"/><param name="right" value="702"/></include>
+			<include content="BNText"><param name="id" value="702"/><param name="x" value="610"/><param name="w" value="160"/><param name="label" value="כתוביות"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=subs_menu)"/><param name="left" value="701"/><param name="right" value="601"/></include>
+			<include content="BNIconBtn"><param name="id" value="601"/><param name="x" value="790"/><param name="icon" value="previous"/><param name="label" value="הקודם"/><param name="action" value="PlayerControl(Previous)"/><param name="left" value="702"/><param name="right" value="602"/></include>
+			<include content="BNIconBtn"><param name="id" value="602"/><param name="x" value="864"/><param name="icon" value="rewind"/><param name="label" value="הרצה אחורה"/><param name="action" value="PlayerControl(Rewind)"/><param name="left" value="601"/><param name="right" value="201"/></include>
+			<control type="image">
+				<left>928</left><bottom>18</bottom><width>96</width><height>96</height>
+				<texture colordiffuse="80000000">icons/circle-shadow.png</texture>
+			</control>
 			<control type="togglebutton" id="201">
-				<left>920</left><bottom>28</bottom><width>80</width><height>80</height>
+				<left>938</left><bottom>30</bottom><width>76</width><height>76</height>
 				<label>השהה / נגן</label><textcolor>00000000</textcolor><focusedcolor>00000000</focusedcolor>
 				<texturefocus>bn/pause_fo.png</texturefocus><texturenofocus>bn/pause_nf.png</texturenofocus>
 				<alttexturefocus>bn/play_fo.png</alttexturefocus><alttexturenofocus>bn/play_nf.png</alttexturenofocus>
@@ -137,43 +154,45 @@
 				<onclick>PlayerControl(Play)</onclick>
 				<onleft>602</onleft><onright>604</onright><onup>Dialog.Close(videoosd)</onup>
 			</control>
-			<include content="BNIconBtn"><param name="id" value="604"/><param name="x" value="1010"/><param name="icon" value="stop"/><param name="label" value="עצור"/><param name="action" value="PlayerControl(Stop)"/><param name="left" value="201"/><param name="right" value="605"/></include>
-			<include content="BNIconBtn"><param name="id" value="605"/><param name="x" value="1100"/><param name="icon" value="forward"/><param name="label" value="הרצה קדימה"/><param name="action" value="PlayerControl(Forward)"/><param name="left" value="604"/><param name="right" value="606"/></include>
-			<include content="BNIconBtn"><param name="id" value="606"/><param name="x" value="1190"/><param name="icon" value="next"/><param name="label" value="הבא"/><param name="action" value="PlayerControl(Next)"/><param name="left" value="605"/><param name="right" value="703"/></include>
-			<include content="BNText"><param name="id" value="703"/><param name="x" value="1340"/><param name="w" value="190"/><param name="label" value="הפרק הבא"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=next_episode)"/><param name="left" value="606"/><param name="right" value="704"/></include>
-			<include content="BNText"><param name="id" value="704"/><param name="x" value="1540"/><param name="w" value="120"/><param name="label" value="שמע"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=audio_menu)"/><param name="left" value="703"/><param name="right" value="705"/></include>
+			<include content="BNIconBtn"><param name="id" value="604"/><param name="x" value="1024"/><param name="icon" value="stop"/><param name="label" value="עצור"/><param name="action" value="PlayerControl(Stop)"/><param name="left" value="201"/><param name="right" value="605"/></include>
+			<include content="BNIconBtn"><param name="id" value="605"/><param name="x" value="1098"/><param name="icon" value="forward"/><param name="label" value="הרצה קדימה"/><param name="action" value="PlayerControl(Forward)"/><param name="left" value="604"/><param name="right" value="606"/></include>
+			<include content="BNIconBtn"><param name="id" value="606"/><param name="x" value="1172"/><param name="icon" value="next"/><param name="label" value="הבא"/><param name="action" value="PlayerControl(Next)"/><param name="left" value="605"/><param name="right" value="703"/></include>
+			<include content="BNText"><param name="id" value="703"/><param name="x" value="1256"/><param name="w" value="190"/><param name="label" value="הפרק הבא"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=next_episode)"/><param name="left" value="606"/><param name="right" value="704"/></include>
+			<include content="BNText"><param name="id" value="704"/><param name="x" value="1456"/><param name="w" value="120"/><param name="label" value="שמע"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=audio_menu)"/><param name="left" value="703"/><param name="right" value="705"/></include>
 			<control type="button" id="705">
-				<left>1670</left><bottom>34</bottom><width>120</width><height>66</height>
+				<left>1586</left><bottom>40</bottom><width>120</width><height>56</height>
 				<label>מידע</label><font>font27</font><textcolor>00000000</textcolor><focusedcolor>00000000</focusedcolor>
-				<texturefocus colordiffuse="26E8BE5A">colors/white.png</texturefocus><texturenofocus />
+				<texturefocus colordiffuse="33E8BE5A" border="20">bn/panel.png</texturefocus><texturenofocus />
+				<animation effect="zoom" start="100" end="106" time="160" tween="cubic" easing="out" center="auto" reversible="true" condition="Control.HasFocus(705)">Conditional</animation>
 				<onclick condition="String.IsEqual(Window(Home).Property(BN.OSDInfo),1)">ClearProperty(BN.OSDInfo,home)</onclick>
 				<onclick condition="!String.IsEqual(Window(Home).Property(BN.OSDInfo),1)">SetProperty(BN.OSDInfo,1,home)</onclick>
 				<onleft>704</onleft><onright>706</onright><onup>Dialog.Close(videoosd)</onup>
 			</control>
-			<include content="BNLabel"><param name="id" value="705"/><param name="x" value="1670"/><param name="w" value="120"/><param name="label" value="מידע"/></include>
-			<include content="BNIconBtn"><param name="id" value="706"/><param name="x" value="1800"/><param name="icon" value="settings"/><param name="label" value="הגדרות"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=settings_menu)"/><param name="left" value="705"/><param name="right" value="701"/></include>
+			<include content="BNLabel"><param name="id" value="705"/><param name="x" value="1586"/><param name="w" value="120"/><param name="label" value="מידע"/></include>
+			<include content="BNIconBtn"><param name="id" value="706"/><param name="x" value="1726"/><param name="icon" value="settings"/><param name="label" value="הגדרות"/><param name="action" value="RunPlugin(plugin://plugin.video.nova/?a=settings_menu)"/><param name="left" value="705"/><param name="right" value="701"/></include>
 		</control>
 	</include>
 
 	<include name="BNText">
 		<definition>
 			<control type="button" id="$PARAM[id]">
-				<left>$PARAM[x]</left><bottom>34</bottom><width>$PARAM[w]</width><height>66</height>
+				<left>$PARAM[x]</left><bottom>40</bottom><width>$PARAM[w]</width><height>56</height>
 				<label>$PARAM[label]</label><font>font27</font><textcolor>00000000</textcolor><focusedcolor>00000000</focusedcolor>
-				<texturefocus colordiffuse="26E8BE5A">colors/white.png</texturefocus><texturenofocus />
+				<texturefocus colordiffuse="33E8BE5A" border="20">bn/panel.png</texturefocus><texturenofocus />
+				<animation effect="zoom" start="100" end="106" time="160" tween="cubic" easing="out" center="auto" reversible="true" condition="Control.HasFocus($PARAM[id])">Conditional</animation>
 				<onclick>$PARAM[action]</onclick>
 				<onleft>$PARAM[left]</onleft><onright>$PARAM[right]</onright><onup>Dialog.Close(videoosd)</onup>
 			</control>
 			<!-- button labels are not bidi-shaped (Hebrew shows reversed): the text is a label control on top -->
 			<control type="label">
-				<left>$PARAM[x]</left><bottom>34</bottom><width>$PARAM[w]</width><height>66</height>
+				<left>$PARAM[x]</left><bottom>40</bottom><width>$PARAM[w]</width><height>56</height>
 				<label>$PARAM[label]</label><font>font27</font><align>center</align><aligny>center</aligny>
-				<textcolor>B3FFFFFF</textcolor><visible>!Control.HasFocus($PARAM[id])</visible>
+				<textcolor>B3FFFFFF</textcolor><shadowcolor>80000000</shadowcolor><visible>!Control.HasFocus($PARAM[id])</visible>
 			</control>
 			<control type="label">
-				<left>$PARAM[x]</left><bottom>34</bottom><width>$PARAM[w]</width><height>66</height>
+				<left>$PARAM[x]</left><bottom>40</bottom><width>$PARAM[w]</width><height>56</height>
 				<label>$PARAM[label]</label><font>font27</font><align>center</align><aligny>center</aligny>
-				<textcolor>FFE8BE5A</textcolor><visible>Control.HasFocus($PARAM[id])</visible>
+				<textcolor>FFE8BE5A</textcolor><shadowcolor>80000000</shadowcolor><visible>Control.HasFocus($PARAM[id])</visible><animation effect="zoom" start="100" end="106" time="160" tween="cubic" easing="out" center="auto" reversible="true" condition="Control.HasFocus($PARAM[id])">Conditional</animation>
 			</control>
 		</definition>
 	</include>
@@ -181,22 +200,33 @@
 	<include name="BNLabel">
 		<definition>
 			<control type="label">
-				<left>$PARAM[x]</left><bottom>34</bottom><width>$PARAM[w]</width><height>66</height>
+				<left>$PARAM[x]</left><bottom>40</bottom><width>$PARAM[w]</width><height>56</height>
 				<label>$PARAM[label]</label><font>font27</font><align>center</align><aligny>center</aligny>
-				<textcolor>B3FFFFFF</textcolor><visible>!Control.HasFocus($PARAM[id])</visible>
+				<textcolor>B3FFFFFF</textcolor><shadowcolor>80000000</shadowcolor><visible>!Control.HasFocus($PARAM[id])</visible>
 			</control>
 			<control type="label">
-				<left>$PARAM[x]</left><bottom>34</bottom><width>$PARAM[w]</width><height>66</height>
+				<left>$PARAM[x]</left><bottom>40</bottom><width>$PARAM[w]</width><height>56</height>
 				<label>$PARAM[label]</label><font>font27</font><align>center</align><aligny>center</aligny>
-				<textcolor>FFE8BE5A</textcolor><visible>Control.HasFocus($PARAM[id])</visible>
+				<textcolor>FFE8BE5A</textcolor><shadowcolor>80000000</shadowcolor><visible>Control.HasFocus($PARAM[id])</visible><animation effect="zoom" start="100" end="106" time="160" tween="cubic" easing="out" center="auto" reversible="true" condition="Control.HasFocus($PARAM[id])">Conditional</animation>
 			</control>
 		</definition>
 	</include>
 
 	<include name="BNIconBtn">
 		<definition>
+			<!-- soft round shadow under the focused icon: depth by layering, no 3D transforms -->
+			<control type="group">
+				<left>$PARAM[x]</left><bottom>26</bottom><width>64</width><height>76</height>
+				<visible>Control.HasFocus($PARAM[id])</visible>
+				<control type="image">
+					<left>-6</left><top>0</top><width>76</width><height>76</height>
+					<texture colordiffuse="99000000">icons/circle-shadow.png</texture>
+				</control>
+			</control>
 			<control type="button" id="$PARAM[id]">
-				<left>$PARAM[x]</left><bottom>28</bottom><width>80</width><height>80</height>
+				<left>$PARAM[x]</left><bottom>36</bottom><width>64</width><height>64</height>
+				<animation effect="zoom" start="100" end="112" time="160" tween="cubic" easing="out" center="auto">Focus</animation>
+				<animation effect="zoom" start="112" end="100" time="160" tween="cubic" easing="out" center="auto">UnFocus</animation>
 				<label>$PARAM[label]</label><textcolor>00000000</textcolor><focusedcolor>00000000</focusedcolor>
 				<texturefocus>bn/$PARAM[icon]_fo.png</texturefocus><texturenofocus>bn/$PARAM[icon]_nf.png</texturenofocus>
 				<onclick>$PARAM[action]</onclick>
@@ -209,10 +239,10 @@
 		<param name="visible" default="true"/>
 		<definition>
 			<control type="button">
-				<width>auto</width><height>36</height>
-				<label>[B]$PARAM[text][/B]</label><font>font12</font><align>center</align><aligny>center</aligny>
-				<textoffsetx>14</textoffsetx><disabledcolor>FF101318</disabledcolor>
-				<texturenofocus colordiffuse="E6FFFFFF" border="6">colors/white.png</texturenofocus>
+				<width>auto</width><height>30</height>
+				<label>[B]$PARAM[text][/B]</label><font>font10</font><align>center</align><aligny>center</aligny>
+				<textoffsetx>12</textoffsetx><disabledcolor>FF101318</disabledcolor>
+				<texturenofocus colordiffuse="E6FFFFFF" border="8">bn/panel.png</texturenofocus>
 				<enable>false</enable>
 				<visible>$PARAM[visible]</visible>
 			</control>

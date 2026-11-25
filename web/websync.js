@@ -28,8 +28,11 @@
   const TW = typeof module === 'object' && module.exports ? require('./twins.js') : root.TNTwins;
   const DOC_DEVICE = 'sync-v2', TAG = '#TeleNovaSetup', NOVA = 'plugin.video.nova';
   const NOTE = {device: DOC_DEVICE, name: 'TeleNova sync', build: '', fp: '', v: 1};
-  // settings that belong to one device or change by themselves: never synced (autosync.LOCAL)
-  const LOCAL = /^(debug|port|deps_zip|wizard_shown|sub_server|lite_done|depov_done|wizard_fix|tune_done|\w+_done|last_\w+|\w+_ts|\w+_time|kodion\..*|.*\.port)$/;
+  // settings that belong to one device or change by themselves: never synced (autosync.LOCAL - 6.3.0: the one copy in twins.js)
+  const LOCAL = TW.KODI_LOCAL_RX;
+  const MAX_SKEW = 7 * 86400;
+  // 6.3.0 (P2): the keys and tokens that travel in the sealed envelope (syncseal.py SECRET_RX)
+  const SEAL_RX = /(_key$|token|secret|_hash$|^hash$|refresh|password|_pass$|cookie)/i;
   const READS = ['tmdb_key', 'tmdb_token', 'content_lang'];      // what a browser can use of the household's settings
 
   function make(SD) {
@@ -95,7 +98,9 @@
       const v = port.get(name);
       return field ? (isDict(v) ? v[field] : undefined) : v;
     }
-    function project(port, u, old) {               // this browser's value in the document's form (undefined: none); old: the account's value
+    // this browser's value in the document's form (undefined: none); old: the account's value; last: what this browser
+    // held when it last looked (6.3.0, B1: a pin removed here is not merged back from the account)
+    function project(port, u, old, last) {
       if (u.codec === 'iptv') {
         const own = port.get('iptv_own'), epg = port.get('epg_own');
         return own === undefined && epg === undefined ? undefined : TW.IPTV.fromWeb(own, epg);
@@ -103,8 +108,16 @@
       const v = readWeb(port, u.wk);
       if (v === undefined || v === null) return undefined;
       if (u.codec === 'json') return SD.canon(v).length > MAXJ ? undefined : v;
-      return TW.CODECS[u.codec].enc(v, old);         // 6.2.0: enc(local, oldAccountValue) - an extra argument is harmless
+      return TW.CODECS[u.codec].enc(v, old, last);
     }
+    // 6.3.0 (B1): the pins this browser itself holds, as tokens (never the account's ones it merged back)
+    function held(port, u) {
+      if (u.codec !== 'pins') return undefined;
+      const s = TW.CODECS.pins.enc(readWeb(port, u.wk));
+      return typeof s === 'string' ? s.split(',').map((x) => x.trim()).filter(Boolean) : [];
+    }
+    // 6.5.0: every keyed list kept in this unit (iptv.json holds two: iptv and epg)
+    const keyedSpecs = (u) => SD.KEYED.filter((s) => (s[1] === u.addon || (u.addon === TW.FILES && s[1] === 'files')) && s[2] === u.kid);
     const docProject = (u, v) => (u.codec === 'iptv' ? TW.IPTV.fromDoc(v) : v);
     const canonOf = (v) => (v === undefined ? NONE : SD.canon(v));
     const emptyish = (v) => v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length) ||
@@ -117,10 +130,10 @@
     }
     function pairOf(doc, u) { const s = sectionOf(doc, u, false); const p = isDict(s) ? SD.get(s, u.kid) : undefined; return isPair(p) ? p : undefined; }
     const st = (p) => Number(p && p[1]) || 0;
-    const SKEW = 600;                              // 6.2.0: an account stamp more than 10 minutes ahead is a broken clock
-    // 6.2.0: the stamp for the one key written now - after the account's stamp of that key only (a slow clock never loses
-    // forever), never pushed up by another key's skewed stamp
-    const stampFor = (now, R) => Math.max(now, Math.min(Math.floor(st(R)), now + SKEW) + 1);   // clamped to now + 10 minutes
+    // 6.3.0 (L1): the stamp for the one key written now (now = the account's clock, as learned) - after the account's
+    // stamp of that key only (a slow clock never loses), never pushed up by another key's stamp; an account stamp
+    // more than a day ahead counts as a day ahead (a broken writer)
+    const stampFor = (now, R) => Math.max(now, Math.min(Math.floor(st(R)), now + SD.DAY) + 1);
     // 6.2.0: what a value deleted here becomes in the account ('' / an empty projection); undefined: no empty form
     function emptyOf(u) {
       if (u.codec === 'iptv') return TW.IPTV.fromWeb([], []);
@@ -129,10 +142,13 @@
     // stamp this browser's values against meta.set; the ones the account should take go into doc (this browser's side)
     function stampInto(port, meta, remote, doc, now) {
       const first = !isDict(meta.set), ms = first ? {} : meta.set;
+      const hs = isDict(meta.held) ? meta.held : (meta.held = {});
+      const kl = isDict(meta.keyed_last) ? meta.keyed_last : {};
       for (const u of units(port, remote)) {
         if (u.flags.includes('r')) continue;                        // read only (the Telegram app id): never sent
         const R = pairOf(remote, u), stampNow = stampFor(now, R);
-        let P = project(port, u, R ? R[0] : undefined), m = ms[u.id];
+        let P = project(port, u, R ? R[0] : undefined, hs[u.id]), m = ms[u.id];
+        if (u.codec === 'pins') hs[u.id] = held(port, u);
         // 6.2.0: deleted here (was held, now gone): the account gets the empty form so Kodi clears it too
         if (P === undefined && isPair(m) && m[0] !== NONE) { const e = emptyOf(u); if (e !== undefined) P = e; }
         const c = canonOf(P);
@@ -143,7 +159,16 @@
         if (first && m[1] === 0 && R && st(R) === 0 && !emptyish(P) && emptyish(docProject(u, R[0]))) m = [c, stampNow];
         ms[u.id] = m;
         if (P === undefined || (u.flags.includes('m') && !R)) continue;
-        if (!R || m[1] > st(R)) sectionOf(doc, u, true)[u.kid] = [u.codec === 'iptv' ? TW.IPTV.toDoc(P, R && R[0]) : P, m[1]];
+        const flat = u.codec === 'iptv' ? TW.IPTV.toDoc(P, R && R[0]) : P;
+        if (!R || m[1] > st(R)) sectionOf(doc, u, true)[u.kid] = [flat, m[1]];
+        // 6.3.0 (P1): a keyed list: what changed here since this browser last held it, item by item
+        for (const spec of keyedSpecs(u)) {
+          const ops = SD.keyed_ops(spec, kl[spec[0]], flat, m[1]);
+          if (Object.keys(ops).length) {
+            if (!isDict(doc.keyed)) doc.keyed = SD.dict();
+            doc.keyed[spec[0]] = Object.assign(SD.dict(), isDict(doc.keyed[spec[0]]) ? doc.keyed[spec[0]] : {}, ops);
+          }
+        }
       }
       meta.set = ms;
     }
@@ -162,8 +187,11 @@
       return typeof v === typeof cur && Array.isArray(v) === Array.isArray(cur);
     }
     // the merged document's newer values -> this browser. -> [web keys written]
-    function applyFrom(port, meta, merged) {
+    // forced: unit ids of keyed lists - written whenever the account's list differs from this browser's (their stamp
+    // is the newest item's, which can equal this browser's own stamp)
+    function applyFrom(port, meta, merged, forced) {
       const ms = isDict(meta.set) ? meta.set : (meta.set = {}), done = [], groups = new Map();
+      const hs = isDict(meta.held) ? meta.held : (meta.held = {});
       for (const u of units(port, merged)) {
         const g = u.wk.split('.')[0];
         if (!groups.has(g)) groups.set(g, []);
@@ -175,7 +203,8 @@
           const M = pairOf(merged, u);
           if (!M) continue;
           const m = isPair(ms[u.id]) ? ms[u.id] : [NONE, 0];
-          if (u.flags.includes('r') ? emptyish(readWeb(port, u.wk)) : st(M) > m[1]) newer.push([u, M]);
+          const differs = () => forced && forced.has(u.id) && canonOf(docProject(u, M[0])) !== m[0];
+          if (u.flags.includes('r') ? emptyish(readWeb(port, u.wk)) : st(M) > m[1] || differs()) newer.push([u, M]);
         }
         if (!newer.length) continue;
         let wrote = false;
@@ -207,8 +236,10 @@
         done.push(g);
         for (const u of us) {                                        // what this browser holds now, at the account's stamp
           if (u.flags.includes('r')) continue;
-          const old = isPair(ms[u.id]) ? ms[u.id][1] : 0;
-          ms[u.id] = [canonOf(project(port, u)), Math.max(old, st(pairOf(merged, u)))];
+          const old = isPair(ms[u.id]) ? ms[u.id][1] : 0, M = pairOf(merged, u);
+          // 6.3.0 (B1): projected against the account's value, so the account's pins this browser cannot hold are counted in
+          ms[u.id] = [canonOf(project(port, u, M ? M[0] : undefined)), Math.max(old, st(M))];
+          if (u.codec === 'pins') hs[u.id] = held(port, u);
         }
       }
       return done;
@@ -231,11 +262,89 @@
       return Object.assign(out, reads(settings));
     }
 
-    // one round -> {state: 'nodoc' | 'idle' | 'unreadable' | 'ok', pulled, pushed, users, data: [user ids whose lists changed here]}
+    // ---------------------------------------------------------------- 6.3.0 (P2): the secrets envelope (syncseal.py, same bytes)
+    const subtle = () => (root.crypto && root.crypto.subtle) || null;
+    const utf8 = (s) => new TextEncoder().encode(s);
+    const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return root.btoa(s); };
+    const unb64 = (t) => { const s = root.atob(String(t)); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
+    const cat = (...parts) => { const n = parts.reduce((a, p) => a + p.length, 0), o = new Uint8Array(n); let i = 0; for (const p of parts) { o.set(p, i); i += p.length; } return o; };
+    const hkey = (raw) => subtle().importKey('raw', raw, {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
+    const sign = async (k, data) => new Uint8Array(await subtle().sign('HMAC', k, data));
+    const keyCache = new Map();
+    async function sealKeys(pass, salt, rounds) {
+      const ck = pass + '\u0000' + b64(salt) + '\u0000' + rounds;
+      if (!keyCache.has(ck)) {
+        if (keyCache.size > 8) keyCache.clear();
+        const base = await subtle().importKey('raw', utf8(pass), 'PBKDF2', false, ['deriveBits']);
+        const raw = new Uint8Array(await subtle().deriveBits({name: 'PBKDF2', hash: 'SHA-256', salt, iterations: rounds}, base, 512));
+        keyCache.set(ck, [await hkey(raw.slice(0, 32)), await hkey(raw.slice(32))]);
+      }
+      return keyCache.get(ck);
+    }
+    async function xorStream(kEnc, nonce, data) {
+      const out = new Uint8Array(data.length);
+      for (let i = 0; i < data.length; i += 32) {
+        const ctr = new Uint8Array(8);
+        let n = i / 32;
+        for (let j = 7; j >= 0; j--) { ctr[j] = n % 256; n = Math.floor(n / 256); }
+        const block = await sign(kEnc, cat(nonce, ctr));
+        for (let j = 0; j < 32 && i + j < data.length; j++) out[i + j] = data[i + j] ^ block[j];
+      }
+      return out;
+    }
+    async function seal(pairs, pass, salt, rounds = 200000) {
+      salt = salt || root.crypto.getRandomValues(new Uint8Array(16));
+      const [kEnc, kMac] = await sealKeys(pass, salt, rounds);
+      const plain = utf8(SD.canon(pairs));
+      const nonce = (await sign(kMac, cat(utf8('nonce'), plain))).slice(0, 16);
+      const data = await xorStream(kEnc, nonce, plain);
+      const tag = await sign(kMac, cat(utf8('TNSEC1'), salt, nonce, data));
+      return {v: 1, kdf: rounds, salt: b64(salt), nonce: b64(nonce), data: b64(data), seal: b64(tag)};
+    }
+    async function openEnv(env, pass) {            // -> {aid: {key: [value, time]}} or null
+      if (!pass || !isDict(env) || Number(env.v) !== 1 || !subtle()) return null;
+      try {
+        const salt = unb64(env.salt), nonce = unb64(env.nonce), data = unb64(env.data), tag = unb64(env.seal);
+        const rounds = Number(env.kdf) || 200000;
+        if (rounds < 10000 || rounds > 5000000) return null;
+        const [kEnc, kMac] = await sealKeys(pass, salt, rounds);
+        const want = await sign(kMac, cat(utf8('TNSEC1'), salt, nonce, data));
+        if (want.length !== tag.length || want.some((x, i) => x !== tag[i])) return null;
+        const out = SD.parse(new TextDecoder().decode(await xorStream(kEnc, nonce, data)));
+        return isDict(out) ? out : null;
+      } catch (e) { return null; }
+    }
+    function takeSecrets(settings) {               // removes the secret keys (in place) -> {aid: {key: pair}}
+      const out = SD.dict();
+      if (!isDict(settings)) return out;
+      for (const aid of Object.keys(settings)) {
+        const keys = settings[aid];
+        if (!isDict(keys)) continue;
+        for (const k of Object.keys(keys)) if (SEAL_RX.test(k)) { if (!out[aid]) out[aid] = SD.dict(); out[aid][k] = keys[k]; delete keys[k]; }
+      }
+      return out;
+    }
+    // 6.3.0 (L1): the account's clock as this browser learned it (whole seconds), and one more sample of it
+    const skewOf = (meta) => (typeof meta.skew === 'number' && Math.abs(meta.skew) <= MAX_SKEW ? Math.floor(meta.skew + 0.5) : 0);
+    function learnSkew(meta, t0, t1, mark) {
+      const srv = Number(String(mark).split(':').pop());
+      if (!(srv > 0) || !(t1 - t0 >= 0 && t1 - t0 <= 30)) return;
+      const s = srv - (t0 + t1) / 2;
+      if (Math.abs(s) > MAX_SKEW) return;
+      meta.skew = Math.round((typeof meta.skew === 'number' ? 0.7 * meta.skew + 0.3 * s : s) * 100) / 100;
+    }
+    function rid() {
+      const a = new Uint8Array(6);
+      if (root.crypto && root.crypto.getRandomValues) root.crypto.getRandomValues(a); else for (let i = 0; i < 6; i++) a[i] = Math.floor(Math.random() * 256);
+      return Array.from(a, (x) => x.toString(16).padStart(2, '0')).join('');
+    }
+
+    // one round -> {state: 'nodoc' | 'idle' | 'unreadable' | 'ok' | 'update', pulled, pushed, users, data: [user ids whose lists changed here], locked}
     async function cycle(host, now) {
       now = Math.floor(now != null ? now : Date.now() / 1000);
-      const out = {state: 'ok', pulled: false, pushed: false, users: false, data: []};
+      const out = {state: 'ok', pulled: false, pushed: false, users: false, data: [], locked: false};
       const meta = host.loadMeta() || {};
+      now += skewOf(meta);                         // 6.3.0 (L1)
       const port = portOf(host);
       const item = await host.cloudFind();         // (throws when the account cannot be reached: the caller shows it)
       const mark = markOf(item);
@@ -257,26 +366,60 @@
         return out;
       }
       out.pulled = true;
+      const remoteAsIs = SD.copy(remote);
+      // 6.3.0 (P2): open the account's envelope (async: before the part where nothing waits)
+      const pw = (host.passphrase ? await host.passphrase() : '') || '';
+      const env = isDict(SD.get(remote, 'secrets')) ? remote.secrets : null;
+      let opened = null;
+      if (env) {
+        opened = await openEnv(env, pw);
+        if (opened) {
+          delete remote.secrets;
+          if (!isDict(remote.settings)) remote.settings = SD.dict();
+          for (const aid of Object.keys(opened)) if (isDict(opened[aid])) remote.settings[aid] = SD.merge_stamped(SD.get(remote.settings, aid), opened[aid]);
+        } else out.locked = true;
+      }
       // from here to the upload nothing waits: what the viewer does meanwhile lands either in this merge or in the next round
       const mine = localDoc(host);
+      if (!meta.device_id) meta.device_id = rid();             // 6.3.0: this browser in the list of devices
+      const want = {sv: SD.LEVEL, kind: 'web', name: String(host.deviceName ? host.deviceName() || '' : '').slice(0, 40)};
+      if (!isDict(meta.device) || Object.keys(want).some((k) => meta.device[k] !== want[k])) meta.device = Object.assign({}, want, {at: now});
+      mine.devices = SD.dict();
+      mine.devices[meta.device_id] = meta.device;
       if (port) stampInto(port, meta, remote, mine, now);        // 6.2.0
       const merged = SD.merge(mine, remote);
+      const forced = new Set();
+      if (SD.capable(merged)) {                    // 6.3.0 (P1): the keyed lists and their plain values agree
+        const kl = isDict(meta.keyed_last) ? meta.keyed_last : (meta.keyed_last = {});
+        for (const spec of SD.KEYED) { const items = SD.settle(merged, spec); if (items) kl[spec[0]] = items; }
+        if (port) for (const u of units(port, merged)) if (keyedSpecs(u).length) forced.add(u.id);
+      } else delete merged.keyed;
       if (host.setUsers(merged.users)) out.users = true;
       for (const uid of Object.keys(merged.data)) if (host.putUserData(uid, merged.data[uid])) out.data.push(uid);
-      if (port) { out.settings = applyFrom(port, meta, merged); meta.ssig = ssig(port); }
+      if (port) { out.settings = applyFrom(port, meta, merged, forced); meta.ssig = ssig(port); }
       host.takeSettings(port ? syncedMap(merged.settings) : reads(merged.settings));
+      // 6.3.0 (P2): keys travel sealed when this browser has the passphrase (and every device understands it); next to an
+      // envelope it cannot open, its own keys are never put in plain text
+      // 6.5.0: an envelope this browser opened is always sealed again (same salt), even while an older device is around
+      if (out.locked || (opened && pw && subtle()) || (pw && SD.capable(merged) && subtle())) {
+        const secret = takeSecrets(merged.settings);
+        if (!out.locked) merged.secrets = await seal(secret, pw, env ? unb64(env.salt) : null);
+      }
       meta.sig = sig(host);
       meta.cloud_mark = mark;
       meta.last = now;
-      meta.dirty = !SD.same(merged, remote);       // this browser has something the account does not
+      meta.dirty = !SD.same(merged, remoteAsIs);   // this browser has something the account does not
+      if (SD.stamp(SD.get(remoteAsIs, 'v')) > SD.VERSION) out.state = 'update';   // 6.3.0 (B3): a later release wrote it: read only
       host.saveMeta(meta);
-      if (meta.dirty) {
+      if (meta.dirty && out.state !== 'update') {
+        const t0 = host.clock ? host.clock() : null;
         const put = await host.cloudPut(merged, item);
         if (put) {
           out.pushed = true;
           const m2 = host.loadMeta() || meta;
           m2.cloud_mark = put;
           m2.dirty = false;
+          if (t0 !== null) learnSkew(m2, t0, host.clock(), put);
           host.saveMeta(m2);
         }
       }
@@ -292,7 +435,8 @@
     const mine = (items) => items.filter((it) => it.note && it.note.device === DOC_DEVICE).sort((a, b) => b.date - a.date)[0] || null;
 
     return {cycle, localDoc, sig, reads, markOf, caption, noteOf, mine, DOC_DEVICE, TAG, NOTE, LOCAL, READS,
-            units, project, stampInto, applyFrom, syncedMap, browserPort, TWINS: TW.TWINS, SESSION_RX: TW.SESSION_RX};
+            units, project, stampInto, applyFrom, syncedMap, browserPort, TWINS: TW.TWINS, SESSION_RX: TW.SESSION_RX,
+            seal, openEnv, takeSecrets, learnSkew, skewOf, stampFor};
   }
   const api = {make};
   if (typeof module === 'object' && module.exports) module.exports = api;

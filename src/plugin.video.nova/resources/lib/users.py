@@ -37,6 +37,14 @@ def _write(path, data):
     os.replace(tmp, path)
 
 
+def clock(root):
+    """6.3.0 (L1): now, on the account's clock (the offset the sync learned on this device, autosync.skew_of)"""
+    m = _read(os.path.join(root, 'sync_meta.json'), {})
+    s = m.get('skew') if isinstance(m, dict) else None
+    ok = isinstance(s, (int, float)) and not isinstance(s, bool) and abs(s) <= 7 * 86400
+    return time.time() + (s if ok else 0)
+
+
 def clean_name(name):
     return re.sub(r'\s+', ' ', (name or '').strip())[:30]
 
@@ -79,7 +87,7 @@ def store_create(root, name, now=None):
     users = store_users(root)
     if any(not u.get('deleted') and (u.get('name') or '').lower() == name.lower() for u in users):
         raise ValueError('name exists')
-    now = int(now if now is not None else time.time())
+    now = int(now if now is not None else clock(root))
     uid = 'u' + uuid.uuid4().hex[:8]
     users.append({'id': uid, 'name': name, 'created': now, 'renamed': now, 'deleted': 0})
     _write(os.path.join(root, LIST), users)
@@ -93,7 +101,7 @@ def store_rename(root, uid, name, now=None):
     users = store_users(root)
     for u in users:
         if u['id'] == uid:
-            u['name'], u['renamed'] = name, int(now if now is not None else time.time())
+            u['name'], u['renamed'] = name, int(now if now is not None else clock(root))
     _write(os.path.join(root, LIST), users)
 
 
@@ -105,7 +113,7 @@ def store_delete(root, uid, now=None):
     users = store_users(root)
     for u in users:
         if u['id'] == uid:
-            u['deleted'] = int(now if now is not None else time.time())
+            u['deleted'] = int(now if now is not None else clock(root))
     _write(os.path.join(root, LIST), users)
     shutil.rmtree(os.path.join(root, 'users', uid), ignore_errors=True)
 
@@ -193,7 +201,7 @@ def mark(root, key, value=None, now=None):
     'searches_removed' with the text"""
     path = os.path.join(root, 'user_marks.json')
     m = _read(path, {}) or {}
-    now = int(now if now is not None else time.time())
+    now = int(now if now is not None else clock(root))
     if key == 'searches_removed':
         m.setdefault('searches_removed', {})[(value or '').strip().lower()] = now
     else:

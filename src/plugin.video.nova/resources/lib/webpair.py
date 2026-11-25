@@ -114,8 +114,14 @@ def show():
             note = xbmcgui.ControlTextBox(140, 520, 1000, 70)
             self.addControl(note)
             note.setText('[COLOR grey]%s[/COLOR]' % s('note'))
-            self.btn_send = xbmcgui.ControlButton(330, 610, 380, 56, s('send'), alignment=6)
-            self.btn_close = xbmcgui.ControlButton(730, 610, 220, 56, s('close'), alignment=6)
+            # tidy pill buttons: the add-on's own white panel (full path, Python buttons do not resolve skin paths)
+            # with dark text when focused, black when not; a soft text shadow on both
+            pill = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'skin', 'icons', 'panel.png')
+            dark = 'special://xbmc/media/black.png'
+            kw = dict(alignment=6, focusTexture=pill, noFocusTexture=dark, textColor='0xFFF5F5F5',
+                      focusedColor='0xFF101010', shadowColor='0x99000000')
+            self.btn_send = xbmcgui.ControlButton(330, 613, 380, 50, s('send'), **kw)
+            self.btn_close = xbmcgui.ControlButton(730, 613, 220, 50, s('close'), **kw)
             self.addControl(self.btn_send)
             self.addControl(self.btn_close)
             self.btn_send.controlRight(self.btn_close)

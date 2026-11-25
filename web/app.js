@@ -405,20 +405,24 @@ function parseM3u(text) {
   return out;
 }
 const chCache = {};
-async function channels(list) {
-  if (chCache[list]) return chCache[list];
+// 6.2.1: the promise is kept, so two pages asking at once share one fetch and one parse (a failure is not kept)
+function channels(list) {
+  if (!chCache[list]) chCache[list] = loadChannels(list).catch((e) => { delete chCache[list]; throw e; });
+  return chCache[list];
+}
+async function loadChannels(list) {
   if (list === 'tn') {
     const r = await fetch('channels_il.json');
     if (!r.ok) throw new Error('channels ' + r.status);
     const rows = await r.json();
     // direct https streams play here; Idan+ and YouTube-live channels are listed too, marked "plays in Kodi"
-    return (chCache.tn = rows.map((c) => ({key: c.key, name: c.name, name_he: c.name_he || '', names: c.names || [], logo: httpsOnly(c.logo) || (/^media\/[\w.\/-]+$/.test(c.logo || '') ? c.logo : ''), group: 'BN Stream',
+    return (rows.map((c) => ({key: c.key, name: c.name, name_he: c.name_he || '', names: c.names || [], logo: httpsOnly(c.logo) || (/^media\/[\w.\/-]+$/.test(c.logo || '') ? c.logo : ''), group: 'BN Stream',
                                             urls: (c.urls || []).filter(httpsOnly), url: (c.urls || []).filter(httpsOnly)[0] || '', kodi_only: !!c.kodi_only, why: c.why || ''})));
   }
   if (!LISTS[list]) return [];
   const r = await fetch(`https://iptv-org.github.io/iptv/${LISTS[list]}.m3u`);
   if (!r.ok) throw new Error('channels ' + r.status);
-  return (chCache[list] = parseM3u(await r.text()));
+  return parseM3u(await r.text());
 }
 async function stations(cc, q, tag) {
   const path = tag ? `/stations/bytagexact/${encodeURIComponent(tag)}?` + new URLSearchParams({limit: 120, hidebroken: true, order: 'clickcount', reverse: true})
@@ -654,6 +658,29 @@ function hero(o) {
   [].concat(o.actions || []).forEach((a) => a && acts.append(a));
   el.acts = acts;
   return el;
+}
+// 6.5: a tidy action row - the buttons keep(b) says are primary stay visible, the rest move behind one "⋯" button that
+// opens menu() (keyboard / TV remote: the menu takes focus, Escape / Back returns to "⋯"). The moved buttons stay in the
+// DOM (hidden), so their own listeners (e.g. the favourite toggle) keep working and the menu shows their current label.
+I18N.add({he: {core_more_acts: 'פעולות נוספות'}, en: {core_more_acts: 'More actions'}, ru: {core_more_acts: 'Другие действия'}});
+function tidyActs(acts, keep) {
+  const rest = [...acts.children].filter((b) => b.matches('.btn,button,a') && !keep(b));
+  if (rest.length < 2) return;                                           // one extra button is not worth a menu
+  const hold = document.createElement('div');
+  hold.className = 'acts-hold';
+  hold.hidden = true;
+  rest.forEach((b) => hold.append(b));
+  const label = (b) => String(b.getAttribute('aria-label') || b.textContent || '').trim();
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'btn ghost iconbtn moreacts';
+  more.innerHTML = icon('dots');
+  more.setAttribute('aria-label', N('core_more_acts'));
+  more.title = N('core_more_acts');
+  more.setAttribute('aria-haspopup', 'menu');
+  more.onclick = () => menu(more, [...hold.children].filter((b) => !b.hidden && !b.disabled && b.getAttribute('aria-disabled') !== 'true').map((b) => ({label: label(b), onClick: () => b.click()})));
+  acts.append(more, hold);
+  acts.moreActs = more;
 }
 const tmdbCard = (r, o) => {
   const type = r.media_type || (r.title ? 'movie' : 'tv'), title = r.title || r.name || '', year = (r.release_date || r.first_air_date || '').slice(0, 4);
@@ -1062,6 +1089,9 @@ function menuGroups(into) {
 }
 // 5.1: display size. 100 % by default; the viewer changes it with - / + or by typing a percentage (50-200), kept in
 // the browser settings of this device (never synced). CSS zoom scales the whole interface, the player included.
+// 6.5: the lite look of this device ('auto' | 'on' | 'off'), browser storage only (never synced, never backed up)
+function litePref() { try { return localStorage.getItem('bn_lite') || 'auto'; } catch (e) { return 'auto'; } }
+function setLite(v) { try { if (v === 'auto') localStorage.removeItem('bn_lite'); else localStorage.setItem('bn_lite', v); } catch (e) {} applyCfg(); }
 const ZOOM_MIN = 50, ZOOM_MAX = 200, ZOOM_STEP = 10;
 const zoomOf = (x) => { const n = Math.round(Number(String(x).replace('%', '').trim())); return n >= ZOOM_MIN && n <= ZOOM_MAX ? n : (n > ZOOM_MAX ? ZOOM_MAX : n > 0 ? ZOOM_MIN : 100); };
 function applyZoom() { const z = zoomOf(cfg.zoom || 100); HTML.style.zoom = z === 100 ? '' : String(z / 100); }
@@ -1462,7 +1492,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-6.2.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-6.5.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest" target="_blank" rel="noopener">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
@@ -1513,7 +1543,7 @@ async function pageTitle(arg, ctx) {
   acts.id = 'acts';
   view.append(h);
   const entry = {key: type + ':' + id, label: title, thumb: poster, plot: d.overview || '', fanart: d.backdrop_path ? IMG + 'w1280' + d.backdrop_path : ''};
-  if (tr) acts.append(labelButton('btn ghost', 'play', t('trailer'), () => { openTrailer(tr.key, title); noteHistory(entry); }));
+  if (tr) { const tb = labelButton('btn ghost', 'play', t('trailer'), () => { openTrailer(tr.key, title); noteHistory(entry); }); tb.setAttribute('data-trailer', ''); acts.append(tb); }
   acts.append(favButton({kind, id, label: title, extra: '', img: poster}));
   const iaBox = document.createElement('div');
   // (the 'free on Internet Archive' button is gone: the owner asked to remove it, 2026-11-19)
@@ -1526,6 +1556,7 @@ async function pageTitle(arg, ctx) {
   }
   const first = acts.querySelector('[data-autofocus]') || acts.querySelector('.btn');
   if (first) { first.classList.remove('ghost'); first.setAttribute('data-autofocus', ''); }
+  tidyActs(acts, (b) => b === first || b.hasAttribute('data-trailer'));
   if (d.overview) { const p = document.createElement('p'); p.className = 'plotfull'; p.dir = 'auto'; p.textContent = d.overview; view.append(p); }
   view.append(iaBox);
   if (type === 'tv' && (d.seasons || []).length) {
@@ -1667,17 +1698,58 @@ I18N.add({
   he: {sy_title: 'סנכרון', sy_need_tg: 'כדי לסנכרן, התחברו לטלגרם (למעלה).', sy_nodoc: 'עדיין אין מסמך סנכרון בחשבון - הוא ייווצר בסנכרון הראשון.',
        sy_ok: 'מסונכרן. סנכרון אחרון: %s', sy_wait: 'מסנכרן...', sy_err: 'שגיאת סנכרון: %s', sy_now: 'סנכרן עכשיו',
        sy_shared: 'משותף בין כל המכשירים שלך: משתמשים, היסטוריה, מועדפים, נקודות המשך, חיפושים, הגדרות, IPTV, שרתי Stremio, Real-Debrid, מפתחות (TMDb, Gemini, OpenSubtitles)',
-       sy_local: 'נשאר במכשיר הזה: גודל מסך וערכת נושא, מהירות רשת, כניסה לטלגרם (כל מכשיר מתחבר בעצמו), כניסה ל-Google Drive'},
+       sy_local: 'נשאר במכשיר הזה: גודל מסך וערכת נושא, מהירות רשת, כניסה לטלגרם (כל מכשיר מתחבר בעצמו), כניסה ל-Google Drive',
+       sy_update: 'מכשיר אחר כתב את מסמך הסנכרון בגרסה חדשה יותר. עדכנו את האתר/האפליקציה (רעננו את הדף) - עד אז הסנכרון כאן לקריאה בלבד.',
+       sy_locked: 'המפתחות בסנכרון נעולים בסיסמת סנכרון. הקלידו כאן את אותה סיסמה שהוגדרה ב-Kodi (או שהסיסמה שהוקלדה שגויה).',
+       sy_pass: 'סיסמת סנכרון', sy_pass_ph: 'הקלידו סיסמה', sy_pass_set: 'סיסמה שמורה בדפדפן הזה', sy_pass_save: 'שמור סיסמה', sy_pass_clear: 'מחק סיסמה',
+       sy_pass_txt: 'מצפינה את המפתחות (Real-Debrid, TMDb ועוד) במסמך הסנכרון. אותה סיסמה בכל המכשירים. נשמרת רק בדפדפן הזה - לא מסונכרנת ולא נכנסת לגיבוי.'},
   en: {sy_title: 'Sync', sy_need_tg: 'To sync, connect Telegram (above).', sy_nodoc: 'No sync document in the account yet - the first sync creates it.',
        sy_ok: 'In sync. Last sync: %s', sy_wait: 'Syncing...', sy_err: 'Sync error: %s', sy_now: 'Sync now',
        sy_shared: 'Shared between all your devices: users, history, favourites, resume points, searches, settings, IPTV, Stremio servers, Real-Debrid, keys (TMDb, Gemini, OpenSubtitles)',
-       sy_local: 'Stays on this device: screen size and theme, network speed, Telegram login (each device logs in itself), Google Drive login'},
+       sy_local: 'Stays on this device: screen size and theme, network speed, Telegram login (each device logs in itself), Google Drive login',
+       sy_update: 'Another device wrote the sync document with a newer version. Update the site/app (reload the page) - until then sync here is read only.',
+       sy_locked: 'The keys in the sync are locked with a sync passphrase. Type here the same passphrase set in Kodi (or the one typed is wrong).',
+       sy_pass: 'Sync passphrase', sy_pass_ph: 'Type a passphrase', sy_pass_set: 'A passphrase is saved in this browser', sy_pass_save: 'Save passphrase', sy_pass_clear: 'Remove passphrase',
+       sy_pass_txt: 'Encrypts the keys (Real-Debrid, TMDb and more) in the sync document. Use the same passphrase on every device. Kept only in this browser - never synced, never backed up.'},
   ru: {sy_title: 'Синхронизация', sy_need_tg: 'Для синхронизации подключите Telegram (выше).', sy_nodoc: 'В аккаунте ещё нет документа синхронизации - он появится при первой синхронизации.',
        sy_ok: 'Синхронизировано. Последний раз: %s', sy_wait: 'Синхронизация...', sy_err: 'Ошибка синхронизации: %s', sy_now: 'Синхронизировать сейчас',
        sy_shared: 'Общее для всех ваших устройств: пользователи, история, избранное, точки продолжения, поиски, настройки, IPTV, серверы Stremio, Real-Debrid, ключи (TMDb, Gemini, OpenSubtitles)',
-       sy_local: 'Остаётся на этом устройстве: размер экрана и тема, скорость сети, вход в Telegram (каждое устройство входит само), вход в Google Drive'},
+       sy_local: 'Остаётся на этом устройстве: размер экрана и тема, скорость сети, вход в Telegram (каждое устройство входит само), вход в Google Drive',
+       sy_update: 'Другое устройство записало документ синхронизации более новой версией. Обновите сайт/приложение (перезагрузите страницу) - до тех пор синхронизация здесь только для чтения.',
+       sy_locked: 'Ключи в синхронизации закрыты паролем синхронизации. Введите здесь тот же пароль, что задан в Kodi (или введённый пароль неверен).',
+       sy_pass: 'Пароль синхронизации', sy_pass_ph: 'Введите пароль', sy_pass_set: 'Пароль сохранён в этом браузере', sy_pass_save: 'Сохранить пароль', sy_pass_clear: 'Удалить пароль',
+       sy_pass_txt: 'Шифрует ключи (Real-Debrid, TMDb и др.) в документе синхронизации. Один и тот же пароль на всех устройствах. Хранится только в этом браузере - не синхронизируется и не попадает в резервную копию.'},
 });
-let syncOff = null;
+// 6.5: the sync passphrase of this browser (bn_sync_pass, read by tg.js host.passphrase); typed by the owner,
+// stays on this device only (twins.LOCAL: never synced, never backed up), shown masked
+function passRow(after) {
+  const wrap = document.createElement('div');
+  wrap.className = 'passrow';
+  const lab = document.createElement('label');
+  lab.className = 'passlab';
+  lab.textContent = N('sy_pass');
+  const inp = document.createElement('input');
+  inp.type = 'password';
+  inp.className = 'input';
+  inp.autocomplete = 'off';
+  inp.spellcheck = false;
+  inp.setAttribute('aria-label', N('sy_pass'));
+  const has = !!get('sync_pass', '');
+  inp.placeholder = has ? N('sy_pass_set') : N('sy_pass_ph');
+  lab.append(inp);
+  const row = document.createElement('div');
+  row.className = 'btnrow';
+  const store = () => { const v = inp.value.trim(); if (!v) return; put('sync_pass', v); inp.value = ''; saved(); syncPanelRedraw(); after(); };
+  inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); store(); } };
+  row.append(button('btn', N('sy_pass_save'), store));
+  if (has) row.append(button('btn ghost', N('sy_pass_clear'), () => { drop('sync_pass'); saved(); syncPanelRedraw(); after(); }));
+  const q = document.createElement('p');
+  q.className = 'hint';
+  q.textContent = N('sy_pass_txt');
+  wrap.append(lab, row, q);
+  return wrap;
+}
+let syncOff = null, syncPanelRedraw = () => {};
 function syncPanel(group) {
   const h = document.createElement('h2');
   h.textContent = N('sy_title');
@@ -1690,10 +1762,13 @@ function syncPanel(group) {
     if (!box.isConnected) { if (syncOff) { syncOff(); syncOff = null; } return; }
     const TG = window.TG, on = !!(TG && TG.ready && TG.connected && TG.connected());
     const st = on && TG.status ? TG.status() : {}, err = on && TG.error ? TG.error() : '';
+    const locked = st.sync === 'locked' || !!st.locked, warn = on && (err || locked || st.sync === 'update');
     const line = !on ? N('sy_need_tg') : TG.busy && TG.busy() ? N('sy_wait') : err ? N('sy_err', err)
-      : st.sync === 'nodoc' ? N('sy_nodoc') : st.last ? N('sy_ok', new Date(st.last).toLocaleTimeString()) : N('sy_wait');
+      : st.sync === 'nodoc' ? N('sy_nodoc') : st.sync === 'update' ? N('sy_update') : locked ? N('sy_locked')
+      : st.sync === 'unreadable' ? X('tg_unreadable')
+      : st.last ? N('sy_ok', new Date(st.last).toLocaleTimeString()) : N('sy_wait');
     const p = document.createElement('p');
-    p.className = err && on ? 'tgerr' : 'hint';
+    p.className = warn ? 'tgerr' : 'hint';
     p.setAttribute('role', 'status');
     p.textContent = line;
     const parts = [p];
@@ -1702,7 +1777,19 @@ function syncPanel(group) {
     for (const k of ['sy_shared', 'sy_local']) { const q = document.createElement('p'); q.className = 'hint'; q.textContent = N(k); parts.push(q); }
     box.replaceChildren(...parts);
   };
+  // the passphrase row lives outside the status box, so a status redraw never wipes what the owner is typing
+  let pr = null;
+  const drawPass = () => {
+    const n = passRow(() => { const TG = window.TG; if (TG && TG.connected && TG.connected() && TG.syncNow) { TG.syncNow(); setTimeout(draw, 50); } });
+    // 6.5: saving/removing rebuilds the row; keep TV/keyboard focus inside it (input stays input, a button -> Save)
+    const ae = document.activeElement, had = !!(pr && ae && pr.contains(ae)), wasInp = had && ae.tagName === 'INPUT';
+    if (pr) pr.replaceWith(n); else box.after(n);
+    pr = n;
+    if (had) { const tgt = wasInp ? n.querySelector('input') : n.querySelector('.btnrow button'); if (tgt) focusEl(tgt); }
+  };
+  syncPanelRedraw = drawPass;
   draw();
+  drawPass();
   if (syncOff) syncOff();
   syncOff = null;
   if (window.TG && typeof window.TG.on === 'function') syncOff = window.TG.on(draw);
@@ -1725,6 +1812,7 @@ function pageSettings(arg) {
     l.append(setRow(t('s_lang'), '', seg([['he', 'עברית'], ['en', 'English'], ['ru', 'Русский']], cfg.lang, (v) => { cfg.lang = v; put('cfg', cfg); applyCfg(); shell(); emit('settings', 'lang'); route(true); saved(); }, t('s_lang'))));
     l.append(setRow(t('s_theme'), '', seg([['auto', t('t_auto')], ['dark', t('t_dark')], ['light', t('t_light')]], cfg.theme, (v) => setCfg('theme', v), t('s_theme'))));
     l.append(setRow(N('set_zoom'), N('set_zoom_txt'), zoomControl()));
+    l.append(setRow(N('set_lite'), N('set_lite_txt'), seg([['auto', N('set_dev_auto')], ['on', N('set_lite_on')], ['off', N('set_lite_off')]], litePref(), (v) => { setLite(v); saved(); }, N('set_lite'))));
     l.append(setRow(N('m_device'), N('set_device_txt'), seg([['auto', N('set_dev_auto')], ['tv', N('set_dev_tv')], ['phone', N('set_dev_phone')], ['desktop', N('set_dev_desktop')]],
       ['tv', 'phone', 'desktop'].includes(cfg.device) ? cfg.device : 'auto', (v) => setCfg('device', v), N('m_device'))));
     const hl = list(N('set_home_rows'));
@@ -1787,7 +1875,7 @@ function pageSettings(arg) {
     const isIn = standalone();
     l.append(setRow(X('install'), isIn ? N('pwa_installed') : installEvt ? N('pwa_txt') : IOS ? N('pwa_ios') : N('pwa_manual'),
       installEvt && !isIn ? labelButton('btn', 'install', X('install'), () => { installNow(); route(true); }) : null, true));
-    l.append(setRow(N('core_version', WEB_VERSION), N('core_sw', N(navigator.serviceWorker && navigator.serviceWorker.controller ? 'core_sw_on' : 'core_sw_off')), null, true));
+    l.append(setRow(N('core_version', SC.verLabel(WEB_VERSION) + ' (' + WEB_VERSION + ')'), N('core_sw', N(navigator.serviceWorker && navigator.serviceWorker.controller ? 'core_sw_on' : 'core_sw_off')), null, true));
   }
 }
 
@@ -2007,35 +2095,50 @@ async function clearCaches() {
   try { for (const k of await caches.keys()) await caches.delete(k); } catch (e) {}
   emit('clearcache', null);
 }
-let swAsked = false;
+let swAsked = false, swHold = false;
 // 6.1: "Update everything" on Home - the build's System update, for the site and the apps: the app itself (when its
 // shell offers BNNative.fullUpdate - the Android / iOS / Mac wrappers), the newest site files through the service
 // worker, every cached list and picture dropped, then a fresh start. Settings, accounts and lists stay.
 async function fullUpdate(say) {
   say(N('home_upd_run'));
   try { if (window.BNNative && typeof window.BNNative.fullUpdate === 'function') window.BNNative.fullUpdate(); } catch (e) { /* the site part still runs */ }
-  let latest = '';
+  let latest = '', ctl = null;
   try { const r = await fetch('version.js?u=' + Date.now(), {cache: 'reload'}); latest = ((await r.text()).match(/WEB_VERSION = '([^']+)'/) || [])[1] || ''; } catch (e) { latest = ''; }
   try {
     const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration().catch(() => null);
     if (reg) {
       await reg.update().catch(() => {});
-      const w = reg.waiting || reg.installing;
-      if (w) { swAsked = true; try { w.postMessage({type: 'SKIP_WAITING'}); } catch (e) { /* the reload still brings the files */ } }
+      // 6.2.1: wait for the new worker to finish its install (precache) before it is asked to take over; a fixed
+      // 1.5 s reload ran under the old worker on a slow line
+      let w = reg.installing || reg.waiting;
+      if (w && w.state !== 'installed' && w.state !== 'activated') {
+        const iw = w;
+        await new Promise((ok) => {
+          const to = setTimeout(ok, 15000);
+          iw.addEventListener('statechange', () => { if (iw.state === 'installed' || iw.state === 'redundant' || iw.state === 'activated') { clearTimeout(to); ok(); } });
+        });
+      }
+      w = reg.waiting;
+      if (w) {
+        swHold = true; swAsked = true;       // swSetup's controllerchange reload waits: this function reloads itself
+        ctl = new Promise((ok) => navigator.serviceWorker.addEventListener('controllerchange', ok, {once: true}));
+        try { w.postMessage({type: 'SKIP_WAITING'}); } catch (e) { /* the reload still brings the files */ }
+      }
     }
   } catch (e) { /* no service worker: the cache drop and the reload do it */ }
   await clearCaches();
-  say(latest && latest !== WEB_VERSION ? N('home_upd_new', latest) : N('home_upd_same', WEB_VERSION));
-  setTimeout(() => location.reload(), 1500);
+  say(latest && latest !== WEB_VERSION ? N('home_upd_new', SC.verLabel(latest)) : N('home_upd_same', SC.verLabel(WEB_VERSION)));
+  await Promise.race([ctl || Promise.resolve(), new Promise((ok) => setTimeout(ok, 4000))]);
+  setTimeout(() => location.reload(), ctl ? 300 : 1500);
 }
 function pageAbout() {
   page('about');
   const swOn = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
   view.insertAdjacentHTML('beforeend', `<div class="panel settings"><p>${esc(N('core_about_txt'))}</p>
-    <div class="row"><b>${esc(N('core_version', WEB_VERSION))}</b><span>${esc(N('core_sw', N(swOn ? 'core_sw_on' : 'core_sw_off')))}</span></div>
+    <div class="row"><b>${esc(N('core_version', SC.verLabel(WEB_VERSION) + ' (' + WEB_VERSION + ')'))}</b><span>${esc(N('core_sw', N(swOn ? 'core_sw_on' : 'core_sw_off')))}</span></div>
     <div class="links" id="ab_acts"></div><span id="ab_done" class="hint" role="status"></span>
     <div class="links"><a class="btn ghost" href="${SITE}guide.html">${esc(N('core_guide'))}</a><a class="btn ghost" href="${SITE}privacy.html">${esc(N('core_privacy'))}</a></div></div>
-    <p class="foot">${esc(N('core_legal', WEB_VERSION))}</p>`);
+    <p class="foot">${esc(N('core_legal', SC.verLabel(WEB_VERSION)))}</p>`);
   const say = (k) => { $('#ab_done').textContent = N(k); };
   const upd = button('btn', N('core_update'), async () => {
     const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration().catch(() => null);
@@ -2154,10 +2257,14 @@ function applyCfg() {
   HTML.setAttribute('data-shell', shellName);
   for (const c of ['phone', 'desktop']) HTML.classList.toggle(c, dev === c);
   HTML.classList.toggle('tv', shellName === 'tv');
+  HTML.classList.toggle('lite', SC.wantLite(litePref(), shellName, navigator.deviceMemory, location.search));
   let light = cfg.theme === 'light';
   try { if (cfg.theme === 'auto') light = matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', light ? '#f4f5f8' : '#0b0d12');
+  // 6.5: index.html has one theme-color per colour scheme; a chosen theme overrides both
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    const own = /light/.test(meta.getAttribute('media') || '') ? '#f4f5f8' : '#0b0d12';
+    meta.setAttribute('content', cfg.theme === 'auto' ? own : light ? '#f4f5f8' : '#0b0d12');
+  }
 }
 const navLabel = (k) => (k === '' ? N('nav_home') : k === 'hub' ? N('nav_search') : k === 'menu' ? N('nav_more') : k === 'mine' ? N('nav_mine') : N('m_' + k));
 function drawMe() {
@@ -2576,7 +2683,7 @@ function swSetup() {
     setInterval(() => { reg.update().catch(() => {}); }, 3600000);       // a tab that stays open for days (a TV)
   }).catch(() => {});
   let reloaded = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (swAsked && !reloaded) { reloaded = true; location.reload(); } });
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (swAsked && !swHold && !reloaded) { reloaded = true; location.reload(); } });
 }
 
 // ---------------------------------------------------------------- start

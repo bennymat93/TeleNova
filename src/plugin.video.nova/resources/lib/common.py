@@ -320,7 +320,6 @@ def _tmdb_route():
 
 def tmdb(path, **params):
     import hashlib
-    import requests
     params.setdefault('language', tmdb_lang())
     q, headers = _tmdb_auth()
     params.update(q)

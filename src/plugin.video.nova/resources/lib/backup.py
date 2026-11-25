@@ -16,7 +16,8 @@ ADDON_DATA = ['plugin.video.nova', 'plugin.video.telescope', 'pvr.iptvsimple', '
 FILES = ['favourites.xml', 'sources.xml', 'passwords.xml', 'mediasources.xml']
 # 3.3: + the Google Drive sign-in of the box that makes the backup (never part of a backup / locked profile)
 SKIP = ('cache', 'cache.db', 'Thumbnails', 'temp', 'packages', '.tmp', 'preset.nvp', 'preset_guard.json',
-        'gdrive_token.json', 'gdrive_state.json', 'sync_state.json', 'sync_meta.json')
+        'gdrive_token.json', 'gdrive_state.json', 'sync_state.json', 'sync_meta.json',
+        'sync_local.json')              # 6.3.0: this device's sync choices and the owner's passphrase stay on it
 AUTO_DIR = os.path.join(PROFILE, 'backups')
 
 

@@ -630,6 +630,23 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(len(st.get(CHAT, MSG, 1, timeout=1)), 100)
         self.assertIn((CHAT, MSG, 1), st.cache)
 
+    def test_c16_sizes_evict_oldest_only(self):
+        st = stream.ChunkStore(lambda c, m, i: Future())
+        for m in range(1000, 1400):
+            st.note_size(CHAT, m, 1000 + m)
+        st.note_size(CHAT, MSG, 4 * stream.CHUNK)          # the playing file, 401st entry
+        self.assertEqual(len(st.sizes), 400)
+        self.assertEqual(st.sizes[(CHAT, MSG)], 4 * stream.CHUNK)
+        self.assertNotIn((CHAT, 1000), st.sizes)             # only the oldest one went
+        self.assertIn((CHAT, 1001), st.sizes)
+        self.assertTrue(st._short((CHAT, MSG, 1), b'x'))
+
+    def test_c16_speed_and_miss(self):
+        st = stream.ChunkStore(lambda c, m, i: Future())
+        self.assertEqual(st.speed(), 0)
+        st.stats['bytes'], st.stats['fetch_time'] = 300, 3.0
+        self.assertEqual(st.speed(), 100)
+
     def test_c15_empty_chunk_closes_connection(self):
         def fetch(chat, msg, idx):
             f = Future()

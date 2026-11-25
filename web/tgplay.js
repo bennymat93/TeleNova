@@ -44,19 +44,19 @@
   let floodUntil = 0;                            // 6.1.5: no new Telegram reads before this (FLOOD_WAIT)
 
   TN.i18n.add({
-    he: {tgplay_nosw: 'הדפדפן לא מאפשר הזרמה מטלגרם כאן', tgplay_codec: 'הדפדפן לא מצליח לנגן את הקובץ הזה (MKV / HEVC / AC3 מתנגנים לרוב רק ב-Kodi)',
+    he: {tgplay_nosw: 'הדפדפן לא מאפשר הזרמה מטלגרם כאן', tgplay_nosw_reload: 'הדף נטען בלי מנגנון ההזרמה - טען את הדף מחדש (רענון רגיל)', tgplay_codec: 'הדפדפן לא מצליח לנגן את הקובץ הזה (MKV / HEVC / AC3 מתנגנים לרוב רק ב-Kodi)',
       tgplay_open_tg: 'פתח בטלגרם', tgplay_download: 'הורד ונגן', tgplay_nofile: 'בהודעה אין קובץ וידאו',
       tgplay_login: 'צריך להתחבר לטלגרם כדי לנגן את הקובץ', tgplay_other_tab: 'טלגרם פתוח בלשונית אחרת של האתר. סגרו אותה או נגנו שם.', tgplay_offline: 'אין חיבור לטלגרם כרגע. בדקו את הרשת ונסו שוב.',
       tgplay_flood: 'טלגרם מבקש להמתין %s שניות', tgplay_private: 'הערוץ פרטי או שההודעה נמחקה', tgplay_gone: 'ההזרמה נסגרה. פתחו את הקובץ שוב.',
       tgplay_saving: 'שומר למכשיר... %s%', tgplay_saved: 'הקובץ נשמר', tgplay_too_big: 'הקובץ גדול מדי להורדה בדפדפן הזה (%s). פתחו אותו בטלגרם.', tgplay_save: 'שמור למכשיר',
       tgplay_err: 'שגיאת טלגרם: %s', tgplay_timeout: 'טלגרם לא עונה (פג הזמן)'},
-    en: {tgplay_nosw: 'This browser cannot stream from Telegram here', tgplay_codec: 'This browser cannot play this file (MKV / HEVC / AC3 usually play only in Kodi)',
+    en: {tgplay_nosw: 'This browser cannot stream from Telegram here', tgplay_nosw_reload: 'The page loaded without its streaming helper - reload the page (a normal reload)', tgplay_codec: 'This browser cannot play this file (MKV / HEVC / AC3 usually play only in Kodi)',
       tgplay_open_tg: 'Open in Telegram', tgplay_download: 'Download and play', tgplay_nofile: 'The message has no video file',
       tgplay_login: 'Connect Telegram to play this file', tgplay_other_tab: 'Telegram is open in another tab of this site. Close it or play there.', tgplay_offline: 'No connection to Telegram right now. Check the network and try again.',
       tgplay_flood: 'Telegram asks to wait %s seconds', tgplay_private: 'The channel is private or the message was deleted', tgplay_gone: 'The stream was closed. Open the file again.',
       tgplay_saving: 'Saving to the device... %s%', tgplay_saved: 'The file was saved', tgplay_too_big: 'The file is too large to download in this browser (%s). Open it in Telegram.', tgplay_save: 'Save to device',
       tgplay_err: 'Telegram error: %s', tgplay_timeout: 'Telegram does not answer (timed out)'},
-    ru: {tgplay_nosw: 'Этот браузер не может транслировать из Telegram', tgplay_codec: 'Браузер не может воспроизвести этот файл (MKV / HEVC / AC3 обычно играют только в Kodi)',
+    ru: {tgplay_nosw: 'Этот браузер не может транслировать из Telegram', tgplay_nosw_reload: 'Страница загрузилась без модуля трансляции - перезагрузите её (обычная перезагрузка)', tgplay_codec: 'Браузер не может воспроизвести этот файл (MKV / HEVC / AC3 обычно играют только в Kodi)',
       tgplay_open_tg: 'Открыть в Telegram', tgplay_download: 'Скачать и смотреть', tgplay_nofile: 'В сообщении нет видеофайла',
       tgplay_login: 'Подключите Telegram, чтобы воспроизвести файл', tgplay_other_tab: 'Telegram открыт в другой вкладке сайта. Закройте её или смотрите там.', tgplay_offline: 'Сейчас нет связи с Telegram. Проверьте сеть и попробуйте снова.',
       tgplay_flood: 'Telegram просит подождать %s с', tgplay_private: 'Канал закрытый или сообщение удалено', tgplay_gone: 'Трансляция закрыта. Откройте файл снова.',
@@ -288,12 +288,18 @@
     const sw = navigator.serviceWorker;
     if (!sw || !window.isSecureContext) return false;
     if (sw.controller) return true;
-    try { if (!(await sw.getRegistration())) await sw.register('sw.js'); } catch (e) { return false; }
+    let reg = null;
+    try { reg = await sw.getRegistration(); if (!reg) reg = await sw.register('sw.js'); } catch (e) { return false; }
     // the first visit is not controlled until the worker claims the page
-    return new Promise((res) => {
-      const t = setTimeout(() => res(!!sw.controller), 4000);
-      sw.addEventListener('controllerchange', () => { clearTimeout(t); res(true); }, {once: true});
+    const ok = await new Promise((res) => {
+      // 6.2.1: the listener goes when the timeout wins (one was left behind per open())
+      const on = () => { clearTimeout(t); res(true); };
+      const t = setTimeout(() => { sw.removeEventListener('controllerchange', on); res(!!sw.controller); }, 4000);
+      sw.addEventListener('controllerchange', on, {once: true});
     });
+    // 6.2.1: an active worker that does not control the page = a hard reload (Shift+Reload): a normal reload helps
+    if (!ok && reg && reg.active && !sw.controller) throw fail('TGPLAY_NO_SW_RELOAD');
+    return ok;
   }
 
   // what the page is told about a stream: {type: 'read', bytes, total} | {type: 'flood', seconds} | {type: 'error', code, text}
@@ -335,6 +341,7 @@
   // an error of open() / a read -> a text for the viewer (never the raw object: it can name a chat)
   function errorText(e) {
     const c = String((e && (e.code || e.errorMessage || e.message)) || e || '');
+    if (/TGPLAY_NO_SW_RELOAD/.test(c)) return TN.t('tgplay_nosw_reload');
     if (/TGPLAY_NO_SW/.test(c)) return TN.t('tgplay_nosw');
     if (/TGPLAY_NO_FILE/.test(c)) return TN.t('tgplay_nofile');
     if (/TGPLAY_GONE/.test(c)) return TN.t('tgplay_gone');

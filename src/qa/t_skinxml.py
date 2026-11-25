@@ -72,6 +72,18 @@ def _parses(s):
 for f in before:
     check(_parses(after[f]) or not _parses(before[f]), f + ' parses as well as before')
 
+# BN player: the info panel property is cleared when the OSD closes (once), and the shipped skin files parse
+sp.bn_player(xml)
+osd = open(os.path.join(xml, 'VideoOSD.xml'), encoding='utf-8').read()
+check(osd.count(sp.OSDINFO_MARK) == 1, 'VideoOSD.xml: BN.OSDInfo cleared on unload')
+sp.bn_player(xml)
+osd2 = open(os.path.join(xml, 'VideoOSD.xml'), encoding='utf-8').read()
+check(osd2 == osd, 'bn_player idempotent on VideoOSD.xml')
+check(_parses(osd2) or not _parses(after.get('VideoOSD.xml', osd2)), 'VideoOSD.xml still parses')
+for fn in ('Includes_VideoOsdBN.xml', 'Custom_1190_BNLiveBar.xml'):
+    check(_parses(open(os.path.join(xml, fn), encoding='utf-8').read()), fn + ' parses')
+check(os.path.exists(os.path.join(tmp, 'media', 'bn', 'panel.png')), 'panel.png shipped to media/bn')
+
 shutil.rmtree(tmp, ignore_errors=True)
 print('FAILED: %d' % len(bad) if bad else 'ALL OK')
 sys.exit(1 if bad else 0)

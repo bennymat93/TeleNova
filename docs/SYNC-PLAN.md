@@ -420,3 +420,7 @@ Key files:
 - C:\My Projects\novaTV Addon\web\store.js
 - C:\My Projects\novaTV Addon\web\tg.js
 - C:\My Projects\novaTV Addon\src\qa\web\t_mixed.py
+
+## Status (2026-11-25)
+
+Phase 2 done in 6.5.0: clock-skew fix (server offset), keyed list merges incl. EPG, optional passphrase envelope (`syncseal.py` / `websync.js`), Kodi sync screen (`sync_ui.py`).

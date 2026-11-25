@@ -71,6 +71,15 @@ STR = {
     'file_out': ('ייצוא לקובץ - הכול, כולל הכניסה לטלגרם', 'Export to a file - everything, with the Telegram login',
                  'Экспорт в файл - всё, включая вход в Telegram'),
     'file_in': ('ייבוא מקובץ', 'Import from a file', 'Импорт из файла'),
+    # 6.3.0
+    'update': ('מכשיר אחר כתב גרסה חדשה של הסנכרון - עדכן את TeleNova כדי להמשיך לשלוח שינויים',
+               'Another device wrote a newer sync version - update TeleNova to keep sending changes',
+               'Другое устройство записало новую версию синхронизации - обновите TeleNova, чтобы отправлять изменения'),
+    'locked': ('המפתחות בחשבון נעולים בסיסמה - הזן אותה במסך הסנכרון',
+               'The keys in the account are locked with a passphrase - enter it on the sync screen',
+               'Ключи в аккаунте закрыты паролем - введите его на экране синхронизации'),
+    'sync_screen': ('הגדרות סנכרון: קטגוריות, מכשירים, סיסמה', 'Sync settings: categories, devices, passphrase',
+                    'Настройки синхронизации: категории, устройства, пароль'),
 }
 
 
@@ -85,6 +94,8 @@ def status_line():
     state, detail = autosync.status()
     if state == 'login':
         detail = s('need_tg')
+    elif state in ('update', 'locked'):          # 6.3.0: shown as an error with its reason
+        return 'error', s(state)
     return state, detail
 
 
@@ -97,7 +108,7 @@ def menu():
     while True:
         from . import pairui                       # 4.2: device pairing
         rows = [s('on') if autosync.is_on() else s('off'), s('now'), '%s: %s' % (users.s('title'), users.current_name()),
-                s('file_out'), s('file_full'), s('file_in'), pairui.s('send'), pairui.s('receive')]
+                s('file_out'), s('file_full'), s('file_in'), pairui.s('send'), pairui.s('receive'), s('sync_screen')]
         i = d.select(s('title'), rows)
         if i < 0:
             break
@@ -125,4 +136,7 @@ def menu():
             pairui.send()
         elif i == 7:
             pairui.receive()
+        elif i == 8:                               # 6.3.0 (P3)
+            from . import sync_ui
+            sync_ui.screen()
     xbmc.executebuiltin('Container.Refresh')

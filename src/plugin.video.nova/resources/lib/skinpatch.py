@@ -27,6 +27,10 @@ def apply(xml):
         n += wellformed(xml)   # 6.0.2
     except Exception:
         pass
+    try:
+        n += depth(xml)        # 6.5.0
+    except Exception:
+        pass
     item = ('\n\t<item>\n\t\t<label>%s</label>\n\t\t<icon>osd/fullscreen/buttons/subs3.png</icon>\n'
             '\t\t<onclick>%s</onclick>\n\t\t<visible>!VideoPlayer.Content(LiveTV)</visible>\n\t</item>') % (AI_LABEL, AI_RUN)
     # item-list players (advanced, netflix): right after "search subtitles"
@@ -179,7 +183,19 @@ def bn_player(xml):
         t = t[:i] + chr(10) + chr(9) + BN_INCLUDE + ' <!-- נגן BN -->' + t[i:]
         open(p, 'w', encoding='utf-8', newline='').write(t)
         n += 1
+    # the info panel ("מידע") is a Home property: clear it when the OSD closes, so it does not reopen next time
+    # (<onunload> is window-level, it cannot live inside the include)
+    if OSDINFO_MARK not in t:
+        m = re.search(r'<window\b[^>]*>', t)
+        if m:
+            t = t[:m.end()] + chr(10) + chr(9) + OSDINFO_UNLOAD + t[m.end():]
+            open(p, 'w', encoding='utf-8', newline='').write(t)
+            n += 1
     return n
+
+
+OSDINFO_MARK = '<!-- BN osdinfo v1 -->'
+OSDINFO_UNLOAD = '<onunload>ClearProperty(BN.OSDInfo,home)</onunload> ' + OSDINFO_MARK
 
 
 # ------------------------------------------------------------------ 3.3.3: Paste + clipboard history on the keyboard
@@ -331,6 +347,95 @@ def focus_label(xml):
         if '<shadowcolor>FF101010' not in new:
             new = new.replace('<textcolor>FF101010</textcolor>',
                               '<textcolor>FF101010</textcolor><shadowcolor>FF101010</shadowcolor>')
+        if new != t:
+            with open(p, 'w', encoding='utf-8', newline='') as f:
+                f.write(new)
+            n += 1
+    return n
+
+
+# ------------------------------------------------------------------ 6.5.0: depth in the TeleNova views
+# A soft drop shadow under the list panel and a focus "lift" (shadow + slight zoom of the gold bar and the picture) in
+# View_60_BN / View_62_BNEpisodes. Exact-text anchors only: when any anchor of a file is missing or not unique the
+# file stays as it is (a skin that changed shape is never half-patched). The marker makes it idempotent.
+DEPTH_MARK = '<!-- BN depth v1 -->'
+_SHADOW = ('{i}<control type="image">{m}\n'
+           '{i}\t<left>{l}</left><top>{t}</top><width>{w}</width><height>{h}</height>\n'
+           '{i}\t<texture border="24">shadows/shadow-24.png</texture>\n'
+           '{i}\t<colordiffuse>{c}</colordiffuse>\n{v}'
+           '{i}</control>\n')
+
+
+def _lift(cid, ind):
+    return ('\n%s<animation effect="zoom" end="102" center="auto" time="160" tween="cubic" easing="out" '
+            'condition="Control.HasFocus(%d)">Conditional</animation>' % (ind, cid))
+
+
+def _depth_edits():
+    vis60 = '\t\t\t\t<visible>Control.IsVisible(60)</visible>\n'
+    return {
+        'View_60_BN.xml': [
+            ('all', '\t\t\t<control type="image">\n\t\t\t\t<left>1150</left>\n\t\t\t\t<top>90</top>',
+             _SHADOW.format(i='\t\t\t', m=' ' + DEPTH_MARK, l=1126, t=66, w=758, h=968, c='B3000000', v=vis60)
+             + '\t\t\t<control type="image">\n\t\t\t\t<left>1150</left>\n\t\t\t\t<top>90</top>'),
+            ('focus', '<focusedlayout height="90" width="690">\n',
+             '<focusedlayout height="90" width="690">\n'
+             + _SHADOW.format(i='\t\t\t\t\t', m='', l=-10, t=-6, w=710, h=102, c='99000000',
+                              v='\t\t\t\t\t\t<visible>Control.HasFocus(60)</visible>\n')),
+            ('focus', '\t\t\t\t\t\t<colordiffuse>FFE8BE5A</colordiffuse>\n\t\t\t\t\t\t<visible>Control.HasFocus(60)</visible>',
+             '\t\t\t\t\t\t<colordiffuse>FFE8BE5A</colordiffuse>\n\t\t\t\t\t\t<visible>Control.HasFocus(60)</visible>'
+             + _lift(60, '\t\t\t\t\t\t')),
+            ('focus', '\t\t\t\t\t\t<texture background="true">$VAR[BNThumb]</texture>',
+             '\t\t\t\t\t\t<texture background="true">$VAR[BNThumb]</texture>' + _lift(60, '\t\t\t\t\t\t')),
+        ],
+        'View_62_BNEpisodes.xml': [
+            ('all', '\t\t\t<control type="image">\n\t\t\t\t<left>1150</left><top>80</top><width>720</width><height>950</height>',
+             _SHADOW.format(i='\t\t\t', m=' ' + DEPTH_MARK, l=1126, t=56, w=768, h=998, c='B3000000', v='')
+             + '\t\t\t<control type="image">\n\t\t\t\t<left>1150</left><top>80</top><width>720</width><height>950</height>'),
+            ('focus', '<focusedlayout height="155" width="700">\n',
+             '<focusedlayout height="155" width="700">\n'
+             + _SHADOW.format(i='\t\t\t\t\t', m='', l=-10, t=-6, w=720, h=167, c='99000000',
+                              v='\t\t\t\t\t\t<visible>Control.HasFocus(62)</visible>\n')),
+            ('focus', '\t\t\t\t\t\t<colordiffuse>FFE8BE5A</colordiffuse>\n\t\t\t\t\t\t<visible>Control.HasFocus(62)</visible>',
+             '\t\t\t\t\t\t<colordiffuse>FFE8BE5A</colordiffuse>\n\t\t\t\t\t\t<visible>Control.HasFocus(62)</visible>'
+             + _lift(62, '\t\t\t\t\t\t')),
+            ('focus', '\t\t\t\t\t\t<texture background="true">$VAR[BNWideThumb]</texture>',
+             '\t\t\t\t\t\t<texture background="true">$VAR[BNWideThumb]</texture>' + _lift(62, '\t\t\t\t\t\t')),
+        ],
+    }
+
+
+def depth_text(t, edits):
+    """-> the patched text, or t itself when already patched or any anchor is missing / not unique"""
+    if DEPTH_MARK in t:
+        return t
+    nl = '\r\n' if '\r\n' in t else '\n'
+    cut = t.find('<focusedlayout')
+    if cut < 0:
+        return t
+    head, tail = t[:cut], t[cut:]
+    for scope, old, new in edits:
+        old, new = old.replace('\n', nl), new.replace('\n', nl)
+        if scope == 'all':
+            if t.count(old) != 1 or old not in head:
+                return t
+            head = head.replace(old, new, 1)
+        else:
+            if tail.count(old) != 1:
+                return t
+            tail = tail.replace(old, new, 1)
+    return head + tail
+
+
+def depth(xml):
+    """-> files changed (0 = already there, not this skin, or the views changed shape)"""
+    n = 0
+    for fn, edits in _depth_edits().items():
+        p = os.path.join(xml, fn)
+        if not os.path.exists(p):
+            continue
+        t = open(p, encoding='utf-8', newline='').read()
+        new = depth_text(t, edits)
         if new != t:
             with open(p, 'w', encoding='utf-8', newline='') as f:
                 f.write(new)

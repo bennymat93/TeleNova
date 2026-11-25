@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Help (last main-menu item): user guide, troubleshooting table, search over both, About.
 
-Content lives in resources/help/guide.json and trouble.json (he + en). The language toggle (Hebrew <-> English)
+Content lives in resources/help/guide.json and trouble.json (he + en + ru; a missing ru part shows English).
+The language toggle (Hebrew -> English -> Russian)
 is the setting help_lang ('' = follow the interface). search() / text helpers are plain Python for unit tests.
 """
 import json
@@ -10,15 +11,31 @@ import re
 
 HERE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'help')
 STR = {
-    'guide': ('מדריך למשתמש', 'User guide'), 'trouble': ('פתרון בעיות', 'Troubleshooting'),
-    'search': ('חיפוש בעזרה', 'Search help'), 'about': ('אודות', 'About'), 'speed': ('בדיקת מהירות', 'Speed test'),
-    'toggle': ('English', 'עברית'), 'problem': ('בעיה', 'Problem'), 'causes': ('סיבות אפשריות', 'Possible causes'),
-    'fix': ('פתרון מוצע', 'Suggested fix'), 'none': ('לא נמצאו תוצאות', 'No results'),
-    'build': ('Build', 'Build'), 'version': ('גרסה', 'Version'), 'built': ('תאריך בנייה', 'Build date'),
-    'kodi': ('גרסת Kodi', 'Kodi version'), 'platform': ('פלטפורמה', 'Platform'), 'profile': ('סוג מכשיר', 'Device type'),
-    'addons': ('תוספים מותקנים', 'Installed add-ons'), 'credits': ('קרדיטים', 'Credits'),
-    'license': ('רישיון', 'License'), 'support': ('תמיכה', 'Support'),
+    'guide': ('מדריך למשתמש', 'User guide', 'Руководство'), 'trouble': ('פתרון בעיות', 'Troubleshooting', 'Решение проблем'),
+    'search': ('חיפוש בעזרה', 'Search help', 'Поиск по справке'), 'about': ('אודות', 'About', 'О программе'),
+    'speed': ('בדיקת מהירות', 'Speed test', 'Тест скорости'),
+    'problem': ('בעיה', 'Problem', 'Проблема'), 'causes': ('סיבות אפשריות', 'Possible causes', 'Возможные причины'),
+    'fix': ('פתרון מוצע', 'Suggested fix', 'Решение'), 'none': ('לא נמצאו תוצאות', 'No results', 'Ничего не найдено'),
+    'build': ('Build', 'Build', 'Build'), 'version': ('גרסה', 'Version', 'Версия'),
+    'built': ('תאריך בנייה', 'Build date', 'Дата сборки'),
+    'kodi': ('גרסת Kodi', 'Kodi version', 'Версия Kodi'), 'platform': ('פלטפורמה', 'Platform', 'Платформа'),
+    'profile': ('סוג מכשיר', 'Device type', 'Тип устройства'),
+    'addons': ('תוספים מותקנים', 'Installed add-ons', 'Установленные дополнения'),
+    'credits': ('קרדיטים', 'Credits', 'Благодарности'),
+    'license': ('רישיון', 'License', 'Лицензия'), 'support': ('תמיכה', 'Support', 'Поддержка'),
 }
+LI = {'he': 0, 'en': 1, 'ru': 2}
+LANGS = ('he', 'en', 'ru')                     # the toggle cycles he -> en -> ru -> he
+NAMES = {'he': 'עברית', 'en': 'English', 'ru': 'Русский'}
+
+
+def loc(d, lang):
+    """the lang part of a guide section / table row; English when that language is missing"""
+    return d.get(lang) or d['en']
+
+
+def next_lang(lang):
+    return LANGS[(LANGS.index(lang) + 1) % len(LANGS)] if lang in LANGS else 'he'
 
 
 def load(name):
@@ -37,22 +54,22 @@ def search(q, lang):
         return []
     out = []
     for sec in load('guide')['sections']:
-        hay = ' '.join(plain(sec[l]['title'] + ' ' + sec[l]['body']) for l in ('he', 'en')).lower()
+        hay = ' '.join(plain(sec[l]['title'] + ' ' + sec[l]['body']) for l in LANGS if l in sec).lower()
         if all(w in hay for w in words):
-            out.append(('guide', sec['id'], sec[lang]['title']))
+            out.append(('guide', sec['id'], loc(sec, lang)['title']))
     for i, row in enumerate(load('trouble')['rows']):
-        hay = ' '.join(' '.join(row[l]) for l in ('he', 'en')).lower()
+        hay = ' '.join(' '.join(row[l]) for l in LANGS if l in row).lower()
         if all(w in hay for w in words):
-            out.append(('trouble', str(i), row[lang][0]))
+            out.append(('trouble', str(i), loc(row, lang)[0]))
     return out
 
 
 def trouble_text(rows, lang):
     k = STR
-    i = 0 if lang == 'he' else 1
+    i = LI.get(lang, 1)
     out = []
     for r in rows:
-        p, c, f = r[lang]
+        p, c, f = loc(r, lang)
         out.append('[COLOR FFE8BE5A][B]%s[/B][/COLOR]\n[B]%s:[/B] %s\n[B]%s:[/B] %s\n' % (p, k['causes'][i], c, k['fix'][i], f))
     return '\n'.join(out)
 
@@ -61,11 +78,14 @@ def trouble_text(rows, lang):
 def _lang():
     from .common import ADDON, ui_lang
     v = ADDON.getSetting('help_lang')
-    return v if v in ('he', 'en') else ('he' if ui_lang() == 'he' else 'en')
+    if v in LI:
+        return v
+    u = ui_lang()
+    return u if u in LI else 'en'
 
 
 def s(k):
-    return STR[k][0 if _lang() == 'he' else 1]
+    return STR[k][LI[_lang()]]
 
 
 def root(handle, url, folder, end):
@@ -77,7 +97,7 @@ def root(handle, url, folder, end):
     folder(s('search'), url(a='help_search'), os.path.join(MEDIA, 'search_help.png'))
     folder(s('speed'), url(a='speedtest'), tile('speed'))
     folder(s('about'), url(a='help_about'), tile('about'))
-    folder('[COLOR grey]%s ⇄ %s[/COLOR]' % ('עברית' if lang == 'he' else 'English', s('toggle')), url(a='help_lang'),
+    folder('[COLOR grey]%s ⇄ %s[/COLOR]' % (NAMES[lang], NAMES[next_lang(lang)]), url(a='help_lang'),
            'DefaultAddonLanguage.png')
     end(cache=False)
 
@@ -99,8 +119,9 @@ def cats(handle, url):
 def guide(handle, url, folder, end):
     lang = _lang()
     for sec in load('guide')['sections']:
-        folder(sec[lang]['title'], url(a='help_show', kind='guide', id=sec['id']), 'DefaultAddonHelper.png',
-               plot=plain(sec[lang]['body']))
+        t = loc(sec, lang)
+        folder(t['title'], url(a='help_show', kind='guide', id=sec['id']), 'DefaultAddonHelper.png',
+               plot=plain(t['body']))
     end(cache=False)
 
 
@@ -108,8 +129,9 @@ def trouble(handle, url, folder, end):
     lang = _lang()
     folder('[B]%s[/B]' % s('trouble'), url(a='help_show', kind='trouble', id='*'), 'DefaultIconInfo.png')
     for i, r in enumerate(load('trouble')['rows']):
-        folder(r[lang][0], url(a='help_show', kind='trouble', id=str(i)), 'DefaultIconWarning.png',
-               plot='%s: %s\n%s: %s' % (s('causes'), r[lang][1], s('fix'), r[lang][2]))
+        t = loc(r, lang)
+        folder(t[0], url(a='help_show', kind='trouble', id=str(i)), 'DefaultIconWarning.png',
+               plot='%s: %s\n%s: %s' % (s('causes'), t[1], s('fix'), t[2]))
     end(cache=False)
 
 
@@ -117,8 +139,11 @@ def show(kind, rid):
     import xbmcgui
     lang = _lang()
     if kind == 'guide':
-        sec = next(x for x in load('guide')['sections'] if x['id'] == rid)
-        xbmcgui.Dialog().textviewer(sec[lang]['title'], sec[lang]['body'].replace('[CR]', '\n\n'))
+        sec = next((x for x in load('guide')['sections'] if x['id'] == rid), None)
+        if not sec:
+            return
+        t = loc(sec, lang)
+        xbmcgui.Dialog().textviewer(t['title'], t['body'].replace('[CR]', '\n\n'))
     else:
         rows = load('trouble')['rows']
         rows = rows if rid == '*' else [rows[int(rid)]]
@@ -143,7 +168,7 @@ def do_search(handle, url, folder, end, q=''):
 def toggle():
     import xbmc
     from .common import ADDON
-    ADDON.setSetting('help_lang', 'en' if _lang() == 'he' else 'he')
+    ADDON.setSetting('help_lang', next_lang(_lang()))
     xbmc.executebuiltin('Container.Refresh')
 
 
@@ -152,7 +177,7 @@ def about_text():
     import xbmc
     from .common import ADDON
     lang = _lang()
-    i = 0 if lang == 'he' else 1
+    i = LI.get(lang, 1)
     built = ''
     try:
         import xbmcvfs

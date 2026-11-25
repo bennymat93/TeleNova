@@ -129,7 +129,11 @@ const account = () => ({v: 2, users: [{id: 'u1', name: '', created: 1, renamed: 
   eq(b.cfg.gemini_key, 'KODI-G', 'a newer Kodi value is applied');
   eq(Object.keys(b.st.tg_bots.cfg).sort(), ['abot', 'bbot'], 'Kodi bots applied');
   eq(b.cfg.telegram_quiet, true, 'a value of the wrong type is never applied');
-  ok(!r3.pushed, 'nothing to send back');
+  // 6.3.0: the account's bots were changed by a writer that does not keep the keyed list: this browser records them item
+  // by item (one write), and sends no value of its own back
+  ok(!r3.pushed || (SD.canon(S(b.sent, TELE, 'bots')) === SD.canon(['abot,bbot', 3000]) && S(b.sent, TELE, 'gemini_key')[0] === 'KODI-G' &&
+     SD.canon(Object.keys(b.sent.keyed.bots).sort()) === '["abot","bbot"]'), 'nothing of its own sent back');
+  eq((await WS.cycle(b, 3200)).state, 'idle', '6.3.0: idle after that');
 
   // 4. a slow clock: a change here still wins over the account's newest stamp
   b.cfg.gemini_key = 'SLOW';
@@ -154,6 +158,87 @@ const account = () => ({v: 2, users: [{id: 'u1', name: '', created: 1, renamed: 
   await WS.cycle(d, 6000);
   eq(d.taken, {content_lang: '1', tmdb_key: 'ACCT-TMDB'}, 'without a port: the three reads only');
   ok(d.cfg.gemini_key === 'X' && (!d.sent || SD.canon(d.sent.settings) === SD.canon(account().settings)), 'without a port: nothing written either way');
+
+  // ---- 6.3.0
+  // B1: a pin removed here is not merged back from the account (last = tokens this browser held)
+  eq(C.pins.enc([{id: '1', title: '', username: 'a'}], 'a,b,kodionly', ['a', 'b']), 'a,kodionly', 'B1: last as tokens - removed here, unknown kept');
+  {
+    const p = browser({}, {tg_pins: [{id: '1', title: 'A', username: 'a'}, {id: '2', title: 'B', username: 'b'}]});
+    p.doc = account();
+    p.doc.settings[TELE].pinned_chats = ['a,b,kodionly', 90];
+    await WS.cycle(p, 1000);
+    eq(S(p.doc, TELE, 'pinned_chats')[0], 'a,b,kodionly', 'B1: joined, nothing changed');
+    p.st.tg_pins = [{id: '1', title: 'A', username: 'a'}];
+    await WS.cycle(p, 1100);
+    eq(S(p.doc, TELE, 'pinned_chats')[0], 'a,kodionly', 'B1: a pin removed on the web leaves the account, the Kodi-only one stays');
+    eq((await WS.cycle(p, 1200)).state, 'idle', 'B1: and stays idle');
+  }
+  // L1: the stamp of a change, the learned offset
+  eq([WS.stampFor(1000, ['x', 500]), WS.stampFor(1000, ['x', 1500]), WS.stampFor(1000, ['x', 10 ** 9])], [1000, 1501, 1000 + 86401], 'L1: stampFor (a day ahead at most)');
+  {
+    const q = browser({gemini_key: 'Q'}, {});
+    q.doc = account();
+    let local = 1800000000 - 3600;                 // an hour slow
+    q.clock = () => local;
+    q.cloudPut = async (d) => { q.n++; q.doc = SD.parse(SD.canon(d)); q.sent = q.doc; return (1 + q.n) + ':' + 1800000000; };
+    await WS.cycle(q, local);
+    q.cfg.gemini_key = 'Q2';
+    await WS.cycle(q, local);
+    ok(Math.abs(q.meta().skew - 3600) < 1, 'L1: the browser learns its offset: ' + q.meta().skew);
+    q.cfg.subs_size = 31;
+    await WS.cycle(q, local);
+    ok(Math.abs(S(q.sent, TW.WEB, 'subs_size')[1] - 1800000000) < 2, 'L1: then stamps on the server\'s clock');
+  }
+  // P1: the browser keeps the keyed lists - a Kodi pin added meanwhile survives a pin removed here
+  {
+    const k = browser({}, {tg_pins: [{id: '1', title: 'A', username: 'a'}, {id: '2', title: 'B', username: 'b'}]});
+    k.doc = account();
+    k.doc.devices = {kodi1: {sv: 3, at: 1, kind: 'kodi'}};
+    k.doc.settings[TELE].pinned_chats = ['a,b', 90];
+    await WS.cycle(k, 1000);
+    eq(Object.keys(k.doc.keyed.pins).sort(), ['a', 'b'], 'P1: the keyed list seeded from the plain value');
+    ok(Object.keys(k.doc.devices).length === 2, 'P1: the browser is listed among the devices');
+    // Kodi (keyed-aware) adds c at 2000; this browser removes b at 1990 (its clock) - both must hold
+    k.doc.keyed.pins.c = ['c', 2000];
+    k.doc.settings[TELE].pinned_chats = ['a,b,c', 2000];
+    k.n++;
+    k.st.tg_pins = [{id: '1', title: 'A', username: 'a'}];
+    await WS.cycle(k, 1990);
+    eq(S(k.doc, TELE, 'pinned_chats')[0], 'a,c', 'P1: both changes survive: ' + S(k.doc, TELE, 'pinned_chats')[0]);
+    eq(k.doc.keyed.pins.b[0], null, 'P1: the removal is an item of its own');
+  }
+  // P2: with the passphrase the keys travel sealed; without it the browser never puts its keys in plain text
+  {
+    const s1 = browser({gemini_key: 'SEALED-G'}, {});
+    s1.doc = account();
+    s1.passphrase = () => 'owner words';
+    await WS.cycle(s1, 1000);
+    s1.cfg.gemini_key = 'SEALED-G2';
+    await WS.cycle(s1, 1100);
+    const raw = SD.canon(s1.doc);
+    ok(!raw.includes('SEALED-G2') && !raw.includes('ACCT-TMDB') && SD.get(s1.doc, 'secrets'), 'P2: no key in plain text, an envelope instead');
+    const s2 = browser({}, {});
+    s2.doc = s1.doc;
+    s2.passphrase = () => 'owner words';
+    await WS.cycle(s2, 1200);
+    eq(s2.cfg.gemini_key, 'SEALED-G2', 'P2: another browser with the passphrase gets the key');
+    const s3 = browser({gemini_key: 'MINE'}, {});
+    s3.doc = s1.doc;
+    const r = await WS.cycle(s3, 1300);
+    ok(r.locked && s3.cfg.gemini_key === 'MINE' && !SD.canon(s3.doc).includes('"MINE"'), 'P2: without it: locked, its own key stays here');
+  }
+  // B3: a document of a later release is read only
+  {
+    const f = browser({gemini_key: 'F'}, {});
+    f.doc = account();
+    f.doc.v = 3;
+    f.doc.future = {x: 1};
+    const r = await WS.cycle(f, 1000);
+    ok(r.state === 'update' && !r.pushed && f.n === 0, 'B3: a later version is never written over');
+    f.doc.v = 2;
+    await WS.cycle(f, 1100);
+    eq(f.doc.future, {x: 1}, 'B3: an unknown part passes through a browser write');
+  }
 
   console.log(fails ? 'TWINS FAILED ' + fails + ' of ' + n : 'TWINS OK ' + n + ' checks');
   process.exit(fails ? 1 : 0);

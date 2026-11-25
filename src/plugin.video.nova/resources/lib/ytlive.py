@@ -6,7 +6,6 @@ channel. The address of such a broadcast changes whenever it is restarted, so th
 ("yt:UC..." or "yt:@handle") and the video is looked up when the viewer opens it: YouTube's own
 /channel/<id>/live page names the video that is live right now. No API key is needed.
 Pure functions (parse) + one request (find); played through the YouTube add-on the build ships."""
-import json
 import re
 
 UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'

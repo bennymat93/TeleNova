@@ -1,5 +1,5 @@
 {
- "_help": "User guide shown in עזרה > מדריך למשתמש. One entry per section: he + en (title, body). [CR] = new line. Edit freely.",
+ "_help": "User guide shown in עזרה > מדריך למשתמש. One entry per section: he + en + ru (title, body). [CR] = new line. Edit freely.",
  "sections": [
   {
    "id": "start",
@@ -10,6 +10,10 @@
    "en": {
     "title": "Getting started and the home screen",
     "body": "BN Stream opens on the home screen. The main menu is on the side: Movies, TV shows, TV & Radio, Favourites, Knowledge & Technology, Dog Training, BN and Help.[CR]Selecting an item shows its content rows (widgets): search, top rated, categories, years and languages.[CR]Under the logo: power, settings, System Update and search in all sources.[CR]The build version is shown next to the logo; the date and weekday next to the clock.[CR]A news and weather ticker runs at the bottom (can be turned off: NovaTV settings > General)."
+   },
+   "ru": {
+    "title": "Начало работы и главный экран",
+    "body": "BN Stream открывается на главном экране. Сбоку главное меню: Фильмы, Сериалы, ТВ и радио, Избранное, Знания и технологии, Дрессировка собак, BN и Помощь.[CR]При выборе пункта показываются его ряды контента (виджеты): поиск, лучшие по рейтингу, категории, годы и языки.[CR]Под логотипом: выключение, настройки, Обновление системы и поиск по всем источникам.[CR]Рядом с логотипом показана версия сборки, рядом с часами - дата и день недели.[CR]Внизу бежит строка новостей и погоды (можно отключить: настройки NovaTV > General)."
    }
   },
   {
@@ -21,6 +25,10 @@
    "en": {
     "title": "New in version 5.0",
     "body": "Recommendation: every link shows a number from 0 to 100% and a label (highly recommended / recommended / fair / less recommended), and the list is sorted by it - the first link is the one most worth pressing. The number comes from what was checked: the right file, a link that was tested and works, smooth playing at the connection's speed right now, Hebrew, picture quality. An untested link never gets more than 60%.[CR]Playing on a slow connection: the build measures the connection and offers only files it can play without stopping. A lighter copy of the same film goes first, and when no file fits the three lightest are shown, marked.[CR]When the player keeps stopping to load, the notice \"Slow connection\" appears and the next list of links offers lighter files.[CR]91 TV channels: 62 official free channels from around the world were added - news, Russian, music, documentary, sport and kids.[CR]Telegram search goes on to older pages when there are few results. A cut file, or one this device cannot show (Dolby Vision without HDR10, AV1), is not listed.[CR]Apps: the web version of BN Stream is also available as an APK for Android and an IPA for iPhone and iPad, on the build's site. The web version has a player for every file type and a display size control.[CR]Fixes: a good OpenSubtitles key is no longer reported as \"http 400\"; the AI subtitle server says at once when it cannot read a video."
+   },
+   "ru": {
+    "title": "Новое в версии 5.0",
+    "body": "Рекомендация: у каждой ссылки есть число от 0 до 100% и метка (очень рекомендуется / рекомендуется / приемлемо / менее рекомендуется), и список отсортирован по нему - первая ссылка самая подходящая. Число складывается из проверенного: нужный файл, ссылка проверена и работает, плавное воспроизведение при текущей скорости соединения, иврит, качество картинки. Непроверенная ссылка никогда не получает больше 60%.[CR]Воспроизведение при медленном соединении: сборка измеряет соединение и предлагает только файлы, которые можно смотреть без остановок. Первой идёт более лёгкая копия того же фильма, а если ни один файл не подходит, показываются три самых лёгких с пометкой.[CR]Если плеер постоянно останавливается для загрузки, появляется сообщение \"Медленное соединение\", и следующий список ссылок предложит более лёгкие файлы.[CR]91 телеканал: добавлены 62 официальных бесплатных канала со всего мира - новости, русские, музыка, документальные, спорт и детские.[CR]Поиск в Telegram переходит к более старым страницам, когда результатов мало. Обрезанный файл или файл, который это устройство не может показать (Dolby Vision без HDR10, AV1), не выводится.[CR]Приложения: веб-версия BN Stream доступна также как APK для Android и IPA для iPhone и iPad на сайте сборки. В веб-версии есть плеер для любого типа файлов и регулировка размера экрана.[CR]Исправления: правильный ключ OpenSubtitles больше не отображается как \"http 400\"; сервер AI-субтитров сразу сообщает, если не может прочитать видео."
    }
   },
   {
@@ -32,6 +40,10 @@
    "en": {
     "title": "Movies and TV shows",
     "body": "Search: select the search field and type a title (Hebrew, English or Russian).[CR]Top rated, categories, years and languages open a list with full details.[CR]Playback: choosing a title plays the best source (Real-Debrid via POV) and falls back to every other source automatically.[CR]TV shows: season > episode. The next episode starts by itself.[CR]Context menu (long press / C / menu button): add to favourites."
+   },
+   "ru": {
+    "title": "Фильмы и сериалы",
+    "body": "Поиск: выберите поле поиска и введите название (на иврите, английском или русском).[CR]Лучшие по рейтингу, категории, годы и языки открывают список с полной информацией.[CR]Воспроизведение: при выборе названия играет лучший источник (Real-Debrid через POV), а при сбое автоматически пробуются все остальные.[CR]Сериалы: сезон > серия. Следующая серия запускается сама.[CR]Контекстное меню (долгое нажатие / C / кнопка меню): добавить в избранное."
    }
   },
   {
@@ -43,6 +55,10 @@
    "en": {
     "title": "TV and radio",
     "body": "Israeli channels: posters of the Israeli channels, main ones first.[CR]Channels of the world: one flag per country with its channel count in the corner. Opens that country's channels.[CR]TV guide (EPG): in Kodi's TV menu or the channel info.[CR]Israel radio: station posters. Radio menu: Israel, Russia, Hebrew, English, world top, search.[CR]Channels and stations are checked and updated automatically; a failing channel switches to a fallback when one exists."
+   },
+   "ru": {
+    "title": "ТВ и радио",
+    "body": "Израильские каналы: постеры израильских каналов, основные первыми.[CR]Каналы мира: по флагу на страну, в углу число каналов. Открывает каналы этой страны.[CR]Телепрограмма (EPG): в ТВ-меню Kodi или в информации о канале.[CR]Радио Израиля: постеры станций. Меню радио: Израиль, Россия, иврит, английский, мировой топ, поиск.[CR]Каналы и станции проверяются и обновляются автоматически; неработающий канал переключается на резервный, если он есть."
    }
   },
   {
@@ -54,6 +70,10 @@
    "en": {
     "title": "Knowledge & Technology, Dog Training",
     "body": "In-depth videos only (lectures, courses, long explainers) from selected YouTube channels. Shorts and short clips are never shown.[CR]Knowledge & Technology: electrical power engineering, control and automation, technology and innovation.[CR]Dog Training: positive-reinforcement trainers only, 7 categories and 'Top rated'.[CR]Each section's search looks only in that section's channels."
+   },
+   "ru": {
+    "title": "Знания и технологии, Дрессировка собак",
+    "body": "Только подробные видео (лекции, курсы, длинные объяснения) с отобранных каналов YouTube. Shorts и короткие ролики не показываются.[CR]Знания и технологии: электроэнергетика, управление и автоматизация, технологии и инновации.[CR]Дрессировка собак: только тренеры с положительным подкреплением, 7 категорий и 'Лучшие по рейтингу'.[CR]Поиск в каждом разделе ищет только по каналам этого раздела."
    }
   },
   {
@@ -65,6 +85,10 @@
    "en": {
     "title": "Player and subtitles",
     "body": "During playback: OK / click = player menu. 'Subtitles' button: choose a subtitle, create AI subtitles, sync.[CR]Hebrew subtitles are picked automatically; when there are none, AI Hebrew subtitles are created (needs the subtitle server on the home PC, also away from home via Tailscale).[CR]Manual sync: Subtitles > Sync: 0.1 s steps, or 'bookmark': press when you hear a line and when its subtitle appears. The offset is remembered per video.[CR]Auto sync: downloaded subtitles are aligned to the speech in the video (when the server is available)."
+   },
+   "ru": {
+    "title": "Плеер и субтитры",
+    "body": "Во время воспроизведения: OK / щелчок = меню плеера. Кнопка 'Субтитры': выбрать субтитры, создать AI-субтитры, синхронизация.[CR]Субтитры на иврите выбираются автоматически; если их нет, создаются AI-субтитры на иврите (нужен сервер субтитров на домашнем ПК, вне дома - через Tailscale).[CR]Ручная синхронизация: Субтитры > Синхронизация: шаги по 0,1 с или 'закладка': нажмите, когда слышите реплику, и когда появляется её субтитр. Сдвиг запоминается для каждого видео.[CR]Автосинхронизация: скачанные субтитры выравниваются по речи в видео (когда сервер доступен)."
    }
   },
   {
@@ -76,6 +100,10 @@
    "en": {
     "title": "Accounts and services",
     "body": "BN > Accounts: Real-Debrid, Trakt, Google Drive, IPTV, subtitle server, Gemini, TMDb.[CR]Code sign-in: the screen shows an address and a code; open the address on your phone and enter the code. No password is typed on the TV.[CR]Google Drive: weekly backup, favourites and history sync between devices, subtitle upload and watching videos from Drive."
+   },
+   "ru": {
+    "title": "Аккаунты и сервисы",
+    "body": "BN > Аккаунты: Real-Debrid, Trakt, Google Drive, IPTV, сервер субтитров, Gemini, TMDb.[CR]Вход по коду: на экране показаны адрес и код; откройте адрес на телефоне и введите код. Пароль на телевизоре не вводится.[CR]Google Drive: еженедельная резервная копия, синхронизация избранного и истории между устройствами, загрузка субтитров и просмотр видео с Drive."
    }
   },
   {
@@ -87,6 +115,10 @@
    "en": {
     "title": "System Update, backup and restore",
     "body": "System Update button (under the logo): backs up the settings, then checks and updates the repository, add-ons, skin, channel lists, TV guide, radio and cache.[CR]A report follows: each part updated / up to date / failed, with 'Auto-Fix' next to every failure. If something went wrong: 'Roll back to before the update'.[CR]Add-on updates also arrive automatically from the repository.[CR]Manual backup: BN > Backup & restore."
+   },
+   "ru": {
+    "title": "Обновление системы, резервная копия и восстановление",
+    "body": "Кнопка Обновление системы (под логотипом): сохраняет настройки, затем проверяет и обновляет репозиторий, дополнения, оболочку, списки каналов, телепрограмму, радио и кэш.[CR]Затем показывается отчёт: каждая часть обновлена / актуальна / ошибка, рядом с каждой ошибкой 'Автоисправление'. Если что-то пошло не так: 'Откатить к состоянию до обновления'.[CR]Обновления дополнений также приходят автоматически из репозитория.[CR]Ручная резервная копия: BN > Резервная копия и восстановление."
    }
   },
   {
@@ -98,6 +130,10 @@
    "en": {
     "title": "Device type (profile)",
     "body": "On first start you choose the device type: TV/streamer with remote, computer, touch screen, car multimedia screen, smartphone, tablet.[CR]The profile sets interface size, font and touch-target size, on-screen back/home buttons, video cache by memory, hardware decoding and screensaver.[CR]Change it: BN > Settings > Device type. It applies at once."
+   },
+   "ru": {
+    "title": "Тип устройства (профиль)",
+    "body": "При первом запуске выбирается тип устройства: ТВ/приставка с пультом, компьютер, сенсорный экран, мультимедиа автомобиля, смартфон, планшет.[CR]Профиль задаёт размер интерфейса, шрифта и сенсорных зон, экранные кнопки \"назад\"/\"домой\", видеокэш по объёму памяти, аппаратное декодирование и заставку.[CR]Изменить: BN > Настройки > Тип устройства. Применяется сразу."
    }
   },
   {
@@ -109,6 +145,10 @@
    "en": {
     "title": "Remote, keyboard and touch",
     "body": "Remote: arrows = navigate, OK = select, Back = back, Menu/long press = context menu, Home = home screen.[CR]Keyboard: arrows, Enter, Backspace/Esc = back, C = context menu, I = info, Space = pause, F/B = fast forward/rewind, T = subtitles, O = playback info, \\ = fullscreen/window.[CR]Touch: tap = select, swipe = scroll, long press = context menu, on-screen Back and Home buttons in the corner (touch profiles).[CR]Mouse: right click = back/menu, wheel = scroll."
+   },
+   "ru": {
+    "title": "Пульт, клавиатура и сенсор",
+    "body": "Пульт: стрелки = навигация, OK = выбор, Back = назад, Menu/долгое нажатие = контекстное меню, Home = главный экран.[CR]Клавиатура: стрелки, Enter, Backspace/Esc = назад, C = контекстное меню, I = информация, Пробел = пауза, F/B = перемотка вперёд/назад, T = субтитры, O = информация о воспроизведении, \\ = полный экран/окно.[CR]Сенсор: касание = выбор, свайп = прокрутка, долгое нажатие = контекстное меню, экранные кнопки \"назад\" и \"домой\" в углу (сенсорные профили).[CR]Мышь: правая кнопка = назад/меню, колесо = прокрутка."
    }
   },
   {
@@ -120,6 +160,10 @@
    "en": {
     "title": "Weak internet",
     "body": "The video cache is sized for the device type and its memory, and playback starts after a short pre-buffer.[CR]Adaptive streams step down in quality when speed drops and back up when it returns.[CR]A stalled source is replaced with the next one automatically.[CR]Recommended: wired or 5 GHz Wi-Fi; on slow links choose 720p (POV > settings)."
+   },
+   "ru": {
+    "title": "Слабый интернет",
+    "body": "Видеокэш рассчитан по типу устройства и его памяти, воспроизведение начинается после короткой предзагрузки.[CR]Адаптивные потоки снижают качество при падении скорости и повышают его, когда скорость возвращается.[CR]Зависший источник автоматически заменяется следующим.[CR]Рекомендуется: кабель или Wi-Fi 5 ГГц; при медленном соединении выбирайте 720p (POV > настройки)."
    }
   }
  ]

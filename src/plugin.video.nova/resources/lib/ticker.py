@@ -10,7 +10,6 @@ a failed fetch keeps the previous items, so the ticker never goes empty or shows
 The text building (items / weather_line / rss) is plain Python for unit tests.
 """
 import threading
-import time
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 
