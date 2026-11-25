@@ -6,6 +6,8 @@
     <!-- "Update everything": the app may hand a newer BN Stream APK (from the project's own site, checked against its
          SHA-256) to the system installer, which always asks the person. Nothing installs by itself. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- back to the live site by itself after a start without a connection -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- one APK for phones, tablets, Android TV / TV boxes and Android car units -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -26,6 +28,7 @@
 
         <activity
             android:name=".MainActivity"
+            android:supportsPictureInPicture="true"
             android:exported="true"
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|layoutDirection|locale"

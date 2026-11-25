@@ -2,6 +2,7 @@ package io.github.bennymat93.telenova;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.PictureInPictureParams;
 import android.app.UiModeManager;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
@@ -14,7 +15,10 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.net.Uri;
+import android.util.Rational;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -76,6 +80,7 @@ public class MainActivity extends Activity {
     static final String BASE = ORIGIN + ROOT;
     static final String ACTION_FILES = "io.github.bennymat93.telenova.FILES";
     static final String ACTION_REFRESH = "io.github.bennymat93.telenova.REFRESH";
+    static final String ACTION_MENU = "io.github.bennymat93.telenova.MENU";
     private static final String SW_UPDATE = "try{navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(function(r){r&&r.update()})}catch(e){}";
     private static final int REQ_CHOOSE_DEVICE = 1, REQ_CHOOSE_APP = 2;
 
@@ -92,6 +97,9 @@ public class MainActivity extends Activity {
     private boolean pageReady;
     private long createdAt, lastBack;
     private boolean backLong;
+    private boolean playing;                  // a video of the page plays (shell.js "play")
+    private int vidW, vidH;                   // its size: full-screen orientation and the picture-in-picture shape
+    private ConnectivityManager.NetworkCallback netCb;
 
     private final Chrome chrome = new Chrome();
     private View customView;
@@ -137,7 +145,16 @@ public class MainActivity extends Activity {
         web.setBackgroundColor(0xff0b0d12);
         rootView.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(rootView);
+        if (Build.VERSION.SDK_INT >= 35) {               // edge to edge (targetSdk 35): the page sits inside the bars / keyboard
+            rootView.setOnApplyWindowInsetsListener((v, in) -> {
+                android.graphics.Insets b = in.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
+                ((FrameLayout.LayoutParams) web.getLayoutParams()).setMargins(b.left, b.top, b.right, b.bottom);
+                web.requestLayout();                       // the full-screen video (customView) is a sibling and keeps the whole screen
+                return WindowInsets.CONSUMED;
+            });
+        }
         setupWeb();
+        watchNetwork();
 
         // a start from Recents / after the system closed the app carries the old intent: its link is not opened again
         boolean replay = state != null || (getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0;
@@ -169,17 +186,55 @@ public class MainActivity extends Activity {
 
     @Override protected void onStop() {
         super.onStop();
+        if (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode()) return;   // the small window goes on playing
         // a video does not go on playing behind the screen; radio (audio) does
         if (web != null) web.evaluateJavascript("document.querySelectorAll('video').forEach(function(v){try{if(v.videoWidth>0)v.pause()}catch(e){}})", null);
     }
 
     @Override protected void onDestroy() {
         ui.removeCallbacks(liveTimeout);
+        if (netCb != null) { try { ((ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(netCb); } catch (Exception e) { /* gone */ } netCb = null; }
         cancelRelays();
         relays.shutdownNow();
         abortSaves();
         if (web != null) { rootView.removeView(web); web.destroy(); web = null; }
         super.onDestroy();
+    }
+
+    /** Home while a video plays (phone / tablet): the video goes on in a small window. */
+    @Override protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (tv || !playing || Build.VERSION.SDK_INT < 26) return;
+        try {
+            PictureInPictureParams.Builder b = new PictureInPictureParams.Builder();
+            if (vidW > 0 && vidH > 0) {
+                double r = Math.max(1 / 2.39, Math.min(2.39, (double) vidW / vidH));   // the limits Android accepts
+                b.setAspectRatio(new Rational((int) Math.round(r * 1000), 1000));
+            }
+            enterPictureInPictureMode(b.build());
+        } catch (Exception e) { /* PiP turned off for this app / device */ }
+    }
+
+    @Override public void onPictureInPictureModeChanged(boolean pip, Configuration c) {
+        super.onPictureInPictureModeChanged(pip, c);
+        if (web != null) web.evaluateJavascript("document.documentElement.classList.toggle('pip'," + pip + ")", null);
+    }
+
+    /** After a start on the built-in copy (no connection), the site comes back by itself once there is a network. */
+    private void watchNetwork() {
+        if (Build.VERSION.SDK_INT < 24) return;
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            netCb = new ConnectivityManager.NetworkCallback() {
+                @Override public void onAvailable(Network n) {
+                    ui.postDelayed(() -> {
+                        if (web != null && liveFailed && !live && !"bundled".equals(prefs.getString("mode", "auto"))
+                                && !playing && customView == null && pageReady) refresh();
+                    }, 1500);
+                }
+            };
+            cm.registerDefaultNetworkCallback(netCb);
+        } catch (Exception e) { netCb = null; }
     }
 
     // ------------------------------------------------------------------ which copy is shown
@@ -383,7 +438,14 @@ public class MainActivity extends Activity {
             view.setBackgroundColor(Color.BLACK);
             rootView.addView(view, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             immersive(true);
-            if (!tv) setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            if (Build.VERSION.SDK_INT >= 28) {               // the picture also under a camera cut-out
+                WindowManager.LayoutParams a = getWindow().getAttributes();
+                a.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                getWindow().setAttributes(a);
+            }
+            // a portrait video (h > w) stays upright; every other one turns the phone sideways
+            if (!tv) setRequestedOrientation(vidW > 0 && vidH > vidW ? ActivityInfo.SCREEN_ORIENTATION_FULL_USER : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         }
 
         @Override public void onHideCustomView() {
@@ -393,6 +455,12 @@ public class MainActivity extends Activity {
             if (customCb != null) customCb.onCustomViewHidden();
             customCb = null;
             immersive(false);
+            if (!playing) getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            if (Build.VERSION.SDK_INT >= 28) {
+                WindowManager.LayoutParams a = getWindow().getAttributes();
+                a.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+                getWindow().setAttributes(a);
+            }
             if (!tv) setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
             if (web != null) web.requestFocus();
         }
@@ -411,14 +479,17 @@ public class MainActivity extends Activity {
         /** target=_blank / window.open: another app (browser, YouTube, Telegram) opens it; the app keeps one page. */
         @Override public boolean onCreateWindow(WebView v, boolean dialog, boolean userGesture, Message resultMsg) {
             final WebView tmp = new WebView(MainActivity.this);
+            final boolean[] gone = {false};
+            final Runnable drop = () -> { if (!gone[0]) { gone[0] = true; tmp.destroy(); } };
             tmp.setWebViewClient(new WebViewClient() {
                 @Override public boolean shouldOverrideUrlLoading(WebView w, WebResourceRequest r) {
                     Uri u = r.getUrl();
                     if (isApp(u) && web != null) web.loadUrl(u.toString()); else openExternal(u.toString());
-                    ui.post(tmp::destroy);
+                    ui.post(drop);
                     return true;
                 }
             });
+            ui.postDelayed(drop, 10000);                       // a window that never navigates is not kept either
             ((WebView.WebViewTransport) resultMsg.obj).setWebView(tmp);
             resultMsg.sendToTarget();
             return true;
@@ -514,6 +585,7 @@ public class MainActivity extends Activity {
         String a = in.getAction();
         Uri d = in.getData();
         if (ACTION_FILES.equals(a)) { ui.post(this::openFiles); return ""; }
+        if (ACTION_MENU.equals(a)) { ui.post(this::showMenu); return ""; }
         if (ACTION_REFRESH.equals(a)) { ui.post(() -> { if (pageReady) refresh(); }); return ""; }
         if (Intent.ACTION_VIEW.equals(a) && d != null) {
             if ("bnstream".equals(d.getScheme())) {            // bnstream://setup/<payload> -> the page's #setup=<payload>
@@ -606,7 +678,9 @@ public class MainActivity extends Activity {
                     return;
                 }
                 case "play":
-                    if (o.optBoolean("on")) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                    playing = o.optBoolean("on");
+                    if (o.optInt("w") > 0 && o.optInt("h") > 0) { vidW = o.optInt("w"); vidH = o.optInt("h"); }
+                    if (playing || customView != null) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                     else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                     return;
                 case "files": openFiles(); return;
@@ -683,7 +757,9 @@ public class MainActivity extends Activity {
             if (!k.isEmpty()) reply.postMessage("ok:" + k);
         } catch (Exception e) {
             if (!k.isEmpty()) { try { reply.postMessage("err:" + k); } catch (Exception x) { /* page gone */ } }
-            Toast.makeText(this, R.string.save_failed, Toast.LENGTH_LONG).show();
+            String t = "";
+            try { t = new JSONObject(data == null ? "{}" : data).optString("t"); } catch (Exception x) { /* not JSON */ }
+            if (t.startsWith("save")) Toast.makeText(this, R.string.save_failed, Toast.LENGTH_LONG).show();   // only a file that was not saved
         }
     }
 

@@ -51,6 +51,7 @@
     <string name="dir_downloads">הורדות</string>
     <string name="offline_copy">אין חיבור לאתר: מוצג העותק המובנה. \"רענון\" בתפריט האפליקציה ינסה שוב.</string>
     <string name="sc_refresh">רענון</string>
+    <string name="sc_menu">תפריט האפליקציה</string>
     <string name="f_working">עובד...</string>
     <string name="offline_clock">תעודת האבטחה של האתר נדחתה - בדקו את התאריך והשעה במכשיר. מוצג העותק המובנה.</string>
     <string name="upd_title">גרסה חדשה של BN Stream</string>

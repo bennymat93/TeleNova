@@ -104,7 +104,7 @@
   };
 
   // ---- screen stays on while a video plays
-  var playing = new Set(), last = false;
+  var playing = new Set(), last = '';
   function mediaEvt(e) {
     var v = e.target;
     if (!v || v.tagName !== 'VIDEO') return;
@@ -113,8 +113,10 @@
   }
   function mediaState() {
     playing.forEach(function (v) { if (!v.isConnected || v.paused || v.ended) playing.delete(v); });   // a removed player sends no event
-    var on = playing.size > 0;
-    if (on !== last) { last = on; post({t: 'play', on: on}); }
+    var on = playing.size > 0, w = 0, h = 0;
+    playing.forEach(function (v) { if (v.videoWidth > w) { w = v.videoWidth; h = v.videoHeight; } });
+    var key = on + ':' + w + 'x' + h;                 // the size goes with it: full-screen orientation, picture-in-picture shape
+    if (key !== last) { last = key; post({t: 'play', on: on, w: w, h: h}); }
   }
   setInterval(mediaState, 3000);
   ['playing', 'pause', 'ended', 'emptied', 'error'].forEach(function (n) { document.addEventListener(n, mediaEvt, true); });

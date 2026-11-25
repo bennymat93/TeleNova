@@ -20,4 +20,14 @@
             android:targetPackage="io.github.bennymat93.telenova"
             android:targetClass="io.github.bennymat93.telenova.MainActivity" />
     </shortcut>
+    <shortcut
+        android:shortcutId="menu"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_menu">
+        <intent
+            android:action="io.github.bennymat93.telenova.MENU"
+            android:targetPackage="io.github.bennymat93.telenova"
+            android:targetClass="io.github.bennymat93.telenova.MainActivity" />
+    </shortcut>
 </shortcuts>

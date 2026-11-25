@@ -77,7 +77,12 @@ repository and must be backed up: an APK signed with another key cannot be insta
 - **Releases bundle the committed web/**: `build.ps1 -Committed` exports `web/` from the last commit (another session
   may be editing the working tree).
 - **Zoom.** Text zoom is fixed at 100% and pinch / control zoom is off: the page has its own display-size control.
-- **Full screen** video: system bars hidden, landscape on phones / tablets, screen kept on while a video plays.
+- **Full screen** video: system bars hidden, landscape on phones / tablets (a portrait video stays upright), the
+  picture also under a camera cut-out, screen kept on. Home while a video plays (phone / tablet, Android 8+) = picture in
+  picture; the page gets `<html class="pip">` while it is small.
+- **Edge to edge** (targetSdk 35): the page is kept inside the status / navigation bars, cut-outs and the keyboard.
+- **Start screen** (Android 12+): the app background and icon. Launcher shortcuts: Files, Refresh, App menu.
+- **Back online:** after a start on the built-in copy, the live site comes back by itself when a network appears.
 - **Files.** A file the page "downloads" (`a[download]` on a `blob:` address: backups, exported settings, playlists,
   small Telegram files) is saved in the app folder (`Android/data/io.github.bennymat93.telenova/files/` - Backups,
   Settings, Subtitles, Playlists, Downloads) and a dialog offers to open the Files screen. A file field of the page
