@@ -155,7 +155,7 @@
       pl_fail: 'הדפדפן לא מצליח לנגן את הקובץ הזה.', pl_err_codec: 'הדפדפן לא יודע לפענח את הקובץ הזה.', pl_why_video: 'קידוד התמונה: %s',
       pl_why_audio: 'קידוד הקול: %s', pl_why_container: 'סוג הקובץ: %s', pl_err_net: 'החיבור למקור נותק.', pl_err_dead: 'הקישור כבר לא עונה.',
       pl_nopicture: 'רק הקול מתנגן: הדפדפן לא תומך בקידוד התמונה הזה (%s).', pl_nosound: 'אין קול: הדפדפן לא תומך בקידוד הקול הזה (%s).',
-      pl_compat: 'הדפדפן לא מנגן את הקובץ הזה – עובר לנגן המובנה…', pl_compat_on: 'מתנגן בנגן המובנה (MKV / HEVC / AC3 / DTS)',
+      pl_compat: 'הדפדפן לא מנגן את הקובץ הזה – עובר לנגן המובנה…', pl_compat_on: 'מתנגן בנגן המובנה (MKV / HEVC / AC3 / DTS)', pl_tap_sound: 'הקש כאן להפעלת הקול',
       pl_slow_down: 'החיבור איטי – עוברים לאיכות נמוכה יותר כדי שהניגון לא ייעצר',
       pl_ai_now: 'תרגום AI עכשיו', pl_ai_wait: 'מכין תרגום AI…', pl_ai_none: 'תרגום AI לא זמין כרגע: שרת התרגום (המחשב בבית) לא ענה, ואין כתובית לתרגם ממנה. ודאו שהמחשב דולק, או חפשו כתובית.',
       pl_keep: 'להמשיך לצפות', pl_retry: 'נסה שוב', pl_next_link: 'הקישור הבא', pl_next_try: 'הקישור לא עבד, מנסה את הבא...',
@@ -180,7 +180,7 @@
       pl_fail: 'This browser cannot play this file.', pl_err_codec: 'This browser cannot decode this file.', pl_why_video: 'Picture format: %s',
       pl_why_audio: 'Sound format: %s', pl_why_container: 'File type: %s', pl_err_net: 'The connection to the source was lost.', pl_err_dead: 'The link does not answer any more.',
       pl_nopicture: 'Only the sound plays: this browser does not support this picture format (%s).', pl_nosound: 'No sound: this browser does not support this sound format (%s).',
-      pl_compat: 'The browser cannot play this file - switching to the built-in engine…', pl_compat_on: 'Playing with the built-in engine (MKV / HEVC / AC3 / DTS)',
+      pl_compat: 'The browser cannot play this file - switching to the built-in engine…', pl_compat_on: 'Playing with the built-in engine (MKV / HEVC / AC3 / DTS)', pl_tap_sound: 'Tap here for sound',
       pl_slow_down: 'Slow connection - switching to a lower quality so playback does not stop',
       pl_ai_now: 'AI translation now', pl_ai_wait: 'Preparing the AI translation…', pl_ai_none: 'AI translation is not available now: the translation server (the PC at home) did not answer, and there is no subtitle to translate from. Check that the PC is on, or search for a subtitle.',
       pl_keep: 'Keep watching', pl_retry: 'Try again', pl_next_link: 'Next link', pl_next_try: 'That link did not work, trying the next one...',
@@ -205,7 +205,7 @@
       pl_fail: 'Браузер не может воспроизвести этот файл.', pl_err_codec: 'Браузер не умеет декодировать этот файл.', pl_why_video: 'Формат изображения: %s',
       pl_why_audio: 'Формат звука: %s', pl_why_container: 'Тип файла: %s', pl_err_net: 'Соединение с источником потеряно.', pl_err_dead: 'Ссылка больше не отвечает.',
       pl_nopicture: 'Играет только звук: браузер не поддерживает этот формат изображения (%s).', pl_nosound: 'Нет звука: браузер не поддерживает этот формат звука (%s).',
-      pl_compat: 'Браузер не воспроизводит этот файл - включается встроенный плеер…', pl_compat_on: 'Воспроизводит встроенный плеер (MKV / HEVC / AC3 / DTS)',
+      pl_compat: 'Браузер не воспроизводит этот файл - включается встроенный плеер…', pl_compat_on: 'Воспроизводит встроенный плеер (MKV / HEVC / AC3 / DTS)', pl_tap_sound: 'Нажмите здесь, чтобы включить звук',
       pl_slow_down: 'Медленное соединение - качество снижено, чтобы воспроизведение не прерывалось',
       pl_ai_now: 'Перевод ИИ сейчас', pl_ai_wait: 'Готовлю перевод ИИ…', pl_ai_none: 'Перевод ИИ сейчас недоступен: сервер перевода (домашний ПК) не ответил, и нет субтитров для перевода. Проверьте, что ПК включён, или найдите субтитры.',
       pl_keep: 'Смотреть дальше', pl_retry: 'Повторить', pl_next_link: 'Следующая ссылка', pl_next_try: 'Ссылка не сработала, пробуем следующую...',
@@ -479,7 +479,9 @@
       const p = v.play();
       if (p && p.catch) p.catch((e) => { if (alive() && e && e.name === 'NotAllowedError') { big.hidden = false; bigTxt.hidden = false; spin.hidden = true; big.focus({preventScroll: true}); } });
     }
-    big.addEventListener('click', (e) => { e.stopPropagation(); big.hidden = true; bigTxt.hidden = true; play(); root.focus({preventScroll: true}); });
+    // 6.1.5: the built-in engine's sound on iOS starts only inside a tap
+    function compatSound() { const c = s.compat; if (c && typeof c.resumeAudio === 'function') { try { c.resumeAudio(); } catch (e) { /* no sound yet */ } } }
+    big.addEventListener('click', (e) => { e.stopPropagation(); compatSound(); bigTxt.textContent = t('pl_tap'); big.hidden = true; bigTxt.hidden = true; play(); root.focus({preventScroll: true}); });
     const total = () => (isFinite(v.duration) && v.duration > 0 ? v.duration : 0);
     function seekTo(x, quiet) {
       const d = total();
@@ -508,7 +510,7 @@
       muteB.setAttribute('aria-label', t(m ? 'pl_unmute' : 'pl_mute')); muteB.title = t(m ? 'pl_unmute' : 'pl_mute');
       vol.value = String(v.muted ? 0 : v.volume);
     }
-    function setMuted(m) { v.muted = m; if (!m && v.volume === 0) v.volume = 0.5; TN.put('player_vol', {v: v.volume, m: v.muted}); drawVol(); flash(t(m ? 'pl_mute' : 'pl_unmute')); }
+    function setMuted(m) { if (!m) compatSound(); v.muted = m; if (!m && v.volume === 0) v.volume = 0.5; TN.put('player_vol', {v: v.volume, m: v.muted}); drawVol(); flash(t(m ? 'pl_mute' : 'pl_unmute')); }
     function setVol(x) { x = Math.max(0, Math.min(1, x)); try { v.volume = x; v.muted = false; } catch (e) { /* fixed */ } TN.put('player_vol', {v: v.volume, m: v.muted}); drawVol(); flash(t('pl_volume') + ' ' + Math.round(v.volume * 100) + '%'); }
     vol.addEventListener('input', () => setVol(Number(vol.value)));
     vol.addEventListener('click', (e) => e.stopPropagation());
@@ -738,16 +740,24 @@
       s.compatTried = true;
       const url = s.url;
       if (!url || isHlsUrl(url, s.mime)) return false;
+      s.compatBusy = true;   // 6.1.5: the watchdog waits while the engine attaches
       try {
         const cp = await TN.provider('compat').catch(() => null);
         if (!cp || !cp.supported() || !alive() || s.url !== url) return false;
         hideCard(); spin.hidden = false; say(t('pl_compat'));
-        const h = await cp.attach(v, new URL(url, location.href).href, {at: at > 0 ? at : 0, live: s.live, langs: [TN.lang()]});
+        // 6.1.5: an engine that does not come up in 30 s is not waited for: the error card / notice instead
+        const pr = cp.attach(v, new URL(url, location.href).href, {at: at > 0 ? at : 0, live: s.live, langs: [TN.lang()]});
+        let dl = 0;
+        const h = await Promise.race([pr, new Promise((res) => { dl = setTimeout(() => res(null), 30000); })]);
+        clearTimeout(dl);
+        if (!h) { pr.then((x) => x && x.detach(), () => {}); say(''); return false; }
         if (!alive() || s.url !== url) { h.detach(); return true; }
         s.compat = h; s.failed = false;
         say(''); spin.hidden = true; flash(t('pl_compat_on'));
+        // 6.1.5: iOS holds the engine's sound until a tap
+        if (typeof h.suspended === 'function' && typeof h.resumeAudio === 'function' && h.suspended()) { bigTxt.textContent = t('pl_tap_sound'); big.hidden = false; bigTxt.hidden = false; }
         return true;
-      } catch (e) { say(''); return false; }
+      } catch (e) { say(''); return false; } finally { s.compatBusy = false; }
     }
     // kind: 'media' (the <video> / hls.js gave up: looked into first) | 'tg' | 'login' | 'nosw' | 'open'
     async function fail(kind, info) {
@@ -815,7 +825,8 @@
       if (!alive() || s.failed || s.compat || s.compatTried || s.hls || s.live || v.paused || v.seeking) { stuckN = 0; return; }
       let ahead = 0;
       try { for (let i = 0; i < v.buffered.length; i++) ahead = Math.max(ahead, v.buffered.end(i)); } catch (e) { /* none */ }
-      if (v.currentTime < 0.3 && v.readyState >= 1 && ahead > 1.5) { if (++stuckN >= 4) { clearInterval(stuckT); tryCompat(0); } } else stuckN = 0;
+      // 6.1.5: no clearInterval here - the watchdog in start() handles the network case
+      if (v.currentTime < 0.3 && v.readyState >= 1 && ahead > 1.5) { if (++stuckN >= 4) { stuckN = 0; tryCompat(0); } } else stuckN = 0;
     }, 2000);
     s.cleanup.push(() => clearInterval(stuckT));
 
@@ -828,8 +839,12 @@
       if (url !== s.compatUrl) { s.compatTried = false; s.compatUrl = url; }
       if (s.hls) { try { s.hls.destroy(); } catch (e) { /* gone */ } s.hls = null; }
       spin.hidden = false;
+      s.netTries = 0; s.wdGen = (s.wdGen || 0) + 1;
       const begin = () => { if (at > 0) { const set = () => { try { v.currentTime = at; } catch (e) { /* later */ } }; if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, {once: true}); } play(); };
-      if (isHlsUrl(url, mime)) {
+      // 6.1.5: iPhone / iPad play HLS themselves (hls.js there stalls)
+      const iosHls = (/iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) && !!v.canPlayType('application/vnd.apple.mpegurl');
+      if (isHlsUrl(url, mime) && iosHls) { v.src = url; begin(); watch(); }
+      else if (isHlsUrl(url, mime)) {
         ensureHls().then((Hls) => {
           if (!alive() || s.url !== url) return;
           if (Hls && Hls.isSupported()) {
@@ -875,9 +890,40 @@
             h.on(Hls.Events.LEVEL_LOADED, (ev, d) => { if (d && d.details && d.details.live && !s.live) { s.live = true; draw(); } });
             h.loadSource(url);
             h.attachMedia(v);
-          } else { v.src = url; begin(); }                 // Safari / iOS / TVs with their own HLS
+          } else { v.src = url; begin(); watch(); }        // Safari / iOS / TVs with their own HLS
         });
-      } else { v.src = url; begin(); }
+      } else { v.src = url; begin(); watch(); }
+    }
+    // 6.1.5: one watchdog per start(): no progress before the first frame (20 s, Telegram 40 s) or a clock that stands
+    // still while playing (25 s: one reload from the same place, then the error card)
+    function watch() {
+      const gen = s.wdGen, tg = !!s.tgh;
+      let mark = -1, since = Date.now(), retried = false;
+      const sig = () => { let b = 0; try { for (let i = 0; i < v.buffered.length; i++) b = Math.max(b, v.buffered.end(i)); } catch (e) { /* none */ } return v.currentTime + '|' + b + '|' + (s.tgRead || 0); };
+      const wd = setInterval(() => {
+        if (!alive() || s.wdGen !== gen) { clearInterval(wd); return; }
+        // 6.1.5: also idle during blocked autoplay (paused / big play button) and a compat attach; a network reload keeps counting
+        if (s.failed || s.compat || s.compatBusy || doc.hidden || s.netBusy || (v.paused && !s.netWait) || !big.hidden || (s.started && v.seeking)) { mark = -1; since = Date.now(); return; }
+        const now = Date.now();
+        if (!s.started) {
+          const k = sig();
+          if (k !== mark) { mark = k; since = now; return; }
+          if (now - since >= (tg ? 40000 : 20000)) { clearInterval(wd); fail('media', {code: 2}); }
+          return;
+        }
+        if (v.currentTime !== mark) { mark = v.currentTime; since = now; return; }
+        if (now - since < 25000) return;
+        if (!retried) {
+          retried = true; since = now;
+          const at = v.currentTime; spin.hidden = false;
+          try { v.load(); } catch (e) { /* reloaded below */ }
+          const set = () => { try { v.currentTime = at; } catch (e) { /* later */ } play(); };
+          if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, {once: true});
+          return;
+        }
+        clearInterval(wd); fail('media', {code: 2});
+      }, 2000);
+      s.cleanup.push(() => clearInterval(wd));
     }
     async function openTg() {
       say(t('pl_loading')); spin.hidden = false;
@@ -888,7 +934,7 @@
       try {
         const h = await tgp.open(tgRef(), {onEvent: (ev) => {
           if (!alive() || !ev) return;
-          if (ev.type === 'flood' || ev.type === 'error') { say(ev.text || ''); poke(); } else if (ev.type === 'read' && status.textContent && !s.subsBusy) say('');
+          if (ev.type === 'flood' || ev.type === 'error') { say(ev.text || ''); poke(); } else if (ev.type === 'read') { s.tgRead = (s.tgRead || 0) + 1; if (status.textContent && !s.subsBusy) say(''); }
         }});
         if (!alive()) { tgp.close(h.key); return; }
         s.tgh = h;
@@ -941,7 +987,29 @@
     on(v, 'seeking', () => { if (alive() && !s.failed) spin.hidden = false; });
     on(v, 'seeked', () => { if (alive() && !v.paused && v.readyState >= 3) spin.hidden = true; });
     on(v, 'canplay', () => { if (alive()) spin.hidden = true; });
-    on(v, 'error', () => { if (alive() && !s.hls && v.error) fail('media', {code: v.error.code}); });
+    on(v, 'playing', () => { s.netWait = false; });   // 6.1.5
+    on(v, 'error', () => {
+      if (!alive() || s.hls || !v.error) return;
+      // 6.1.5: a dropped connection on a plain file: the same link again after 1, 2, 4 s, from the same place
+      if (v.error.code === 2 && !s.compat && !isHlsUrl(s.url, s.mime) && (s.netTries || 0) < 3) {
+        const url = s.url, at = s.pos ? s.pos() : v.currentTime, was = !v.paused;
+        const wait = 1000 * Math.pow(2, s.netTries++);
+        spin.hidden = false; s.netBusy = true;
+        setTimeout(() => {
+          s.netBusy = false;
+          if (!alive() || s.url !== url || s.failed) return;
+          // 6.1.5: one pending 'set' at a time; play at once (it waits for data); netWait until it loads
+          if (s.netSet) v.removeEventListener('loadedmetadata', s.netSet);
+          v.src = url; s.netWait = true;
+          const set = () => { s.netSet = null; s.netWait = false; try { if (at > 0) v.currentTime = at; } catch (e) { /* later */ } if (was || !s.started) play(); };
+          s.netSet = set;
+          v.addEventListener('loadedmetadata', set, {once: true});
+          if (was || !s.started) play();
+        }, wait);
+        return;
+      }
+      fail('media', {code: v.error.code});
+    });
     on(v, 'ended', () => {
       if (!alive()) return;
       drawPlay(); wake(false);

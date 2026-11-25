@@ -74,6 +74,11 @@
     }
     return libP;
   }
+  // 6.1.5: a call of the engine that never settles (a decoder fetch or the sound start hanging) throws after ms
+  const deadline = (p, ms, what) => new Promise((ok, no) => {
+    const tm = setTimeout(() => no(new Error(what || 'timeout')), ms);
+    Promise.resolve(p).then((x) => { clearTimeout(tm); ok(x); }, (e) => { clearTimeout(tm); no(e); });
+  });
   const PROPS = ['currentTime', 'duration', 'paused', 'ended', 'volume', 'muted', 'playbackRate', 'readyState', 'videoWidth', 'videoHeight',
                  'buffered', 'error', 'play', 'pause', 'seeking'];
 
@@ -100,7 +105,8 @@
     v.parentNode.insertBefore(cues, box.nextSibling);
 
     const st = {t: Number(opts.at) || 0, dur: NaN, paused: true, ended: false, vol: v.volume, muted: v.muted, rate: 1, ready: 0, seeking: false,
-                err: null, w: 0, h: 0, dead: false, info: {}, seekAt: 0};
+                err: null, w: 0, h: 0, dead: false, info: {}, seekAt: 0,
+                suspended: false, moved: Date.now(), stalled: false, lastT: -1};
     const fire = (name) => { if (!st.dead) { try { v.dispatchEvent(new Event(name)); } catch (e) { /* closed */ } } };
     const player = new AV({container: box, enableHardware: true, enableWebCodecs: true,
       // 6.1.1: no engine worker - inside it every WebAssembly sound decoder failed to open (AC3, E-AC3 / DDP5.1, DTS:
@@ -126,20 +132,29 @@
     // while the file was still opening) must not freeze the clock, so after 4 s the engine's time counts again
     player.on(E.TIME || 'time', (pts) => {
       if (st.seeking) { if (Date.now() - st.seekAt < 4000) return; st.seeking = false; fire('seeked'); }
-      st.t = fromMs(pts); drawCues(); fire('timeupdate');
+      st.t = fromMs(pts);
+      if (st.t !== st.lastT) { st.lastT = st.t; st.moved = Date.now(); if (st.stalled) { st.stalled = false; fire('playing'); } }
+      drawCues(); fire('timeupdate');
     });
     player.on(E.PLAYED || 'played', () => { st.paused = false; st.ended = false; fire('play'); fire('playing'); });
-    player.on(E.PAUSED || 'paused', () => { st.paused = true; fire('pause'); });
+    player.on(E.PAUSED || 'paused', () => { st.paused = true; st.pausedSincePlay = true; fire('pause'); });
     player.on(E.ENDED || 'ended', () => { st.ended = true; st.paused = true; fire('pause'); fire('ended'); });
     player.on(E.SEEKING || 'seeking', () => { st.seeking = true; st.seekAt = Date.now(); fire('seeking'); fire('waiting'); });
     player.on(E.SEEKED || 'seeked', () => { st.seeking = false; fire('seeked'); if (!st.paused) fire('playing'); });
     player.on(E.ERROR || 'error', (e) => fail(e));
     player.on(E.TIMEOUT || 'timeout', () => fail(new Error('timeout')));
+    // 6.1.5: the sound could not start (iOS / Safari want a tap first): the next play() or resumeAudio() resumes it
+    player.on(E.RESUME || 'resume', () => { st.suspended = true; fire('needgesture'); });
+    const suspended = () => { try { if (typeof player.isSuspended === 'function') return !!player.isSuspended(); } catch (e) { /* not ready */ } return st.suspended; };
+    const resumeAudio = () => { try { const p = player.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* not ready */ } st.suspended = false; };
 
     const saved = {};
     const def = (name, d) => { saved[name] = Object.getOwnPropertyDescriptor(v, name); Object.defineProperty(v, name, Object.assign({configurable: true, enumerable: true}, d)); };
     def('currentTime', {get: () => st.t, set: (x) => {
       const to = Math.max(0, Number(x) || 0);
+      // 6.1.5: before the file is open only the place is kept - attach() jumps to st.t after load
+      // 6.1.5: kept in pendingSeek too - TIME overwrites st.t, attach() seeks there after ready = 4
+      if (st.ready < 4) { st.t = to; st.pendingSeek = to; drawCues(); return; }
       st.t = to; st.seeking = true; st.seekAt = Date.now(); drawCues(); fire('seeking');
       run(() => player.seek(toMs(to))).then(() => { if (st.seeking) { st.seeking = false; fire('seeked'); } });
     }});
@@ -155,12 +170,21 @@
     def('volume', {get: () => st.vol, set: (x) => { st.vol = Math.max(0, Math.min(1, Number(x) || 0)); applyVol(); fire('volumechange'); }});
     def('muted', {get: () => st.muted, set: (x) => { st.muted = !!x; applyVol(); fire('volumechange'); }});
     def('playbackRate', {get: () => st.rate, set: (x) => { st.rate = Number(x) || 1; try { player.setPlaybackRate(st.rate); } catch (e) { /* not ready */ } fire('ratechange'); }});
-    def('play', {value: () => run(() => (st.ended ? player.seek(toMs(0)).then(() => player.play()) : player.play())), writable: true});
+    // 6.1.5: resume the sound synchronously, inside the tap, before the queued play
+    def('play', {value: () => { if (suspended()) resumeAudio(); return run(() => (st.ended ? player.seek(toMs(0)).then(() => player.play()) : player.play())); }, writable: true});
     def('pause', {value: () => { run(() => player.pause()); }, writable: true});
 
+    // 6.1.5: stall report - no movement of the clock for 3 s while playing -> 'waiting', 30 s -> error
+    const stallTm = setInterval(() => {
+      if (st.dead || st.ready < 4 || st.paused || st.seeking || st.ended) { st.moved = Date.now(); return; }
+      const idle = Date.now() - st.moved;
+      if (idle >= 30000) { fail(new Error('stall')); st.moved = Date.now(); }
+      else if (idle >= 3000 && !st.stalled) { st.stalled = true; fire('waiting'); }
+    }, 1000);
     function detach() {
       if (st.dead) return;
       st.dead = true;
+      clearInterval(stallTm);
       for (const name of PROPS) {
         if (!(name in saved)) continue;
         try { if (saved[name]) Object.defineProperty(v, name, saved[name]); else delete v[name]; } catch (e) { /* the element is going away */ }
@@ -181,9 +205,12 @@
       selectSubtitle: (id) => run(() => { if (id < 0) { player.setSubtitleEnable(false); return null; } player.setSubtitleEnable(true); return player.selectSubtitle(id); }),
       audios: () => (player.getStreams() || []).filter((x) => String(x.mediaType).toLowerCase() === 'audio')
         .map((x) => ({id: x.id, lang: String((x.metadata || {}).language || ''), title: String((x.metadata || {}).title || ''), on: x.id === player.getSelectedAudioStreamId()})),
-      selectAudio: (id) => run(() => player.selectAudio(id))};
+      selectAudio: (id) => run(() => player.selectAudio(id)),
+      resumeAudio, suspended};
     try {
-      await player.load(url, {http: {credentials: 'omit'}});
+      // 6.1.5: deadlines - the wasm decoders come from jsDelivr (libmedia 1.3.1 takes wasmBaseUrl / getWasm, a URL
+      // only, no fetch timeout), so a hang there is caught here
+      await deadline(player.load(url, {http: {credentials: 'omit'}}), 25000, 'load timeout');
       if (st.dead) throw new Error('closed');
       const streams = player.getStreams() || [];
       const d = fromMs(player.getDuration());
@@ -196,13 +223,18 @@
       // subtitles inside the file: the viewer's language when the file has it, else none (subs.js looks for one)
       const subId = pickSubtitle(streams, opts.langs || ['he']);
       st.info.subtitle = subId;
-      if (st.t > 0) await player.seek(toMs(st.t));
+      if (st.t > 0) { st.pendingSeek = null; await player.seek(toMs(st.t)); }
       applyVol();
-      await player.play({subtitle: subId >= 0});
+      st.pausedSincePlay = false; // 6.1.5: a pause during the awaits below must stay
+      await deadline(player.play({subtitle: subId >= 0}), 12000, 'play timeout');
+      if (suspended()) fire('needgesture');
       if (subId >= 0) { try { await player.selectSubtitle(subId); } catch (e) { /* the default one stays */ } } else { try { player.setSubtitleEnable(false); } catch (e) { /* none */ } }
       try { st.info.mse = !!player.isMSE(); } catch (e) { /* unknown */ }
-      st.ready = 4; st.paused = false;
-      fire('canplay'); fire('play'); fire('playing');
+      st.ready = 4;
+      if (!st.pausedSincePlay) st.paused = false;
+      fire('canplay'); if (!st.paused) { fire('play'); fire('playing'); }
+      // 6.1.5: a jump asked for while the file was opening (after the seek above) is done now
+      if (st.pendingSeek != null) { const to = st.pendingSeek; st.pendingSeek = null; v.currentTime = to; }
       onSize();
       return api;
     } catch (e) {

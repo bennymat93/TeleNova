@@ -29,11 +29,16 @@
 (function (TN) {
   const PART = 512 * 1024;                       // Telegram: offset and limit multiples of 4096, no 1 MiB crossing
   const CACHE_PARTS = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 12 : 24;   // 6 MB on iOS, 12 MB elsewhere
+  const PART_TIMEOUT = 15000;                    // 6.1.5: one Telegram part read, then it counts as a hiccup
   const AHEAD = 3, PARALLEL = 4, BLOB_MAX = 300 * 1024 * 1024, MAX_STREAMS = 4;
   const streams = new Map();                     // key -> {size, mime, name, readPart, peer, msg}
   const cache = new Map();                       // 'key:index' -> Uint8Array, kept in use order (LRU)
   const pending = new Map();                     // 'key:index' -> Promise<Uint8Array>
-  let active = 0; const queue = [];
+  let active = 0; const queue = [], hiQueue = [];   // 6.1.5: parts a Range request needs (hi) go before read-ahead
+  const queued = new Map();                      // 6.1.5: 'key:index' -> its queue entry (promote / cancel)
+  const wants = new Map();                       // 6.1.5: 'key:index' -> Range requests still waiting for it
+  const reqs = new Map();                        // 6.1.5: request id from the SW -> ['key:index', ...]
+  let floodUntil = 0;                            // 6.1.5: no new Telegram reads before this (FLOOD_WAIT)
 
   TN.i18n.add({
     he: {tgplay_nosw: 'הדפדפן לא מאפשר הזרמה מטלגרם כאן', tgplay_codec: 'הדפדפן לא מצליח לנגן את הקובץ הזה (MKV / HEVC / AC3 מתנגנים לרוב רק ב-Kodi)',
@@ -60,11 +65,50 @@
   const fail = (code) => { const e = new Error(code); e.code = code; return e; };
   function newKey() { const a = new Uint8Array(12); crypto.getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join(''); }
   function streamUrl(key) { return new URL('tgstream/' + key, location.href.split('#')[0]).href; }
-  function limit(fn) {                           // at most PARALLEL Telegram requests at a time (FLOOD_WAIT)
+  // at most PARALLEL Telegram requests at a time; o = {key, id, hi}. 6.1.5: nothing starts while a flood wait runs,
+  // and an entry whose stream was closed is dropped (TGPLAY_GONE) instead of read.
+  let pumpTimer = 0;
+  function pump() {
+    while (active < PARALLEL && (hiQueue.length || queue.length)) {
+      if (Date.now() < floodUntil) {
+        if (!pumpTimer) pumpTimer = setTimeout(() => { pumpTimer = 0; pump(); }, floodUntil - Date.now() + 5);
+        return;
+      }
+      const n = hiQueue.shift() || queue.shift();
+      if (n.id && queued.get(n.id) === n) queued.delete(n.id);
+      if (n.key && !streams.has(n.key)) { n.rej(fail('TGPLAY_GONE')); continue; }
+      n.run();
+    }
+  }
+  function limit(fn, o) {
+    o = o || {};
     return new Promise((res, rej) => {
-      const run = () => { active++; fn().then(res, rej).finally(() => { active--; const n = queue.shift(); if (n) n(); }); };
-      if (active < PARALLEL) run(); else queue.push(run);
+      const n = {key: o.key, id: o.id, rej, run: () => {
+        active++;
+        let p; try { p = Promise.resolve(fn()); } catch (e) { p = Promise.reject(e); }
+        p.then(res, rej).finally(() => { active--; pump(); });
+      }};
+      if (o.id) queued.set(o.id, n);
+      (o.hi ? hiQueue : queue).push(n);
+      pump();
     });
+  }
+  // 6.1.5: a FLOOD from readPart is waited out here, outside the limiter (the slot is free meanwhile), then read again
+  async function limitFlood(fn, o) {
+    for (let tries = 0; ; tries++) {
+      try { return await limit(fn, o); } catch (e) {
+        if (!(e && e.code === 'FLOOD') || tries >= 2) throw e;
+        await sleep(Math.max(0, floodUntil - Date.now()));
+        if (o && o.key && !streams.has(o.key)) throw fail('TGPLAY_GONE');
+      }
+    }
+  }
+  function dropQueued(id) {                      // 6.1.5: a queued (not started) part nobody waits for any more
+    const n = queued.get(id);
+    if (!n) return;
+    queued.delete(id);
+    for (const q of [hiQueue, queue]) { const at = q.indexOf(n); if (at >= 0) q.splice(at, 1); }
+    n.rej(fail('TGPLAY_GONE'));
   }
 
   // ---------------------------------------------------------------- the part cache
@@ -72,11 +116,20 @@
     cache.delete(id); cache.set(id, bytes);
     while (cache.size > CACHE_PARTS) cache.delete(cache.keys().next().value);
   }
-  function part(key, s, i) {
+  function part(key, s, i, hi) {
     const id = key + ':' + i;
     if (cache.has(id)) { const b = cache.get(id); remember(id, b); return Promise.resolve(b); }
-    if (pending.has(id)) return pending.get(id);
-    const p = limit(() => s.readPart(i, PART)).then((b) => {
+    if (streams.get(key) !== s) return Promise.reject(fail('TGPLAY_GONE'));   // 6.1.5: closed meanwhile
+    if (pending.has(id)) {
+      const n = queued.get(id), at = n ? queue.indexOf(n) : -1;   // 6.1.5: read-ahead a request now needs -> hi
+      if (hi && at >= 0) { queue.splice(at, 1); hiQueue.push(n); }
+      const pp = pending.get(id);
+      if (hi && pp.o) pp.o.hi = true;   // 6.1.5: a FLOOD re-queue keeps the promotion
+      return pp;
+    }
+    const o = {key, id, hi};
+    const p = limitFlood(() => (streams.get(key) === s ? s.readPart(i, PART) : Promise.reject(fail('TGPLAY_GONE'))),
+      o).then((b) => {
       b = b instanceof Uint8Array ? b : new Uint8Array(b);
       if (streams.get(key) === s) remember(id, b);
       s.got = (s.got || 0) + b.length;
@@ -84,21 +137,27 @@
       note(s, {type: 'read', bytes: b.length, total: s.got});
       return b;
     }, (e) => {
+      if (e && (e.code === 'TGPLAY_GONE' || e.code === 'TGPLAY_STOPPED')) throw e;   // 6.1.5: closed, not an error
       s.lastError = errCode(e) || (e && e.code) || 'error';
       note(s, {type: 'error', code: s.lastError, text: errorText(e)});
       throw e;
-    }).finally(() => pending.delete(id));
+    }).finally(() => { pending.delete(id); queued.delete(id); });
+    p.o = o;
     pending.set(id, p);
     return p;
   }
   // bytes [start, end] (inclusive), possibly fewer when the range crosses many parts (the browser asks again)
-  async function read(key, start, end) {
+  async function read(key, start, end, rid) {
     const s = streams.get(key);
     if (!s) throw fail('TGPLAY_GONE');
     end = Math.min(end, s.size - 1, start + 4 * PART - 1);
     const first = Math.floor(start / PART), last = Math.floor(end / PART);
     const idx = []; for (let i = first; i <= last; i++) idx.push(i);
-    const parts = await Promise.all(idx.map((i) => part(key, s, i)));
+    const ids = idx.map((i) => key + ':' + i);
+    ids.forEach((id) => wants.set(id, (wants.get(id) || 0) + 1));
+    if (rid) reqs.set(rid, ids);
+    let parts;
+    try { parts = await Promise.all(idx.map((i) => part(key, s, i, true))); } finally { release(rid, ids, false); }
     const lastPart = Math.floor((s.size - 1) / PART);
     for (let i = last + 1; i <= Math.min(last + AHEAD, lastPart); i++) part(key, s, i).catch(() => {});   // read ahead
     const out = new Uint8Array(end - start + 1);
@@ -110,17 +169,35 @@
     return at === out.length ? out : out.subarray(0, at);
   }
 
+  // 6.1.5: a request is done or cancelled: parts only it needed and not started yet are dropped (cancel only)
+  function release(rid, ids, drop) {
+    if (rid && reqs.get(rid) !== ids) return;    // released already (cancel came first)
+    if (rid) reqs.delete(rid);
+    ids.forEach((id) => {
+      const n = (wants.get(id) || 1) - 1;
+      if (n > 0) { wants.set(id, n); return; }
+      wants.delete(id);
+      if (drop) dropQueued(id);
+    });
+  }
+
   // ---------------------------------------------------------------- the service worker side
   function onMessage(ev) {
     const d = ev.data, port = ev.ports && ev.ports[0];
+    if (d && d.tgplay === 'cancel') { const ids = reqs.get(d.rid); if (ids) release(d.rid, ids, true); return; }   // 6.1.5
     if (!d || !port || (d.tgplay !== 'info' && d.tgplay !== 'read')) return;
     const s = streams.get(d.key);
     if (!s) { port.postMessage({known: false}); return; }
     if (d.tgplay === 'info') { port.postMessage({known: true, ok: true, size: s.size, mime: s.serveMime || s.mime}); return; }
-    read(d.key, d.start, d.end).then((b) => {
+    // 6.1.5: a long flood wait runs: tell the SW to ask again later instead of holding the request
+    if (floodUntil - Date.now() > 5000) { port.postMessage({known: true, ok: false, status: 503, wait: floodUntil - Date.now()}); return; }
+    read(d.key, d.start, d.end, d.rid).then((b) => {
       const buf = b.byteOffset === 0 && b.byteLength === b.buffer.byteLength ? b.buffer : b.slice().buffer;
       port.postMessage({known: true, ok: true, bytes: buf}, [buf]);
-    }, () => port.postMessage({known: true, ok: false, status: 502}));
+    }, (e) => {
+      const w = floodUntil - Date.now();
+      port.postMessage(e && e.code === 'FLOOD' && w > 0 ? {known: true, ok: false, status: 503, wait: w} : {known: true, ok: false, status: 502});
+    });
   }
   if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', onMessage);
 
@@ -183,6 +260,10 @@
     const key = String(k || '').replace(/^.*\/tgstream\//, '');
     if (!streams.delete(key)) return;
     for (const id of [...cache.keys()]) if (id.startsWith(key + ':')) cache.delete(id);
+    for (const id of [...queued.keys()]) if (id.startsWith(key + ':')) dropQueued(id);   // 6.1.5: free the queue
+    for (const q of [hiQueue, queue]) {
+      for (let j = q.length - 1; j >= 0; j--) if (q[j].key === key) q.splice(j, 1)[0].rej(fail('TGPLAY_GONE'));
+    }
   }
 
   // ---------------------------------------------------------------- Telegram
@@ -212,28 +293,43 @@
     let doc = docOf(message);
     if (!doc) throw fail('TGPLAY_NO_FILE');
     const meta = info(doc);
+    async function once(i, size, box) {
+      const it = client.iterDownload({file: new G.Api.InputDocumentFileLocation({id: doc.id, accessHash: doc.accessHash,
+        fileReference: doc.fileReference, thumbSize: ''}), dcId: doc.dcId, fileSize: doc.size,
+      offset: bigOf(doc, i * size), requestSize: size, chunkSize: size, limit: 1});
+      box.it = it;   // 6.1.5: readPart ends it on a timeout
+      for await (const chunk of it) return new Uint8Array(chunk);
+      return new Uint8Array(0);
+    }
     async function readPart(i, size) {
+      let timeouts = 0;
       for (let tries = 0; ; tries++) {
+        let t = 0;
+        const box = {};
         try {
-          const it = client.iterDownload({file: new G.Api.InputDocumentFileLocation({id: doc.id, accessHash: doc.accessHash,
-            fileReference: doc.fileReference, thumbSize: ''}), dcId: doc.dcId, fileSize: doc.size,
-          offset: bigOf(doc, i * size), requestSize: size, chunkSize: size, limit: 1});
-          for await (const chunk of it) return new Uint8Array(chunk);
-          return new Uint8Array(0);
+          // 6.1.5: a read that never answers ends after 15 s (frees the limit() slot) and counts as a hiccup
+          return await Promise.race([once(i, size, box), new Promise((res, rej) => { t = setTimeout(() => {
+            // 6.1.5: end the abandoned download so it does not keep running outside the slot count
+            try { const r = box.it && typeof box.it.return === 'function' && box.it.return(); if (r && r.catch) r.catch(() => {}); } catch (e2) { /* gone anyway */ }
+            rej(fail('TGPLAY_TIMEOUT'));
+          }, PART_TIMEOUT); })]);
         } catch (e) {
           const code = errCode(e);
+          if (/FLOOD/.test(code) && e.seconds) {   // 6.1.5: never sleep here (inside limit): limitFlood waits it out
+            const sec = Math.min(Number(e.seconds), 60);
+            floodUntil = Math.max(floodUntil, Date.now() + sec * 1000);
+            meta.floodUntil = floodUntil;
+            note(meta, {type: 'flood', seconds: sec, text: TN.t('tgplay_flood', sec)});
+            throw Object.assign(fail('FLOOD'), {seconds: sec, errorMessage: code});
+          }
           if (tries >= 3) throw e;
           if (/^FILE_REFERENCE_/.test(code)) { const m = await fetchMsg(); const d = docOf(m); if (!d) throw e; doc = d; continue; }
-          if (/FLOOD/.test(code) && e.seconds) {
-            const sec = Math.min(Number(e.seconds), 60);
-            meta.floodUntil = Date.now() + sec * 1000;
-            note(meta, {type: 'flood', seconds: sec, text: TN.t('tgplay_flood', sec)});
-            await sleep(sec * 1000);
-            continue;
+          if (e && e.code === 'TGPLAY_TIMEOUT' && ++timeouts === 2 && typeof client.connect === 'function') {
+            try { if (client.connected === false || client.disconnected) await client.connect(); } catch (e2) { /* the next try tells */ }
           }
-          if (!code) { await sleep(800 * (tries + 1)); continue; }   // network hiccup
+          if (!code) { await sleep(800 * (tries + 1)); continue; }   // network hiccup (or a timeout)
           throw e;
-        }
+        } finally { clearTimeout(t); }
       }
     }
     return Object.assign(meta, {readPart, peer, msg: msgId});
@@ -260,7 +356,7 @@
     if (streams.size && !(own && streams.has(own))) throw fail('TGPLAY_BUSY');
     const src = await srcOf(ref);
     const t0 = Date.now();
-    const b = await limit(() => src.readPart(0, PART));
+    const b = await limitFlood(() => src.readPart(0, PART), {hi: true});   // 6.1.5: waits out a flood
     const sec = Math.max(0.05, (Date.now() - t0) / 1000);
     const u = b instanceof Uint8Array ? b : new Uint8Array(b);
     return {head: u.subarray(0, 262144), mbit: Math.round(u.length * 8 / sec / 1e5) / 10, size: src.size, mime: src.mime, name: src.name || ''};
@@ -300,7 +396,7 @@
     for (let i = 0; i < n; i += PARALLEL) {
       if (stopped(o)) throw fail('TGPLAY_STOPPED');
       const idx = []; for (let j = i; j < Math.min(n, i + PARALLEL); j++) idx.push(j);
-      const got = await Promise.all(idx.map((j) => limit(() => src.readPart(j, PART))));
+      const got = await Promise.all(idx.map((j) => limitFlood(() => src.readPart(j, PART))));
       for (let k = 0; k < got.length; k++) { await each(got[k], idx[k]); done += got[k].length; }
       if (o && o.onProgress) { try { o.onProgress(Math.min(100, Math.floor(done * 100 / src.size)), done, src.size); } catch (e) { /* drawing */ } }
     }

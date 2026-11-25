@@ -31,6 +31,8 @@ self.addEventListener('activate', (e) => {
 // data is in the address. No page knows the key (the page reloaded or closed): 503 at once, never a hang.
 const TG_CAP = 2 * 1024 * 1024;                  // bytes per answer when the browser asks for an open range (bytes=a-)
 const TG_WAIT = 25000;                           // one answer from the page (Telegram may need a few seconds)
+const TG_READ_WAIT = 75000;                      // 6.1.5: one read answer: a 60 s FLOOD_WAIT inside it must not end in 503
+const TG_TOTAL = 90000;                          // 6.1.5: all asks of one Range request, flood waits included
 // 'bytes=a-b' | 'bytes=a-' | 'bytes=-n' | none -> {start, end} (inclusive, end capped) or null (416)
 function tgRange(header, size, cap) {
   cap = cap || TG_CAP;
@@ -45,34 +47,54 @@ function tgRange(header, size, cap) {
   if (end - start + 1 > cap) end = start + cap - 1;
   return {start, end};
 }
-function tgAsk(client, msg) {
+function tgAsk(client, msg, wait, signal) {
   return new Promise((resolve) => {
     const ch = new MessageChannel();
-    const t = setTimeout(() => resolve(null), TG_WAIT);
-    ch.port1.onmessage = (ev) => { clearTimeout(t); resolve(ev.data || null); };
-    try { client.postMessage(msg, [ch.port2]); } catch (err) { clearTimeout(t); resolve(null); }
+    const done = (v) => { clearTimeout(t); if (signal) signal.removeEventListener('abort', gone); resolve(v); };
+    const gone = () => done(null);               // 6.1.5: the browser dropped the request
+    const t = setTimeout(() => done(null), wait || TG_WAIT);
+    if (signal) { if (signal.aborted) { done(null); return; } signal.addEventListener('abort', gone); }
+    ch.port1.onmessage = (ev) => done(ev.data || null);
+    try { client.postMessage(msg, [ch.port2]); } catch (err) { done(null); }
   });
 }
 // every window is asked; the one that knows the key answers with bytes, the others with {known:false}
-async function tgFirst(clients, msg) {
+async function tgFirst(clients, msg, wait, signal) {
   if (!clients.length) return null;
   return new Promise((resolve) => {
     let left = clients.length, done = false;
-    clients.forEach((c) => tgAsk(c, msg).then((r) => {
+    clients.forEach((c) => tgAsk(c, msg, wait, signal).then((r) => {
       if (done) return;
       if (r && r.known) { done = true; resolve(r); } else if (--left === 0) resolve(null);
     }));
   });
 }
-async function tgServe(req, key) {
+async function tgServe(req, key, signal) {
   const fail = (status) => new Response(null, {status, headers: {'Cache-Control': 'no-store'}});
+  signal = signal || req.signal;
+  if (signal && signal.aborted) return fail(499);   // 6.1.5: nobody waits for this answer any more
   const all = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
-  const info = await tgFirst(all, {tgplay: 'info', key});
+  const info = await tgFirst(all, {tgplay: 'info', key}, TG_WAIT, signal);
+  if (signal && signal.aborted) return fail(499);
   if (!info || !info.ok) return fail(info && info.status ? info.status : 503);
   const size = info.size, header = req.headers.get('range');
   const r = tgRange(header || 'bytes=0-', size);
   if (!r) return new Response(null, {status: 416, headers: {'Content-Range': 'bytes */' + size}});
-  const got = await tgFirst(all, {tgplay: 'read', key, start: r.start, end: r.end});
+  // 6.1.5: rid names this request so an abort can tell the page which parts nobody needs now
+  const rid = Math.random().toString(36).slice(2) + Date.now().toString(36), until = Date.now() + TG_TOTAL;
+  const cancel = () => all.forEach((c) => { try { c.postMessage({tgplay: 'cancel', key, rid}); } catch (err) { /* gone */ } });
+  if (signal) signal.addEventListener('abort', cancel, {once: true});
+  let got;
+  try {
+    for (;;) {
+      got = await tgFirst(all, {tgplay: 'read', key, rid, start: r.start, end: r.end}, Math.max(1000, Math.min(TG_READ_WAIT, until - Date.now())), signal);
+      if (signal && signal.aborted) return fail(499);
+      // 6.1.5: the page waits out a Telegram flood: ask again after it (within TG_TOTAL) instead of 503
+      if (!got || got.ok || !(got.wait > 0) || Date.now() + got.wait >= until) break;
+      await new Promise((res) => setTimeout(res, got.wait + 250));
+      if (signal && signal.aborted) return fail(499);
+    }
+  } finally { if (signal) signal.removeEventListener('abort', cancel); }
   if (!got || !got.ok || !got.bytes) return fail(got && got.status ? got.status : 503);
   const body = got.bytes, len = body.byteLength;     // the page may send fewer bytes than asked (end of a part)
   if (!len) return fail(503);
