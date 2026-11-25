@@ -212,8 +212,9 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
-        // http addons / direct links inside the https page (the browser site allows them for media the same way)
-        s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+        // http addons (fetch) and direct http links inside the https page: compatibility mode still blocks fetch and
+        // auto-upgrades media to https, so allow all; scripts stay limited by the page CSP
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         s.setSupportMultipleWindows(true);
         s.setJavaScriptCanOpenWindowsAutomatically(true);
         s.setAllowFileAccess(false);

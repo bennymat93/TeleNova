@@ -87,6 +87,7 @@ repository and must be backed up: an APK signed with another key cannot be insta
   links and links shared from other apps open on the Telegram / YouTube page (others: the "paste a link" box, with the
   link on the clipboard). `target=_blank` links open in another app.
 - **Permissions:** `INTERNET` and `REQUEST_INSTALL_PACKAGES` (the in-app update). Plain-http addons / direct links
-  are allowed (`usesCleartextTraffic`, WebView mixed content in compatibility mode).
+  are allowed (`usesCleartextTraffic`, WebView mixed content always allowed: compatibility mode still blocks `fetch`). The page CSP
+  must list `http:` in `connect-src` / `media-src` too.
 
 Limits and what would need a change in `web/`: `WEB_CHANGES_NEEDED.md`.
