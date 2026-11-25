@@ -94,7 +94,7 @@ The add-on ids are unchanged so that settings, history and favourites survive th
 
 - Android: [`apk/TeleNova.apk`](https://bennymat93.github.io/TeleNova/apk/TeleNova.apk) - one APK for phones, tablets,
   Android TV and car units; a files screen for backups / exports. Details and what was verified: [`apk/README.md`](apk/README.md).
-- iPhone / iPad: [`ios/TeleNova-Web-6.1.6.ipa`](https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-6.1.6.ipa),
+- iPhone / iPad: [`ios/TeleNova-Web-6.1.7.ipa`](https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-6.1.7.ipa),
   **unsigned** - sign it yourself (Sideloadly / AltStore / your own certificate): [`ios/README-app.md`](ios/README-app.md).
   Built on GitHub Actions (`.github/workflows/ios-app.yml`); not run on a real device by us.
 
@@ -196,6 +196,15 @@ version really did (`docs/web-audit/`):
   redirect addresses resolved (Glglz played after 35 s, now ~20 s); a service check that answered "http 400" shows
   as an error, not "active"; Internet Archive / YouTube no longer listed as "not installed"; IPTV stays "active"
   when one guide source is down; the OpenSubtitles / Ktuvit texts say "off by default" again (4.2.2 had changed them).
+
+## TeleNova 6.2.0 - full sync between Kodi, the apps and the web
+
+The web app and the iOS / Android / Mac apps are now full peers of the build's sync document (Telegram Saved
+Messages): settings, IPTV sources, Stremio servers, Real-Debrid and API keys travel both ways through one twins table
+(`web/twins.js`), with per-key stamps and the join rule (a new device never overwrites the account). Device-only keys
+(screen, theme, network speed, Kodi `lite` / `readahead` / `cache_mb` / `max_mbit` ...) and the Telegram session never
+travel; the plain backup carries no keys. Settings > Sync shows the state and "Sync now". Plan: `docs/SYNC-PLAN.md`
+(phase 2: optional sync passphrase, keyed list merges).
 
 ## TeleNova 4.2.0 - send my setup to another device
 
