@@ -16,8 +16,8 @@ android {
         applicationId 'io.github.bennymat93.telenova'
         minSdk 24            // service worker requests can be answered from the APK only from Android 7
         targetSdk 34
-        versionCode 60107
-        versionName '6.1.7'
+        versionCode 60200
+        versionName '6.2.0'
     }
     signingConfigs {
         release {
