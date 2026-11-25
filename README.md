@@ -94,7 +94,7 @@ The add-on ids are unchanged so that settings, history and favourites survive th
 
 - Android: [`apk/TeleNova.apk`](https://bennymat93.github.io/TeleNova/apk/TeleNova.apk) - one APK for phones, tablets,
   Android TV and car units; a files screen for backups / exports. Details and what was verified: [`apk/README.md`](apk/README.md).
-- iPhone / iPad: [`ios/TeleNova-Web-6.1.4.ipa`](https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-6.1.4.ipa),
+- iPhone / iPad: [`ios/TeleNova-Web-6.1.5.ipa`](https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-6.1.5.ipa),
   **unsigned** - sign it yourself (Sideloadly / AltStore / your own certificate): [`ios/README-app.md`](ios/README-app.md).
   Built on GitHub Actions (`.github/workflows/ios-app.yml`); not run on a real device by us.
 
