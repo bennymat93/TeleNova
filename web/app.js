@@ -217,6 +217,19 @@ const safeStore = {
 function get(k, d) { try { const v = safeStore.getItem('bn_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
 function put(k, v) { try { safeStore.setItem('bn_' + k, JSON.stringify(v)); } catch (e) {} }
 function drop(k) { safeStore.removeItem('bn_' + k); }
+// 6.2.0: a changed synced setting / store starts the sync round ~3 s later (tg.js "changed"), like the store's lists.
+// Device-only keys (twins.LOCAL) and the Telegram session never do.
+function syncedKey(name, key) {
+  const TW = window.TNTwins;
+  if (!TW || !name) return false;
+  if (name === 'cfg') return !!key && !TW.isLocal(key) && !(WS && WS.LOCAL && WS.LOCAL.test(String(key)));
+  if (TW.isLocal(name)) return false;
+  if (TW.WEB_STORES.includes(name) || name === 'epg_own') return true;
+  return TW.TWINS.some((r) => r[0] === 'bn:' + name || r[0].indexOf('bn:' + name + '.') === 0);
+}
+function syncPoke(name, key) {
+  try { if (syncedKey(name, key) && window.TG && window.TG.ready && typeof window.TG.poke === 'function') window.TG.poke(); } catch (e) { /* no sync here */ }
+}
 const cfg = Object.assign({lang: (navigator.language || 'he').slice(0, 2), theme: 'auto', live: 'tn', radio: 'IL'}, get('cfg', {}));
 try { const old = localStorage.getItem('bn_lang'); if (old && !get('cfg', null)) cfg.lang = old; } catch (e) {}
 if (!L[cfg.lang]) cfg.lang = 'he';
@@ -1449,7 +1462,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-6.1.7.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-6.2.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest" target="_blank" rel="noopener">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
@@ -1649,8 +1662,54 @@ function selectBox(pairs, cur, onPick, label) {
   s.onchange = () => onPick(s.value);
   return s;
 }
+// 6.2.0: the "Sync" panel (Settings > Accounts): state of the account's document, "Sync now", what travels and what stays
+I18N.add({
+  he: {sy_title: 'סנכרון', sy_need_tg: 'כדי לסנכרן, התחברו לטלגרם (למעלה).', sy_nodoc: 'עדיין אין מסמך סנכרון בחשבון - הוא ייווצר בסנכרון הראשון.',
+       sy_ok: 'מסונכרן. סנכרון אחרון: %s', sy_wait: 'מסנכרן...', sy_err: 'שגיאת סנכרון: %s', sy_now: 'סנכרן עכשיו',
+       sy_shared: 'משותף בין כל המכשירים שלך: משתמשים, היסטוריה, מועדפים, נקודות המשך, חיפושים, הגדרות, IPTV, שרתי Stremio, Real-Debrid, מפתחות (TMDb, Gemini, OpenSubtitles)',
+       sy_local: 'נשאר במכשיר הזה: גודל מסך וערכת נושא, מהירות רשת, כניסה לטלגרם (כל מכשיר מתחבר בעצמו), כניסה ל-Google Drive'},
+  en: {sy_title: 'Sync', sy_need_tg: 'To sync, connect Telegram (above).', sy_nodoc: 'No sync document in the account yet - the first sync creates it.',
+       sy_ok: 'In sync. Last sync: %s', sy_wait: 'Syncing...', sy_err: 'Sync error: %s', sy_now: 'Sync now',
+       sy_shared: 'Shared between all your devices: users, history, favourites, resume points, searches, settings, IPTV, Stremio servers, Real-Debrid, keys (TMDb, Gemini, OpenSubtitles)',
+       sy_local: 'Stays on this device: screen size and theme, network speed, Telegram login (each device logs in itself), Google Drive login'},
+  ru: {sy_title: 'Синхронизация', sy_need_tg: 'Для синхронизации подключите Telegram (выше).', sy_nodoc: 'В аккаунте ещё нет документа синхронизации - он появится при первой синхронизации.',
+       sy_ok: 'Синхронизировано. Последний раз: %s', sy_wait: 'Синхронизация...', sy_err: 'Ошибка синхронизации: %s', sy_now: 'Синхронизировать сейчас',
+       sy_shared: 'Общее для всех ваших устройств: пользователи, история, избранное, точки продолжения, поиски, настройки, IPTV, серверы Stremio, Real-Debrid, ключи (TMDb, Gemini, OpenSubtitles)',
+       sy_local: 'Остаётся на этом устройстве: размер экрана и тема, скорость сети, вход в Telegram (каждое устройство входит само), вход в Google Drive'},
+});
+let syncOff = null;
+function syncPanel(group) {
+  const h = document.createElement('h2');
+  h.textContent = N('sy_title');
+  const box = document.createElement('div');
+  box.className = 'panel settings syncpanel';
+  box.id = 'syncui';
+  box.style.marginTop = '0';
+  group.append(h, box);
+  const draw = () => {
+    if (!box.isConnected) { if (syncOff) { syncOff(); syncOff = null; } return; }
+    const TG = window.TG, on = !!(TG && TG.ready && TG.connected && TG.connected());
+    const st = on && TG.status ? TG.status() : {}, err = on && TG.error ? TG.error() : '';
+    const line = !on ? N('sy_need_tg') : TG.busy && TG.busy() ? N('sy_wait') : err ? N('sy_err', err)
+      : st.sync === 'nodoc' ? N('sy_nodoc') : st.last ? N('sy_ok', new Date(st.last).toLocaleTimeString()) : N('sy_wait');
+    const p = document.createElement('p');
+    p.className = err && on ? 'tgerr' : 'hint';
+    p.setAttribute('role', 'status');
+    p.textContent = line;
+    const parts = [p];
+    if (on) parts.push(button('btn', N('sy_now'), () => { TG.syncNow(); setTimeout(draw, 50); }));
+    else parts.push(linkBtn('btn ghost', X('tg_connect'), '#/tglogin'));
+    for (const k of ['sy_shared', 'sy_local']) { const q = document.createElement('p'); q.className = 'hint'; q.textContent = N(k); parts.push(q); }
+    box.replaceChildren(...parts);
+  };
+  draw();
+  if (syncOff) syncOff();
+  syncOff = null;
+  if (window.TG && typeof window.TG.on === 'function') syncOff = window.TG.on(draw);
+  else if (get('tg_session', '')) loadTg().then((TG) => { if (box.isConnected && typeof TG.on === 'function') { syncOff = TG.on(draw); draw(); } }, () => {});
+}
 const saved = () => toast(N('core_saved'), {kind: 'ok', ms: 2000});
-function setCfg(k, v) { cfg[k] = v; put('cfg', cfg); applyCfg(); emit('settings', k); saved(); }
+function setCfg(k, v) { cfg[k] = v; put('cfg', cfg); applyCfg(); emit('settings', k); syncPoke('cfg', k); saved(); }
 const SET_TABS = ['general', 'playback', 'accounts', 'data', 'app'];
 function pageSettings(arg) {
   const tab = SET_TABS.includes(arg) ? arg : 'general';
@@ -1705,11 +1764,12 @@ function pageSettings(arg) {
     box.innerHTML = `<input class="input" id="s_tmdb" type="password" autocomplete="off" spellcheck="false" dir="ltr" aria-label="${esc(X('tmdb'))}">`;
     const inp = box.firstChild;
     inp.value = cfg.tmdb || '';
-    inp.onchange = () => { cfg.tmdb = inp.value.trim(); put('cfg', cfg); emit('settings', 'tmdb'); saved(); };
+    inp.onchange = () => { cfg.tmdb = inp.value.trim(); put('cfg', cfg); emit('settings', 'tmdb'); syncPoke('cfg', 'tmdb'); saved(); };
     box.append(iconButton('iconbtn', 'eye', N('set_show'), () => { inp.type = inp.type === 'password' ? 'text' : 'password'; }));
     l.append(setRow(X('tmdb'), X('tmdb_hint') + (fromAccount ? ' ' + X('s_tmdb_synced') : ''), box));
     group.insertAdjacentHTML('beforeend', `<h2>${esc(X('tg_title'))}</h2><div class="panel settings tgpanel" style="margin-top:0"><p class="hint">${esc(X('tg_about'))}</p><div id="tgui"></div></div>`);
     drawTgBox();
+    syncPanel(group);
     note(X('s_store2'));
   } else if (tab === 'data') {
     const l = list(N('set_data'));
@@ -2045,11 +2105,11 @@ const TN = Object.freeze({
   // texts
   i18n: I18N, t: N, lang: () => cfg.lang, rtl: () => cfg.lang === 'he',
   // storage: per browser (bn_ prefix, JSON); the user's synced lists are in store
-  get, put, drop, store, SyncDoc: SD, WebSync: WS,
+  get, put(k, v) { put(k, v); syncPoke(k); }, drop(k) { drop(k); syncPoke(k); }, store, SyncDoc: SD, WebSync: WS,
   // settings: this browser's (cfg) and the account's synced ones (read only here)
   settings: Object.freeze({
     get: (k, d) => (k in cfg ? cfg[k] : d),
-    set(k, v) { cfg[k] = v; put('cfg', cfg); applyCfg(); emit('settings', k); },
+    set(k, v) { cfg[k] = v; put('cfg', cfg); applyCfg(); emit('settings', k); syncPoke('cfg', k); },
     synced: () => Object.assign({}, synced),
     // the helper Worker is built in: the project's own deployment (worker/) unless the viewer typed another address
     helper: () => httpsOnly(String(cfg.helper || 'https://telenova-helper.hmi-analyzer.workers.dev').replace(/\/+$/, '')),

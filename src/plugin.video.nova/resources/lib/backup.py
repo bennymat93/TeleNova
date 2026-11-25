@@ -18,6 +18,17 @@ FILES = ['favourites.xml', 'sources.xml', 'passwords.xml', 'mediasources.xml']
 SKIP = ('cache', 'cache.db', 'Thumbnails', 'temp', 'packages', '.tmp', 'preset.nvp', 'preset_guard.json',
         'gdrive_token.json', 'gdrive_state.json', 'sync_state.json', 'sync_meta.json')
 AUTO_DIR = os.path.join(PROFILE, 'backups')
+
+
+def is_session_file(name):
+    """6.2.0: the Telegram login (Telethon's telegram.session + its -journal, or any *session* file) never goes into a
+    backup and is never restored from one: a session copied to another device ends both logins
+    (AUTH_KEY_DUPLICATED). Every device logs in itself (approve-from-another-device)."""
+    import re  # 6.2.0: also SQLite -wal/-shm and an atomic-write .new beside the session
+    base = name.replace('\\', '/').rsplit('/', 1)[-1]
+    return bool(re.search(r'(?i)(\.session(-journal|-wal|-shm|\.new)?$|^(tg_|string_)?session(\.\w+)?$|auth_key)', base))
+
+
 def _members():
     for a in ADDON_DATA:
         base = os.path.join(USERDATA, 'addon_data', a)
@@ -31,7 +42,7 @@ def _members():
             files = [f for f in files if not (a == 'plugin.video.telescope' and f == 'port.json') and not f.endswith(('.pyc', '.pyo'))]
             for fn in files:
                 # never a backup inside a backup (pre_update.zip lives in this folder: it zipped itself to 37 GB)
-                if not fn.endswith(SKIP) and not fn.endswith(('.zip', '.part', '.tmp')):
+                if not fn.endswith(SKIP) and not fn.endswith(('.zip', '.part', '.tmp')) and not is_session_file(fn):
                     full = os.path.join(d, fn)
                     yield full, os.path.relpath(full, USERDATA)
     for fn in FILES:
@@ -99,7 +110,7 @@ def _members_full():
                     small = os.path.getsize(full) <= 20 * 1024 * 1024
                 except OSError:
                     continue
-                if small and not fn.endswith(SKIP) and not fn.endswith(('.zip', '.part', '.tmp', '.log', '.pyc', '.pyo')):
+                if small and not fn.endswith(SKIP) and not is_session_file(fn) and not fn.endswith(('.zip', '.part', '.tmp', '.log', '.pyc', '.pyo')):
                     yield full, os.path.relpath(full, USERDATA)
     for a in extras():
         for d, dirs, files in os.walk(os.path.join(HOME, 'addons', a)):
@@ -176,6 +187,9 @@ def extract(z):
     new_addons = set()
     for m in z.namelist():
         if m in ('bn_backup.txt', MANIFEST) or m.startswith('/') or '..' in m or ':' in m or '\\' in m:
+            continue
+        if m.startswith('addon_data/') and is_session_file(m):                 # 6.2.0: an older backup may hold the login: never written here
+            skipped += 1
             continue
         if m.startswith('addons/'):
             if shipped and allowed_addon_member(m, wanted, shipped):

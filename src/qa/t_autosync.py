@@ -254,6 +254,78 @@ check(F1.sett['plugin.video.nova']['tmdb_key'] == 'NEW-KEY', 'a later change on 
 
 check(autosync.syncable({'debug': 'true', 'port': '1', 'tmdb_key': 'k', 'sub_server': 'x', 'wizard_shown': 'true', 'rd_token': 't',
                          'kodion.http.port': '5'}) == {'tmdb_key': 'k', 'rd_token': 't'}, 'the list of device-only settings')
+
+# ---- 6.2.0: session hard exclusion, new device-only keys, sections / files of other peers pass through
+check(autosync.syncable({'lite': 'true', 'ui_sounds': 'false', 'open_on_start': 'x', 'readahead': '9', 'cache_mb': '5',
+                         'max_mbit': '1', 'tg_session': 'S', 'string_session': 'S', 'auth_key': 'K', 'session': 'S',
+                         'Telegram_Session_x': 'S', 'gemini_key': 'g'}) == {'gemini_key': 'g'},
+      '6.2.0: device-dependent keys and every session-like key are not synced')
+cloud3 = Cloud()
+K1, K2 = Device('K1', cloud3), Device('K2', cloud3)
+K1.sett['plugin.video.nova'].update(lite='true', tmdb_key='T1', tg_session='SECRET-SESSION')
+K1.files['telegram.session'] = {'x': 'SECRET-SESSION'}
+autosync.cycle(K1, 10000)
+raw = json.dumps(cloud3.doc)
+check('SECRET-SESSION' not in raw and 'tg_session' not in raw and 'telegram.session' not in raw, 'the session never enters the document')
+check('lite' not in cloud3.doc['settings']['plugin.video.nova'], 'lite stays on the device')
+# a browser (web peer) puts its own section, an unknown file and - wrongly - a session key into the document
+doc = json.loads(json.dumps(cloud3.doc))
+doc['settings']['web'] = {'channels': [['a', 'b'], 10050], 'subs_size': ['32', 10050]}
+doc['settings']['plugin.video.unknown'] = {'k': ['v', 10050]}
+doc['settings']['plugin.video.nova']['string_session'] = ['BAD-SESSION', 10050]
+doc['settings']['plugin.video.nova']['lite'] = ['false', 10050]
+doc['settings']['plugin.video.nova']['tmdb_key'] = ['T-WEB', 10050]
+doc['files']['radio.json'] = [{'own': [1]}, 10050]
+doc['files']['../evil.json'] = [{'x': 1}, 10050]
+doc['files']['tg_session'] = ['BAD-SESSION', 10050]
+cloud3.doc, cloud3.n = doc, cloud3.n + 1
+r = autosync.cycle(K1, 10100)
+check(K1.sett['plugin.video.nova']['tmdb_key'] == 'T-WEB', 'a browser change of a twin setting reaches Kodi')
+check(K1.sett['plugin.video.nova']['lite'] == 'true', 'a device-only key from another peer is not applied: %r' % K1.sett['plugin.video.nova'].get('lite'))
+check('web' not in K1.sett and 'string_session' not in K1.sett['plugin.video.nova'], 'the web section / a session key are never applied')
+check('radio.json' not in K1.files and '../evil.json' not in K1.files, 'unknown files are not written to disk')
+K1.sett['plugin.video.nova']['gemini_key'] = 'G-K1'                # Kodi changes something and re-puts
+autosync.cycle(K1, 10200)
+autosync.cycle(K1, 10300)                                          # a round without a fetch
+autosync.cycle(K2, 10400)                                          # and another Kodi joins and re-puts
+K2.sett['plugin.video.nova']['tmdb_key'] = 'T-K2'
+autosync.cycle(K2, 10500)
+autosync.cycle(K1, 10600)
+d = cloud3.doc
+check(d['settings'].get('web') == {'channels': [['a', 'b'], 10050], 'subs_size': ['32', 10050]}, 'the web section survives Kodi merges and re-puts untouched: %r' % d['settings'].get('web'))
+check(d['settings'].get('plugin.video.unknown') == {'k': ['v', 10050]}, 'an unknown add-on section survives')
+check(d['files'].get('radio.json') == [{'own': [1]}, 10050], 'an unknown file survives')
+check(d['settings']['plugin.video.nova']['gemini_key'][0] == 'G-K1' and K1.sett['plugin.video.nova']['tmdb_key'] == 'T-K2', 'and normal sync still works')
+raw = json.dumps(d) + json.dumps(K1.meta) + json.dumps(K2.meta)
+check('BAD-SESSION' not in raw and 'SECRET-SESSION' not in raw and 'string_session' not in raw, 'a session key put by a peer is removed from the document and the meta')
+check(K2.sett['plugin.video.nova'].get('lite') is None, 'the new device did not receive lite')
+# 6.2.0 (I): a key another peer put into an installed add-on's section (one this Kodi does not have) survives
+# this device's own re-puts, also in rounds without a fetch
+doc = json.loads(json.dumps(cloud3.doc))
+doc['settings']['plugin.video.nova']['peer_only'] = ['P', 10700]
+cloud3.doc, cloud3.n = doc, cloud3.n + 1
+autosync.cycle(K1, 10700)
+K1.sett['plugin.video.nova'].pop('peer_only', None)                # this Kodi has no such setting
+K1.sett['plugin.video.nova']['gemini_key'] = 'G-K1b'
+autosync.cycle(K1, 10800)
+K1.sett['plugin.video.nova']['gemini_key'] = 'G-K1c'
+autosync.cycle(K1, 10900)                                          # re-put without a fetch
+check(cloud3.doc['settings']['plugin.video.nova'].get('peer_only') == ['P', 10700] and
+      cloud3.doc['settings']['plugin.video.nova']['gemini_key'][0] == 'G-K1c',
+      '6.2.0: a peer key in an installed section is carried: %r' % cloud3.doc['settings']['plugin.video.nova'].get('peer_only'))
+# 6.2.0 (K): the session-key rule is the web one (websync.js) - shared vectors
+for k in ('session', 'tg_session', 'string_session', 'StringSess', 'auth_key', 'authKey', 'AUTHKEY', 'my_session_x'):
+    check(autosync.is_session(k), '6.2.0: session-like key: %s' % k)
+for k in ('tmdb_key', 'gemini_key', 'rd_token', 'auth', 'key', 'string'):
+    check(not autosync.is_session(k), '6.2.0: ordinary key: %s' % k)
+backup = importlib.import_module('resources.lib.backup')
+for n in ('telegram.session-wal', 'telegram.session-shm', 'telegram.session.new', 'x/Telegram.SESSION-WAL'):
+    check(backup.is_session_file(n), '6.2.0 (J): session side file kept out of backups: %s' % n)
+for n in ('telegram.session', 'telegram.session-journal','addon_data/plugin.video.telescope/telegram.session', 'tg_session.txt',
+          'string_session', 'auth_key.bin'):
+    check(backup.is_session_file(n), 'backup never holds / restores the login: %s' % n)
+for n in ('settings.xml', 'iptv.json', 'history.json', 'port.json', 'sessions_helper.py'):
+    check(not backup.is_session_file(n), 'ordinary file kept in a backup: %s' % n)
 for mod in (users,):
     for k, v in mod.STR.items():
         check(len(v) == 3 and all(v), 'string %s in three languages' % k)

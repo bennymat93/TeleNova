@@ -2,8 +2,8 @@
 // WP-9: sync, backup / restore, export / import (Kodi K01-K03, K12, X14).
 // 1. Sync (K01): the state of the account's document, "Sync now", and - when the account has NO document yet (Kodi
 //    never ran on it) - "Create the sync document" from this browser: the users and lists of this browser, sealed
-//    exactly as the build seals them (sealed.js, websync.js caption), sent to Saved Messages. Settings stay empty in
-//    it: a browser owns no build settings; a Kodi device that joins later adds its own.
+//    exactly as the build seals them (sealed.js, websync.js caption), sent to Saved Messages. 6.2.0: this browser's
+//    synced settings go in too (websync.stampInto, founding stamps); a Kodi device that joins later adds its own.
 // 2. Backup zip (K02 / K03) in the shape of the build's backup (backup.make_zip):
 //      bn_backup.txt                                        the marker restore_zip looks for
 //      addon_data/plugin.video.nova/users.json              the users (users.py LIST)
@@ -95,16 +95,16 @@
   }
 
   // ---- the settings file: this browser's setting <-> the build's setting id (telescope / nova settings.xml)
-  // [web setting, build id, kind: 's' text | 'b' switch]
-  const TWINS = [['tmdb', 'tmdb_key', 's'], ['gemini_key', 'gemini_key', 's'], ['subs_os_key', 'os_key', 's'], ['stremthru_url', 'st_url', 's'],
-                 ['stremthru_on', 'st_enabled', 'b'], ['telegram_quiet', 'tg_quiet', 'b'], ['tgsearch_bots', 'bot_request', 'b']];
+  // [web setting, build id, kind: 's' text | 'b' switch]. 6.2.0: from the one shared table (twins.js, rows flagged 't')
+  // (looked up when used: the page loads twins.js before websync.js, long before this module)
+  const twins = () => { const T = typeof module === 'object' && module.exports ? require('./twins.js') : root.TNTwins; return T ? T.TNCFG : []; };
   const str = (v) => (typeof v === 'string' ? v.trim() : '');
   const bool = (v) => v === true || v === 'true' || v === 1 || v === '1';
   // this browser's settings -> the settings a .tncfg carries (only what is set; switches as the build writes them)
   function webToKodi(cfg, addons) {
     const out = {};
     cfg = cfg || {};
-    for (const [w, k, kind] of TWINS) {
+    for (const [w, k, kind] of twins()) {
       if (!(w in cfg)) continue;
       if (kind === 'b') out[k] = cfg[w] ? 'true' : 'false'; else if (str(cfg[w])) out[k] = str(cfg[w]);
     }
@@ -120,7 +120,7 @@
     const out = {cfg: {}, rd: '', api: null, addons: [], names: []};
     const web = extra.web && typeof extra.web === 'object' && extra.web.cfg && typeof extra.web.cfg === 'object' ? extra.web.cfg : null;
     if (web) for (const k of Object.keys(web)) if (!CFG_SKIP.includes(k) && /^[a-z][a-z0-9_]*$/.test(k)) out.cfg[k] = web[k];
-    for (const [w, k, kind] of TWINS) {
+    for (const [w, k, kind] of twins()) {
       if (!(k in s) || w in out.cfg) continue;
       if (kind === 'b') out.cfg[w] = bool(s[k]); else if (str(s[k])) out.cfg[w] = str(s[k]);
     }
@@ -143,7 +143,12 @@
     const WS = deps.WS;
     if (WS.mine(await deps.list())) return 'exists';
     // merged with an empty document: the exact form every later round writes, so the first round has nothing to add
-    const doc = deps.SD.merge(WS.localDoc({users: deps.users, userData: deps.userData}), deps.SD.empty());
+    const mine = WS.localDoc({users: deps.users, userData: deps.userData});
+    // 6.2.0: this browser's real settings go in, at founding stamps (first look: stamp 0, so any device's own value
+    // set later wins; the Telegram session and device-only keys never enter - websync.stampInto filters them)
+    const port = 'port' in deps ? deps.port : (typeof WS.browserPort === 'function' ? WS.browserPort() : null);
+    if (port && typeof WS.stampInto === 'function') { try { WS.stampInto(port, {}, deps.SD.empty(), mine, Math.floor(Date.now() / 1000)); } catch (e) { /* settings stay out */ } }
+    const doc = deps.SD.merge(mine, deps.SD.empty());
     const bytes = await deps.seal(deps.SD.canon(doc));
     // (somebody may have founded it meanwhile, a Kodi device starting up: never two documents)
     if (WS.mine(await deps.list())) return 'exists';
@@ -151,7 +156,7 @@
     if (!id) throw Object.assign(new Error('send'), {code: 'send'});
     return 'made';
   }
-  const core = {makeFiles, readFiles, restoreInto, webToKodi, kodiToWeb, found, TWINS, NOVA, MARK, WEB, MAX};
+  const core = {makeFiles, readFiles, restoreInto, webToKodi, kodiToWeb, found, get TWINS() { return twins(); }, NOVA, MARK, WEB, MAX};
   if (typeof module === 'object' && module.exports) { module.exports = core; return; }
 
   // ------------------------------------------------------------ the page

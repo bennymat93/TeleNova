@@ -11,6 +11,7 @@
   5. t_mixed.py        the build's real loop (autosync.cycle) and the browser's loop on one account: same result,
                        no write when nothing changed
   6. static checks     channels_il.json is what gen_channels.py makes of livefail.py; every text exists in he / en / ru;
+  4b. t_twins.js       6.2.0: twins.js codecs and the settings side of the browser's sync loop (join rule, no session)
                        the service worker caches every local file the page loads
 
 Needs Python 3 and Node 18+ (WebCrypto). fflate (the zlib / zip library the page loads from jsDelivr) is fetched once
@@ -114,7 +115,7 @@ def main():
         run('Kodi devices and browsers on one account (Python + Node)', [sys.executable, os.path.join(HERE, 't_mixed.py')])
         # 4.3.0: the module tests (pure parts, fake DOM) and the helper Worker's own test ran only by hand before
         for name in ('t_matcher', 't_sources', 't_srt', 't_texts', 't_tgsearch', 't_content', 't_live', 't_playback', 't_shell', 't_compat', 'undef_web', 't_tglink', 't_aio',
-                     't_player', 't_player_dom'):
+                     't_player', 't_player_dom', 't_twins'):
             run('%s.js (Node)' % name, [node, os.path.join(HERE, name + '.js')], quiet=True)
         run('helper Worker (Node)', [node, os.path.join(WEB, '..', 'worker', 'test.mjs')], quiet=True)
         static_checks()

@@ -629,6 +629,9 @@
     },
     resume, status: () => ({state, sync: info.sync, last: info.last, name: me ? me.name : ''}),
     syncNow: () => round('asked'),
+    // 6.2.0: a synced setting changed on the page (TN.put / TN.settings.set): the round ~3 s later
+    poke() { if (state === 'on') changed(); },
+    busy: () => !!info.busy,
     // ---- for the other modules
     client: getClient,
     connected: () => state === 'on' && !!client,

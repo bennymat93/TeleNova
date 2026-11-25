@@ -322,7 +322,7 @@
   // ------------------------------------------------------------ registry and addon servers
   const extra = new Map();                       // name -> fn(req, {signal}) -> rows
   function register(name, fn) { if (/^[a-z][a-z0-9_]*$/.test(name) && typeof fn === 'function') extra.set(name, fn); }
-  const addons = () => (TN.get('sources_addons', []) || []).map(addonBase).filter(Boolean);
+  const addons = () => (TN.get('sources_addons', []) || []).map(addonBase).filter(Boolean).slice(0, 12);   // 6.2.0: synced lists can be longer
   function setAddons(list) { TN.put('sources_addons', [...new Set((list || []).map(addonBase).filter(Boolean))].slice(0, 12)); }
   async function addonRows(base, req, signal) {
     const id = streamId(req);

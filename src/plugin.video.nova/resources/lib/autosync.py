@@ -29,11 +29,40 @@ FILES = ('iptv.json', 'providers.json', 'services.json', 'profiles.json')
 ADDONS = ('plugin.video.nova', 'plugin.video.telescope', 'service.subtitles.All_Subs')
 # settings that belong to one device or change by themselves: never synced
 LOCAL = re.compile(r'^(debug|port|device_profile|deps_zip|wizard_shown|sub_server|lite_done|depov_done|wizard_fix|tune_done|'
+                   # 6.2.0: these depend on the box (a phone and a TV differ): lite mode, sounds, what opens at start,
+                   # and the player's buffer / speed tuning
+                   r'lite|ui_sounds|open_on_start|readahead|cache_mb|max_mbit|'
                    r'\w+_done|last_\w+|\w+_ts|\w+_time|kodion\..*|.*\.port)$')
+# 6.2.0: the Telegram login never enters the document - checked before LOCAL, for settings AND files, on the way
+# out and on the way in (a copied session ends both logins: AUTH_KEY_DUPLICATED). Same rule in web/websync.js.
+SESSION_RX = re.compile(r'(?i)(session|auth_?key|string_?sess)')   # 6.2.0: the same rule as the web (websync.js)
+
+
+def is_session(key):
+    return bool(SESSION_RX.search(str(key or '')))
 
 
 def syncable(settings):
-    return dict((k, v) for k, v in (settings or {}).items() if not LOCAL.match(k))
+    return dict((k, v) for k, v in (settings or {}).items() if not is_session(k) and not LOCAL.match(k))
+
+
+def scrub(doc):
+    """6.2.0: the document without any session-like setting or file (also one an old / broken peer put there)"""
+    if not isinstance(doc, dict):
+        return doc
+    sett = doc.get('settings')
+    if isinstance(sett, dict):
+        for aid in list(sett.keys()):
+            if is_session(aid):
+                del sett[aid]
+            elif isinstance(sett[aid], dict):
+                for k in [k for k in sett[aid] if is_session(k)]:
+                    del sett[aid][k]
+    files = doc.get('files')
+    if isinstance(files, dict):
+        for k in [k for k in files if is_session(k)]:
+            del files[k]
+    return doc
 
 
 def cycle(host, now=None):
@@ -54,16 +83,33 @@ def cycle(host, now=None):
         if vals is None:
             continue
         current[aid] = syncable(vals)
-        meta.setdefault('settings', {})[aid] = syncdoc.stamp_changes((meta.get('settings') or {}).get(aid), current[aid], now, founding)
+        seen = (meta.get('settings') or {}).get(aid)
+        if isinstance(seen, dict):                 # 6.2.0: keys that became device-only (or session-like) leave the meta
+            seen = dict((k, v) for k, v in seen.items() if not is_session(k) and not LOCAL.match(k))
+        meta.setdefault('settings', {})[aid] = syncdoc.stamp_changes(seen, current[aid], now, founding)
         local['settings'][aid] = meta['settings'][aid]
-    files = dict((name, host.file(name)) for name in FILES)
+    scrub(meta.get('last_doc'))
+    for part in ('settings', 'files'):          # 6.2.0: an older meta may still remember a session-like key
+        if isinstance(meta.get(part), dict):
+            scrub({part: meta[part]})
+    files = dict((name, host.file(name)) for name in FILES if not is_session(name))
     files = dict((k, v) for k, v in files.items() if v is not None)
     meta['files'] = syncdoc.stamp_changes(meta.get('files') if 'files' in meta else None, files, now, founding)
     local['files'] = meta['files']
+    # 6.2.0: sections this device does not own ("web" from the browser/apps, an add-on not installed here) come from
+    # the last document seen, untouched - a round without a fetch must not re-put the document without them
+    for aid, keys in ((meta.get('last_doc') or {}).get('settings') or {}).items():
+        if not isinstance(keys, dict):
+            continue
+        if aid not in local['settings']:
+            local['settings'][aid] = keys
+        else:                                    # 6.2.0: installed here too - keep keys other peers put in the section
+            carried = dict((k, v) for k, v in keys.items() if not is_session(k) and not LOCAL.match(k))
+            local['settings'][aid] = syncdoc.merge_stamped(carried, local['settings'][aid])
     # 2. the account's document (fetched only when it changed)
     remote = None
     if mark and mark != meta.get('cloud_mark'):
-        remote = host.cloud_get()
+        remote = scrub(host.cloud_get())
         out['pulled'] = remote is not None
     if mark and remote is None and mark != meta.get('cloud_mark'):
         host.save_meta(meta)                       # could not read it now: the next round tries again
@@ -79,7 +125,13 @@ def cycle(host, now=None):
             if wrote:
                 out['data'].append(uid)
         for aid, keys in syncdoc.changed_settings(merged['settings'], current).items():
+            # 6.2.0: only this device's add-ons and only syncable keys are written here; the "web" section, an add-on
+            # this box does not have, and device-only keys another peer put in stay in the document untouched
+            if aid not in current:
+                continue
             for k, v in keys.items():
+                if is_session(k) or LOCAL.match(k):
+                    continue
                 if host.set_setting(aid, k, v):
                     out['applied'] += 1
                     meta['settings'][aid][k] = merged['settings'][aid][k]
@@ -89,7 +141,8 @@ def cycle(host, now=None):
                     if k in meta['settings'][aid] and syncdoc.canon(meta['settings'][aid][k][0]) == syncdoc.canon(pair[0]):
                         meta['settings'][aid][k] = pair          # the same value: keep the account's time
         for name, (obj, ts) in merged['files'].items():
-            if ts > 0 and syncdoc.canon(files.get(name)) != syncdoc.canon(obj):
+            # 6.2.0: only the known files are written to disk; a file another peer added passes through untouched
+            if name in FILES and ts > 0 and syncdoc.canon(files.get(name)) != syncdoc.canon(obj):
                 host.put_file(name, obj)
                 out['applied'] += 1
             meta['files'][name] = [obj, ts]
