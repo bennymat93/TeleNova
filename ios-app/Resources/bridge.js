@@ -211,6 +211,26 @@
     cb.writeText = bn.clipWrite;
   } catch (e) { /* BNNative still works */ }
 
+
+  // ---- 6.5: a video is playing (the app keeps the screen awake, hides the home indicator, no pull-to-refresh)
+  var playing = new Set(), lastOn = false;
+  function mediaEvt(e) {
+    var v = e.target;
+    if (!v || v.tagName !== 'VIDEO') return;
+    if (e.type === 'playing') playing.add(v); else playing.delete(v);
+    mediaState();
+  }
+  function mediaState() {
+    playing.forEach(function (v) { if (!v.isConnected || v.paused || v.ended) playing.delete(v); });   // a removed player sends no event
+    var on = playing.size > 0;
+    if (on === lastOn) return;
+    lastOn = on;
+    var v = on ? playing.values().next().value : null;
+    try { mh.postMessage({op: 'play', on: on, w: v ? v.videoWidth : 0, h: v ? v.videoHeight : 0}).catch(function () {}); } catch (e) { /* old app */ }
+  }
+  setInterval(mediaState, 3000);
+  ['playing', 'pause', 'ended', 'emptied', 'error'].forEach(function (n) { document.addEventListener(n, mediaEvt, true); });
+
   window.TeleNovaNative = {
     helper: HELPER,                                                    // the built-in relay's address
     platform: 'ios',

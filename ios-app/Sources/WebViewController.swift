@@ -38,6 +38,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private var authSession: ASWebAuthenticationSession?
     private let monitor = NWPathMonitor()
     private var online = true
+    private var playing = false                         // 6.5: a video plays (bridge.js op "play")
     private var pendingLink: String?
 
     private let selftest = ProcessInfo.processInfo.arguments.contains("-selftest")
@@ -48,6 +49,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
     // iPad: the page's wide layout puts its logo in the top corner, under the clock - so no status bar there
+    override var prefersHomeIndicatorAutoHidden: Bool { playing }
     override var prefersStatusBarHidden: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     // ------------------------------------------------------------------ view
@@ -106,7 +108,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
                 guard let self = self else { return }
                 let was = self.online
                 self.online = path.status == .satisfied
-                if self.online && !was && self.mode == .local && !self.forceOffline { self.loadSite() }
+                if self.online && !was && self.mode == .local && !self.forceOffline && !self.playing { self.loadSite() }
             }
         }
         monitor.start(queue: DispatchQueue(label: "telenova.net"))
@@ -352,7 +354,18 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        setPlaying(false)
         webView.reload()
+    }
+
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { if playing { setPlaying(false) } }
+
+    // 6.5: while a video plays the screen stays awake, the home indicator hides and pull-to-refresh is off
+    private func setPlaying(_ on: Bool) {
+        playing = on
+        UIApplication.shared.isIdleTimerDisabled = on
+        webView.scrollView.refreshControl?.isEnabled = !on && !keyboardUp
+        setNeedsUpdateOfHomeIndicatorAutoHidden()
     }
 
     // ------------------------------------------------------------------ page dialogs and new windows
@@ -470,7 +483,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             googleSignIn(u) { replyHandler(true, nil) }
         case "clipRead": replyHandler(UIPasteboard.general.string ?? "", nil)
         case "clipWrite": UIPasteboard.general.string = (body["text"] as? String) ?? ""; replyHandler(true, nil)
-        case "update": checkAppUpdate(); replyHandler(true, nil)
+        case "update": checkAppUpdate { replyHandler($0, nil) }
+        case "play": setPlaying((body["on"] as? Bool) ?? false); replyHandler(true, nil)
         case "files": showFiles(); replyHandler(true, nil)
         case "import": importFiles(); replyHandler(true, nil)
         case "scan": scanPair(); replyHandler(true, nil)
@@ -644,12 +658,21 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     // ------------------------------------------------------------------ "Update everything": a newer app release?
     // The newest IPA is a GitHub release "ios-<version>"; when it is newer than this app, the viewer is offered it.
-    private func checkAppUpdate() {
+    // 6.5: the page gets the answer too - a JSON text {"newer": bool, "version": "x.y.z" | null} or {"error": "..."}
+    // (the same shape as the Android app)
+    private func checkAppUpdate(_ done: @escaping (String) -> Void = { _ in }) {
         let mine = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0"
-        guard let url = URL(string: "https://api.github.com/repos/bennymat93/TeleNova/releases?per_page=40") else { return }
+        func answer(_ o: [String: Any]) {
+            let d = (try? JSONSerialization.data(withJSONObject: o)) ?? Data()
+            let text = String(data: d, encoding: .utf8) ?? "{}"
+            DispatchQueue.main.async { done(text) }
+        }
+        guard let url = URL(string: "https://api.github.com/repos/bennymat93/TeleNova/releases?per_page=40") else { answer(["error": "url"]); return }
         var req = URLRequest(url: url); req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
-            guard let data = data, let list = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return }
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, err in
+            guard let data = data, let list = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+                answer(["error": err?.localizedDescription ?? "no answer"]); return
+            }
             let tags = list.compactMap { $0["tag_name"] as? String }.filter { $0.hasPrefix("ios-") }.map { String($0.dropFirst(4)) }
             func parts(_ v: String) -> [Int] { v.split(separator: ".").map { Int($0.filter(\.isNumber)) ?? 0 } }
             func newer(_ a: String, _ b: String) -> Bool {
@@ -657,7 +680,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
                 for i in 0..<max(x.count, y.count) { let p = i < x.count ? x[i] : 0, q = i < y.count ? y[i] : 0; if p != q { return p > q } }
                 return false
             }
-            guard let best = tags.max(by: { newer($1, $0) }), newer(best, mine) else { return }
+            guard let best = tags.max(by: { newer($1, $0) }), newer(best, mine) else { answer(["newer": false, "version": NSNull()]); return }
+            answer(["newer": true, "version": best])
             DispatchQueue.main.async {
                 guard let self = self, !self.selftest else { return }
                 let a = UIAlertController(title: "גרסה חדשה של האפליקציה: \(best)",
@@ -742,7 +766,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         keyboardUp = n.name == UIResponder.keyboardWillShowNotification
         menuButton.alpha = keyboardUp ? 0 : 0.7
         menuButton.isUserInteractionEnabled = !keyboardUp
-        webView.scrollView.refreshControl?.isEnabled = !keyboardUp
+        webView.scrollView.refreshControl?.isEnabled = !keyboardUp && !playing
         webView.scrollView.alwaysBounceVertical = !keyboardUp
         updateTgButton()
         // iOS pushes the page up to show a field above the keyboard and does not always put it back: the page's

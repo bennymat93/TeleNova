@@ -1,6 +1,7 @@
 import Cocoa
 import WebKit
 import AuthenticationServices
+import Network
 
 // BN Stream for Mac: the live site https://bennymat93.github.io/TeleNova/web/ in a WKWebView (a new web version arrives
 // with a reload), with the copy of web/ inside the app as the offline fallback (LocalServer on 127.0.0.1). The page
@@ -16,6 +17,11 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
     private var authSession: ASWebAuthenticationSession?
     private var downloads: [ObjectIdentifier: URL] = [:]
     private var pendingLink: String?
+    private var playActivity: NSObjectProtocol?           // 6.5: the display stays awake while a video plays
+    private var playing = false
+    private let monitor = NWPathMonitor()
+    private var online = true
+    private var loadErrorShown = false
 
     let selftest = ProcessInfo.processInfo.arguments.contains("-selftest")
     private let playtest = ProcessInfo.processInfo.arguments.contains("-playtest")
@@ -56,13 +62,29 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        if ProcessInfo.processInfo.arguments.contains("-forceOffline") { goLocal() } else { loadSite() }
+        let z = UserDefaults.standard.double(forKey: "pageZoom")       // 6.5: the zoom is kept between launches
+        if z >= 0.5 && z <= 2.0 { webView.pageZoom = CGFloat(z) }
+        let forceOffline = ProcessInfo.processInfo.arguments.contains("-forceOffline")
+        // 6.5: back to the live site by itself when the connection returns (as on iOS)
+        monitor.pathUpdateHandler = { [weak self] path in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                let was = self.online
+                self.online = path.status == .satisfied
+                if self.online && !was && self.mode == .local && !forceOffline && !self.playing { self.loadSite() }
+            }
+        }
+        monitor.start(queue: DispatchQueue(label: "bnstream.net"))
+        if forceOffline { goLocal() } else { loadSite() }
     }
+
+    deinit { monitor.cancel(); if let a = playActivity { ProcessInfo.processInfo.endActivity(a) } }
 
     override func viewDidLayout() {
         super.viewDidLayout()
         // the page starts under the title bar's traffic lights: keep it below them
-        let top: CGFloat = (view.window?.styleMask.contains(.fullScreen) ?? false) ? 0 : 28
+        // 6.5: measured from the window (title bar height differs by macOS version and toolbar; 0 in full screen)
+        let top: CGFloat = view.window.map { max(0, $0.frame.height - $0.contentLayoutRect.height) } ?? 28
         webView.frame = NSRect(x: 0, y: 0, width: view.bounds.width, height: max(0, view.bounds.height - top))
     }
 
@@ -74,11 +96,30 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
     }
 
     private func goLocal() {
-        guard LocalServer.shared.hasFiles else { return }
+        guard LocalServer.shared.hasFiles else { showLoadError(); return }
         LocalServer.shared.start { [weak self] port in
-            guard let self = self, let p = port, let url = URL(string: "http://127.0.0.1:\(p)/") else { return }
+            guard let self = self else { return }
+            guard let p = port, let url = URL(string: "http://127.0.0.1:\(p)/") else { self.showLoadError(); return }
             self.mode = .local
             self.webView.load(URLRequest(url: url))
+        }
+    }
+
+    // 6.5: no live site and no local copy - say so instead of a blank window
+    private func showLoadError() {
+        if selftest || loadErrorShown { return }
+        guard let w = view.window else {                    // not in its window yet (first launch): a moment later
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in if self?.view.window != nil { self?.showLoadError() } }
+            return
+        }
+        loadErrorShown = true
+        let a = NSAlert()
+        a.messageText = "BN Stream cannot load"
+        a.informativeText = "There is no connection to the site right now. Check the internet connection and try again."
+        a.addButton(withTitle: "Try again"); a.addButton(withTitle: "Quit")
+        a.beginSheetModal(for: w) { [weak self] r in
+            self?.loadErrorShown = false
+            if r == .alertFirstButtonReturn { self?.loadSite() } else { NSApp.terminate(nil) }
         }
     }
 
@@ -99,6 +140,12 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
         }
         if let r = t.range(of: "pair=\\d{3,12}\\.[0-9a-fA-F]{32}", options: .regularExpression) {
             go(hash: "#" + String(t[r]), reload: true); return true
+        }
+        if let r = t.range(of: "^(https?://)?(t|telegram)\\.me/\\S+$", options: [.regularExpression, .caseInsensitive]) {
+            var link = String(t[r])                                  // 6.5: t.me links open in the app's Telegram screen
+            if !link.lowercased().hasPrefix("http") { link = "https://" + link }
+            if link.lowercased().hasPrefix("http://") { link = "https://" + String(link.dropFirst(7)) }
+            go(hash: "#/telegram/link=" + link, reload: false); return true
         }
         if t.lowercased().hasPrefix("telenova:") || t.lowercased().hasPrefix("bnstream:") {
             let frag = URLComponents(string: t)?.fragment ?? ""
@@ -125,9 +172,10 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
           if (i) { i.focus(); i.select && i.select(); } else { location.hash = '#/hub'; } })()
         """, completionHandler: nil)
     }
-    @objc func zoomReset(_ s: Any?) { webView.pageZoom = 1 }
-    @objc func zoomIn(_ s: Any?) { webView.pageZoom = min(2.0, webView.pageZoom + 0.1) }
-    @objc func zoomOut(_ s: Any?) { webView.pageZoom = max(0.5, webView.pageZoom - 0.1) }
+    @objc func zoomReset(_ s: Any?) { setZoom(1) }
+    @objc func zoomIn(_ s: Any?) { setZoom(min(2.0, webView.pageZoom + 0.1)) }
+    @objc func zoomOut(_ s: Any?) { setZoom(max(0.5, webView.pageZoom - 0.1)) }
+    private func setZoom(_ z: CGFloat) { webView.pageZoom = z; UserDefaults.standard.set(Double(z), forKey: "pageZoom") }
 
     // ------------------------------------------------------------------ navigation
     private func openOutside(_ url: URL) { if !selftest { NSWorkspace.shared.open(url) } }
@@ -146,6 +194,11 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
                  decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        // 6.5: the live site answers with a server error - the copy inside the app instead (as on iOS)
+        if navigationResponse.isForMainFrame, mode == .live, !ProcessInfo.processInfo.arguments.contains("-forceOffline"),
+           let http = navigationResponse.response as? HTTPURLResponse, http.statusCode >= 500, isApp(http.url) {
+            decisionHandler(.cancel); goLocal(); return
+        }
         decisionHandler(navigationResponse.canShowMIMEType ? .allow : .download)
     }
 
@@ -155,15 +208,27 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         let e = error as NSError
         if e.domain == NSURLErrorDomain && e.code == NSURLErrorCancelled { return }
-        if mode == .live { goLocal() }
+        if mode == .live { goLocal() } else { showLoadError() }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if let h = pendingLink { pendingLink = nil; go(hash: h, reload: true) }
+        if let h = pendingLink { pendingLink = nil; go(hash: h, reload: h.hasPrefix("#pair=") || h.hasPrefix("#setup=")) }
         if selftest && !selftestDone { selftestDone = true; if playtest { runPlaytest() } else { runSelftest() } }
     }
 
-    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { webView.reload() }
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { setPlaying(false); webView.reload() }
+
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { if playing { setPlaying(false) } }
+
+    // 6.5: the display does not sleep while a video plays
+    private func setPlaying(_ on: Bool) {
+        playing = on
+        if on && playActivity == nil {
+            playActivity = ProcessInfo.processInfo.beginActivity(options: [.idleDisplaySleepDisabled, .userInitiated], reason: "Playback")
+        } else if !on, let a = playActivity {
+            ProcessInfo.processInfo.endActivity(a); playActivity = nil
+        }
+    }
 
     // new windows (target=_blank, window.open): the default browser
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
@@ -180,7 +245,8 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
         p.allowsMultipleSelection = parameters.allowsMultipleSelection
         p.canChooseDirectories = false
         p.canChooseFiles = true
-        p.beginSheetModal(for: view.window!) { r in completionHandler(r == .OK ? p.urls : nil) }
+        guard let w = view.window else { completionHandler(nil); return }
+        p.beginSheetModal(for: w) { r in completionHandler(r == .OK ? p.urls : nil) }
     }
 
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String,
@@ -197,7 +263,8 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
         p.nameFieldStringValue = suggestedFilename
         p.directoryURL = downloadsDir
         p.canCreateDirectories = true
-        p.beginSheetModal(for: view.window!) { [weak self] r in
+        guard let w = view.window else { completionHandler(nil); return }
+        p.beginSheetModal(for: w) { [weak self] r in
             guard r == .OK, let u = p.url else { completionHandler(nil); return }
             try? FileManager.default.removeItem(at: u)          // the save panel already asked "replace?"
             self?.downloads[ObjectIdentifier(download)] = u
@@ -220,14 +287,16 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
                  completionHandler: @escaping () -> Void) {
         if selftest { completionHandler(); return }
         let a = NSAlert(); a.messageText = message; a.addButton(withTitle: "OK")
-        a.beginSheetModal(for: view.window!) { _ in completionHandler() }
+        guard let w = view.window else { completionHandler(); return }
+        a.beginSheetModal(for: w) { _ in completionHandler() }
     }
 
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo,
                  completionHandler: @escaping (Bool) -> Void) {
         if selftest { completionHandler(true); return }
         let a = NSAlert(); a.messageText = message; a.addButton(withTitle: "OK"); a.addButton(withTitle: "Cancel")
-        a.beginSheetModal(for: view.window!) { r in completionHandler(r == .alertFirstButtonReturn) }
+        guard let w = view.window else { completionHandler(false); return }
+        a.beginSheetModal(for: w) { r in completionHandler(r == .alertFirstButtonReturn) }
     }
 
     func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?,
@@ -236,7 +305,8 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
         let a = NSAlert(); a.messageText = prompt
         let f = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24)); f.stringValue = defaultText ?? ""
         a.accessoryView = f; a.addButton(withTitle: "OK"); a.addButton(withTitle: "Cancel")
-        a.beginSheetModal(for: view.window!) { r in completionHandler(r == .alertFirstButtonReturn ? f.stringValue : nil) }
+        guard let w = view.window else { completionHandler(nil); return }
+        a.beginSheetModal(for: w) { r in completionHandler(r == .alertFirstButtonReturn ? f.stringValue : nil) }
     }
 
     // ------------------------------------------------------------------ bridge (bridge.js)
@@ -256,18 +326,27 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString((body["text"] as? String) ?? "", forType: .string)
             replyHandler(true, nil)
-        case "update": checkAppUpdate(); replyHandler(true, nil)
+        case "update": checkAppUpdate { replyHandler($0, nil) }
+        case "play": setPlaying((body["on"] as? Bool) ?? false); replyHandler(true, nil)
         default: replyHandler(nil, "unknown op")
         }
     }
 
     // "Update everything": a newer Mac release (GitHub release "mac-<version>") is offered
-    private func checkAppUpdate() {
+    // 6.5: the page gets the answer too - {"newer": bool, "version": "x.y.z" | null} or {"error": "..."} as JSON text
+    private func checkAppUpdate(_ done: @escaping (String) -> Void = { _ in }) {
         let mine = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0"
-        guard let url = URL(string: "https://api.github.com/repos/bennymat93/TeleNova/releases?per_page=40") else { return }
+        func answer(_ o: [String: Any]) {
+            let d = (try? JSONSerialization.data(withJSONObject: o)) ?? Data()
+            let text = String(data: d, encoding: .utf8) ?? "{}"
+            DispatchQueue.main.async { done(text) }
+        }
+        guard let url = URL(string: "https://api.github.com/repos/bennymat93/TeleNova/releases?per_page=40") else { answer(["error": "url"]); return }
         var req = URLRequest(url: url); req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
-            guard let data = data, let list = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return }
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, err in
+            guard let data = data, let list = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+                answer(["error": err?.localizedDescription ?? "no answer"]); return
+            }
             let tags = list.compactMap { $0["tag_name"] as? String }.filter { $0.hasPrefix("mac-") }.map { String($0.dropFirst(4)) }
             func parts(_ v: String) -> [Int] { v.split(separator: ".").map { Int($0.filter(\.isNumber)) ?? 0 } }
             func newer(_ a: String, _ b: String) -> Bool {
@@ -275,7 +354,8 @@ final class MacWebController: NSViewController, WKNavigationDelegate, WKUIDelega
                 for i in 0..<max(x.count, y.count) { let p = i < x.count ? x[i] : 0, q = i < y.count ? y[i] : 0; if p != q { return p > q } }
                 return false
             }
-            guard let best = tags.max(by: { newer($1, $0) }), newer(best, mine) else { return }
+            guard let best = tags.max(by: { newer($1, $0) }), newer(best, mine) else { answer(["newer": false, "version": NSNull()]); return }
+            answer(["newer": true, "version": best])
             DispatchQueue.main.async {
                 guard let self = self, !self.selftest, let w = self.view.window else { return }
                 let a = NSAlert()
