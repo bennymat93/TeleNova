@@ -13,7 +13,7 @@ const MODULES = ['tglogin.js', 'matcher.js', 'epmatch.js', 'tgsearch.js', 'teleg
                  'player.js', 'compat.js', 'rd.js', 'srt.js', 'subs.js', 'iptv.js', 'epg.js', 'radio.js', 'yt.js', 'topics.js', 'hub.js',
                  'services.js', 'library.js', 'backup.js', 'result.js', 'aio.js', 'srcedit.js', 'aisubs.js', 'gdrive.js', 'help.js', 'status.js', 'helper.js', 'icon-512.png'];
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).then(() => Promise.all(MODULES.map((m) => c.add(m).catch(() => {})))))
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, {cache: 'reload'}))).then(() => Promise.all(MODULES.map((m) => c.add(new Request(m, {cache: 'reload'})).catch(() => {})))))
   );
   // 5.0: no skipWaiting() here. A new version waits until the page asks for it (the "new version - reload" notice of
   // app.js posts SKIP_WAITING), so an open tab never runs old page code against new module files. A first install
@@ -110,7 +110,8 @@ self.addEventListener('fetch', (e) => {
   if (tgm) { e.respondWith(tgServe(e.request, tgm[1]).catch(() => new Response(null, {status: 503}))); return; }
   if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.includes('/api/')) return;
   // network first (a new version shows at once), the cached shell when offline
-  e.respondWith(fetch(e.request).then((r) => {
+  // 6.1.7: past the browser's HTTP cache too, so a new version never stores the old files
+  e.respondWith(fetch(e.request, {cache: 'no-cache'}).then((r) => {
     if (r.ok) { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
     return r;
   }).catch(() => caches.match(e.request, {ignoreSearch: true}).then((r) => r || (e.request.mode === 'navigate' ? caches.match('index.html') : Response.error()))));

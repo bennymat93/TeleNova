@@ -78,9 +78,9 @@ jobs:
           cp "mac-app/build/BN-Stream-macOS-$V.zip" mac/
           git add "mac/BN-Stream-macOS-$V.zip"
           # every page that links the zip by its versioned name follows the new file
-          for f in mac/index.html guide.html README.md DOWNLOADS.md ios/index.html; do
+          for f in mac/index.html guide.html README.md DOWNLOADS.md ios/index.html index.html; do
             [ -f "$f" ] || continue
-            sed -i '' -E "s/BN-Stream-macOS-[0-9][0-9.]*\.zip/BN-Stream-macOS-$V.zip/g; s#releases/download/mac-[0-9][0-9.]*/#releases/download/mac-$V/#g" "$f"
+            sed -i '' -E "s/BN-Stream-macOS-[0-9][0-9.]*\.zip/BN-Stream-macOS-$V.zip/g; s#releases/download/mac-[0-9][0-9.]*/#releases/download/mac-$V/#g; s/BN Stream for Mac [0-9][0-9.]*[0-9]/BN Stream for Mac $V/g; s/גרסה [0-9][0-9.]*[0-9] – אותה גרסה/גרסה $V – אותה גרסה/g" "$f"
             git add "$f"
           done
           if ! git diff --cached --quiet; then

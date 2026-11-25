@@ -1,5 +1,7 @@
 # TeleNova – Handoff
 
+- **שוחרר: TeleNova 6.1.7** (25/11): QA מקיף (7 תחומים, 23 סוכנים, 10 מאומתים): realdebrid 429/5xx לא נפסל 6 שעות; rpc תשובה לא-JSON = service_down; CSP מאפשר http (אפליקציות); sw.js מעקף HTTP cache (cache:reload/no-cache); watchdog גם ל-hls.js; גיבוי zip רגיל בלי מפתחות (רק בגיבוי המוצפן); שחזור לא מעתיק הגדרות מכשיר. נשלח לסשנים: android/VERSION ל-6.1 + שמירה, טקסט גרסת Mac בדפים. **הבא:** סנכרון מלא בין Kodi/iOS/APK/web + מדריכים.
+
 - **שוחרר: TeleNova 6.1.6** (25/11): ניגון מהיר/חלק בחיבור חלש – tgplay: read-ahead אדפטיבי (קצב קובץ מול מהירות קו, מדידה לכל זרם), תקרת 3/4 חריצים ל-read-ahead, cache 128/32 חלקים, זנב MP4 רק כש-moov בסוף; player: hls startPosition/startFragPrefetch, באפר ארוך בקו איטי, setDuration; compat: preLoadTime אדפטיבי; sources: מפתח fit (קובץ שהקו נושא קודם), netBw/bitrate ל-open. guide.html עודכן (סדר קישורים, סינון, נגן). **הבא (בקשות הבעלים 25/11):** (1) QA מקיף ויסודי לכל הגרסאות + תיקונים; (2) סנכרון מלא הגדרות/תוכן/חשבונות בין Kodi, iOS, APK, web (טלגרם: התחברות נפרדת לכל מכשיר, לא העתקת session); לעדכן מדריכים בכל שלב.
 
 - **שוחרר: TeleNova 6.1.5** (25/11): ביקורת נגן web (33 סוכנים, 17 ממצאים מאומתים) ותיקונים: watchdog התחלה/תקיעה + ניסיון חוזר בשגיאת רשת (player.js), deadline + קול iOS + seek לפני מוכן + דיווח תקיעה (compat.js), FLOOD מחוץ ל-limit, timeout לחלק, תור עדיפות + ביטול (tgplay.js), abort + המתנת flood (sw.js), HLS טבעי באייפון. נותר: wasm של libmedia נטען מ-jsDelivr (לא מקומי); Android http (נשלח לסשן ה-APK). t_player_dom בדיקה 7 נכשלת גם על הקוד הישן במחשב הזה (סביבה).

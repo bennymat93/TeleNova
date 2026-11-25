@@ -361,6 +361,8 @@ class RealDebrid(object):
                 raise RDError('infringing_file')
             if r.status_code in (200, 206):
                 return url
+            if r.status_code == 429 or r.status_code >= 500:     # 6.1.7: busy for a moment - not a dead link
+                raise RDError('network: http %d' % r.status_code)
             raise RDError('link refused (%s)' % r.status_code)
         if ref.get('torrent'):                            # a torrent of the account
             info = self.api('GET', '/torrents/info/%s' % ref['torrent'])

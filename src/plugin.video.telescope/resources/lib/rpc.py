@@ -24,7 +24,12 @@ def call(method, timeout=90, **params):
             base, secret = _endpoint()
             r = requests.post(base + '/rpc', json={'method': method, 'params': params, 'secret': secret},
                               timeout=timeout)
-            data = r.json()
+            try:
+                data = r.json()
+            except ValueError:
+                data = None
+            if not isinstance(data, dict):          # 6.1.7: something else answers on the port - as if down
+                raise RPCError('service_down')
             if 'error' in data:
                 if 'service_starting' in str(data['error']):
                     raise RPCError('service_down')      # 3.3: still connecting - repeated below

@@ -23,6 +23,9 @@
   const ID_RX = /^[A-Za-z0-9_-]{1,40}$/;
   // never in a backup: this device's choices and anything that signs in
   const CFG_SKIP = ['helper_token'];
+  // 6.1.7: the plain (not encrypted) zip carries no keys or sign-ins - those go only in the password-protected full backup
+  const SECRET_RX = /(^|_)(key|token|pass|password|secret|client)$|^(tmdb|helper|stremthru_url|subs_server_url|gdrive_client)$/;
+  const DEVICE_ONLY = ['device', 'zoom'];
 
   // ------------------------------------------------------------ pure (node: src/qa/web/t_services.js)
   // store: the Store object (store.js), SD: SyncDoc, cfg: this browser's settings -> {path: text}
@@ -45,7 +48,7 @@
     }
     if (cfg) {
       const c = Object.assign({}, cfg);
-      CFG_SKIP.forEach((k) => delete c[k]);
+      for (const k of Object.keys(c)) if (CFG_SKIP.includes(k) || SECRET_RX.test(k)) delete c[k];
       out[WEB] = JSON.stringify({cfg: c, current: cur, made: Math.floor((now || Date.now()) / 1000)});
     }
     return out;
@@ -273,7 +276,7 @@
     if (!b.ok) throw new Error(t('bk_bad'));
     const n = restoreInto(TN.store, TN.SyncDoc, b);
     if (withCfg && b.web && b.web.cfg && typeof b.web.cfg === 'object') {
-      for (const [k, v] of Object.entries(b.web.cfg)) if (!CFG_SKIP.includes(k)) TN.settings.set(k, v);
+      for (const [k, v] of Object.entries(b.web.cfg)) if (!CFG_SKIP.includes(k) && !DEVICE_ONLY.includes(k) && /^[a-z][a-z0-9_]*$/.test(k)) TN.settings.set(k, v);
     }
     return t('bk_done', n);
   }

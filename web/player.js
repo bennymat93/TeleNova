@@ -895,7 +895,7 @@
             h.on(Hls.Events.MANIFEST_PARSED, () => { if (alive()) play(); });
             h.on(Hls.Events.LEVEL_LOADED, (ev, d) => { if (d && d.details && d.details.live && !s.live) { s.live = true; draw(); } });
             h.loadSource(url);
-            h.attachMedia(v);
+            h.attachMedia(v); watch();          // 6.1.7: the watchdog covers hls.js too
           } else { v.src = url; begin(); watch(); }        // Safari / iOS / TVs with their own HLS
         });
       } else { v.src = url; begin(); watch(); }
@@ -922,6 +922,7 @@
         if (!retried) {
           retried = true; since = now;
           const at = v.currentTime; spin.hidden = false;
+          if (s.hls) { try { s.hls.recoverMediaError(); s.hls.startLoad(at); } catch (e) { /* the card next round */ } play(); return; }
           try { v.load(); } catch (e) { /* reloaded below */ }
           const set = () => { try { v.currentTime = at; } catch (e) { /* later */ } play(); };
           if (v.readyState >= 1) set(); else v.addEventListener('loadedmetadata', set, {once: true});

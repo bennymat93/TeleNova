@@ -268,7 +268,7 @@ const ctxOf = (arg) => ({key: '', arg, rest: arg ? [arg] : [], current: () => tr
     const files = B.makeFiles(store, SD, {tmdb: 'k', helper_token: 'secret'}, 1700000000000);
     ok(B.MARK in files && (B.NOVA + 'users.json') in files && (B.NOVA + 'history.json') in files && (B.NOVA + 'users/u2/search_history.json') in files, 'backup: the build\'s file layout');
     ok(!(B.NOVA + 'users/u2/history.json' in files), 'backup: empty lists are not written');
-    ok(!/secret/.test(files[B.WEB]) && /"tmdb":"k"/.test(files[B.WEB]), 'backup: browser settings without the device-only ones');
+    ok(!/secret/.test(files[B.WEB]) && !/"tmdb"/.test(files[B.WEB]), 'backup: browser settings without the device-only ones or keys (6.1.7: keys only in the encrypted full backup)');
     const back = B.readFiles(files, SD);
     eq([back.ok, back.current, Object.keys(back.data).sort()], [true, 'u1', ['u1', 'u2']], 'backup: read back');
     eq(back.data.u1.history[0].key, 'movie:603', 'backup: the active user\'s history');
