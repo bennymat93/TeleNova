@@ -1,6 +1,6 @@
 # BN Stream לאייפון ולאייפד (קובץ IPA לא חתום)
 
-**הורדה:** [TeleNova-Web-6.1.7.ipa](https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-6.1.7.ipa)
+**הורדה:** [TeleNova-Web-6.2.0.ipa](https://bennymat93.github.io/TeleNova/ios/TeleNova-Web-6.2.0.ipa)
 
 **כל הגרסאות (נשמרות, כולל קודמות):** https://github.com/bennymat93/TeleNova/releases - תגים שמתחילים ב-`ios-`.
 
@@ -14,7 +14,7 @@
 1. התקינו במחשב את [Sideloadly](https://sideloadly.io). ב-Windows צריך גם את iTunes ו-iCloud בגרסאות מהאתר של
    אפל (לא מחנות Microsoft) - Sideloadly מבקש אותן בעצמו אם חסר.
 2. חברו את האייפון / האייפד בכבל, אשרו במכשיר "Trust this computer".
-3. גררו את `TeleNova-Web-6.1.7.ipa` לחלון Sideloadly, הקלידו את ה-Apple ID שלכם ולחצו Start. את הסיסמה וקוד
+3. גררו את `TeleNova-Web-6.2.0.ipa` לחלון Sideloadly, הקלידו את ה-Apple ID שלכם ולחצו Start. את הסיסמה וקוד
    האימות מקלידים רק אתם, בחלון של Sideloadly.
 4. במכשיר: הגדרות > כללי > VPN וניהול מכשירים > ה-Apple ID שלכם > "Trust".
 5. ב-iOS 16 ומעלה: הגדרות > פרטיות ואבטחה > Developer Mode > הפעלה (המכשיר מופעל מחדש). בלי זה האפליקציה לא נפתחת.
