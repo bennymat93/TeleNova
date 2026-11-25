@@ -135,7 +135,11 @@
     const pref = langPref || '';
     rows.forEach((r) => rec(r, pref));
     const q = (r) => (r.quality > 1080 ? 900 : r.quality || 0);
-    return rows.map((r, i) => [r, i]).sort(([a, i], [b, j]) => safeOf(a) - safeOf(b) || probeRank(a) - probeRank(b) || b.rec.pct - a.rec.pct ||
+    // 6.1.6: on a measured line, a file the line carries with headroom (a lighter 1080p / 720p encode) comes before a
+    // heavy one (4K remux) that would stall; 0 = fits with 1.5x, 1 = fits barely, 2 = does not fit
+    const line = netBps > 0 ? netBps * 0.75 / 1e6 : 0;
+    const fitOf = (r) => { if (!line || r.status === 'external' || r.status === 'torrent') return r.status === 'external' || r.status === 'torrent' ? 3 : 0; if (!(Number(r.size) > 0)) return 1; const k = line / needMbit(r, runtimeSec); return k >= HEADROOM ? 0 : k >= 1 ? 1 : 2; };
+    return rows.map((r, i) => [r, i]).sort(([a, i], [b, j]) => safeOf(a) - safeOf(b) || probeRank(a) - probeRank(b) || fitOf(a) - fitOf(b) || b.rec.pct - a.rec.pct ||
       (STATUS_RANK[a.status] || 0) - (STATUS_RANK[b.status] || 0) || q(b) - q(a) || i - j).map((x) => x[0]);
   }
   // 6.1.3: the source of a row for the filter: the group (tgsearch, rd, addons, ia, yt, dm, ...)
@@ -640,6 +644,9 @@
     const key = keyOf(q), p = r.probe || {};
     return pl.open({url, tg: r.tg, mime, title: q.title || r.label, sub: q.type === 'tv' ? epCode(q) : (q.year ? String(q.year) : ''),
       resumeKey: key, poster: q.poster, size: r.size,
+      // 6.1.6: the line speed (bits/s) and the file's bitrate (bits/s, size over runtime) so the player sizes its buffer
+      netBw: Number(TN.get('net_bw', 0)) || liveNet || 0,
+      bitrate: Number(r.size) > 0 && Number(q.runtime) > 0 ? Math.round(Number(r.size) * 8 / (Number(q.runtime) * 60)) : 0,
       meta: Object.assign({}, q, {release: r.label, embeddedHe: !!(p.sniff && p.sniff.subs && p.sniff.he)}),
       back: () => pick(q), alt, autoAlt: (r.status === 'cached' || r.status === 'rd' || !!r.hash) && (ctx.tries || 0) < 3,
       next: q.type === 'tv' ? () => nextEpisode(q) : null,

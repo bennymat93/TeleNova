@@ -79,6 +79,35 @@
     const tm = setTimeout(() => no(new Error(what || 'timeout')), ms);
     Promise.resolve(p).then((x) => { clearTimeout(tm); ok(x); }, (e) => { clearTimeout(tm); no(e); });
   });
+  // 6.1.6: how many seconds the engine reads ahead (libmedia preLoadTime = the demuxer's packet queue, kept full while
+  // playing). Its default 4 s empties on any dip of a weak line; the start does not wait for the whole queue, so a
+  // deeper one costs only memory. Picked from the measured line (TN.get('net_bw'), bits/s): weaker line -> deeper.
+  function preloadSecs(opts) {
+    if (opts && opts.live) return 4;
+    let bw = 0;
+    try { bw = Number(G.TN && G.TN.get && G.TN.get('net_bw')) || 0; } catch (e) { /* unknown */ }
+    if (!bw) return 10;
+    if (bw < 3e6) return 20;
+    if (bw < 8e6) return 15;
+    if (bw < 25e6) return 10;
+    return 8;
+  }
+  // 6.1.6: warm-up - the engine script loads and the decoder CDN connection (TLS) is opened before the first file,
+  // so the start of a compat file does not pay for them; safe to call many times (the links sheet / player may call it)
+  let warmed = false;
+  function warm() {
+    if (warmed || !supported()) return;
+    warmed = true;
+    try {
+      const d = G.document;
+      if (d && d.head) {
+        const l = d.createElement('link');
+        l.rel = 'preconnect'; l.href = 'https://cdn.jsdelivr.net'; l.crossOrigin = 'anonymous';
+        d.head.appendChild(l);
+      }
+    } catch (e) { /* no page */ }
+    lib().catch(() => { warmed = false; });
+  }
   const PROPS = ['currentTime', 'duration', 'paused', 'ended', 'volume', 'muted', 'playbackRate', 'readyState', 'videoWidth', 'videoHeight',
                  'buffered', 'error', 'play', 'pause', 'seeking'];
 
@@ -86,6 +115,7 @@
   async function attach(v, url, opts) {
     opts = opts || {};
     if (!supported()) throw new Error('unsupported');
+    warm(); // 6.1.6: the decoder CDN connection opens while the engine script loads
     const AV = await lib();
     const doc = v.ownerDocument;
     const box = doc.createElement('div');
@@ -113,7 +143,7 @@
       // 'open audio decoder failed, -48'), the sound stopped the picture after ~4 s; on the page they all play
       enableWorker: false, isLive: !!opts.live,
       // the browser's own pipeline whenever it can take every stream (MKV with H.264 + AAC): least CPU, real <video>
-      preLoadTime: 6});
+      preLoadTime: preloadSecs(opts)}); // 6.1.6: adaptive (was 6)
     const E = AV.Events || {};
     let chain = Promise.resolve();                     // the engine's calls must not overlap
     const run = (fn) => { chain = chain.then(() => (st.dead ? null : fn())).catch((e) => { fail(e); }); return chain; };
@@ -243,7 +273,13 @@
     }
   }
 
-  const api = {supported, attach, toMs, fromMs, activeCues, cueHtml, pickSubtitle};
+  // 6.1.6: preconnect to the decoder CDN when the browser is idle (no engine download until warm() or a file)
+  try {
+    if (G.document && typeof G.setTimeout === 'function') {
+      G.setTimeout(() => { try { if (supported() && G.document.head) { const l = G.document.createElement('link'); l.rel = 'dns-prefetch'; l.href = 'https://cdn.jsdelivr.net'; G.document.head.appendChild(l); } } catch (e) { /* no page */ } }, 3000);
+    }
+  } catch (e) { /* no timers */ }
+  const api = {supported, attach, warm, preloadSecs, toMs, fromMs, activeCues, cueHtml, pickSubtitle};
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (G.TN && G.TN.registerProvider) G.TN.registerProvider('compat', Object.assign({kinds: ['service'], label: 'Compatibility player'}, api));
 })(typeof self !== 'undefined' ? self : globalThis);

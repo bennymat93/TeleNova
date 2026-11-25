@@ -28,9 +28,12 @@
 //   stats() -> {streams, cached}   (for the status page)
 (function (TN) {
   const PART = 512 * 1024;                       // Telegram: offset and limit multiples of 4096, no 1 MiB crossing
-  const CACHE_PARTS = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 12 : 24;   // 6 MB on iOS, 12 MB elsewhere
+  // 6.1.6: room for 30-60 s of read-ahead: 16 MB on iOS (memory), 64 MB elsewhere
+  const CACHE_PARTS = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 32 : 128;
   const PART_TIMEOUT = 15000;                    // 6.1.5: one Telegram part read, then it counts as a hiccup
   const AHEAD = 3, PARALLEL = 4, BLOB_MAX = 300 * 1024 * 1024, MAX_STREAMS = 4;
+  const RATE_GUESS = 4e6;                        // 6.1.6: bits/s of a file whose duration is unknown
+  let lowActive = 0;                             // 6.1.6: read-ahead reads running (one slot stays for needed parts)
   const streams = new Map();                     // key -> {size, mime, name, readPart, peer, msg}
   const cache = new Map();                       // 'key:index' -> Uint8Array, kept in use order (LRU)
   const pending = new Map();                     // 'key:index' -> Promise<Uint8Array>
@@ -69,7 +72,8 @@
   // and an entry whose stream was closed is dropped (TGPLAY_GONE) instead of read.
   let pumpTimer = 0;
   function pump() {
-    while (active < PARALLEL && (hiQueue.length || queue.length)) {
+    // 6.1.6: read-ahead never takes the last free slot, so a part the video waits for starts at once
+    while (active < PARALLEL && (hiQueue.length || (queue.length && lowActive < PARALLEL - 1))) {
       if (Date.now() < floodUntil) {
         if (!pumpTimer) pumpTimer = setTimeout(() => { pumpTimer = 0; pump(); }, floodUntil - Date.now() + 5);
         return;
@@ -84,9 +88,9 @@
     o = o || {};
     return new Promise((res, rej) => {
       const n = {key: o.key, id: o.id, rej, run: () => {
-        active++;
+        const low = !o.hi; active++; if (low) lowActive++;   // 6.1.6
         let p; try { p = Promise.resolve(fn()); } catch (e) { p = Promise.reject(e); }
-        p.then(res, rej).finally(() => { active--; pump(); });
+        p.then(res, rej).finally(() => { active--; if (low) lowActive--; pump(); });
       }};
       if (o.id) queued.set(o.id, n);
       (o.hi ? hiQueue : queue).push(n);
@@ -128,11 +132,17 @@
       return pp;
     }
     const o = {key, id, hi};
-    const p = limitFlood(() => (streams.get(key) === s ? s.readPart(i, PART) : Promise.reject(fail('TGPLAY_GONE'))),
-      o).then((b) => {
+    let t0 = 0;   // 6.1.6: when the read of this part really started (set again on a FLOOD retry)
+    const p = limitFlood(() => {
+      if (streams.get(key) !== s) return Promise.reject(fail('TGPLAY_GONE'));
+      t0 = Date.now();
+      return s.readPart(i, PART);
+    }, o).then((b) => {
       b = b instanceof Uint8Array ? b : new Uint8Array(b);
       if (streams.get(key) === s) remember(id, b);
       s.got = (s.got || 0) + b.length;
+      measure(s, b.length, t0 || Date.now());   // 6.1.6
+      if (i === 0) tailCheck(key, s, b);         // 6.1.6
       s.lastError = '';
       note(s, {type: 'read', bytes: b.length, total: s.got});
       return b;
@@ -146,6 +156,71 @@
     pending.set(id, p);
     return p;
   }
+  // 6.1.6: the line speed (bits/s): what this stream measured, else the app's last measurement (sources/hls)
+  function lineBw(s) {
+    if (s.bw > 0) return s.bw;
+    let b = 0; try { b = Number(TN.get('net_bw', 0)) || 0; } catch (e) { /* none kept */ }
+    return b;
+  }
+  // 6.1.6: how many parts to read ahead: 60 s of video on a line with 2x headroom, 30 s with some, and only 2 parts
+  // on a line slower than the file (so the part the video needs is never stuck behind read-ahead)
+  function aheadParts(s) {
+    if (!(s.rate > 0)) {   // the <video> playing it knows the duration
+      try {
+        for (const v of Array.from(document.querySelectorAll('video'))) {
+          if (String(v.currentSrc || v.src || '').indexOf(s.key || '\u0000') >= 0 && v.duration > 0 && isFinite(v.duration)) { setRate(s, v.duration); break; }
+        }
+      } catch (e) { /* no page to look at */ }
+    }
+    const bw = lineBw(s), rate = s.rate > 0 ? s.rate : RATE_GUESS;
+    if (!(bw > 0)) return AHEAD;
+    let sec;
+    if (bw < rate * 1.1) return 2;
+    else if (bw < rate * 2) sec = 30;
+    else sec = 60;
+    const n = Math.ceil(rate / 8 * sec / PART);
+    return Math.max(AHEAD, Math.min(n, CACHE_PARTS - 8));
+  }
+  // 6.1.6: throughput of this stream from per-part timing: the parts completed in the last 8 s, their bytes over
+  // the time from the earliest start among them to now (parallel reads add up, gaps do not reset anything);
+  // the first part seeds s.bw, later samples feed an EWMA
+  function measure(s, bytes, start) {
+    const now = Date.now();
+    const done = (s.done || []).filter((d) => now - d.end <= 8000);
+    done.push({start, end: now, bytes});
+    s.done = done;
+    let from = now, sum = 0;
+    for (const d of done) { sum += d.bytes; if (d.start < from) from = d.start; }
+    const sec = Math.max(0.05, (now - from) / 1000);
+    const bw = sum * 8 / sec;
+    s.bw = s.bw > 0 ? s.bw * 0.7 + bw * 0.3 : bw;
+  }
+  // 6.1.6: the top-level atoms in part 0 of an MP4: true when 'mdat' comes before any 'moov' (moov at the end)
+  function moovAtEnd(b) {
+    let at = 0;
+    while (at + 8 <= b.length) {
+      let size = ((b[at] << 24) >>> 0) + (b[at + 1] << 16) + (b[at + 2] << 8) + b[at + 3];
+      const type = String.fromCharCode(b[at + 4], b[at + 5], b[at + 6], b[at + 7]);
+      if (type === 'moov') return false;
+      if (type === 'mdat') return true;
+      if (size === 1) {   // 64-bit largesize
+        if (at + 16 > b.length) return false;
+        let big = 0;
+        for (let j = 8; j < 16; j++) big = big * 256 + b[at + j];
+        size = big;
+      } else if (size === 0) return false;   // runs to the end of the file, no moov seen
+      if (size < 8) return false;
+      at += size;
+    }
+    return false;   // unknown: do not spend the line on the tail
+  }
+  // 6.1.6: after part 0 arrived: read the tail only for an MP4 whose moov is past mdat, on a line >= 1 Mbit/s
+  function tailCheck(key, s, b) {
+    if (!s.tailCheck) return;
+    s.tailCheck = false;
+    const lastPart = Math.floor((s.size - 1) / PART), bw = lineBw(s);
+    if (lastPart > 2 && bw >= 1e6 && streams.get(key) === s && moovAtEnd(b)) part(key, s, lastPart).catch(() => {});
+  }
   // bytes [start, end] (inclusive), possibly fewer when the range crosses many parts (the browser asks again)
   async function read(key, start, end, rid) {
     const s = streams.get(key);
@@ -156,10 +231,18 @@
     const ids = idx.map((i) => key + ':' + i);
     ids.forEach((id) => wants.set(id, (wants.get(id) || 0) + 1));
     if (rid) reqs.set(rid, ids);
+    const need = idx.map((i) => part(key, s, i, true));
+    // 6.1.6: read-ahead is queued now (behind the needed parts), not after they arrive, and sized to the line;
+    // queued read-ahead outside the new window (left behind by a seek) is dropped so it does not eat the line
+    const lastPart = Math.floor((s.size - 1) / PART), ahead = aheadParts(s), stop = Math.min(last + ahead, lastPart);
+    for (const [id, n] of [...queued]) {
+      if (n.key !== key || wants.has(id)) continue;
+      const i = Number(id.slice(key.length + 1));
+      if (i < first || i > stop) dropQueued(id);
+    }
+    for (let i = last + 1; i <= stop; i++) part(key, s, i).catch(() => {});   // read ahead
     let parts;
-    try { parts = await Promise.all(idx.map((i) => part(key, s, i, true))); } finally { release(rid, ids, false); }
-    const lastPart = Math.floor((s.size - 1) / PART);
-    for (let i = last + 1; i <= Math.min(last + AHEAD, lastPart); i++) part(key, s, i).catch(() => {});   // read ahead
+    try { parts = await Promise.all(need); } finally { release(rid, ids, false); }
     const out = new Uint8Array(end - start + 1);
     let at = 0;
     parts.forEach((b, n) => {
@@ -224,8 +307,12 @@
     const key = newKey();
     src.serveMime = serveMimeOf(src.mime);
     src.onEvent = (o && o.onEvent) || null;
-    src.got = 0; src.lastError = '';
+    src.got = 0; src.lastError = ''; src.key = key;
+    setRate(src, o && o.duration);                 // 6.1.6: bitrate = size / duration when the opener knows it
     streams.set(key, src);
+    // 6.1.6: an MP4 whose moov sits at the end: the browser asks for the tail right after the head, so once part 0
+    // arrives and shows mdat before moov, the tail is read ahead (see tailCheck); not on faststart files or slow lines
+    src.tailCheck = /mp4|quicktime/.test(src.mime || '');
     return {key, url: streamUrl(key), size: src.size, mime: src.mime, name: src.name || '', playable: playable(src.mime)};
   }
   async function openSource(src, o) {
@@ -233,6 +320,9 @@
     if (!(await swReady())) throw fail('TGPLAY_NO_SW');
     return register({size: Number(src.size), mime: src.mime || 'video/mp4', name: src.name || '', readPart: src.readPart}, o);
   }
+  // 6.1.6: the file's duration (s) -> its bitrate, which sizes the read-ahead; setDuration(keyOrUrl, seconds)
+  function setRate(s, sec) { sec = Number(sec); if (s && sec > 0 && isFinite(sec)) s.rate = s.size * 8 / sec; }
+  function setDuration(k, sec) { setRate(streams.get(String(k || '').replace(/^.*\/tgstream\//, '')), sec); }
   // how a stream is doing: {size, read (bytes fetched from Telegram), cached (parts), lastError, wait (flood seconds left)}
   function status(k) {
     const key = String(k || '').replace(/^.*\/tgstream\//, '');
@@ -445,6 +535,6 @@
 
   const api = {kinds: ['service'], label: 'Telegram playback', open, openSource, close,
     closeAll: () => [...streams.keys()].forEach(close), playable, check, fallback, tgLink, probe, status, errorText, save, canSaveBig,
-    stats: () => ({streams: streams.size, cached: cache.size}), PART, BLOB_MAX};
+    stats: () => ({streams: streams.size, cached: cache.size}), setDuration, PART, BLOB_MAX};
   TN.registerProvider('tgplay', api);
 })(self.TN);

@@ -853,9 +853,14 @@
             // segment that did not arrive instead of giving up on the film
             let lastBw = 0;
             try { lastBw = Number(TN.get('net_bw', 0)) || 0; } catch (e) { /* no saved value */ }
-            const h = new Hls({enableWorker: true, capLevelToPlayerSize: true, startLevel: -1,
+            // 6.1.6: a weak line (under 2 Mbit/s) holds a longer forward buffer to ride out drops; the resume point goes
+            // to hls.js as startPosition so the first segment fetched is the right one (no fetch-at-0-then-seek);
+            // startFragPrefetch asks for the first segment while the codecs are still being set up
+            const weak = lastBw > 0 && lastBw < 2000000;
+            const h = new Hls({enableWorker: true, capLevelToPlayerSize: true, startLevel: -1, lowLatencyMode: false, startFragPrefetch: true,
+              startPosition: at > 0 ? at : -1,
               abrEwmaDefaultEstimate: Math.max(300000, Math.min(lastBw || 1000000, 8000000)), abrBandWidthFactor: 0.8, abrBandWidthUpFactor: 0.6,
-              maxBufferLength: 60, maxMaxBufferLength: 180, backBufferLength: 30, maxBufferHole: 0.5, nudgeMaxRetry: 12,
+              maxBufferLength: weak ? 90 : 60, maxMaxBufferLength: weak ? 240 : 180, backBufferLength: 30, maxBufferHole: 0.5, nudgeMaxRetry: 12,
               fragLoadingMaxRetry: 8, fragLoadingRetryDelay: 800, fragLoadingMaxRetryTimeout: 16000,
               manifestLoadingMaxRetry: 6, manifestLoadingRetryDelay: 800, levelLoadingMaxRetry: 6, levelLoadingRetryDelay: 800});
             s.hls = h;
@@ -886,7 +891,8 @@
               if (d.type === Hls.ErrorTypes.MEDIA_ERROR && mediaTries++ < 2) { try { h.recoverMediaError(); return; } catch (e) { /* give up */ } }
               fail('media', {hls: d.type === Hls.ErrorTypes.NETWORK_ERROR ? 'network' : 'media'});
             });
-            h.on(Hls.Events.MANIFEST_PARSED, () => { if (alive()) begin(); });
+            // 6.1.6: hls.js already starts at the resume point (startPosition), so no second seek here
+            h.on(Hls.Events.MANIFEST_PARSED, () => { if (alive()) play(); });
             h.on(Hls.Events.LEVEL_LOADED, (ev, d) => { if (d && d.details && d.details.live && !s.live) { s.live = true; draw(); } });
             h.loadSource(url);
             h.attachMedia(v);
@@ -939,6 +945,8 @@
         if (!alive()) { tgp.close(h.key); return; }
         s.tgh = h;
         s.cleanup.push(() => tgp.close(h.key));
+        // 6.1.6: the length known -> the file's bitrate sizes Telegram's read-ahead
+        if (typeof tgp.setDuration === 'function') v.addEventListener('loadedmetadata', () => { try { if (isFinite(v.duration) && v.duration > 0) tgp.setDuration(h.key, v.duration); } catch (e) { /* later */ } }, {once: true});
         say('');
         start(h.url, h.mime);
       } catch (e) {
