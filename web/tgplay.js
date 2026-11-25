@@ -255,6 +255,9 @@
   }
   // the link test of the sources screen (Finder.probe / TG.read_head): the first 256 KB and how fast they came
   async function probe(ref) {
+    // 6.1.4: a link test never competes with a video that is playing (the same Telegram queue and connection)
+    const own = String((ref && (ref.key || ref.url)) || '').replace(/^.*\/tgstream\//, '');
+    if (streams.size && !(own && streams.has(own))) throw fail('TGPLAY_BUSY');
     const src = await srcOf(ref);
     const t0 = Date.now();
     const b = await limit(() => src.readPart(0, PART));

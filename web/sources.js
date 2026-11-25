@@ -532,7 +532,7 @@
         const p = await tp.probe(tgRef(r.tg));
         const sn = sniff(p.head);
         return {ok: true, mbit: p.mbit, sniff: sn, verdict: verdict(sn, canType)};
-      } catch (e) { return {ok: false, status: 0}; }
+      } catch (e) { return e && e.code === 'TGPLAY_BUSY' ? {ok: null} : {ok: false, status: 0}; }
     }
     if (r.url && (r.status === 'cached' || r.status === 'direct')) return probeUrl(r.url, signal);
     return {ok: null};
@@ -599,6 +599,9 @@
   // row -> playing. ctx = {rows: the list on the screen (for "next link" when this one fails), tries}
   async function play(r, q, ctx) {
     ctx = ctx || {};
+    // 6.1.4: the links sheet stays under the player - its speed reading and link tests stop now, so they do not
+    // compete with the stream (Telegram queue, bandwidth) or start another link when they finish
+    if (ctx.onPlay) { try { ctx.onPlay(); } catch (e) { /* the sheet is gone */ } }
     if (r.yt) {                                   // a YouTube page is not a file: it plays in the YouTube player
       if (typeof r.open === 'function') return r.open();
       const yt = await TN.provider('yt').catch(() => null);
@@ -709,7 +712,7 @@
       const ar = arrange(out, showAll);
       shown = [].concat(...ar.groups.map((g) => g.rows));
       sheet.innerHTML = '';
-      const ctx = {rows: shown};
+      const ctx = {rows: shown, onPlay: quiet};
       for (const g of ar.groups) {
         sheet.insertAdjacentHTML('beforeend', `<h4 class="src_g">${esc(groupLabel(g.name))} (${g.rows.length})</h4>`);
         g.rows.forEach((r) => sheet.append(rowEl(r, q, ctx)));
@@ -759,6 +762,8 @@
       // 6.1.3: once everything answered, the top links are tested by themselves - the first one is then a sure one
       if (done && netDone && !testing && !autoDone && filters().auto && best && !resumeBlocked()) { autoDone = true; play(best, q, ctx); }
     };
+    // 6.1.4: a link starts playing: everything this sheet still does in the background stops (see play())
+    function quiet() { testing = false; autoDone = true; netDone = true; if (current === ctl) current = null; try { ctl.abort(); } catch (e) { /* stopped */ } }
     const resumeBlocked = () => !alive() || !!$('src_setbox').firstChild;
     async function runTest(limit) {
       testing = true;
