@@ -1,5 +1,7 @@
 # TeleNova – Handoff
 
+- **שוחרר: TeleNova 6.1.4** (25/11): תיקון תקיעת ניגון מ-6.1.3 – רשימת הקישורים נשארת מתחת לנגן, ובדיקות הקישורים/מדידת המהירות רצו לצד הסטרים (תור tgplay) והפעילו ניגון אוטומטי אחר. עכשיו play() עוצר הכול (quiet), ו-tgplay.probe לא רץ בזמן סטרים (9b42a1e).
+
 - **שוחרר: TeleNova 6.1.3** (24/11): סינון קישורים לפי מקור (Kodi: שורה ראשונה ברשימת המקורות, נשמר ב-`src_hidden`; ווב: כפתורי מקור מעל הרשימה, `sources_hidden`). סדר חדש: קישור "בטוח" (נבדק/שמור ב-RD, ומהיר פי 1.5 ממה שהקובץ צריך במקור ובחיבור) תמיד ראשון (`recommend.safe`, ווב `bestRows`). בווב: מדידת מהירות חיבור בכל חיפוש (speed.cloudflare.com, נשמר 5 דק'), בדיקה אוטומטית של 8 המובילים, ניגון אוטומטי מחכה להם. טסטים: t_recommend, t_sources.
 
 - **אפליקציית Mac 6.0.1** (סשן ה-iOS, 19/11): `mac-app/` (WKWebView, `HelperRelay` / `LocalServer` משותפים עם `ios-app/`), workflow `mac-app.yml` (macOS runner, universal, חתימה ad-hoc, בדיקת הרצה בשני גדלי חלון), פלט `mac/BN-Stream-macOS-6.0.1.zip` + release `mac-6.0.1`, דף הורדה `mac/index.html` עם צעדי Gatekeeper. גרסה הבאה: לשנות `mac-app/VERSION` ולדחוף.
