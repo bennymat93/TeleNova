@@ -9,7 +9,7 @@ native shell. Package `io.github.bennymat93.telenova`, minSdk 24 (Android 7), Ja
 powershell -ExecutionPolicy Bypass -File android\build.ps1
 ```
 
-**Version numbers.** Every release goes up by one inside the series in `android/VERSION` (now `6.2` -> 6.2.N,
+**Version numbers.** Every release goes up by one inside the series in `android/VERSION` (now `6.5` -> 6.5.N,
 ...), the same rule as the iOS app (`ios-app/VERSION`). `build.ps1` counts the published GitHub releases
 `apk-<series>.N`, builds `<series>.(N+1)` and writes `versionName` / `versionCode` (`major*10000 + minor*100 + N`) into
 `app/build.gradle` - do not edit them by hand; it stops when the number is not above the published `apk/version.json`; `build.ps1 -DryRun` only prints the next number. After commit + push:
