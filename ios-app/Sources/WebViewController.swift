@@ -108,7 +108,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
                 guard let self = self else { return }
                 let was = self.online
                 self.online = path.status == .satisfied
-                if self.online && !was && self.mode == .local && !self.forceOffline && !self.playing { self.loadSite() }
+                if self.online && !was { self.autoLive() }
             }
         }
         monitor.start(queue: DispatchQueue(label: "telenova.net"))
@@ -188,17 +188,39 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         return false
     }
 
+    // 6.5.1: an automatic return to the live site waits while the page says it is busy (Telegram sign-in, a stream
+    // starting, a save) - TN.busy() of the web side; an older page without it answers "not busy". Manual refresh
+    // stays immediate.
+    private var autoLiveWaiting = false
+    private func autoLive() {
+        guard mode == .local, online, !forceOffline, !playing, !autoLiveWaiting else { return }
+        webView.evaluateJavaScript("!!(window.TN&&TN.busy&&TN.busy())") { [weak self] r, _ in
+            guard let self = self, self.mode == .local, self.online, !self.playing else { return }
+            if (r as? Bool) == true {
+                self.autoLiveWaiting = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in self?.autoLiveWaiting = false; self?.autoLive() }
+            } else { self.loadSite() }
+        }
+    }
+
+    // 6.5.1: back in front - the page checks its Telegram connection at once (TG.wake of the web side, when it exists)
+    private func wakePage() {
+        guard mode == .live, webView.url != nil else { return }
+        webView.evaluateJavaScript("try{window.TG&&TG.wake&&TG.wake()}catch(e){}", completionHandler: nil)
+    }
+
     func cameToForeground() {
         guard isViewLoaded else { return }
         if mode == .local {                              // the listening socket does not survive a suspended app
             LocalServer.shared.start { [weak self] port in
                 guard let self = self, self.mode == .local else { return }
-                if self.online && !self.forceOffline { self.loadSite() }
-                else if let p = port, self.webView.url?.port != Int(p) { self.goLocal() }
+                if let p = port, self.webView.url?.port != Int(p) {
+                    if self.online && !self.forceOffline { self.loadSite() } else { self.goLocal() }   // the page is dead anyway
+                } else { self.autoLive() }
             }
         } else if webView.url == nil && !webView.isLoading {
             loadSite()
-        }
+        } else { wakePage() }
     }
 
     // ------------------------------------------------------------------ links from outside (QR, clipboard, telenova://)
