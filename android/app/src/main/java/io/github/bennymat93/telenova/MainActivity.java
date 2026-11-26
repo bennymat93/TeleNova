@@ -180,7 +180,11 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         // back in the app: the service worker looks for a new web version (the page shows its own "reload" notice)
-        if (web != null && pageReady) web.evaluateJavascript(SW_UPDATE, null);
+        if (web != null && pageReady) {
+            web.evaluateJavascript(SW_UPDATE, null);
+            // 6.5.1: Telegram checks its socket at once (a dead one is reconnected) instead of waiting for its own ping
+            web.evaluateJavascript("try{window.TG&&TG.wake&&TG.wake(true)}catch(e){}", null);
+        }
         Updater.resume(this);                                   // back from "allow installing apps": install now
     }
 
@@ -193,6 +197,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         ui.removeCallbacks(liveTimeout);
+        ui.removeCallbacks(backOnlineRetry);
         if (netCb != null) { try { ((ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(netCb); } catch (Exception e) { /* gone */ } netCb = null; }
         cancelRelays();
         relays.shutdownNow();
@@ -226,16 +231,23 @@ public class MainActivity extends Activity {
         try {
             ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
             netCb = new ConnectivityManager.NetworkCallback() {
-                @Override public void onAvailable(Network n) {
-                    ui.postDelayed(() -> {
-                        if (web != null && liveFailed && !live && !"bundled".equals(prefs.getString("mode", "auto"))
-                                && !playing && customView == null && pageReady) refresh();
-                    }, 1500);
-                }
+                @Override public void onAvailable(Network n) { ui.postDelayed(MainActivity.this::backOnline, 1500); }
             };
             cm.registerDefaultNetworkCallback(netCb);
         } catch (Exception e) { netCb = null; }
     }
+
+    /** Back on the site after a start on the built-in copy - but never in the middle of a sign-in, a load or a save:
+     *  the page says so (TN.busy, web 6.5.1); then it is asked again in 30 s. A page without TN.busy is never busy. */
+    private void backOnline() {
+        if (web == null || !liveFailed || live || "bundled".equals(prefs.getString("mode", "auto"))
+                || playing || customView != null || !pageReady) return;
+        web.evaluateJavascript("(function(){try{return !!(window.TN&&TN.busy&&TN.busy())}catch(e){return false}})()", v -> {
+            if ("true".equals(v)) { ui.removeCallbacks(backOnlineRetry); ui.postDelayed(backOnlineRetry, 30000); }
+            else if (web != null && liveFailed && !live && !playing && customView == null) refresh();
+        });
+    }
+    private final Runnable backOnlineRetry = this::backOnline;
 
     // ------------------------------------------------------------------ which copy is shown
     private boolean wantLive() {

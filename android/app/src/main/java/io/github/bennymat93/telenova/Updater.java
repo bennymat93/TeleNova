@@ -73,7 +73,20 @@ final class Updater {
 
     private static void download(final Activity a, final String file, final String sha) {
         busy = true;
-        Toast.makeText(a, R.string.upd_loading, Toast.LENGTH_LONG).show();
+        final boolean[] stop = {false};
+        // 6.5.1: a progress window - percent, MB and the time left - with Cancel
+        final android.widget.ProgressBar bar = new android.widget.ProgressBar(a, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setMax(1000); bar.setIndeterminate(true);
+        final android.widget.TextView info = new android.widget.TextView(a);
+        info.setPadding(0, 16, 0, 0);
+        android.widget.LinearLayout box = new android.widget.LinearLayout(a);
+        box.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = (int) (24 * a.getResources().getDisplayMetrics().density);
+        box.setPadding(pad, pad / 2, pad, 0);
+        box.addView(bar); box.addView(info);
+        final AlertDialog dlg = new AlertDialog.Builder(a).setTitle(R.string.upd_loading).setView(box).setCancelable(false)
+                .setNegativeButton(R.string.upd_no, (d, w) -> stop[0] = true).show();
+        final long t0 = android.os.SystemClock.elapsedRealtime();
         new Thread(() -> {
             File out = null;
             try {
@@ -89,23 +102,42 @@ final class Updater {
                 try (InputStream in = c.getInputStream(); OutputStream o = new FileOutputStream(out)) {
                     byte[] buf = new byte[64 * 1024];
                     int n;
-                    long total = 0;
+                    long total = 0, len = c.getContentLengthLong(), shown = 0;
                     while ((n = in.read(buf)) > 0) {
+                        if (stop[0]) throw new java.io.IOException("cancelled");
                         total += n;
                         if (total > 200L * 1024 * 1024) throw new java.io.IOException("too large");
                         md.update(buf, 0, n); o.write(buf, 0, n);
+                        long now = android.os.SystemClock.elapsedRealtime();
+                        if (now - shown >= 250) { shown = now; final long got = total; UI.post(() -> progress(bar, info, got, len, now - t0)); }
                     }
                 } finally { c.disconnect(); }
                 StringBuilder got = new StringBuilder();
                 for (byte b : md.digest()) got.append(String.format(Locale.ROOT, "%02x", b));
                 if (!got.toString().equals(sha)) throw new java.io.IOException("sha256 differs");
                 final File ok = out;
-                UI.post(() -> { busy = false; if (!a.isFinishing()) install(a, ok); });
+                UI.post(() -> { busy = false; close(dlg); if (!a.isFinishing()) install(a, ok); });
             } catch (Exception e) {
                 if (out != null) out.delete();
-                UI.post(() -> { busy = false; if (!a.isFinishing()) Toast.makeText(a, R.string.upd_failed, Toast.LENGTH_LONG).show(); });
+                UI.post(() -> { busy = false; close(dlg); if (!a.isFinishing() && !stop[0]) Toast.makeText(a, R.string.upd_failed, Toast.LENGTH_LONG).show(); });
             }
         }, "tn-update-download").start();
+    }
+
+    private static void close(AlertDialog d) { try { if (d.isShowing()) d.dismiss(); } catch (Exception e) { /* window gone */ } }
+
+    /** "42%  ·  12.3 / 29.0 MB  ·  0:35" (the last part: time left at the speed so far). */
+    private static void progress(android.widget.ProgressBar bar, android.widget.TextView info, long got, long len, long ms) {
+        String mb = String.format(Locale.ROOT, "%.1f", got / 1048576.0);
+        if (len <= 0) { info.setText(mb + " MB"); return; }
+        bar.setIndeterminate(false);
+        bar.setProgress((int) (got * 1000 / len));
+        String t = "";
+        if (ms > 1000 && got > 0) {
+            long left = (long) ((len - got) * (ms / (double) got) / 1000);
+            t = String.format(Locale.ROOT, "  \u00b7  %d:%02d", left / 60, left % 60);
+        }
+        info.setText(String.format(Locale.ROOT, "%d%%  \u00b7  %s / %.1f MB", got * 100 / len, mb, len / 1048576.0) + t);
     }
 
     private static void install(final Activity a, File apk) {
