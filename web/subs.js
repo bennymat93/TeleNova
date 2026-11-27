@@ -614,7 +614,7 @@
       '.subs-panel .subs-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0}' +
       '.subs-panel input[type=range]{flex:1;min-width:140px}.subs-panel input[type=email],.subs-panel input[type=password],.subs-panel input[type=text]{flex:1;min-width:120px}' +
       '.subs-panel .tag{font-size:.75rem;margin-inline-end:6px}' +
-      '.subs-set{text-align:start}.subs-set h3{margin:0 0 10px}.subs-set h4{margin:16px 0 6px;font-size:.95rem;opacity:.8}' +
+      '#subs_settings_box{margin-top:var(--sp-5,24px)}.subs-set{text-align:start}.subs-set h3{margin:0 0 10px}.subs-set h4{margin:16px 0 6px;font-size:.95rem;opacity:.8}' +
       '.subs-set-row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;min-height:44px;margin:4px 0}' +
       '.subs-set-row.sw{justify-content:flex-start}.subs-set-row.sw input{width:22px;height:22px;flex:none}' +
       '.subs-set select,.subs-set input[type=url],.subs-set input[type=password],.subs-set input[type=email]{min-height:44px;min-width:0;flex:1 1 160px;' +
@@ -700,12 +700,15 @@
     for (const s of found.slice(0, 40)) {
       const b = TN.button('btn ghost', '', async () => {
         msg.textContent = s.source === 'subs_ai' ? t('subs_ai_run', 0) : t('subs_loading');
-        subsAi.onProgress = (p) => { if (s.source === 'subs_ai') msg.textContent = t('subs_ai_run', p); };
+        // 6.6: the shared progress display; a true percent only from the AI run's own progress
+        const pg = TN.progress ? TN.progress.open({title: t('subs_loading'), host: panel}) : null;
+        subsAi.onProgress = (p) => { if (s.source === 'subs_ai') { msg.textContent = t('subs_ai_run', p); if (pg) pg.set(+p || 0, 100); } };
         try {
           S.attach(video, await s.fetchVtt(), {label: s.label, lang: s.lang});
           msg.textContent = t('subs_loaded', s.label);
           mark(b);
-        } catch (e) { msg.textContent = t('subs_failed', errMsg(e)); }
+          if (pg) pg.done(true);
+        } catch (e) { msg.textContent = t('subs_failed', errMsg(e)); if (pg) pg.fail(t('subs_failed', errMsg(e))); }
       });
       b.innerHTML = `<span class="tag">${TN.esc(s.lang || '?')}</span><span class="tag">${TN.esc(SOURCES[s.source] ? SOURCES[s.source].label : t('subs_ai'))}</span><span dir="auto">${TN.esc(s.label)}</span>`;
       if (cur && cur.label === s.label) b.setAttribute('aria-pressed', 'true');
@@ -895,14 +898,17 @@
   function hookSettings() {
     if (!TN || typeof document === 'undefined') return;
     if (typeof TN.addSettingsPanel === 'function') { try { TN.addSettingsPanel('subs', {title: t('subs_settings'), render: (el) => S.settingsPanel(el, {compact: true})}); return; } catch (e) { /* the route hook below */ } }
+    // 6.5.1: on the Watching tab only (it used to be appended under every Settings tab - also under the Delete rows of
+    // Data), inside the list column
     const put = (ctx) => {
-      if (!ctx || ctx.key !== 'settings') return;
+      if (!ctx || ctx.key !== 'settings' || ctx.arg !== 'playback') return;
       setTimeout(() => {
         const view = TN.view && TN.view();
-        if (!view || (TN.here && TN.here().key !== 'settings') || view.querySelector('#subs_settings_box')) return;
+        const h = TN.here && TN.here();           // (asked again: the viewer may have switched tabs within these 60 ms)
+        if (!view || (h && (h.key !== 'settings' || h.arg !== 'playback')) || view.querySelector('#subs_settings_box')) return;
         const box = document.createElement('section');
         box.className = 'panel'; box.id = 'subs_settings_box';
-        view.append(box);
+        (view.querySelector('.setgroup') || view).append(box);
         S.settingsPanel(box);
       }, 60);
     };

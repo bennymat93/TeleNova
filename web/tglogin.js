@@ -62,7 +62,7 @@
     s.id = 'tgl-style';
     s.textContent = '.tgl-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}.tgl-tabs .chip[aria-selected=true]{outline:2px solid var(--ring)}' +
       '.tgl-box{display:grid;gap:10px}.tgl-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}' +
-      '.tgl-box textarea{width:100%;min-height:64px;background:var(--bg);color:var(--text);border:1px solid var(--panel2);border-radius:10px;padding:9px 14px;font:inherit}' +
+      '.tgl-box textarea{width:100%;min-height:64px;background:var(--s2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-s);padding:10px 12px;font:inherit}' +
       '.tgl-box input[type=text],.tgl-box input[type=password],.tgl-box input[type=tel]{width:100%;box-sizing:border-box}' +
       '.tgl-code input{font-size:22px;letter-spacing:.3em;text-align:center}';
     doc.head.append(s);
@@ -115,7 +115,9 @@
       const err = el('p', 'tgerr', TG.error());
       err.setAttribute('role', 'alert');
       clearInterval(ui.timer);
-      if (state === 'on') parts.push(...connected());
+      // 6.5.1: the iOS / Mac offline copy (http://127.0.0.1) cannot keep a Telegram sign-in: say so, offer nothing
+      if (TG.localCopy && TG.localCopy()) parts.push(el('p', 'msg', TG.localText()), TN.button('btn', t('tg_connect'), () => location.reload()));
+      else if (state === 'on') parts.push(...connected());
       else if (state === 'login') parts.push(...stepParts(TG.step() || {step: 'wait'}), err);
       else if (state === 'connecting') parts.push(el('p', 'hint', t('tg_wait')));
       else if (state === 'other_tab') parts.push(el('p', 'hint', t('tg_other_tab')));
@@ -300,7 +302,7 @@
     } catch (e) { /* the normal page */ }
     // 5.3: a phone sign-in was waiting for its code when the page went away (reload, app in the background): back to
     // the code field, with no new request to Telegram
-    try { const pd = TG.pending && TG.pending(); if (pd && TG.state() === 'off' && TG.hasApi()) { ui.tab = 'phone'; ui.phone = pd.phone; TG.login('phone', pd.keep); } } catch (e) { /* the normal page */ }
+    try { const pd = TG.pending && TG.pending(); if (pd && TG.state() === 'off' && TG.hasApi()) { if (pd.how === 'qr') { ui.tab = 'qr'; TG.login('qr', pd.keep); } else { ui.tab = 'phone'; ui.phone = pd.phone; TG.login('phone', pd.keep); } } } catch (e) { /* the normal page */ }
     // 5.2: no API details here yet - take the ones that come with the build (when its helper has them) and go
     // straight to the sign-in itself: press, confirm in Telegram, done
     if (!TG.hasApi() && TG.ensureApi) TG.ensureApi().then((ok) => { if (ok && TG.state() !== 'on') { ui.tab = firstTab(TG); draw(true); } });

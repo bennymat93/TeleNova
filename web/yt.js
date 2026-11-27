@@ -346,12 +346,14 @@
     wrap.append(box);
     let cues = [], lastT = Number(v.start) || 0, lastAt = Date.now(), rate = 1, playing = true, shown = '';
     const now = () => (playing ? lastT + (Date.now() - lastAt) / 1000 * rate : lastT);
+    let hi = null;
     const onMsg = (e) => {
       if (e.origin !== YT_ORIGIN || e.source !== frame.contentWindow) return;
       let d = e.data;
       try { if (typeof d === 'string') d = JSON.parse(d); } catch (err) { return; }
       const info = d && d.info;
       if (!info || typeof info !== 'object') return;
+      if (hi) { clearInterval(hi); hi = null; }       // 6.5.1: the player answered - no more "hello" every 2.5 s (a reload of the frame asks again through 'load')
       if (typeof info.currentTime === 'number') { lastT = info.currentTime; lastAt = Date.now(); }
       if (typeof info.playbackRate === 'number' && info.playbackRate > 0) rate = info.playbackRate;
       if (typeof info.playerState === 'number') { playing = info.playerState === 1; lastAt = Date.now(); }
@@ -359,7 +361,7 @@
     window.addEventListener('message', onMsg);
     const hello = () => { try { frame.contentWindow.postMessage(JSON.stringify({event: 'listening', id: 1, channel: 'widget'}), YT_ORIGIN); } catch (e) { /* not loaded yet */ } };
     frame.addEventListener('load', hello);
-    const hi = setInterval(hello, 2500);          // the player answers only after it is ready; asking again is harmless
+    hi = setInterval(hello, 2500);          // the player answers only after it is ready; asking again is harmless
     const tick = setInterval(() => {
       if (!frame.isConnected) { clearInterval(tick); clearInterval(hi); window.removeEventListener('message', onMsg); return; }
       const t = now();
@@ -400,7 +402,7 @@
   function play(v) {
     if (!v || !ID.test(v.id || '')) return;
     TN.noteHistory({key: 'yt:' + v.id, label: v.title || 'YouTube', play: PLAY + v.id, thumb: v.img || ''});
-    const sub = [v.channel, v.live ? TN.t('yt_live') : clock(v.secs), v.views ? TN.t('yt_views', v.views.toLocaleString()) : ''].filter(Boolean).join(' · ');
+    const sub = [v.channel, v.live ? TN.t('yt_live') : clock(v.secs), v.views ? TN.t('yt_views', TN.fmtNum ? TN.fmtNum(v.views) : v.views.toLocaleString()) : ''].filter(Boolean).join(' · ');
     TN.modal(`<div class="player"><iframe src="${TN.esc(embed(v.id, v.start))}" ` +
       `allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="${TN.esc(v.title || 'YouTube')}"></iframe></div>` +
       `<h2 dir="auto">${TN.esc(v.title || '')}</h2><p class="hint" dir="auto">${TN.esc(sub)}</p><p class="hint" id="yt_ai_st" role="status"></p><div class="links" id="yt_acts">` +
@@ -590,7 +592,7 @@
         topics.forEach(([label, q, live]) => row.append(TN.button('btn ghost', label, () => TN.go(TN.link('youtube', live ? {q, live: 1} : {q})))));
         sec.replaceWith(row);
         if (ready()) {
-          const sk = TN.skeleton(6);
+          const sk = TN.skeleton(6, 'wide');
           let list = [];
           try { list = await videos(topics[0][1], {pages: 1}); } catch (e) { list = []; }
           if (!ctx.current()) return;
@@ -601,7 +603,7 @@
       }
       return;
     }
-    const sk = TN.skeleton(8);
+    const sk = TN.skeleton(8, 'wide');
     let list;
     try {
       list = p.pl ? await playlistVideos(p.pl) : p.ch ? await channelVideos(p.ch, 2) : await videos(p.q, {pages: 2, live: !!p.live});

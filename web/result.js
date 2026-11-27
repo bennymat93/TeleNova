@@ -122,7 +122,7 @@
     const dl = el('dl', 'facts');
     const row = (k, v) => { if (v == null || v === '') return; dl.append(el('dt', '', k), el('dd', '', String(v))); };
     row(T.what, T['op_' + o.op] || o.op || '');
-    row(T.when, new Date().toLocaleString());
+    row(T.when, root.TN && root.TN.fmtDate ? root.TN.fmtDate(new Date()) : new Date().toLocaleString());
     row(T.file, o.file);
     row(T.where, o.where === 'down' ? T.where_down : o.where);
     if (o.items) row(T.items, o.items.length ? o.items.join(', ') : T.none);

@@ -201,6 +201,14 @@ const MENU = SC.MENU;
 const IS_TV = SC.isTvUA(navigator.userAgent);
 const WEB_VERSION = self.WEB_VERSION || '0';           // version.js (the one place it is written)
 const HTML = document.documentElement;
+// 6.5.1: pinch zoom is allowed (index.html has no maximum-scale). iOS ignores maximum-scale for a pinch but uses it to
+// stop its automatic zoom into a focused field, so it is put back there only.
+try {
+  if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+    const vp = document.querySelector('meta[name="viewport"]');
+    if (vp && !/maximum-scale/.test(vp.getAttribute('content') || '')) vp.setAttribute('content', vp.getAttribute('content') + ', maximum-scale=1');
+  }
+} catch (e) { /* the page works without it */ }
 // engines of 2019-2020 (old TV sets): the two newer calls the shell and the modules use
 if (!Element.prototype.replaceChildren) {
   Element.prototype.replaceChildren = function () { while (this.lastChild) this.removeChild(this.lastChild); this.append.apply(this, arguments); };
@@ -208,12 +216,15 @@ if (!Element.prototype.replaceChildren) {
 if (!Object.fromEntries) Object.fromEntries = (it) => { const o = {}; for (const [k, v] of it) o[k] = v; return o; };
 
 // ---------------------------------------------------------------- per-browser storage (never required)
-const mem = new Map();                         // a browser that refuses storage (private mode, blocked cookies): this visit only
-const safeStore = {
-  getItem(k) { try { return localStorage.getItem(k); } catch (e) { return mem.has(k) ? mem.get(k) : null; } },
-  setItem(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem.set(k, String(v)); } },
-  removeItem(k) { try { localStorage.removeItem(k); } catch (e) {} mem.delete(k); },
-};
+// 6.5.1: SC.makeSafeStore - a write the browser refuses (storage full, private mode, blocked cookies) is kept in memory
+// for this visit AND read back from there; the viewer is told once (after the start: toast and the texts exist then).
+let storeWarned = false;
+function storeFull() {
+  if (storeWarned) return;
+  storeWarned = true;
+  setTimeout(() => { try { toast(N('core_store_full'), {ms: 9000}); } catch (e) { storeWarned = false; } }, 0);
+}
+const safeStore = SC.makeSafeStore(() => localStorage, storeFull);
 function get(k, d) { try { const v = safeStore.getItem('bn_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
 function put(k, v) { try { safeStore.setItem('bn_' + k, JSON.stringify(v)); } catch (e) {} }
 function drop(k) { safeStore.removeItem('bn_' + k); }
@@ -230,7 +241,8 @@ function syncedKey(name, key) {
 function syncPoke(name, key) {
   try { if (syncedKey(name, key) && window.TG && window.TG.ready && typeof window.TG.poke === 'function') window.TG.poke(); } catch (e) { /* no sync here */ }
 }
-const cfg = Object.assign({lang: (navigator.language || 'he').slice(0, 2), theme: 'auto', live: 'tn', radio: 'IL'}, get('cfg', {}));
+// 6.5.1: a first visit takes the first supported language of the browser's list (uk + ru -> Russian, de -> English)
+const cfg = Object.assign({lang: SC.pickLang(navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language]), theme: 'auto', live: 'tn', radio: 'IL'}, get('cfg', {}));
 try { const old = localStorage.getItem('bn_lang'); if (old && !get('cfg', null)) cfg.lang = old; } catch (e) {}
 if (!L[cfg.lang]) cfg.lang = 'he';
 const t = (k) => L[cfg.lang][k];
@@ -243,7 +255,14 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const view = $('#view');
 const X = (k) => { const a = X4[cfg.lang] || X4.en, b = X3[cfg.lang] || X3.en; return k in a ? a[k] : b[k]; };
-const fmt = (k, v) => String(X(k)).replace('%s', v);
+const fmt = (k, v) => String(X(k)).replace('%s', () => String(v));       // a function: '$&' in a user's name stays text
+// 6.5.1: dates, times and counts follow the app's language, not the browser's (the viewer's own region when it matches)
+const LOCALE = {he: 'he-IL', en: 'en-US', ru: 'ru-RU'};
+function locale() { const n = String(navigator.language || ''); return n.toLowerCase().indexOf(cfg.lang) === 0 ? n : LOCALE[cfg.lang]; }
+const asDate = (d) => (d instanceof Date ? d : new Date(d));
+function fmtNum(n) { try { return Number(n || 0).toLocaleString(locale()); } catch (e) { return String(n); } }
+function fmtDate(d) { const x = asDate(d); try { return x.toLocaleString(locale()); } catch (e) { return x.toLocaleString(); } }
+function fmtTime(d, opts) { const x = asDate(d); try { return x.toLocaleTimeString(locale(), opts); } catch (e) { return x.toLocaleTimeString(); } }
 // one icon of the sprite in index.html (24 px grid, stroke = currentColor); always decorative: the label is text beside it
 const icon = (id, cls) => '<svg class="ico' + (cls ? ' ' + cls : '') + '" aria-hidden="true" focusable="false"><use href="#i-' + id + '" xlink:href="#i-' + id + '"></use></svg>';
 // mixed-direction lines (a year, "S02E05", a rating inside Hebrew text): every part is isolated
@@ -347,7 +366,7 @@ function paint(el, u) {
   el._pic = u;
   if (picIO) picIO.observe(el); else loadPic(el);
 }
-const posterSize = () => SC.posterSize(shellName, window.devicePixelRatio || 1);
+const posterSize = () => SC.posterSize(shellName, window.devicePixelRatio || 1, window.innerWidth || HTML.clientWidth);
 const tmdbImg = (p, size) => (p ? IMG + (size === 'auto' ? posterSize() : size || 'w342') + p : '');
 
 // ---------------------------------------------------------------- sources
@@ -355,15 +374,27 @@ const tmdbLang = () => CONTENT_LANG[synced.content_lang] || TMDB_LANG[cfg.lang];
 const tmdbKey = () => String(cfg.tmdb || synced.tmdb_key || synced.tmdb_token || '').trim();
 // TMDb with the viewer's own key, else the household's from the synced settings: the full catalogue with no server.
 // No key = an error with code 'need-key' (the pages show "add a TMDb key", not "nothing found").
+// 6.5.1: fetchT(url, opt, ms, read) - a request that gives up after `ms` (15 s), the body read included (`read(r)`
+// runs inside the timed window: a stalled line can hang after the headers). So a page reaches its "could not load /
+// try again" state instead of staying on "loading". Without AbortController (old TV engines) it is a plain fetch.
+async function fetchT(url, opt, ms, read) {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const tm = ctl ? setTimeout(() => ctl.abort(), ms || 15000) : 0;
+  try {
+    const r = await fetch(url, ctl ? Object.assign({}, opt, {signal: ctl.signal}) : (opt || {}));
+    return read ? await read(r) : r;
+  } finally { clearTimeout(tm); }
+}
 async function tmdb(path, params) {
   const key = tmdbKey();
   if (!key) { const e = new Error('no tmdb'); e.code = 'need-key'; throw e; }
   const qs = new URLSearchParams(Object.assign({language: tmdbLang()}, params || {}));
   const bearer = key.length > 40;
   if (!bearer) qs.set('api_key', key);
-  const r = await fetch('https://api.themoviedb.org/3' + path + '?' + qs, bearer ? {headers: {Authorization: 'Bearer ' + key}} : {});
-  if (!r.ok) { const e = new Error('TMDb ' + r.status); e.status = r.status; if (r.status === 401) e.code = 'need-key'; throw e; }
-  return r.json();
+  return fetchT('https://api.themoviedb.org/3' + path + '?' + qs, bearer ? {headers: {Authorization: 'Bearer ' + key}} : {}, 15000, (r) => {
+    if (!r.ok) { const e = new Error('TMDb ' + r.status); e.status = r.status; if (r.status === 401) e.code = 'need-key'; throw e; }
+    return r.json();
+  });
 }
 // what a failed request is, for TN.state: no connection, no key, or a plain error
 const errKind = (e) => (navigator.onLine === false ? 'offline' : e && e.code === 'need-key' ? 'need-key' : 'error');
@@ -381,9 +412,10 @@ async function archive({q = '', collection = 'feature_films', subject = '', rows
   const qs = new URLSearchParams({q: `${what}${extra} AND mediatype:movies AND NOT subject:${ADULT} AND NOT title:${ADULT}`, rows, output: 'json'});
   qs.append('sort[]', SORTS[sort] || SORTS.popular);
   ['identifier', 'title', 'year'].forEach((f) => qs.append('fl[]', f));
-  const r = await fetch('https://archive.org/advancedsearch.php?' + qs);
-  if (!r.ok) throw new Error('archive ' + r.status);
-  return (await r.json()).response.docs;
+  return fetchT('https://archive.org/advancedsearch.php?' + qs, null, 15000, async (r) => {
+    if (!r.ok) throw new Error('archive ' + r.status);
+    return (await r.json()).response.docs;
+  });
 }
 // 'tn' is the build's own Israeli table (channels_il.json, made from livefail.py by src/qa/web/gen_channels.py)
 const LISTS = {tn: '', il: 'countries/il', he: 'languages/heb', ru: 'languages/rus', en: 'languages/eng',
@@ -412,27 +444,25 @@ function channels(list) {
 }
 async function loadChannels(list) {
   if (list === 'tn') {
-    const r = await fetch('channels_il.json');
-    if (!r.ok) throw new Error('channels ' + r.status);
-    const rows = await r.json();
+    const rows = await fetchT('channels_il.json', null, 15000, (r) => { if (!r.ok) throw new Error('channels ' + r.status); return r.json(); });
     // direct https streams play here; Idan+ and YouTube-live channels are listed too, marked "plays in Kodi"
     return (rows.map((c) => ({key: c.key, name: c.name, name_he: c.name_he || '', names: c.names || [], logo: httpsOnly(c.logo) || (/^media\/[\w.\/-]+$/.test(c.logo || '') ? c.logo : ''), group: 'BN Stream',
                                             urls: (c.urls || []).filter(httpsOnly), url: (c.urls || []).filter(httpsOnly)[0] || '', kodi_only: !!c.kodi_only, why: c.why || ''})));
   }
   if (!LISTS[list]) return [];
-  const r = await fetch(`https://iptv-org.github.io/iptv/${LISTS[list]}.m3u`);
-  if (!r.ok) throw new Error('channels ' + r.status);
-  return parseM3u(await r.text());
+  // (30 s: languages/eng is several MB - a slow but moving download on a TV is not cut off)
+  return parseM3u(await fetchT(`https://iptv-org.github.io/iptv/${LISTS[list]}.m3u`, null, 30000, (r) => { if (!r.ok) throw new Error('channels ' + r.status); return r.text(); }));
 }
 async function stations(cc, q, tag) {
   const path = tag ? `/stations/bytagexact/${encodeURIComponent(tag)}?` + new URLSearchParams({limit: 120, hidebroken: true, order: 'clickcount', reverse: true})
     : q ? '/stations/search?' + new URLSearchParams({name: q, limit: 60, hidebroken: true, order: 'clickcount', reverse: true})
     : cc === 'top' ? '/stations/topclick/80?hidebroken=true'
       : `/stations/bycountrycodeexact/${cc}?` + new URLSearchParams({limit: 120, hidebroken: true, order: 'clickcount', reverse: true});
-  const r = await fetch(RADIO + path);
-  if (!r.ok) throw new Error('radio ' + r.status);
   // browsers block http audio on an https page: https streams only
-  return (await r.json()).filter((s) => (s.url_resolved || '').startsWith('https://'));
+  return fetchT(RADIO + path, null, 15000, async (r) => {
+    if (!r.ok) throw new Error('radio ' + r.status);
+    return (await r.json()).filter((s) => (s.url_resolved || '').startsWith('https://'));
+  });
 }
 
 // ---------------------------------------------------------------- favourites and history (the active user's, in the build's shapes)
@@ -472,7 +502,15 @@ function hashKey(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h <
 // card(img, title, sub, onClick, shape, badge, opts): button.card[.wide|.square|.land|.dim] > .badge? + .img + .t + .s?
 // opts: progress 0..1 (a bar under the picture), cover (a 16:9 / 1:1 picture fills its box), href (an <a>: "open in a
 // new tab" works), menu ([{label, icon, onClick, danger}] or a function returning it: long-press, right-click, the
-// Menu key), key (a stable id for focus restore), hero ({title, meta, text, backdrop}: the TV hero follows the focus).
+// Menu key), key (a stable id for focus restore), hero ({title, meta, text, backdrop}: the TV hero follows the focus),
+// mono (6.5.1: with no picture the card shows the title's initials on a coloured plate, not the app icon).
+function monoOf(title) {
+  const words = String(title == null ? '' : title).trim().split(/[\s\-_.]+/).filter(Boolean);
+  if (!words.length) return '';
+  const s = words.length > 1 ? Array.from(words[0])[0] + Array.from(words[1])[0] : Array.from(words[0]).slice(0, 2).join('');
+  return s.toUpperCase();
+}
+function monoHue(title) { const s = String(title || ''); let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0) % 360; }
 function card(img, title, sub, onClick, kind, badge, opts) {
   opts = opts || {};
   const b = document.createElement(opts.href ? 'a' : 'button');
@@ -483,6 +521,10 @@ function card(img, title, sub, onClick, kind, badge, opts) {
                 `<div class="t" dir="auto">${esc(title)}</div>` + (sub != null ? `<div class="s" dir="auto">${esc(sub)}</div>` : '');
   b.title = String(title == null ? '' : title);
   b.setAttribute('data-key', opts.key ? String(opts.key) : hashKey(String(title) + '|' + String(img || '')));
+  if (opts.mono) {
+    const mo = monoOf(title), im = b.querySelector('.img');
+    if (mo) { im.setAttribute('data-mono', mo); im.style.setProperty('--mono-h', String(monoHue(title))); }
+  }
   paint(b.querySelector('.img'), img);
   if (onClick) b.onclick = onClick;
   if (opts.menu) attachMenu(b, opts.menu);
@@ -535,12 +577,16 @@ function chips(items, on, go, into) {
   return box;
 }
 // skeleton(n, shape, into): placeholders of the real component's size. shape: poster (default) | wide | square | land |
-// row (list rows) | detail (a hero box)
+// row (list rows) | detail (a hero box, two text lines, one row of cards - the shape of a title page)
 function skeleton(n, shape, into) {
   n = n == null ? 12 : n;
   const g = document.createElement('div');
   if (shape === 'row') { g.className = 'hlist skelgrid'; g.innerHTML = '<div class="hrow skel"><span class="himg"></span><span class="htxt"><b></b></span></div>'.repeat(n); }
-  else if (shape === 'detail') { g.className = 'skelgrid'; g.innerHTML = '<div class="skelbox"></div>'; }
+  else if (shape === 'detail') {
+    g.className = 'skelgrid';
+    g.innerHTML = '<div class="skelbox skelhero"></div><div class="skelbox skelline"></div><div class="skelbox skelline"></div>' +
+      '<div class="row">' + '<div class="card skel"><div class="img"></div><div class="t"></div></div>'.repeat(6) + '</div>';
+  }
   else {
     g.className = 'grid skelgrid';
     if (shape && shape !== 'poster') g.setAttribute('data-shape', shape);
@@ -691,9 +737,9 @@ const tmdbCard = (r, o) => {
 const iaImg = (id) => `https://archive.org/services/img/${encodeURIComponent(id)}`;
 const iaCard = (d) => card(iaImg(d.identifier), d.title, d.year || '', () => openArchive(d), '', '', {key: 'ia:' + d.identifier});
 const chCard = (c) => card(c.logo || '', chName(c), c.kodi_only ? X('kodi_only') : c.group, () => openChannel(c),
-                           'wide' + (c.kodi_only ? ' dim' : ''), c.kodi_only ? 'KODI' : 'LIVE', {key: 'ch:' + (c.key || c.url)});
+                           'wide logo' + (c.kodi_only ? ' dim' : ''), c.kodi_only ? 'KODI' : 'LIVE', {key: 'ch:' + (c.key || c.url)});
 const radioCard = (s) => card(httpsOnly(s.favicon) || '', String(s.name || '').trim(), [s.country, s.tags && s.tags.split(',')[0]].filter(Boolean).join(' · '),
-                               () => playRadio(s), 'square', '', {key: 'radio:' + s.stationuuid});
+                               () => playRadio(s), 'square', '', {key: 'radio:' + s.stationuuid, mono: true});
 // a title that came from another device has no picture here: it is fetched once and remembered in this browser
 function lazyPoster(el, media, id) {
   tmdb(`/${media}/${id}`).then((d) => {
@@ -810,6 +856,27 @@ function playerHost(opts) {
 // ---- the pop layer: one context menu or one confirmation at a time, above sheets
 const popEl = $('#pop');
 let popOpen = false, popOpener = null, popDone = null;
+// 6.5.1: while the pop layer is open everything behind it is hidden from assistive technology - the page, the bars AND
+// an open sheet (#modal is aria-modal: a screen reader treated the confirmation above it as outside the dialog and
+// could not reach it). aria-hidden only (not inert): the Tab trap holds the keyboard, the scrim holds the pointer, and
+// inert on #modal would stop a playing player sheet. The earlier values come back when the layer closes.
+let popBack = null;
+function popBackdrop(on) {
+  if (on) {
+    if (popBack) return;
+    popBack = [];
+    for (const el of [$('#rail'), $('#top'), view, $('#tabs'), modalEl]) {
+      if (!el) continue;
+      popBack.push([el, el.getAttribute('aria-hidden')]);
+      el.setAttribute('aria-hidden', 'true');
+    }
+    modalEl.setAttribute('aria-modal', 'false');
+  } else if (popBack) {
+    for (const [el, was] of popBack) { if (was == null) el.removeAttribute('aria-hidden'); else el.setAttribute('aria-hidden', was); }
+    popBack = null;
+    modalEl.setAttribute('aria-modal', 'true');
+  }
+}
 function openPop(node, at) {
   if (popOpen) closePop();
   const a = document.activeElement;
@@ -818,12 +885,17 @@ function openPop(node, at) {
   popEl.className = 'pop' + (at ? ' at' : '');
   popEl.hidden = false;
   popOpen = true;
+  // the focus leaves the page first: a browser refuses aria-hidden on an ancestor of the focused element
+  popEl.setAttribute('tabindex', '-1');
+  try { popEl.focus({preventScroll: true}); } catch (e) { /* menu() / confirmBox() focus their own control next */ }
+  popBackdrop(true);
 }
 function closePop(result) {
   if (!popOpen) return;
   popOpen = false;
   popEl.hidden = true;
   popEl.replaceChildren();
+  popBackdrop(false);                           // before the focus returns into the page
   const done = popDone, op = popOpener;
   popDone = null; popOpener = null;
   if (op && op.isConnected && shown(op)) focusEl(op, true);
@@ -838,6 +910,8 @@ function menu(anchor, items, pos) {
   const box = document.createElement('div');
   box.className = 'popmenu';
   box.setAttribute('role', 'menu');
+  box.setAttribute('aria-orientation', 'vertical');
+  box.setAttribute('aria-label', (anchor && anchor.getAttribute && (anchor.getAttribute('aria-label') || anchor.title)) || N('core_more_acts'));
   items.forEach((it) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -877,8 +951,9 @@ function confirmBox(o) {
     box.className = 'dialog';
     box.setAttribute('role', 'alertdialog');
     box.setAttribute('aria-modal', 'true');
-    box.innerHTML = `<h3 id="dlg_t" dir="auto">${esc(o.title || '')}</h3>` + (o.text ? `<p dir="auto">${esc(o.text)}</p>` : '') + '<div class="actions"></div>';
+    box.innerHTML = `<h3 id="dlg_t" dir="auto">${esc(o.title || '')}</h3>` + (o.text ? `<p id="dlg_p" dir="auto">${esc(o.text)}</p>` : '') + '<div class="actions"></div>';
     box.setAttribute('aria-labelledby', 'dlg_t');
+    if (o.text) box.setAttribute('aria-describedby', 'dlg_p');
     const no = button('btn ghost', o.cancel || X('u_cancel'), () => closePop(false));
     const yes = button('btn' + (o.danger ? ' danger' : ''), o.ok || N('core_ok'), () => closePop(true));
     no.type = yes.type = 'button';
@@ -978,9 +1053,17 @@ function openChannel(c) {
     if (inputMode === 'key' || isTvShell()) focusEl(again, true);
   };
   const next = () => { if (!mine()) return; if (at + 1 < urls.length) { at++; start(); } else failed(); };
+  // 6.5.1: hls.js is no longer loaded with the page (index.html): it is fetched when something plays. With the library
+  // there, or on a browser that plays HLS itself (iPhone), the start stays synchronous, so the press still reaches play().
   function start() {
     wait.hidden = false;
     if (hls) { try { hls.destroy(); } catch (e) {} hls = null; }
+    const nativeHls = !!v.canPlayType('application/vnd.apple.mpegurl') && !window.MediaSource && !window.ManagedMediaSource;
+    if (window.Hls || nativeHls) return begin();
+    const my = at;
+    ensureHls().then(() => { if (mine() && at === my && !hls) begin(); });
+  }
+  function begin() {
     if (window.Hls && window.Hls.isSupported()) {
       hls = new window.Hls(hlsCfg());
       hlsWatch(hls);
@@ -1197,10 +1280,18 @@ const HOME = {
     row(N('m_radio'), {into: root, shape: 'square', more: '#/radio', load: async (sc) => {
       const mine = store.favs().filter((f) => f && f.kind === 'radio' && httpsOnly(f.extra)).slice(0, 20)
         .map((f) => ({stationuuid: String(f.id), name: String(f.label || ''), url_resolved: f.extra, favicon: store.art('radio', String(f.id)), country: ''}));
-      mine.forEach((s) => sc.append(radioCard(s)));
-      if (mine.length >= 6) return;
-      const seen = new Set(mine.map((s) => s.stationuuid));
-      (await stations(t('countries')[cfg.radio] ? cfg.radio : 'IL')).filter((s) => !seen.has(s.stationuuid)).slice(0, 20 - mine.length).forEach((s) => sc.append(radioCard(s)));
+      // 6.5.1: one card per station - the directory lists some twice (the same name under two ids)
+      const seen = new Set(), nk = (n) => { const s = String(n || '').toLowerCase(); try { return s.replace(new RegExp('[^\\p{L}\\p{N}]+', 'gu'), ''); } catch (e) { return s.replace(/\s+/g, ''); } };
+      const fresh1 = (s) => {
+        const id = 'id:' + s.stationuuid, name = nk(s.name);
+        if (seen.has(id) || (name && seen.has('n:' + name))) return false;
+        seen.add(id); if (name) seen.add('n:' + name);
+        return true;
+      };
+      const own = mine.filter(fresh1);
+      own.forEach((s) => sc.append(radioCard(s)));
+      if (own.length >= 6) return;
+      (await stations(t('countries')[cfg.radio] ? cfg.radio : 'IL')).filter(fresh1).slice(0, 20 - own.length).forEach((s) => sc.append(radioCard(s)));
     }});
   },
   searches(root) {
@@ -1220,18 +1311,7 @@ const HOME = {
   },
   // 5.2: the main menu of the Kodi build, as large tiles at the top of Home: what to watch, my things, accounts
   mainmenu(root) {
-    // 5.5: a device with nothing connected yet (fresh install, new browser): one big button that connects everything
-    const first = document.createElement('div');
-    root.append(first);
-    provider('aio').then((A) => {
-      if (!A || !A.fresh() || !first.isConnected) return;
-      const b = labelButton('btn', 'key', N('aio_first_btn'), () => go('#/aio'));
-      const p = document.createElement('p'); p.className = 'hint'; p.textContent = N('aio_first');
-      p.style.margin = '0 0 10px';
-      first.className = 'aio-first';
-      first.append(p, b);
-      b.setAttribute('data-autofocus', '');
-    }).catch(() => {});
+    // (6.5.1: the first-run "All in one" button moved into the welcome card / the banner of pageHome - one call to action)
     const box = document.createElement('div');
     box.className = 'menu mainmenu';
     box.setAttribute('role', 'navigation');
@@ -1274,7 +1354,7 @@ function pageHome(arg, ctx) {
     put1(hero({kicker: N('home_continue'), title: String(h.label || ''), meta: [c.left ? N('home_left', SC.leftText(c.left)) : ''], text: typeof h.plot === 'string' ? h.plot : '',
                backdrop: fanartOf(h), poster: SC.picOf(h), actions: tv ? [] : [play, more]}));
   } else if (tmdbKey()) {
-    slot.innerHTML = '<div class="skelbox"></div>';
+    slot.innerHTML = '<div class="skelbox skelhero"></div>';
     tmdb('/trending/all/week').then((d) => {
       if (!ctx.current() || !slot.isConnected) return;
       const r = (d.results || []).find((x) => x.backdrop_path && (x.media_type === 'movie' || x.media_type === 'tv'));
@@ -1287,17 +1367,43 @@ function pageHome(arg, ctx) {
                  actions: tv ? [] : [open, favButton({kind, id: r.id, label: title, extra: '', img: r.poster_path ? IMG + 'w342' + r.poster_path : ''})]}));
     }).catch(() => { if (slot.isConnected) slot.innerHTML = ''; });
   } else {
+    // 6.5.1: one welcome card, one main button. A device with nothing connected (aio.fresh) gets "All in one" as that
+    // button - it connects Telegram too - with "add a key" beside it; the swap happens inside the card (no box that
+    // arrives later and pushes the page down, no second primary button, the focus follows).
     const a = linkBtn('btn', N('home_add_key'), '#/settings/accounts');
     a.setAttribute('data-autofocus', '');
-    put1(hero({kicker: 'BN Stream', title: N('home_welcome'), text: N('home_welcome_txt'), actions: [a, linkBtn('btn ghost', X('tg_connect'), '#/tglogin')]}));
+    const h = hero({kicker: '', title: N('home_welcome'), text: N('home_welcome_txt'), actions: [a, linkBtn('btn ghost', X('tg_connect'), '#/tglogin')]});
+    put1(h);
+    provider('aio').then((A) => {
+      if (!ctx.current() || !h.isConnected || !A || !A.fresh()) return;
+      const had = h.acts.contains(document.activeElement);
+      const primary = labelButton('btn', 'key', N('aio_first_btn'), () => go('#/aio'));
+      primary.setAttribute('data-autofocus', '');
+      primary.title = N('aio_first');
+      a.removeAttribute('data-autofocus');
+      a.className = 'btn ghost';
+      h.acts.replaceChildren(primary, a);
+      // (on TV the card may already show a focused title of the rows below: its text is left alone then)
+      if (h.querySelector('.hero-t').textContent === N('home_welcome')) h.set({kicker: '', title: N('home_welcome'), text: N('aio_first')});
+      if (had) focusEl(primary, true);
+    }).catch(() => {});
   }
-  // one-time banners: install the app (with the iOS way), add a TMDb key
-  if (!get('install_seen', 0) && !standalone() && (installEvt || IOS) && !tv) {
+  // one-time banners: install the app (with the iOS way), add a TMDb key. The very first screen (nothing watched, no
+  // key) shows one decision only: the install banner waits for the next visit to Home.
+  if (!get('install_seen', 0) && !standalone() && (installEvt || IOS) && !tv && (cont.length || tmdbKey())) {
     const el = banner('install', N('pwa_title'), IOS && !installEvt ? N('pwa_ios') : N('pwa_txt'),
       [installEvt ? button('btn', X('install'), () => { installNow(); el.remove(); }) : null, button('btn ghost', N('pwa_later'), () => { put('install_seen', 1); el.remove(); })]);
     root.append(el);
   }
-  if (!tmdbKey() && cont.length) root.append(banner('key', N('core_need_key'), N('core_need_key_txt'), [linkBtn('btn ghost', N('core_open_settings'), '#/settings/accounts')]));
+  if (!tmdbKey() && cont.length) {
+    // something was watched but nothing is connected here: "All in one" in the banner's place, else "add a key"
+    const need = banner('key', N('core_need_key'), N('core_need_key_txt'), [linkBtn('btn ghost', N('core_open_settings'), '#/settings/accounts')]);
+    root.append(need);
+    provider('aio').then((A) => {
+      if (!ctx.current() || !need.isConnected || !A || !A.fresh()) return;
+      need.replaceWith(banner('key', N('aio_first'), '', [button('btn', N('aio_first_btn'), () => go('#/aio'))]));
+    }).catch(() => {});
+  }
   for (const r of SC.homeRows(get('home_rows', null))) {
     if (!r.on || !HOME[r.id]) continue;
     try { HOME[r.id](root, cont); } catch (e) {}
@@ -1328,7 +1434,7 @@ function favView(f) {
     case 'web_ia': return {group: 'movies', img: iaImg(id), open: () => openArchive({identifier: id, title: label})};
     case 'web_channel':
       if (id.startsWith('il:')) return {group: 'live', shape: 'wide', img: '', open: async () => { const c = await ilChannel(id.slice(3)); if (c) openChannel(c); else kodiOnly(label, X('kodi_entry'), fav); }};
-      return {group: 'live', shape: 'wide', img: extra, open: () => openChannel({name: label, url: id, logo: extra, group: ''})};
+      return {group: 'live', shape: 'wide', logo: true, img: extra, open: () => openChannel({name: label, url: id, logo: extra, group: ''})};
     case 'channel':                                // a channel of Kodi's own TV list: its number means something on that device only
       return {group: 'live', shape: 'wide', img: '', dim: true, open: () => kodiOnly(label, X('kodi_pvr'), fav)};
     case 'radio':
@@ -1345,7 +1451,7 @@ function favView(f) {
 const favItems = () => store.favs().filter((f) => f && typeof f === 'object' && !Array.isArray(f) && f.id != null).map((f) => [f, favView(f)]).filter((x) => x[1]);
 function favCard(f, v, redraw) {
   const label = String(f.label || f.id);
-  const c = card(v.img || '', label, v.dim ? X('kodi_only') : null, v.href ? null : v.open, (v.shape || '') + (v.dim ? ' dim' : ''), v.dim ? 'KODI' : '', {
+  const c = card(v.img || '', label, v.dim ? X('kodi_only') : null, v.href ? null : v.open, (v.shape || '') + (v.logo ? ' logo' : '') + (v.dim ? ' dim' : ''), v.dim ? 'KODI' : '', {
     href: v.href || '', cover: !!v.cover, key: 'f:' + f.kind + ':' + f.id,
     menu: [{label: noGlyph(t('fav_rm')), icon: 'trash', danger: true, onClick: () => {
       const item = {kind: f.kind, id: f.id, label, extra: typeof f.extra === 'string' ? f.extra : '', img: v.img || ''};
@@ -1432,10 +1538,22 @@ function pageHistory() {
   drawHistory(root);
 }
 // phone tab "My things": favourites and history on one page with two tabs
+// 6.5.1: a tab is a view state, not a page: pressing one replaces the history entry (go(hash, {replace: true})), so
+// one Back leaves the screen however many tabs were looked at. tabFocus is a one-shot mark: after a tab press with a
+// keyboard / remote the focus lands on the pressed tab again (the page was drawn anew).
+let tabFocus = false;
+function tabChips(pairs, cur, base) {
+  const box = chips(pairs, cur, (k) => { tabFocus = true; go(base + k, {replace: true}); });
+  if (tabFocus) {
+    tabFocus = false;
+    if (inputMode === 'key' || isTvShell()) { const on = box.querySelector('.chip[aria-pressed="true"]'); if (on) on.setAttribute('data-autofocus', ''); }
+  }
+  return box;
+}
 function pageMine(arg) {
   const tab = arg === 'history' ? 'history' : 'favs';
   page('mine', N('nav_mine'));
-  chips([['favs', N('m_favs')], ['history', N('m_history')]], tab, (k) => go('#/mine/' + k));
+  tabChips([['favs', N('m_favs')], ['history', N('m_history')]], tab, '#/mine/');
   const root = document.createElement('div');
   view.append(root);
   if (tab === 'favs') drawFavs(root);
@@ -1492,7 +1610,7 @@ function pageBn() {
   page('bn');
   view.insertAdjacentHTML('beforeend', `<div class="panel bnpanel"><img src="icon.png" alt=""><p>${esc(t('bn_txt'))}</p></div>
     <div class="links">
-      <a class="btn" href="${SITE}repository.telenova-6.5.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
+      <a class="btn" href="${SITE}repository.telenova-6.6.0.zip" data-autofocus>${esc(t('bn_kodi'))}</a>
       <a class="btn ghost" href="https://github.com/bennymat93/novatv/releases/latest" target="_blank" rel="noopener">${esc(t('bn_win'))}</a>
       <a class="btn ghost" href="${SITE}guide.html">${esc(t('bn_guide'))}</a>
     </div><p class="hint" dir="auto">${esc(t('bn_kodi_how'))}</p>`);
@@ -1522,6 +1640,8 @@ async function pageTitle(arg, ctx) {
   }
   await loadModule('sources').catch(() => {});
   if (!ctx.current()) return;
+  loadModule('player').catch(() => {});          // (not awaited: the viewer is one press from playing)
+  ensureHls();
   sk.remove();
   const title = d.title || d.name || '', year = (d.release_date || d.first_air_date || '').slice(0, 4);
   const poster = d.poster_path ? IMG + 'w342' + d.poster_path : '', kind = type === 'movie' ? 'movie' : 'series';
@@ -1587,16 +1707,30 @@ function loadScript(src, integrity) {
     const s = document.createElement('script');
     s.src = src;
     if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
-    s.onload = () => ok();
-    s.onerror = () => { s.remove(); fail(new Error('offline')); };
+    // 6.5.1: a request that never answers (a stalled CDN) ends after 20 s, so nothing waits for it forever
+    const tm = setTimeout(() => { s.onload = s.onerror = null; s.remove(); fail(new Error('offline')); }, 20000);
+    s.onload = () => { clearTimeout(tm); ok(); };
+    s.onerror = () => { clearTimeout(tm); s.remove(); fail(new Error('offline')); };
     document.head.append(s);
   });
+}
+// 6.5.1: hls.js (pinned, jsDelivr) on demand - one shared load for the live sheet here, iptv.js and player.js. Never
+// rejects: null when the CDN cannot be reached (the callers fall back to the browser's own HLS), and the next play
+// tries again. It used to be the first deferred script of index.html, so every app script waited for a 400 KB file
+// that only playback needs (and an installed app opened offline waited for that request to fail).
+const HLS_SRC = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js';
+const HLS_SRI = 'sha384-w6Gb3fXHb5e1LUYa/hYA5Q41bEDglN5ZPCG7Jvnoo8/X90oGnlPqBlBJCe38mEMm';
+let hlsLoading = null;
+function ensureHls() {
+  if (window.Hls) return Promise.resolve(window.Hls);
+  if (!hlsLoading) hlsLoading = loadScript(HLS_SRC, HLS_SRI).then(() => window.Hls || null, () => null).then((H) => { if (!H) hlsLoading = null; return H; });
+  return hlsLoading;
 }
 let tgLoading = null, paired = false;
 function loadTg() {
   if (!tgLoading) {
     tgLoading = loadScript('tg.js').then(() => {
-      window.TG.init({SD, WS, store, get, put, drop, X, fmt, esc, button, loadScript, version: WEB_VERSION, onSynced,
+      window.TG.init({SD, WS, store, get, put, drop, X, fmt, fmtTime, esc, button, loadScript, version: WEB_VERSION, onSynced,
                       onSettings: (v) => { synced = v || {}; }});
       try { if (typeof window.TG.on === 'function') window.TG.on(() => drawMe()); } catch (e) {}
       drawMe();
@@ -1749,7 +1883,7 @@ function passRow(after) {
   wrap.append(lab, row, q);
   return wrap;
 }
-let syncOff = null, syncPanelRedraw = () => {};
+let syncOff = null, syncPanelRedraw = () => {}, syncPanelStatus = () => {};
 function syncPanel(group) {
   const h = document.createElement('h2');
   h.textContent = N('sy_title');
@@ -1758,25 +1892,42 @@ function syncPanel(group) {
   box.id = 'syncui';
   box.style.marginTop = '0';
   group.append(h, box);
-  const draw = () => {
-    if (!box.isConnected) { if (syncOff) { syncOff(); syncOff = null; } return; }
+  // 6.5.1: the parts are made once and only updated - the focus stays on "Sync now" through every status change, the
+  // button shows that a round is running (and ignores presses meanwhile), and without a connection the line says so
+  // instead of a stale "In sync".
+  const p = document.createElement('p');
+  p.setAttribute('role', 'status');
+  const spin = document.createElement('span'), txt = document.createElement('span');
+  spin.className = 'spinner sm';
+  spin.hidden = true;
+  p.append(spin, txt);
+  const now = button('btn', N('sy_now'), () => { const TG = window.TG; if (!TG || !TG.syncNow || (TG.busy && TG.busy())) return; TG.syncNow(); setTimeout(draw, 50); });
+  now.type = 'button';
+  const link = linkBtn('btn ghost', X('tg_connect'), '#/tglogin');
+  box.append(p, now, link);
+  for (const k of ['sy_shared', 'sy_local']) { const q = document.createElement('p'); q.className = 'hint'; q.textContent = N(k); box.append(q); }
+  function draw() {
+    if (!box.isConnected) { if (syncOff) { syncOff(); syncOff = null; } if (syncPanelStatus === draw) syncPanelStatus = () => {}; return; }
     const TG = window.TG, on = !!(TG && TG.ready && TG.connected && TG.connected());
     const st = on && TG.status ? TG.status() : {}, err = on && TG.error ? TG.error() : '';
-    const locked = st.sync === 'locked' || !!st.locked, warn = on && (err || locked || st.sync === 'update');
-    const line = !on ? N('sy_need_tg') : TG.busy && TG.busy() ? N('sy_wait') : err ? N('sy_err', err)
+    const offline = on && navigator.onLine === false, busy = on && !offline && !!(TG.busy && TG.busy());
+    const locked = st.sync === 'locked' || !!st.locked, warn = on && (offline || err || locked || st.sync === 'update');
+    const line = !on ? N('sy_need_tg') : offline ? N('core_offline') : busy ? N('sy_wait') : err ? N('sy_err', err)
       : st.sync === 'nodoc' ? N('sy_nodoc') : st.sync === 'update' ? N('sy_update') : locked ? N('sy_locked')
       : st.sync === 'unreadable' ? X('tg_unreadable')
-      : st.last ? N('sy_ok', new Date(st.last).toLocaleTimeString()) : N('sy_wait');
-    const p = document.createElement('p');
+      : st.last ? N('sy_ok', fmtTime(st.last)) : N('sy_wait');
     p.className = warn ? 'tgerr' : 'hint';
-    p.setAttribute('role', 'status');
-    p.textContent = line;
-    const parts = [p];
-    if (on) parts.push(button('btn', N('sy_now'), () => { TG.syncNow(); setTimeout(draw, 50); }));
-    else parts.push(linkBtn('btn ghost', X('tg_connect'), '#/tglogin'));
-    for (const k of ['sy_shared', 'sy_local']) { const q = document.createElement('p'); q.className = 'hint'; q.textContent = N(k); parts.push(q); }
-    box.replaceChildren(...parts);
-  };
+    txt.textContent = line;
+    spin.hidden = !busy;
+    const ae = document.activeElement;
+    now.hidden = !on;
+    link.hidden = on;
+    if (ae === now && !on) focusEl(link, true); else if (ae === link && on) focusEl(now, true);
+    now.setAttribute('aria-disabled', busy ? 'true' : 'false');
+    now.classList.toggle('busy', busy);
+    box.setAttribute('aria-busy', busy ? 'true' : 'false');
+  }
+  syncPanelStatus = draw;
   // the passphrase row lives outside the status box, so a status redraw never wipes what the owner is typing
   let pr = null;
   const drawPass = () => {
@@ -1801,7 +1952,7 @@ const SET_TABS = ['general', 'playback', 'accounts', 'data', 'app'];
 function pageSettings(arg) {
   const tab = SET_TABS.includes(arg) ? arg : 'general';
   page('settings');
-  chips(SET_TABS.map((k) => [k, N('set_' + k)]), tab, (k) => go('#/settings/' + k));
+  tabChips(SET_TABS.map((k) => [k, N('set_' + k)]), tab, '#/settings/');
   const group = document.createElement('div');
   group.className = 'setgroup';
   view.append(group);
@@ -1815,6 +1966,12 @@ function pageSettings(arg) {
     l.append(setRow(N('set_lite'), N('set_lite_txt'), seg([['auto', N('set_dev_auto')], ['on', N('set_lite_on')], ['off', N('set_lite_off')]], litePref(), (v) => { setLite(v); saved(); }, N('set_lite'))));
     l.append(setRow(N('m_device'), N('set_device_txt'), seg([['auto', N('set_dev_auto')], ['tv', N('set_dev_tv')], ['phone', N('set_dev_phone')], ['desktop', N('set_dev_desktop')]],
       ['tv', 'phone', 'desktop'].includes(cfg.device) ? cfg.device : 'auto', (v) => setCfg('device', v), N('m_device'))));
+    if (shellName === 'desktop') {       // 6.5.1: osk.js keeps its bar off a computer with a mouse and a keyboard unless asked for here
+      const sw = document.createElement('input');
+      sw.type = 'checkbox'; sw.className = 'switch'; sw.setAttribute('role', 'switch'); sw.checked = !!get('osk_show', false); sw.setAttribute('aria-label', N('set_osk'));
+      sw.onchange = () => { put('osk_show', sw.checked); saved(); };
+      l.append(setRow(N('set_osk'), N('set_osk_txt'), sw, true));
+    }
     const hl = list(N('set_home_rows'));
     hl.classList.add('homerows');
     const drawRows = () => {
@@ -1842,6 +1999,7 @@ function pageSettings(arg) {
     l.append(setRow(t('s_live'), '', selectBox(Object.entries(t('lists')), cfg.live, (v) => setCfg('live', v), t('s_live'))));
     l.append(setRow(t('s_radio'), '', selectBox(Object.entries(t('countries')), cfg.radio, (v) => setCfg('radio', v), t('s_radio'))));
     l.append(setRow(t('s_family'), t('s_family_txt'), null));
+    provider('subs').catch(() => {});      // (6.5.1: subs.js puts its settings block under this tab - make sure it is loaded)
   } else if (tab === 'accounts') {
     const me = store.live().find((u) => u.id === store.current());
     const l = list(N('set_accounts'));
@@ -1904,24 +2062,35 @@ function doSearch(q) {
   qEl.blur();
   go('#/search/' + encodeURIComponent(q));
 }
+// 6.5.1: #sug is the box; the listbox inside it (#sug_list, what the field's aria-controls names) owns options only.
+// The "remove" crosses are for the mouse / finger (hidden from assistive technology); with the keyboard Shift+Delete
+// removes the marked earlier search. "Clear" is an ordinary button after the list.
 function drawSug(rows, typed) {
   sug.replaceChildren();
+  const lb = document.createElement('div');
+  lb.id = 'sug_list';
+  lb.setAttribute('role', 'listbox');
+  lb.setAttribute('aria-label', N('nav_search'));
   rows.forEach(([q, src], i) => {
     const row1 = document.createElement('div');
     row1.className = 'sugrow';
+    row1.setAttribute('role', 'presentation');
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'sugitem'; b.dir = 'auto'; b.id = 'sug_' + i; b.tabIndex = -1;
     b.setAttribute('role', 'option'); b.setAttribute('aria-selected', 'false');
+    b.setAttribute('data-q', q); b.setAttribute('data-src', src || '');
     b.innerHTML = icon(src === 'history' ? 'searchhist' : 'search') + '<span>' + esc(q) + '</span>';
     b.onclick = () => doSearch(q);
     row1.append(b);
     if (src === 'history') {
       const x = iconButton('sugx', 'close', X('sh_remove') + ': ' + q, () => { store.removeSearch(q); qEl.focus(); refreshSug(); });
       x.tabIndex = -1;
+      x.setAttribute('aria-hidden', 'true');
       row1.append(x);
     }
-    sug.append(row1);
+    lb.append(row1);
   });
+  if (rows.length) sug.append(lb);
   if (!typed && rows.length) {
     const c = button('sugitem sugclear', X('sh_clear'), () => { store.clearSearches(); hideSug(); qEl.focus(); });
     c.type = 'button'; c.tabIndex = -1;
@@ -1961,6 +2130,15 @@ qEl.addEventListener('keydown', (e) => {
   } else if (e.key === 'Enter' && sugAt >= 0 && !sug.hidden) {
     const b = sugItems()[sugAt];
     if (b) { e.preventDefault(); b.click(); }
+  } else if (e.key === 'Delete' && e.shiftKey && sugAt >= 0 && !sug.hidden) {       // (plain Delete edits the text)
+    const b = sugItems()[sugAt];
+    if (b && b.getAttribute('data-src') === 'history') {
+      e.preventDefault();
+      const at = sugAt;
+      store.removeSearch(b.getAttribute('data-q'));
+      refreshSug();
+      sugMark(Math.min(at, sugItems().length - 1));
+    }
   } else if (e.key === 'Escape') {
     e.stopPropagation();
     if (!sug.hidden) hideSug();
@@ -1994,6 +2172,8 @@ const MODULES = {
 };
 const MODULE_OF = {};
 for (const [m, d] of Object.entries(MODULES)) for (const p of d.pages) MODULE_OF[p] = m;
+// 6.5.1: the placeholder of a module page has the shape of what the module draws (others: posters)
+const SKEL_OF = {live: 'wide', radio: 'square', youtube: 'wide'};
 const PAGES = {}, PROVIDERS = new Map(), HOOKS = {title: [], history: []}, LISTENERS = {};
 const modState = {};                                   // name -> promise of its load (dropped when the load failed: it may be tried again)
 let routeSeq = 0, rerouteTimer = null;
@@ -2101,9 +2281,14 @@ let swAsked = false, swHold = false;
 // worker, every cached list and picture dropped, then a fresh start. Settings, accounts and lists stay.
 async function fullUpdate(say) {
   say(N('home_upd_run'));
+  // 6.6: one progress display over the four parts; the percent counts finished parts (true numbers only)
+  const pg = window.TNProgress ? window.TNProgress.open({title: N('home_upd'), steps: [1, 2, 3, 4].map((i) => N('prg_upd_' + i)), keepAcrossSteps: true}) : null;
+  const part = (i) => { if (pg) { pg.step(i); pg.set(i, 4); } };
+  part(0);
   try { if (window.BNNative && typeof window.BNNative.fullUpdate === 'function') window.BNNative.fullUpdate(); } catch (e) { /* the site part still runs */ }
   let latest = '', ctl = null;
   try { const r = await fetch('version.js?u=' + Date.now(), {cache: 'reload'}); latest = ((await r.text()).match(/WEB_VERSION = '([^']+)'/) || [])[1] || ''; } catch (e) { latest = ''; }
+  part(1);
   try {
     const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration().catch(() => null);
     if (reg) {
@@ -2126,8 +2311,10 @@ async function fullUpdate(say) {
       }
     }
   } catch (e) { /* no service worker: the cache drop and the reload do it */ }
+  part(2);
   await clearCaches();
   say(latest && latest !== WEB_VERSION ? N('home_upd_new', SC.verLabel(latest)) : N('home_upd_same', SC.verLabel(WEB_VERSION)));
+  part(3);
   await Promise.race([ctl || Promise.resolve(), new Promise((ok) => setTimeout(ok, 4000))]);
   setTimeout(() => location.reload(), ctl ? 300 : 1500);
 }
@@ -2135,7 +2322,7 @@ function pageAbout() {
   page('about');
   const swOn = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
   view.insertAdjacentHTML('beforeend', `<div class="panel settings"><p>${esc(N('core_about_txt'))}</p>
-    <div class="row"><b>${esc(N('core_version', SC.verLabel(WEB_VERSION) + ' (' + WEB_VERSION + ')'))}</b><span>${esc(N('core_sw', N(swOn ? 'core_sw_on' : 'core_sw_off')))}</span></div>
+    <div class="kv"><b>${esc(N('core_version', SC.verLabel(WEB_VERSION) + ' (' + WEB_VERSION + ')'))}</b><span>${esc(N('core_sw', N(swOn ? 'core_sw_on' : 'core_sw_off')))}</span></div>
     <div class="links" id="ab_acts"></div><span id="ab_done" class="hint" role="status"></span>
     <div class="links"><a class="btn ghost" href="${SITE}guide.html">${esc(N('core_guide'))}</a><a class="btn ghost" href="${SITE}privacy.html">${esc(N('core_privacy'))}</a></div></div>
     <p class="foot">${esc(N('core_legal', SC.verLabel(WEB_VERSION)))}</p>`);
@@ -2160,11 +2347,21 @@ function pageAbout() {
 const hereNow = () => { const [, p = '', ...rest] = location.hash.split('/'); let a = rest.join('/'); try { a = decodeURIComponent(a); } catch (e) {} return {key: p, arg: a, rest}; };
 // go(hash): while a sheet is open (or is just being closed) the sheet's history entry is taken away first, so the
 // new page does not land on top of it
-function go(hash) {
+// 6.5.1: go(hash, {replace: true}) swaps the current entry (tabs, a redirect): no new history entry, no hashchange -
+// the page is drawn from here.
+function go(hash, o) {
   hash = String(hash || '');
   hash = hash.startsWith('#') ? hash : '#/' + hash;
   if (sheetPopPending) { pendingNav = hash; return; }
   if (sheetOpen && history.state && history.state.sheet) { pendingNav = hash; closeModal(); return; }
+  if (o && o.replace) {
+    if (hash === location.hash) return;                     // the tab that is already open
+    try { history.replaceState({i: hIdx}, '', location.pathname + location.search + hash); } catch (e) { location.hash = hash; return; }
+    lastHash = location.hash;
+    pendingAfter = {restore: null, nav: false};
+    route();
+    return;
+  }
   location.hash = hash;
 }
 // 5.1, weak connections - one tuning for every HLS stream of the site (live channels here and in iptv.js; the film
@@ -2196,7 +2393,8 @@ function hlsWatch(h, onLower) {
   });
 }
 const TN = Object.freeze({
-  hlsCfg, hlsWatch,
+  hlsCfg, hlsWatch, ensureHls,
+  progress: window.TNProgress || null,         // 6.6: the shared progress display (progress.js)
   version: WEB_VERSION,
   // registry
   registerPage, registerProvider, providers, provider, providerOn,
@@ -2206,7 +2404,7 @@ const TN = Object.freeze({
   addHistoryHandler(fn) { HOOKS.history.push(fn); },
   on, emit,
   // texts
-  i18n: I18N, t: N, lang: () => cfg.lang, rtl: () => cfg.lang === 'he',
+  i18n: I18N, t: N, lang: () => cfg.lang, rtl: () => cfg.lang === 'he', locale, fmtNum, fmtDate, fmtTime,
   // storage: per browser (bn_ prefix, JSON); the user's synced lists are in store
   get, put(k, v) { put(k, v); syncPoke(k); }, drop(k) { drop(k); syncPoke(k); }, store, SyncDoc: SD, WebSync: WS,
   // settings: this browser's (cfg) and the account's synced ones (read only here)
@@ -2221,8 +2419,19 @@ const TN = Object.freeze({
   esc, $, button, card, section, page, chips, skeleton, empty, modal, closeModal, favButton, cssUrl, paint, httpsOnly, kodiOnly,
   view: () => view,
   loadScript,
+  // 6.5.1: the app shells ask this before an automatic reload (network back on the bundled copy): true while a
+  // Telegram sign-in / connect / sync runs or a Telegram stream is open. Never throws.
+  busy() {
+    try {
+      const G = window.TG;
+      if (G && G.state && /^(login|connecting)$/.test(G.state())) return true;
+      if (G && G.busy && G.busy()) return true;
+      const P = PROVIDERS.get('tgplay');
+      return !!(P && P.stats && P.stats().streams > 0);
+    } catch (e) { return false; }
+  },
   // 5.0 interface: icons, rows, hero, states, toasts, confirmation, context menu, the player stage
-  icon, row, hero, state, toast, confirm: confirmBox, menu, playerHost, announce, copy: copyText, bdi: bdis,
+  icon, row, hero, state, toast, confirm: confirmBox, menu, tidyActs, playerHost, announce, copy: copyText, bdi: bdis,
   shell: () => shellName, input: () => inputMode, focus: (el) => focusEl(el), setTitle,
   // router
   go,
@@ -2232,7 +2441,7 @@ const TN = Object.freeze({
   link: (key, params) => '#/' + key + (params ? '/' + (typeof params === 'string' ? encodeURIComponent(params) : new URLSearchParams(params)) : ''),
   back: () => goBack(),
   // catalogue
-  tmdb, tmdbLang, tmdbImg, hasTmdbKey: () => !!tmdbKey(),
+  tmdb, fetchT, tmdbLang, tmdbImg, hasTmdbKey: () => !!tmdbKey(),
   openTitle, openArchive, openChannel, playRadio, stopRadio, archive, channels, stations, doSearch,
   noteHistory,
   // Telegram (tg.js is loaded on demand: TN.tg() -> window.TG)
@@ -2299,7 +2508,7 @@ function shell() {
   sc.innerHTML = icon('close'); sc.setAttribute('aria-label', N('core_close'));
   $('#brand').setAttribute('aria-label', N('nav_home'));
   closeBtn.setAttribute('aria-label', N('core_close'));
-  $('#netbar').textContent = N('core_offline');
+  $('#netbar').innerHTML = icon('offline') + '<span>' + esc(N('core_offline')) + '</span>';
   drawMe();
   const h = hereNow();
   markNav(h.key, h.arg);
@@ -2414,7 +2623,7 @@ function route(keep) {
   } else if (pg.stub && MODULE_OF[p]) {       // its module draws this page: load it, then draw (the registration re-routes)
     real = false;
     page('', pageName(p));
-    skeleton(6);
+    skeleton(6, SKEL_OF[p]);
     loadModule(MODULE_OF[p]).then(() => {
       if (seq !== routeSeq) return;
       if (PAGES[p].stub) { PAGES[p].render(a, ctx); afterRender(); } else rerouteSoon(p);
@@ -2590,6 +2799,8 @@ document.addEventListener('keydown', (e) => {
   const el = document.activeElement, tag = el && el.tagName;
   const editable = !!el && (tag === 'TEXTAREA' || el.isContentEditable || (tag === 'INPUT' && !/^(checkbox|radio|button|submit|reset|range|file|color)$/.test(el.type)));
   if (e.key === 'Tab') { if (sheetOpen || popOpen) trapTab(e); return; }
+  // 6.5.1: Enter (a remote's OK key) flips a switch / checkbox like Space does
+  if (e.key === 'Enter' && tag === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio') && !el.disabled && !e.altKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); el.click(); return; }
   if (DIR[e.key] && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     const dir = DIR[e.key];
     // the browser's own behaviour: lists, text areas, sliders, date / number fields, radio groups, a frame
@@ -2646,7 +2857,7 @@ try { const mq = matchMedia('(prefers-color-scheme: light)'); const f = () => ap
 function netState(first) {
   const off = navigator.onLine === false;
   $('#netbar').hidden = !off;
-  if (!first) toast(N(off ? 'core_offline' : 'core_online'), {kind: off ? 'error' : 'ok'});
+  if (!first) { toast(N(off ? 'core_offline' : 'core_online'), {kind: off ? 'error' : 'ok'}); try { syncPanelStatus(); } catch (e) { /* the panel is not on the screen */ } }
 }
 window.addEventListener('offline', () => netState(false));
 window.addEventListener('online', () => netState(false));
@@ -2668,20 +2879,29 @@ window.addEventListener('online', () => netState(false));
 // ---------------------------------------------------------------- the service worker: offline shell and the "new version" notice
 // The new worker waits; the page tells the viewer and, when they press Reload, asks the worker to take over
 // (SKIP_WAITING) and reloads once it did. A first install announces nothing.
+// 6.5.1: the registration waits for the page's load + 3 s (15 s at most: a stalled picture holds `load` back), so the
+// worker's precache (about 50 files) does not compete with the requests and posters of the first screen.
 function swSetup() {
   if (!('serviceWorker' in navigator) || location.protocol !== 'https:') return;
   const offer = (w) => {
     if (!w || !navigator.serviceWorker.controller) return;
     toast(N('pwa_update'), {ms: 0, action: {label: N('pwa_reload'), onClick: () => { swAsked = true; try { w.postMessage({type: 'SKIP_WAITING'}); } catch (e) {} setTimeout(() => location.reload(), 3000); }}});
   };
-  navigator.serviceWorker.register('sw.js').then((reg) => {
-    if (reg.waiting) offer(reg.waiting);
-    reg.addEventListener('updatefound', () => {
-      const w = reg.installing;
-      if (w) w.addEventListener('statechange', () => { if (w.state === 'installed') offer(w); });
-    });
-    setInterval(() => { reg.update().catch(() => {}); }, 3600000);       // a tab that stays open for days (a TV)
-  }).catch(() => {});
+  let done = false;
+  const reg1 = () => {
+    if (done) return;
+    done = true;
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      if (reg.waiting) offer(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing;
+        if (w) w.addEventListener('statechange', () => { if (w.state === 'installed') offer(w); });
+      });
+      setInterval(() => { reg.update().catch(() => {}); }, 3600000);       // a tab that stays open for days (a TV)
+    }).catch(() => {});
+  };
+  if (document.readyState === 'complete') setTimeout(reg1, 3000); else window.addEventListener('load', () => setTimeout(reg1, 3000), {once: true});
+  setTimeout(reg1, 15000);
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (swAsked && !swHold && !reloaded) { reloaded = true; location.reload(); } });
 }
@@ -2693,6 +2913,16 @@ route();
 swSetup();
 // the module that adds Play to a title and resumes history rows is fetched in the background, so both are there
 // on a fresh page load without waiting for the first title
-setTimeout(() => { loadModule('sources').catch(() => {}); }, 2500);
+setTimeout(() => { loadModule('sources').catch(() => {}); ensureHls(); }, 2500);
+// 6.5.1: the player module too (120 KB), a little later, so the first Play does not wait for it (not on a data saver)
+setTimeout(() => { const c = navigator.connection; if (c && c.saveData) return; loadModule('player').catch(() => {}); }, 5000);
 // a browser that was connected: the sync starts again by itself, after the page is on the screen
 if (get('tg_session', '') && get('tg_api', null)) setTimeout(() => loadTg().then((TG) => TG.resume(), () => {}), 1500);
+// 6.5.1: a sign-in that waited for its code / QR confirmation when the app was closed (tg.js keeps it 10 minutes
+// under tn_tg_pending): back to the sign-in page once, where it continues without asking Telegram for a new code
+else if (get('tg_api', null)) {
+  try {
+    const p = JSON.parse(localStorage.getItem('tn_tg_pending') || 'null');
+    if (p && p.session && Date.now() - Number(p.t) < 600000 && !/^#\/tglogin/.test(location.hash)) setTimeout(() => loadTg().then(() => { location.hash = '#/tglogin'; }, () => {}), 800);
+  } catch (e) { /* no storage */ }
+}

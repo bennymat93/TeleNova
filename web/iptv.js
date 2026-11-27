@@ -412,7 +412,7 @@
       <div class="actions" id="acts"></div><div class="actions iptv-more" id="iptv_more"></div></div></div>`);
     const $ = (x) => document.getElementById(x);
     const box = $('iptv_box'), st = $('iptv_st'), acts = $('acts'), more = $('iptv_more');
-    let v = $('iptv_v'), hls = null, timer = null, at = -1, tried = 0, refused = false, alive = true;
+    let v = $('iptv_v'), hls = null, timer = null, at = -1, tried = 0, refused = false, alive = true, hlsAsked = false;
     let tick = null, obs = null;                           // (set below; a sheet may be closed before it finished opening)
     const me = {stop() { alive = false; clearTimeout(timer); clearInterval(tick); try { if (hls) hls.destroy(); } catch (e) {} hls = null;
       try { if (obs) obs.disconnect(); } catch (e) {} document.removeEventListener('keydown', keys, true);
@@ -432,16 +432,22 @@
     if (!alive) return;
     const drawEpg = () => { if (epg) { $('iptv_epg').innerHTML = ''; $('iptv_epg').append(epg.bar(c)); } };
     drawEpg();
-    tick = setInterval(() => (alive ? drawEpg() : clearInterval(tick)), 60000);
-    if (id) acts.append(TN.favButton({kind: 'web_channel', id, label: name, extra: /^https:/.test(c.logo || '') ? c.logo : '', img: c.logo || ''}));
-    if (epg) acts.append(TN.button('btn ghost', t('iptv_guide'), () => epg.sheet(c, name)));
+    tick = setInterval(() => { if (!alive) return clearInterval(tick); if (!document.hidden) drawEpg(); }, 60000);      // (6.5.1: no redraw in a hidden tab)
+    const keep = [];                                       // 6.5.1: the buttons that stay in the row; the rest go behind "more"
+    if (id) { const fb = TN.favButton({kind: 'web_channel', id, label: name, extra: /^https:/.test(c.logo || '') ? c.logo : '', img: c.logo || ''}); acts.append(fb); keep.push(fb); }
+    let guideBtn = null;
+    if (epg) { guideBtn = TN.button('btn ghost', t('iptv_guide'), () => epg.sheet(c, name)); acts.append(guideBtn); }
     if (zap) {
       const go = (d) => { const n = zap.list.length, i = ((zap.index + d) % n + n) % n; open(zap.list[i], {list: zap.list, index: i}); };
-      acts.append(TN.button('btn ghost', t('iptv_prev'), () => go(-1)), TN.button('btn ghost', t('iptv_next'), () => go(1)));
+      const pb = TN.button('btn ghost', t('iptv_prev'), () => go(-1)), nb = TN.button('btn ghost', t('iptv_next'), () => go(1));
+      acts.append(pb, nb);
+      keep.push(pb, nb);
       me.go = go;
-    }
+    } else if (guideBtn) keep.push(guideBtn);
     const nextBtn = TN.button('btn ghost', t('iptv_next_src'), () => { clearTimeout(timer); failed(true); });
     if (cands.length > 1) acts.append(nextBtn);
+    // favourite + previous / next channel stay visible; the guide and "other source" open from the round "more" button
+    if (TN.tidyActs) TN.tidyActs(acts, (b) => keep.indexOf(b) >= 0);
     function keys(e) {                                     // remote keys: channel up / down
       if (!me.go || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) return;
       if (e.key === 'PageUp' || e.key === 'ChannelUp') { e.preventDefault(); me.go(-1); }
@@ -495,7 +501,7 @@
       st.className = 'msg iptv-status';
       say(why.join(' '));
       nextBtn.remove();
-      if (cands.length) acts.append(TN.button('btn', t('iptv_retry'), () => open(c, ctx)));
+      if (cands.length) acts.insertBefore(TN.button('btn', t('iptv_retry'), () => open(c, ctx)), acts.moreActs || null);
       for (const x of cands) if (x.via === 'ticket') x.url = '';               // a ticket lives a few minutes: a new one next time
       ways((cands.find((x) => /^https?:/i.test(x.from)) || {}).from || '');
     }
@@ -509,7 +515,7 @@
       if (!alive) return;
       if (i < 0 || i >= cands.length) return allFailed();
       at = i; tried++;
-      const cd = cands[i], Hls = self.Hls;
+      const cd = cands[i];
       box.hidden = false;
       st.className = 'hint iptv-status';
       say(t(cd.via === 'helper' ? 'iptv_try_helper' : 'iptv_try', i + 1, cands.length));
@@ -535,6 +541,17 @@
         say(t('iptv_why_yt'));
         return;
       }
+      // 6.5.1: hls.js is fetched when it is first needed (it no longer loads with the page): once per sheet, then this
+      // source starts again; when the load failed the start goes on as before without the library
+      if (!self.Hls && !hlsAsked && cd.kind !== 'file' && TN.ensureHls) {
+        const probe = document.createElement('video');
+        if (cd.via === 'helper' || !probe.canPlayType('application/vnd.apple.mpegurl')) {
+          hlsAsked = true;
+          TN.ensureHls().then(() => { if (!alive || at !== i) return; tried--; start(i); });
+          return;
+        }
+      }
+      const Hls = self.Hls;
       freshVideo();
       const mine = v;
       mine.addEventListener('playing', () => { if (v === mine) ok(); }, {once: true});
@@ -584,7 +601,7 @@
   function chCard(c, epg, ctx) {
     const dead = isDead(c);
     const el = TN.card(c.logo || 'icon.png', shown(c), t('grp_' + c.cls) || c.group, () => open(c, ctx),
-                       'wide' + (c.kodi_only || dead ? ' dim' : ''), badge(c, dead));
+                       'wide logo' + (c.kodi_only || dead ? ' dim' : ''), badge(c, dead));
     if (epg) { const b = epg.bar(c); if (b.childNodes.length) el.append(b); }
     return el;
   }
@@ -594,7 +611,7 @@
     s.id = 'iptv-style';
     s.textContent = '.iptv-player iframe{width:100%;aspect-ratio:16/9;border:0;display:block;background:#000}.iptv-status{min-height:1.4em}' +
       '.iptv-more{margin-top:8px}.iptv-more .btn{font-size:.9em}.iptv-src form{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;align-items:center}' +
-      '.iptv-src input[type=text],.iptv-src input[type=url]{flex:1 1 220px;min-width:0}.iptv-src .hrow{display:flex;gap:10px;align-items:center;justify-content:space-between}' +
+      '.iptv-src input[type=text],.iptv-src input[type=url],.iptv-src input[type=password]{flex:1 1 220px;min-width:0}.iptv-src .hrow{display:flex;gap:10px;align-items:center;justify-content:space-between}' +
       '.iptv-src .hrow span{overflow-wrap:anywhere;text-align:start}.iptv-src label.btn{cursor:pointer}';
     document.head.append(s);
   }
@@ -810,7 +827,7 @@
       if (!rows.length) view.insertAdjacentHTML('beforeend', `<p class="msg">${esc(t('iptv_load_fail'))}</p>`);
       return;
     }
-    const sk = TN.skeleton();
+    const sk = TN.skeleton(12, 'wide');
     let data, epg;
     try {
       [data, epg] = await Promise.all([list === 'favs' ? favChannels().then((items) => ({items, http: 0})) : load(list === 'guide' ? 'tn' : list),
@@ -861,15 +878,31 @@
     view.append(tools);
     const title = list === 'favs' ? t('iptv_favs') : list.startsWith('c:') ? ((countries || []).find((c) => c.code === list.slice(2)) || {}).name || list.slice(2) : names[list] || list;
     const g = TN.section(title + (grp ? ' · ' + t('grp_' + grp) : ''), items.length);
+    // 6.5.1: a long list (a country, an own playlist: hundreds to 3000 rows) is no longer rebuilt card by card in the
+    // live page on every typed letter. The search text of each channel is made once; typing waits 180 ms; the cards
+    // are built off the page in slices of 120 (the first one at once, so a short list draws exactly as before), and a
+    // newer pass cancels an older one.
+    const hay = new Map(items.map((c) => [c, [c.name, c.name_he].concat(c.names || []).filter(Boolean).join('\n').toLowerCase()]));
+    let run = 0;
     function draw() {
-      const q = filter.value.trim().toLowerCase();
-      g.innerHTML = '';
-      const hit = items.filter((c) => !q || [c.name, c.name_he].concat(c.names || []).some((n) => n && n.toLowerCase().includes(q)));
+      const me = ++run, q = filter.value.trim().toLowerCase();
+      const hit = items.filter((c) => !q || hay.get(c).includes(q));
       const order = hit.filter((c) => !isDead(c)).concat(hit.filter(isDead));         // dead ones last
-      order.forEach((c, i) => g.append(chCard(c, epg, {list: order, index: i})));
-      if (!hit.length) g.innerHTML = `<p class="msg">${esc(list === 'favs' && !q ? t('iptv_favs_none') : t('none'))}</p>`;
+      g.innerHTML = '';
+      g.classList.toggle('big', order.length > 60);
+      if (!hit.length) { g.innerHTML = `<p class="msg">${esc(list === 'favs' && !q ? t('iptv_favs_none') : t('none'))}</p>`; return; }
+      const STEP = 120;
+      const part = (from) => {
+        if (me !== run || (from && !g.isConnected)) return;
+        const frag = document.createDocumentFragment();
+        for (let i = from; i < Math.min(from + STEP, order.length); i++) frag.append(chCard(order[i], epg, {list: order, index: i}));
+        g.append(frag);
+        if (from + STEP < order.length) setTimeout(() => part(from + STEP), 0);
+      };
+      part(0);
     }
-    filter.addEventListener('input', draw);
+    let ft = 0;
+    filter.addEventListener('input', () => { clearTimeout(ft); ft = setTimeout(draw, 180); });
     draw();
     if (data.http) view.insertAdjacentHTML('beforeend', `<p class="hint">${esc(t('iptv_http', data.http))}</p>`);
     if (list === 'tn' && items.some((c) => c.kodi_only)) view.insertAdjacentHTML('beforeend', `<p class="hint">${esc(t('iptv_why_idan'))}</p>`);

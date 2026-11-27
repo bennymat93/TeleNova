@@ -108,7 +108,8 @@ def epg(handle):
         found = cards((r.get('result') or {}).get('broadcasts') or [], time.time())
         if not found:                     # no guide for this channel: one card, never an empty row
             from .common import ui_lang
-            li = xbmcgui.ListItem(ch.get('label') or '', 'אין לוח שידורים לערוץ זה' if ui_lang() == 'he' else 'No guide for this channel')
+            li = xbmcgui.ListItem(ch.get('label') or '', {'he': 'אין לוח שידורים לערוץ זה', 'ru': 'Нет программы передач для этого канала'}.get(
+                ui_lang(), 'No guide for this channel'))
             li.setArt({'thumb': logo, 'icon': logo})
             xbmcplugin.addDirectoryItem(handle, 'plugin://plugin.video.nova/?a=noop', li, False)
         ok = images_ok([c['thumb'] for c in found])

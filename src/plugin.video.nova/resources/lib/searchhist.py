@@ -9,6 +9,7 @@ bn.search for as long as its keyboard is open, so what is typed into a key / add
 anywhere and never stored.
 
 Pure functions (add, match, merge, titles_of) are tested in qa/t_searchhist.py."""
+import os
 import re
 import time
 
@@ -26,12 +27,22 @@ def _key(q):
     return clean(q).lower()
 
 
-def add(hist, q, now=None):
-    """-> new history list, newest first, one entry per text (the old entry moves to the top), KEEP at most"""
+def _num(v):
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else 0.0
+
+
+def add(hist, q, now=None, floor=0):
+    """-> new history list, newest first, one entry per text (the old entry moves to the top), KEEP at most.
+    6.5.1: floor = the time of the last clearing that covers this text; the entry is always later than it (the
+    web's rule, store.js addSearch) - the sync drops every entry that is not later than a clearing"""
     q = clean(q)
     if len(q) < 2:
         return list(hist or [])
-    out = [{'q': q, 'ts': int(now if now is not None else time.time())}]
+    ts = int(now if now is not None else time.time())
+    fl = _num(floor)
+    if ts <= fl:
+        ts = int(fl) + 1
+    out = [{'q': q, 'ts': ts}]
     out += [h for h in hist or [] if isinstance(h, dict) and _key(h.get('q')) != _key(q)]
     return out[:KEEP]
 
@@ -98,7 +109,23 @@ def record(q):
     from .common import save
     q = clean(q)
     if len(q) >= 2:
-        save(FILE, add(load(), q))
+        now, floor = None, 0
+        try:            # 6.5.1: stamped on the account's clock, like the clear marks (users.mark)
+            from . import users
+            root = users._root()
+            now, floor = users.clock(root), mark_floor(users._read(os.path.join(root, 'user_marks.json'), {}), q)
+        except Exception:
+            now, floor = None, 0            # recording a search never fails
+        save(FILE, add(load(), q, now=now, floor=floor))
+
+
+def mark_floor(marks, q):
+    """the latest clearing that covers this text: "clear all", or "remove" of the text itself (pure, tested)"""
+    if not isinstance(marks, dict):
+        return 0
+    removed = marks.get('searches_removed')
+    removed = removed if isinstance(removed, dict) else {}
+    return max(_num(marks.get('searches_cleared')), _num(removed.get(_key(q))), _num(removed.get((q or '').strip().lower())))
 
 
 def ask(heading, default=''):
@@ -174,7 +201,8 @@ def menu(handle, url):
     import xbmcgui
     import xbmcplugin
     hist = load()
-    li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % s('new'))
+    from .common import gold_item
+    li = gold_item(s('new'))
     li.setArt({'icon': 'DefaultAddonsSearch.png'})
     xbmcplugin.addDirectoryItem(handle, url(a='hub_search'), li, True)
     for h in hist:

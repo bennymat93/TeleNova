@@ -255,8 +255,18 @@
   function clock(s) { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return (h ? h + ':' + pad2(m) : m) + ':' + pad2(s % 60); }
   // 6.2.1: an add-on answer -> its stream list (an object or a missing list gives none)
   const streamsOf = (j) => (Array.isArray(j && j.streams) ? j.streams : []);
+  // 6.5.1: the newest episode of a series in the history (newest first; keys 'tv:<id>:<season>:<episode>') - what
+  // "Continue S02E05" on the title page starts from. The id is compared as text (12 never matches 123).
+  function lastEpisodeOf(history, id) {
+    for (const h of Array.isArray(history) ? history : []) {
+      const m = /^tv:([^:]+):(\d+):(\d+)$/.exec(String((h && h.key) || ''));
+      if (m && m[1] === String(id)) return {season: +m[2], episode: +m[3], key: String(h.key), progress: h.progress && typeof h.progress === 'object' ? h.progress : null};
+    }
+    return null;
+  }
+  const seCode = (s, e) => 'S' + pad2(s) + 'E' + pad2(e);
   const pure = {streamsOf, quality, sizeBytes, langs, sizeText, tags, ytId, parseStream, sortRows, recOf, needMbit, bestRows, onlyKinds, kindOf, releaseKey, dedup, filterRows, sniff, verdict, streamId,
-    addonBase, addonName, keyOf, epCode, clock};
+    addonBase, addonName, keyOf, epCode, clock, lastEpisodeOf, seCode};
   if (typeof module === 'object' && module.exports) { module.exports = pure; return; }
   const TN = G.TN;
   if (!TN) return;
@@ -267,7 +277,7 @@
       src_tg: 'טלגרם', src_rd: 'Real-Debrid', src_addons: 'שרתי תוספים', src_ia: 'Internet Archive', src_yt: 'YouTube', src_dm: 'Dailymotion', src_other: 'אחר',
       src_cached: 'מוכן', src_rdq: 'נבדק ב-RD', src_direct: 'ישיר', src_torrent: 'טורנט · דרך RD', src_external: 'נפתח באתר',
       src_err: 'שגיאה', src_settings: 'הגדרות מקורות', src_addon_url: 'כתובת manifest של תוסף Stremio', src_add: 'הוסף', src_remove: 'הסר',
-      src_addon_bad: 'הכתובת לא תקינה (https בלבד)', src_resume: 'נקודת המשך: %s', src_start: 'התחל מההתחלה', src_details: 'פרטים',
+      src_addon_bad: 'הכתובת לא תקינה (https בלבד)', src_resume: 'נקודת המשך: %s', src_start: 'התחל מההתחלה', src_start_s: 'מההתחלה', src_details: 'פרטים',
       src_loading: '%s מתוך %s מקורות ענו', src_ep: 'פרק %s', src_back: 'חזרה לרשימה',
       src_best: '▶ נגן את הטוב ביותר', src_test: 'בדוק קישורים', src_testing: 'בודק קישורים... %s/%s', src_ok: 'תקין', src_dead: 'לא עונה',
       src_rec: 'דירוג המלצה לפי הבדיקות', src_rec_top: 'מומלץ מאוד', src_rec_good: 'מומלץ', src_rec_fair: 'סביר', src_rec_low: 'פחות מומלץ',
@@ -279,12 +289,14 @@
       src_dur: 'משך %s', src_stop: 'עצור', src_subs: 'הגדרות כתוביות', src_rd_ready: 'הקישור מוכן. מנגן...',
       src_srcs: 'מקורות:', src_all: 'הכול', src_order: 'סדר', src_order_best: 'הטוב ביותר לחיבור שלי ראשון', src_order_src: 'לפי מקור',
       src_bestlist: 'כל המקורות · הטוב ביותר לחיבור הנוכחי ראשון', src_smooth: 'ינוגן חלק', src_net: 'החיבור עכשיו: %s מגה-ביט',
-      src_autotest: 'בדוק אוטומטית את הקישורים המובילים בכל חיפוש'},
+      src_autotest: 'בדוק אוטומטית את הקישורים המובילים בכל חיפוש',
+      src_auto_in: 'מנגן את הקישור הטוב ביותר בעוד %s…', src_cancel: 'ביטול', src_continue: '▶ המשך %s', src_next_ep: '▶ הפרק הבא',
+      src_errs_n: 'מקורות שלא ענו: %s', src_seeds: 'מפיצים'},
     en: {src_title: 'Sources', src_play: '▶ Play', src_find: 'Looking for sources...', src_none: 'No source that a browser can play was found.',
       src_tg: 'Telegram', src_rd: 'Real-Debrid', src_addons: 'Addon servers', src_ia: 'Internet Archive', src_yt: 'YouTube', src_dm: 'Dailymotion', src_other: 'Other',
       src_cached: 'Ready', src_rdq: 'Checked at RD', src_direct: 'Direct', src_torrent: 'Torrent · via RD', src_external: 'Opens on the site',
       src_err: 'Error', src_settings: 'Source settings', src_addon_url: 'Stremio addon manifest URL', src_add: 'Add', src_remove: 'Remove',
-      src_addon_bad: 'Not a valid address (https only)', src_resume: 'Resume point: %s', src_start: 'Start from the beginning', src_details: 'Details',
+      src_addon_bad: 'Not a valid address (https only)', src_resume: 'Resume point: %s', src_start: 'Start from the beginning', src_start_s: 'From start', src_details: 'Details',
       src_loading: '%s of %s sources answered', src_ep: 'Episode %s', src_back: 'Back to the list',
       src_best: '▶ Play the best one', src_test: 'Test links', src_testing: 'Testing links... %s/%s', src_ok: 'Works', src_dead: 'No answer',
       src_rec: 'Recommendation from the checks', src_rec_top: 'Highly recommended', src_rec_good: 'Recommended', src_rec_fair: 'Fair', src_rec_low: 'Less recommended',
@@ -296,12 +308,14 @@
       src_dur: 'Length %s', src_stop: 'Stop', src_subs: 'Subtitle settings', src_rd_ready: 'The link is ready. Playing...',
       src_srcs: 'Sources:', src_all: 'All', src_order: 'Order', src_order_best: 'Best for my connection first', src_order_src: 'By source',
       src_bestlist: 'All sources · best for this connection first', src_smooth: 'Plays smoothly', src_net: 'Connection now: %s Mbit',
-      src_autotest: 'Test the top links by itself on every search'},
+      src_autotest: 'Test the top links by itself on every search',
+      src_auto_in: 'Playing the best link in %s…', src_cancel: 'Cancel', src_continue: '▶ Continue %s', src_next_ep: '▶ Next episode',
+      src_errs_n: 'Sources that did not answer: %s', src_seeds: 'Seeders'},
     ru: {src_title: 'Источники', src_play: '▶ Смотреть', src_find: 'Ищем источники...', src_none: 'Не найдено источника, который браузер может воспроизвести.',
       src_tg: 'Telegram', src_rd: 'Real-Debrid', src_addons: 'Серверы дополнений', src_ia: 'Internet Archive', src_yt: 'YouTube', src_dm: 'Dailymotion', src_other: 'Другое',
       src_cached: 'Готово', src_rdq: 'Проверка в RD', src_direct: 'Напрямую', src_torrent: 'Торрент · через RD', src_external: 'Откроется на сайте',
       src_err: 'Ошибка', src_settings: 'Настройки источников', src_addon_url: 'Адрес manifest дополнения Stremio', src_add: 'Добавить', src_remove: 'Удалить',
-      src_addon_bad: 'Неверный адрес (только https)', src_resume: 'Точка продолжения: %s', src_start: 'Начать сначала', src_details: 'Подробнее',
+      src_addon_bad: 'Неверный адрес (только https)', src_resume: 'Точка продолжения: %s', src_start: 'Начать сначала', src_start_s: 'С начала', src_details: 'Подробнее',
       src_loading: 'Ответили %s из %s источников', src_ep: 'Серия %s', src_back: 'Назад к списку',
       src_best: '▶ Включить лучший', src_test: 'Проверить ссылки', src_testing: 'Проверяем ссылки... %s/%s', src_ok: 'Работает', src_dead: 'Не отвечает',
       src_rec: 'Рейтинг по результатам проверок', src_rec_top: 'Очень рекомендуем', src_rec_good: 'Рекомендуем', src_rec_fair: 'Нормально', src_rec_low: 'Менее рекомендуем',
@@ -313,7 +327,9 @@
       src_dur: 'Длительность %s', src_stop: 'Стоп', src_subs: 'Настройки субтитров', src_rd_ready: 'Ссылка готова. Запускаем...',
       src_srcs: 'Источники:', src_all: 'Все', src_order: 'Порядок', src_order_best: 'Лучшее для моего соединения первым', src_order_src: 'По источникам',
       src_bestlist: 'Все источники · лучшее для этого соединения первым', src_smooth: 'Без остановок', src_net: 'Соединение сейчас: %s Мбит',
-      src_autotest: 'Проверять лучшие ссылки при каждом поиске'},
+      src_autotest: 'Проверять лучшие ссылки при каждом поиске',
+      src_auto_in: 'Лучшая ссылка включится через %s…', src_cancel: 'Отмена', src_continue: '▶ Продолжить %s', src_next_ep: '▶ Следующая серия',
+      src_errs_n: 'Источники без ответа: %s', src_seeds: 'Сиды'},
   });
   const t = TN.t, esc = TN.esc;
   const cfg = (k, d) => TN.settings.get('sources_' + k, d);
@@ -418,6 +434,10 @@
       try {
         const rows = (await withTimeout(Promise.resolve().then(fn), g === 'tgsearch' ? 60000 : 25000, signal)) || [];
         out.groups[g] = (out.groups[g] || []).concat(rows.map((r) => norm(r, g, label)));
+        // 6.5.1: Telegram MKV / AVI rows listed: the playback engine script loads now, not after the first failure
+        if (g === 'tgsearch' && rows.some((r) => /\.(mkv|avi|ts)\b/i.test(String((r && (r.name || r.label || r.title)) || '')))) {
+          try { if (TN && TN.provider) Promise.resolve(TN.provider('compat')).then((cp) => { if (cp && cp.warm) cp.warm(); }, () => {}); } catch (e) { /* no engine here */ }
+        }
       } catch (e) {
         if (!(signal && signal.aborted)) out.errors.push({group: g, from: label, msg: safeMsg(e)});
       }
@@ -573,8 +593,25 @@
       '.src_set input[type=url],.src_set select{flex:1 1 220px;min-width:0;min-height:44px;background:var(--panel);color:var(--text);border:1px solid var(--muted);border-radius:10px;padding:9px 14px;font:inherit}' +
       '.src_set label.sw{display:flex;gap:10px;align-items:center;margin:8px 0;min-height:36px}.src_set label.sw input{width:22px;height:22px;flex:none}' +
       '.src_set label.sel{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}.src_set label.sel select{flex:0 1 200px}' +
+      // 6.6: compact header - one action row, a thin resume line, one small info line; the first link sits high
+      '.src_box h3{margin:0 0 4px;font-size:17px;line-height:1.3}' +
+      '.src_res{margin:0 0 6px;font-size:13px;color:var(--muted);display:flex;align-items:center;flex-wrap:wrap;gap:2px}' +
+      '.src_lnk{background:none;border:0;padding:4px 6px;min-height:32px;color:var(--accent);font:inherit;font-weight:600;cursor:pointer;border-radius:6px;text-decoration:underline}' +
+      '.src_lnk:focus-visible,.src_ib:focus-visible{outline:2px solid var(--accent);outline-offset:1px}' +
+      '.src_top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:4px 0}.src_top:empty{display:none}' +
+      '.src_top .src_play{flex:0 1 auto;min-height:40px;padding:6px 16px;font-size:15px}' +
+      '.src_ib{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:4px 10px;border-radius:999px;border:1px solid var(--panel2);background:transparent;color:var(--text);font:inherit;font-size:13px;cursor:pointer}' +
+      '.src_ib:hover{background:var(--panel)}.src_ib .ico{width:16px;height:16px}' +
+      '.src_info{margin:2px 0;font-size:12.5px;color:var(--muted);min-height:0}.src_info:empty{display:none}.src_info .btn{min-height:30px;padding:2px 10px;font-size:13px}' +
+      '@media (max-width:480px){.src_ib span{display:none}.src_ib{padding:4px 9px}}' +
+      'html.tv .src_ib span{display:inline}html.tv .src_ib,html.tv .src_lnk{font-size:17px;min-height:48px}html.tv .src_top .src_play{min-height:52px;font-size:19px}' +
       '.src_kinds{gap:6px;align-items:center;flex-wrap:wrap}.src_kinds .btn{min-height:38px;padding:6px 12px;font-size:14px}' +
-      'html.tv .src_row{padding:14px;font-size:19px}html.tv .src_row:focus{outline:4px solid var(--accent)}html.tv .src_bd,html.tv .src_st{font-size:15px}';
+      'html.tv .src_row{padding:14px;font-size:19px}html.tv .src_row:focus{outline:4px solid var(--accent)}html.tv .src_bd,html.tv .src_st{font-size:15px}' +
+      // 6.5.1: placeholder rows while the sources answer, the failures folded into one line, sprite icons
+      '.src_skel{height:64px;border-radius:10px;margin:6px 0;pointer-events:none;background:var(--panel);animation:sk 1.4s ease-in-out infinite}html.lite .src_skel{animation:none}' +
+      '.src_errbox{margin-top:8px}.src_errbox>summary{cursor:pointer;color:var(--muted);font-size:13px;min-height:36px;display:flex;align-items:center}' +
+      'html.tv .src_errbox>summary{font-size:17px;min-height:48px}.src_seed{display:inline-flex;align-items:center;gap:3px}' +
+      '.src_meta .ico{width:14px;height:14px}html[data-shell="tv"] .src_meta .ico{width:18px;height:18px}#src_auto.links{margin-top:10px}';
     document.head.append(s);
   }
   const ST = {cached: 'src_cached', rd: 'src_rdq', direct: 'src_direct', torrent: 'src_torrent', external: 'src_external', tg: 'src_tg', yt: 'src_yt'};
@@ -590,7 +627,7 @@
       bd(sn && sn.video ? sn.video.toUpperCase() : tg.codec, v && v.play === 'no' && v.why === 'video' ? 'warn' : ''), bd(tg.hdr),
       bd(sn && sn.audio.length ? sn.audio.join('+').toUpperCase() : tg.audio, v && v.play === 'no' && v.why === 'audio' ? 'warn' : ''), bd(tg.src, tg.cam ? 'warn' : ''),
       String(r.lang || '').split(',').filter(Boolean).map((l) => bd(l.toUpperCase(), 'lang')).join(''),
-      bd(sizeText(r.size)), r.dur ? `<span>${esc(t('src_dur', r.dur))}</span>` : '', r.seeds ? `<span dir="ltr">👤 ${r.seeds}</span>` : '',
+      bd(sizeText(r.size)), r.dur ? `<span>${esc(t('src_dur', r.dur))}</span>` : '', r.seeds ? `<span class="src_seed" dir="ltr" title="${esc(t('src_seeds'))}">${TN.icon ? TN.icon('user') : ''}${esc(r.seeds)}</span>` : '',
       r.also && r.also.length ? `<span>${esc(t('src_dup', r.also.length))}</span>` : '',
       rc.safe ? bd(t('src_smooth'), 'good') : '',
       p ? (p.ok === true ? bd(t('src_ok') + (p.mbit ? ' · ' + t('src_speed', p.mbit) : ''), 'good') : p.ok === false ? bd(t('src_dead'), 'warn') : `<span>${esc(t('src_untest'))}</span>`) : '',
@@ -697,9 +734,10 @@
     const ctl = new AbortController();
     current = ctl;
     style();
+    const SKEL = '<div class="src_skel" aria-hidden="true"></div>'.repeat(5);
     TN.modal(`<div class="src_box"><h3 dir="auto" id="src_h">${esc(req.title || t('src_title'))}</h3><div id="src_resume"></div>` +
-      `<div class="links" id="src_top"></div><div class="links src_kinds" id="src_kinds"></div><p class="hint" id="src_prog" role="status">${esc(t('src_find'))}</p><div id="src_list"></div><div id="src_errs"></div>` +
-      `<div class="links"><button class="btn ghost" id="src_set">⚙ ${esc(t('src_settings'))}</button>` +
+      `<div class="src_top" id="src_top"></div><div id="src_auto"></div><div class="links src_kinds" id="src_kinds"></div><p class="src_info" id="src_prog" role="status">${esc(t('src_find'))}</p><div id="src_pg"></div><div id="src_list">${SKEL}</div><div id="src_errs"></div>` +
+      `<div class="links"><button class="btn ghost" id="src_set">${TN.icon ? TN.icon('settings') : ''}<span>${esc(t('src_settings'))}</span></button>` +
       (req.id ? `<button class="btn ghost" id="src_det">${esc(t('src_details'))}</button>` : '') + '</div><div id="src_setbox"></div></div>');
     const $ = (id) => document.getElementById(id);
     const sheet = $('src_list'), top = $('src_top');
@@ -707,6 +745,39 @@
     $('src_set').onclick = () => { const b = $('src_setbox'); if (b.firstChild) b.innerHTML = ''; else settingsPanel(b, () => last && draw(last)); };
     if ($('src_det')) $('src_det').onclick = () => TN.openTitle(req.type === 'tv' ? 'tv' : 'movie', req.id);
     const alive = () => current === ctl && document.body.contains(sheet);
+    // 6.5.1: automatic play never takes a viewer who is already using the list. Any key, press, wheel or swipe in the
+    // sheet (from the moment it opens - the search and the link tests can take many seconds) turns it off for this
+    // sheet; when nothing was touched a 3-second countdown with "Cancel" comes first (#src_auto: draw() never clears it).
+    let touched = false, autoTimer = 0;
+    const stopAuto = () => { if (autoTimer) { clearInterval(autoTimer); autoTimer = 0; } const a = $('src_auto'); if (a) { a.innerHTML = ''; a.className = ''; } };
+    const onTouch = (e) => {
+      const el = e && e.target;
+      if (el && el.closest && el.closest('#src_auto')) return;           // the countdown's own buttons
+      touched = true; autoDone = true; stopAuto();
+    };
+    const touchBox = document.getElementById('modal') || sheet.closest('.src_box');
+    const TOUCH_EV = ['pointerdown', 'keydown', 'wheel', 'touchmove'];
+    if (touchBox) {
+      TOUCH_EV.forEach((ev) => touchBox.addEventListener(ev, onTouch, {capture: true, passive: true}));
+      ctl.signal.addEventListener('abort', () => { stopAuto(); TOUCH_EV.forEach((ev) => touchBox.removeEventListener(ev, onTouch, {capture: true})); }, {once: true});
+    }
+    function startAuto(row) {
+      const a = $('src_auto');
+      if (!a) return;
+      let n = 3;
+      const fire = () => { stopAuto(); play(row, q, {rows: shown, onPlay: quiet}); };
+      const now = TN.button('btn', t('src_auto_in', n), fire);
+      a.className = 'links';
+      a.append(now, TN.button('btn ghost', t('src_cancel'), () => { touched = true; stopAuto(); }));
+      autoTimer = setInterval(() => {
+        if (!alive() || touched) return stopAuto();
+        n--;
+        if (n > 0) { now.textContent = t('src_auto_in', n); return; }
+        stopAuto();
+        if (filters().auto && !resumeBlocked() && shown.includes(row)) play(row, q, {rows: shown, onPlay: quiet});
+      }, 1000);
+    }
+    let searchPg = null;                         // 6.6: TN.progress handles (search, link test)
     let netDone = false;                         // the link tests and auto-play wait for the speed reading
     liveNet = 0;
     measureNet(ctl.signal).then((b) => { net = b; if (current === ctl) liveNet = b > 50000 ? b : 0; }).catch(() => {})
@@ -721,8 +792,11 @@
       if (box) {
         box.innerHTML = '';
         if (rp) {
-          const p = document.createElement('p'); p.className = 'hint'; p.textContent = t('src_resume', clock(rp.t)) + ' ';
-          p.append(TN.button('btn ghost', t('src_start'), () => { dropResume(key); draw(out); }));
+          // 6.6: one thin line with a small "from start" link-button (was a full-size button)
+          const p = document.createElement('p'); p.className = 'src_res'; p.textContent = t('src_resume', clock(rp.t)) + ' · ';
+          const b = TN.button('src_lnk', t('src_start_s'), () => { dropResume(key); draw(out); });
+          b.title = t('src_start'); b.setAttribute('aria-label', t('src_start'));
+          p.append(b);
           box.append(p);
         }
       }
@@ -735,6 +809,7 @@
         sheet.insertAdjacentHTML('beforeend', `<h4 class="src_g">${esc(groupLabel(g.name))} (${g.rows.length})</h4>`);
         g.rows.forEach((r) => sheet.append(rowEl(r, q, ctx)));
       }
+      if (!shown.length && out.done < out.total) sheet.innerHTML = SKEL;      // still searching: the placeholders stay
       if (focusAt >= 0) { const again = sheet.querySelectorAll('.src_row')[focusAt]; if (again) again.focus(); }
       const kb = $('src_kinds');
       if (kb) {
@@ -753,20 +828,34 @@
             TN.settings.set('sources_hidden', left ? [...h] : []); draw(out);
           }));
         }
-        kb.append(TN.button('btn ghost', t('src_order') + ': ' + t(f0.order === 'best' ? 'src_order_best' : 'src_order_src'),
-          () => { TN.settings.set('sources_order', f0.order === 'best' ? 'src' : 'best'); draw(out); }));
       }
       top.innerHTML = '';
+      // 6.6: one compact action row - "Play the best" at normal size, test and order as small icon buttons
+      const ib = (ico, label, full, fn) => {
+        const b = TN.button('src_ib', '', fn);
+        b.innerHTML = (TN.icon ? TN.icon(ico) : '') + '<span>' + esc(label) + '</span>';
+        b.title = full; b.setAttribute('aria-label', full);
+        return b;
+      };
       // 6.1.3: once everything answered (and the line was measured), the top links are tested by themselves -
       // the first one is then a sure one. Started before the buttons are drawn, so "Stop" shows while it runs.
       const done0 = out.done >= out.total;
       if (done0 && netDone && !autoTested && !testing && filters().autoTest && shown.length) { autoTested = true; testing = true; setTimeout(() => runTest(8), 0); }
       const best = shown.find((r) => playable(r) && !r.ext && !r.yt && !r.dead && !(r.probe && (r.probe.ok === false || (r.probe.verdict && r.probe.verdict.play === 'no'))));
-      if (best) top.append(TN.button('btn', t('src_best'), () => play(best, q, ctx)));
+      if (best) top.append(TN.button('btn src_play', t('src_best'), () => play(best, q, ctx)));
       if (shown.some((r) => r.tg || (r.url && (r.status === 'cached' || r.status === 'direct')))) {
-        top.append(TN.button('btn ghost', testing ? t('src_stop') : t('src_test'), () => { if (testing) testing = false; else runTest(); draw(out); }));
+        const lt = testing ? t('src_stop') : t('src_test');
+        top.append(ib(testing ? 'stop' : 'check', lt, lt, () => { if (testing) testing = false; else runTest(); draw(out); }));
       }
+      const ord = filters().order;
+      top.append(ib(ord === 'best' ? 'star' : 'library', t('src_order'), t('src_order') + ': ' + t(ord === 'best' ? 'src_order_best' : 'src_order_src'),
+        () => { TN.settings.set('sources_order', ord === 'best' ? 'src' : 'best'); draw(out); }));
       const done = out.done >= out.total;
+      // 6.6: the shared progress display while the sources answer (true numbers: sources answered / asked)
+      if (TN.progress && $('src_pg')) {
+        if (!done && out.total > 0) { if (!searchPg) searchPg = TN.progress.open({title: t('src_find'), host: $('src_pg')}); searchPg.set(out.done, out.total); }
+        else if (done && searchPg) { searchPg.done(true); searchPg = null; }
+      }
       let msg = !done ? t('src_loading', out.done, out.total) : (shown.length ? '' : t('src_none'));
       if (net > 0 && shown.length) msg += (msg ? ' · ' : '') + t('src_net', Math.round(net / 1e5) / 10);
       if (done && !shown.length && !q.imdb && !TN.hasTmdbKey()) msg += ' ' + t('src_notmdb');
@@ -776,17 +865,27 @@
         p.append(TN.button('btn ghost', t('src_show_all'), () => { showAll = true; draw(out); }));
         $('src_prog').append(p);
       }
-      $('src_errs').innerHTML = out.errors.map((e) => `<p class="src_err" dir="auto">${esc(e.from)}: ${esc(t('src_err'))} (${esc(e.msg)})</p>`).join('');
+      // 6.5.1: the failures sit behind one quiet line (they drew the eye more than the working links); rewritten only
+      // when their number changed, so an opened list and the focus on it survive the redraws
+      const eb = $('src_errs');
+      if (eb && eb.getAttribute('data-n') !== String(out.errors.length)) {
+        const open = !!(eb.firstChild && eb.firstChild.open);
+        eb.setAttribute('data-n', String(out.errors.length));
+        eb.innerHTML = out.errors.length ? `<details class="src_errbox"${open ? ' open' : ''}><summary>${esc(t('src_errs_n', out.errors.length))}</summary>` +
+          out.errors.map((e) => `<p class="src_err" dir="auto">${esc(e.from)}: ${esc(t('src_err'))} (${esc(e.msg)})</p>`).join('') + '</details>' : '';
+      }
       // 6.1.3: once everything answered, the top links are tested by themselves - the first one is then a sure one
-      if (done && netDone && !testing && !autoDone && filters().auto && best && !resumeBlocked()) { autoDone = true; play(best, q, ctx); }
+      if (done && netDone && !testing && !autoDone && !touched && filters().auto && best && !resumeBlocked()) { autoDone = true; startAuto(best); }
     };
     // 6.1.4: a link starts playing: everything this sheet still does in the background stops (see play())
-    function quiet() { testing = false; autoDone = true; netDone = true; if (current === ctl) current = null; try { ctl.abort(); } catch (e) { /* stopped */ } }
+    function quiet() { stopAuto(); testing = false; autoDone = true; netDone = true; if (current === ctl) current = null; try { ctl.abort(); } catch (e) { /* stopped */ } }
     const resumeBlocked = () => !alive() || !!$('src_setbox').firstChild;
     async function runTest(limit) {
       testing = true;
       const rows = shown.filter((r) => !r.probe && (r.tg || (r.url && (r.status === 'cached' || r.status === 'direct')))).slice(0, limit || 24);
       let n = 0;
+      const tp = TN.progress && rows.length > 1 && $('src_pg') ? TN.progress.open({title: t('src_test'), host: $('src_pg'), cancel: () => { testing = false; }}) : null;
+      if (tp) tp.set(0, rows.length);
       const one = async (r) => {
         if (!testing || !alive()) return;
         try { r.probe = await testRow(r, ctl.signal); } catch (e) { return; }
@@ -794,10 +893,12 @@
         if (!alive()) return;
         if (r.el && document.body.contains(r.el)) { r.el.innerHTML = rowHtml(r); r.el.classList.toggle('dead', r.probe.ok === false); }
         $('src_prog').textContent = t('src_testing', n, rows.length);
+        if (tp) tp.set(n, rows.length);
       };
       const queue = rows.slice();
       await Promise.all([0, 1, 2].map(async () => { while (queue.length && testing && alive()) await one(queue.shift()); }));
       testing = false;
+      if (tp) tp.done(true);
       if (alive() && last) draw(last);             // tested-good links move up, dead ones down
     }
     try {
@@ -864,12 +965,37 @@
   }
 
   // ------------------------------------------------------------ hooks: Play on the title sheet, history rows
+  // 6.5.1: a series the viewer is in the middle of gets "Continue S02E05" (straight to that episode's links), or
+  // "Next episode" when the last one was watched to the end; a series never played here still opens its seasons.
   TN.addTitleAction((acts, {type, id, title, detail, poster}) => {
-    const b = TN.button('btn', t('src_play'), () => {
-      if (type === 'tv') { TN.closeModal(); TN.go(TN.link('catalog', {m: 'tv', v: 'seasons', id})); return; }
-      pick({type: 'movie', id, title, original: detail && detail.original_title, year: ((detail && detail.release_date) || '').slice(0, 4),
+    const seasons = () => { TN.closeModal(); TN.go(TN.link('catalog', {m: 'tv', v: 'seasons', id})); };
+    let label = t('src_play'), run = seasons;
+    const b = TN.button('btn', label, () => run());
+    if (type !== 'tv') {
+      run = () => pick({type: 'movie', id, title, original: detail && detail.original_title, year: ((detail && detail.release_date) || '').slice(0, 4),
         imdb: (detail && detail.imdb_id) || '', poster});
-    });
+    } else {
+      let last = null;
+      try { last = lastEpisodeOf(TN.store.history(), id); } catch (e) { last = null; }
+      if (last) {
+        const req = {type: 'tv', id, title, original: detail && detail.original_name, season: last.season, episode: last.episode, poster,
+          imdb: (detail && detail.imdb_id) || '', show: detail || null};
+        const r = (TN.get(RES, {}) || {})[last.key] || last.progress;
+        const done = !!(r && Number(r.d) > 0 && Number(r.t) >= Number(r.d) * 0.95);        // (player.js isWatched)
+        if (!done) { label = t('src_continue', seCode(last.season, last.episode)); run = () => pick(req); }
+        else {
+          label = t('src_next_ep');
+          let busy = false;                       // (not `disabled`: a disabled focused button drops the TV focus)
+          run = () => {
+            if (busy) return;
+            busy = true;
+            b.setAttribute('aria-busy', 'true');
+            nextEpisode(req).then((n) => (n ? pick(n) : seasons()), seasons).then(() => { busy = false; b.removeAttribute('aria-busy'); });
+          };
+        }
+        b.textContent = label;
+      }
+    }
     b.setAttribute('data-autofocus', '');
     acts.prepend(b);
   });

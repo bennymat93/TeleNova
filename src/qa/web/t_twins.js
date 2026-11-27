@@ -240,6 +240,39 @@ const account = () => ({v: 2, users: [{id: 'u1', name: '', created: 1, renamed: 
     eq(f.doc.future, {x: 1}, 'B3: an unknown part passes through a browser write');
   }
 
+  // 6.5.1: a change made while the secrets envelope is being sealed is not recorded as "already sent"
+  {
+    const mk = (midSeal) => {
+      const data = {u1: SD.merge_user_data({}, {})};
+      const h = browser({gemini_key: 'SEAL-K'}, {});
+      h.doc = account();
+      h.passphrase = () => 'owner words';
+      h.userData = (uid) => JSON.parse(JSON.stringify(data[uid] || SD.merge_user_data({}, {})));
+      h.putUserData = (uid, d) => { const was = SD.canon(data[uid] || {}); data[uid] = JSON.parse(JSON.stringify(d)); return SD.canon(data[uid]) !== was; };
+      let armed = false;
+      const take = h.takeSettings;
+      h.takeSettings = (v) => { take(v); armed = midSeal; };          // (the last step before the seal)
+      h.poke = () => { if (!armed) return false; armed = false; data.u1 = SD.merge_user_data(data.u1, {searches: [{q: 'typed during the seal', ts: 1001}]}); return true; };
+      return h;
+    };
+    const subtle = globalThis.crypto.subtle, sign = subtle.sign;
+    let host = null, poked = 0;
+    subtle.sign = function () { if (host && host.poke()) poked++; return sign.apply(subtle, arguments); };
+    try {
+      host = mk(true);
+      const r1 = await WS.cycle(host, 1000);
+      ok(r1.pushed && poked === 1, 'seal race: the first round pushed, and the list changed while the envelope was sealed');
+      ok(!SD.canon(host.doc).includes('typed during the seal'), 'seal race: that change is not in the first upload');
+      const r2 = await WS.cycle(host, 1100);
+      ok(r2.state !== 'idle' && r2.pushed === true && SD.canon(host.doc).includes('typed during the seal'), 'seal race: the next round sees the change and sends it (state ' + r2.state + ')');
+      const r3 = await WS.cycle(host, 1200);
+      eq(r3.state, 'idle', 'seal race: then nothing is left to send');
+      host = mk(false);
+      await WS.cycle(host, 1000);
+      eq((await WS.cycle(host, 1100)).state, 'idle', 'seal race (control): without a change the second round is idle');
+    } finally { subtle.sign = sign; host = null; }
+  }
+
   console.log(fails ? 'TWINS FAILED ' + fails + ' of ' + n : 'TWINS OK ' + n + ' checks');
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.log('FAIL ' + (e && e.stack || e)); process.exit(1); });

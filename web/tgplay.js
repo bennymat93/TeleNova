@@ -47,19 +47,19 @@
     he: {tgplay_nosw: 'הדפדפן לא מאפשר הזרמה מטלגרם כאן', tgplay_nosw_reload: 'הדף נטען בלי מנגנון ההזרמה - טען את הדף מחדש (רענון רגיל)', tgplay_codec: 'הדפדפן לא מצליח לנגן את הקובץ הזה (MKV / HEVC / AC3 מתנגנים לרוב רק ב-Kodi)',
       tgplay_open_tg: 'פתח בטלגרם', tgplay_download: 'הורד ונגן', tgplay_nofile: 'בהודעה אין קובץ וידאו',
       tgplay_login: 'צריך להתחבר לטלגרם כדי לנגן את הקובץ', tgplay_other_tab: 'טלגרם פתוח בלשונית אחרת של האתר. סגרו אותה או נגנו שם.', tgplay_offline: 'אין חיבור לטלגרם כרגע. בדקו את הרשת ונסו שוב.',
-      tgplay_flood: 'טלגרם מבקש להמתין %s שניות', tgplay_private: 'הערוץ פרטי או שההודעה נמחקה', tgplay_gone: 'ההזרמה נסגרה. פתחו את הקובץ שוב.',
+      tgplay_flood: 'טלגרם מבקש להמתין %s שניות', tgplay_private: 'הערוץ פרטי או שההודעה נמחקה', tgplay_gone: 'ההזרמה נסגרה. פתחו את הקובץ שוב.', tgplay_cdn: 'הקובץ מוגש משרת ה-CDN של טלגרם ואי אפשר להזרים אותו כאן - פתחו אותו בטלגרם',
       tgplay_saving: 'שומר למכשיר... %s%', tgplay_saved: 'הקובץ נשמר', tgplay_too_big: 'הקובץ גדול מדי להורדה בדפדפן הזה (%s). פתחו אותו בטלגרם.', tgplay_save: 'שמור למכשיר',
       tgplay_err: 'שגיאת טלגרם: %s', tgplay_timeout: 'טלגרם לא עונה (פג הזמן)'},
     en: {tgplay_nosw: 'This browser cannot stream from Telegram here', tgplay_nosw_reload: 'The page loaded without its streaming helper - reload the page (a normal reload)', tgplay_codec: 'This browser cannot play this file (MKV / HEVC / AC3 usually play only in Kodi)',
       tgplay_open_tg: 'Open in Telegram', tgplay_download: 'Download and play', tgplay_nofile: 'The message has no video file',
       tgplay_login: 'Connect Telegram to play this file', tgplay_other_tab: 'Telegram is open in another tab of this site. Close it or play there.', tgplay_offline: 'No connection to Telegram right now. Check the network and try again.',
-      tgplay_flood: 'Telegram asks to wait %s seconds', tgplay_private: 'The channel is private or the message was deleted', tgplay_gone: 'The stream was closed. Open the file again.',
+      tgplay_flood: 'Telegram asks to wait %s seconds', tgplay_private: 'The channel is private or the message was deleted', tgplay_gone: 'The stream was closed. Open the file again.', tgplay_cdn: 'This file is served from the Telegram CDN and cannot be streamed here - open it in Telegram',
       tgplay_saving: 'Saving to the device... %s%', tgplay_saved: 'The file was saved', tgplay_too_big: 'The file is too large to download in this browser (%s). Open it in Telegram.', tgplay_save: 'Save to device',
       tgplay_err: 'Telegram error: %s', tgplay_timeout: 'Telegram does not answer (timed out)'},
     ru: {tgplay_nosw: 'Этот браузер не может транслировать из Telegram', tgplay_nosw_reload: 'Страница загрузилась без модуля трансляции - перезагрузите её (обычная перезагрузка)', tgplay_codec: 'Браузер не может воспроизвести этот файл (MKV / HEVC / AC3 обычно играют только в Kodi)',
       tgplay_open_tg: 'Открыть в Telegram', tgplay_download: 'Скачать и смотреть', tgplay_nofile: 'В сообщении нет видеофайла',
       tgplay_login: 'Подключите Telegram, чтобы воспроизвести файл', tgplay_other_tab: 'Telegram открыт в другой вкладке сайта. Закройте её или смотрите там.', tgplay_offline: 'Сейчас нет связи с Telegram. Проверьте сеть и попробуйте снова.',
-      tgplay_flood: 'Telegram просит подождать %s с', tgplay_private: 'Канал закрытый или сообщение удалено', tgplay_gone: 'Трансляция закрыта. Откройте файл снова.',
+      tgplay_flood: 'Telegram просит подождать %s с', tgplay_private: 'Канал закрытый или сообщение удалено', tgplay_gone: 'Трансляция закрыта. Откройте файл снова.', tgplay_cdn: 'Файл раздаётся через CDN Telegram и не может воспроизводиться здесь - откройте его в Telegram',
       tgplay_saving: 'Сохраняем на устройство... %s%', tgplay_saved: 'Файл сохранён', tgplay_too_big: 'Файл слишком большой для скачивания в этом браузере (%s). Откройте его в Telegram.', tgplay_save: 'Сохранить на устройство',
       tgplay_err: 'Ошибка Telegram: %s', tgplay_timeout: 'Telegram не отвечает (время вышло)'},
   });
@@ -144,11 +144,11 @@
       measure(s, b.length, t0 || Date.now());   // 6.1.6
       if (i === 0) tailCheck(key, s, b);         // 6.1.6
       s.lastError = '';
-      note(s, {type: 'read', bytes: b.length, total: s.got});
+      note(s, {type: 'read', bytes: b.length, total: s.got, need: !!o.hi});   // 6.5.1: need = a Range request waited for it
       return b;
     }, (e) => {
       if (e && (e.code === 'TGPLAY_GONE' || e.code === 'TGPLAY_STOPPED')) throw e;   // 6.1.5: closed, not an error
-      s.lastError = errCode(e) || (e && e.code) || 'error';
+      s.lastError = errCode(e) || (e && e.code) || (/CDN Not supported/i.test(String(e && e.message)) ? 'TGPLAY_CDN' : '') || 'error';
       note(s, {type: 'error', code: s.lastError, text: errorText(e)});
       throw e;
     }).finally(() => { pending.delete(id); queued.delete(id); });
@@ -240,7 +240,8 @@
       const i = Number(id.slice(key.length + 1));
       if (i < first || i > stop) dropQueued(id);
     }
-    for (let i = last + 1; i <= stop; i++) part(key, s, i).catch(() => {});   // read ahead
+    // 6.5.1: nothing arrived yet (cold start): part 0 gets the line alone; the next request queues the read-ahead
+    if (s.got) for (let i = last + 1; i <= stop; i++) part(key, s, i).catch(() => {});   // read ahead
     let parts;
     try { parts = await Promise.all(need); } finally { release(rid, ids, false); }
     const out = new Uint8Array(end - start + 1);
@@ -345,9 +346,10 @@
     if (/TGPLAY_NO_SW/.test(c)) return TN.t('tgplay_nosw');
     if (/TGPLAY_NO_FILE/.test(c)) return TN.t('tgplay_nofile');
     if (/TGPLAY_GONE/.test(c)) return TN.t('tgplay_gone');
+    if (/TGPLAY_CDN/.test(c)) return TN.t('tgplay_cdn');
     if (/TG_NO_LOGIN|AUTH_KEY|SESSION_REVOKED|USER_DEACTIVATED/.test(c)) return TN.t('tgplay_login');
     if (/TG_OTHER_TAB/.test(c)) return TN.t('tgplay_other_tab');
-    if (/TG_OFFLINE|TG_LOGIN_RUNNING|disconnected|Not connected/i.test(c)) return TN.t('tgplay_offline');
+    if (/TG_OFFLINE|TG_CONNECT_FAILED|TG_LOGIN_RUNNING|disconnected|Not connected/i.test(c)) return TN.t('tgplay_offline');
     if (/FLOOD/.test(c)) return TN.t('tgplay_flood', Number(e && e.seconds) || '?');
     if (/CHANNEL_PRIVATE|CHANNEL_INVALID|PEER_ID_INVALID|MSG_ID_INVALID|USERNAME_(INVALID|NOT_OCCUPIED)|CHAT_ID_INVALID|Could not find the input entity/i.test(c)) return TN.t('tgplay_private');
     if (/TIMEOUT|timed? ?out/i.test(c)) return TN.t('tgplay_timeout');
@@ -378,14 +380,20 @@
 
   async function tgSource(ref) {
     const TG = await TN.tg();
-    const client = await TG.client();
+    // 6.5.1: nothing here waits forever: the client within 35 s, the message within 15 s (each ends in a clear error)
+    const within = (p, ms, code) => { let t = 0; return Promise.race([Promise.resolve(p).finally(() => clearTimeout(t)), new Promise((res, rej) => { t = setTimeout(() => rej(fail(code)), ms); })]); };
+    let client = await within(TG.client(), 35000, 'TG_OFFLINE');
+    const refresh = async () => { client = await within(TG.client(), 35000, 'TG_OFFLINE'); };
     const G = window.GramJS;
     let peer = ref.peer, msgId = Number(ref.msg), message = ref.message || null;
     if (message) { peer = peer || message.peerId; msgId = msgId || message.id; }
     async function fetchMsg() {
-      const [m] = await client.getMessages(peer, {ids: msgId});
+      const [m] = await within(client.getMessages(peer, {ids: msgId}), 15000, 'TGPLAY_TIMEOUT');
       return m || null;
     }
+    // 6.5.1: the last time a part of this stream arrived; starts at the open, so a cold slow first part gets the
+    // longer wait and the rebuild comes only after 30 s with nothing received
+    let gotAt = Date.now();
     if (!message) message = await fetchMsg();
     let doc = docOf(message);
     if (!doc) throw fail('TGPLAY_NO_FILE');
@@ -399,17 +407,20 @@
       return new Uint8Array(0);
     }
     async function readPart(i, size) {
-      let timeouts = 0;
+      let timeouts = 0, wait = PART_TIMEOUT;
       for (let tries = 0; ; tries++) {
         let t = 0;
         const box = {};
         try {
           // 6.1.5: a read that never answers ends after 15 s (frees the limit() slot) and counts as a hiccup
-          return await Promise.race([once(i, size, box), new Promise((res, rej) => { t = setTimeout(() => {
+          const got = await Promise.race([once(i, size, box), new Promise((res, rej) => { t = setTimeout(() => {
             // 6.1.5: end the abandoned download so it does not keep running outside the slot count
             try { const r = box.it && typeof box.it.return === 'function' && box.it.return(); if (r && r.catch) r.catch(() => {}); } catch (e2) { /* gone anyway */ }
             rej(fail('TGPLAY_TIMEOUT'));
-          }, PART_TIMEOUT); })]);
+          }, wait); })]);
+          gotAt = Date.now();
+          if (TG.touch) TG.touch();
+          return got;
         } catch (e) {
           const code = errCode(e);
           if (/FLOOD/.test(code) && e.seconds) {   // 6.1.5: never sleep here (inside limit): limitFlood waits it out
@@ -419,10 +430,20 @@
             note(meta, {type: 'flood', seconds: sec, text: TN.t('tgplay_flood', sec)});
             throw Object.assign(fail('FLOOD'), {seconds: sec, errorMessage: code});
           }
+          // 6.5.1: a file on Telegram's CDN (GramJS cannot follow the redirect): no retries, a clear reason
+          if (/CDN Not supported/i.test(String(e && e.message))) throw fail('TGPLAY_CDN');
           if (tries >= 3) throw e;
           if (/^FILE_REFERENCE_/.test(code)) { const m = await fetchMsg(); const d = docOf(m); if (!d) throw e; doc = d; continue; }
-          if (e && e.code === 'TGPLAY_TIMEOUT' && ++timeouts === 2 && typeof client.connect === 'function') {
-            try { if (client.connected === false || client.disconnected) await client.connect(); } catch (e2) { /* the next try tells */ }
+          // 6.5.1: on the first timeout of a part the connection is checked (one GetState). A dead one, or one that
+          // answers but has sent this stream nothing for 30 s (a stuck media-DC sender), is rebuilt once for all the
+          // parallel parts (TG.reconnect is single-flight); a slow line that still delivers only gets a longer wait.
+          if (e && e.code === 'TGPLAY_TIMEOUT' && ++timeouts === 1) {
+            let okNow = true;
+            try { okNow = TG.health ? await TG.health() : true; } catch (e2) { okNow = false; }
+            if (!okNow || Date.now() - gotAt > 30000) {
+              try { if (TG.reconnect) await TG.reconnect(client); await refresh(); }
+              catch (e2) { if (e2 && /^(TG_NO_LOGIN|TG_OFFLINE|TG_OTHER_TAB)$/.test(e2.code || e2.message)) throw e2; /* the next try tells */ }
+            } else wait = PART_TIMEOUT * 2;
           }
           if (!code) { await sleep(800 * (tries + 1)); continue; }   // network hiccup (or a timeout)
           throw e;
@@ -453,10 +474,13 @@
     if (streams.size && !(own && streams.has(own))) throw fail('TGPLAY_BUSY');
     const src = await srcOf(ref);
     const t0 = Date.now();
-    const b = await limitFlood(() => src.readPart(0, PART), {hi: true});   // 6.1.5: waits out a flood
+    // 6.5.1: an open stream reads part 0 through its cache (no second download); a bare reference reads directly
+    const cached = !!(own && streams.has(own) && cache.has(own + ':0'));
+    const b = own && streams.has(own) && streams.get(own) === src ? await part(own, src, 0, true)
+      : await limitFlood(() => src.readPart(0, PART), {hi: true});   // 6.1.5: waits out a flood
     const sec = Math.max(0.05, (Date.now() - t0) / 1000);
     const u = b instanceof Uint8Array ? b : new Uint8Array(b);
-    return {head: u.subarray(0, 262144), mbit: Math.round(u.length * 8 / sec / 1e5) / 10, size: src.size, mime: src.mime, name: src.name || ''};
+    return {head: u.subarray(0, 262144), mbit: cached ? 0 : Math.round(u.length * 8 / sec / 1e5) / 10, size: src.size, mime: src.mime, name: src.name || ''};
   }
 
   // ---------------------------------------------------------------- what plays, and what to do when it does not

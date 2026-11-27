@@ -101,6 +101,7 @@ function makeTN(opt) {
     settings: {get: (k, d) => (k in cfg ? cfg[k] : d), set: (k, v) => { cfg[k] = v; }, synced: () => Object.assign({}, opt.synced || {}), helper: () => String(cfg.helper || '')},
     esc: (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])),
     $: () => null,
+    icon: (id) => '<svg class="ico" data-i="' + id + '"></svg>',
     button: (cls, text, fn) => { const b = dom.el('button'); b.className = cls; b.textContent = text; if (fn) dom.handlers.push(['button:' + text, fn]); return b; },
     card: (img, title, sub, fn, shape) => { const c = dom.el('button'); dom.texts.push(String(title)); if (shape != null) TN._shapes.push(shape); if (fn) dom.handlers.push(['card:' + title, fn]); return c; },
     section: (title) => { if (title) dom.texts.push(String(title)); return dom.el('div'); },

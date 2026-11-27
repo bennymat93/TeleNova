@@ -8,8 +8,10 @@
 //
 // Libraries, fetched here on first use:
 //   vendor/gramjs-2.26.21.min.js  GramJS, the MTProto client (window.GramJS) - our own bundle, see src/qa/web/build_gramjs.py
-//   fflate 0.8.2 + sealed.js      the build's sealed file format (zlib, zip, PBKDF2 / HMAC through WebCrypto)
-//   qrcode-generator 1.4.4        draws the login QR code on a canvas
+//   vendor/fflate-0.8.2.umd.js + sealed.js  the build's sealed file format (zlib, zip, PBKDF2 / HMAC through WebCrypto)
+//   qrcode-generator 1.4.4 (CDN)  draws the login QR code on a canvas (only for a QR sign-in)
+// 6.5.1: the lifecycle (connect, resume, the supervisor, the QR loop, timeouts) is tested in src/qa/web/t_tglogin.js.
+// A pending sign-in the viewer asked to keep is also in localStorage under tn_tg_pending (outside the bn_* keys).
 // What is kept in this browser (localStorage, keys bn_*):
 //   tg_api      {id, hash} - typed by the viewer or taken from the build's pairing link (#pair=<id>.<hash>)
 //   tg_session  the GramJS session string - ONLY when the viewer ticked "keep me connected" under the warning
@@ -22,12 +24,17 @@
 //   bn_tg_flood    until when Telegram asked not to request codes (a time, nothing else)
 // Nothing here is ever written to the console, put into an address, or shown: errors show Telegram's error CODE only.
 (function (root) {
-  const LIBS = [
-    ['GramJS', 'vendor/gramjs-2.26.21.min.js', 'sha384-vLpLXTCvkXKJ+0bVYmKOYufkvr49+ItiV6bVYF6xfsSg3iFTAv2CJyTGGDL9Z747'],
-    ['fflate', 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js', 'sha384-DT0Ls0mO7JmjTnT+oBuMhEJzYJO1zUqzuuMXNdnOmOQRIpN2BgSjvBV/j50NngIT'],
-    ['Sealed', 'sealed.js', 'sha384-3QiOYAjKOjUimzokSr13TVO6o8T7mwjpx2sVoXcfFSLnX+slMlEH14GsyFCW1hgC'],
-    ['qrcode', 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js', 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k'],
-  ];
+  // 6.5.1: fflate is a copy of ours (web/vendor, the same bytes as the pinned CDN file: the hash is unchanged), so
+  // connecting no longer depends on jsDelivr; the QR drawing library stays on the CDN and is fetched only for a QR.
+  const LIBS = {
+    GramJS: ['vendor/gramjs-2.26.21.min.js', 'sha384-vLpLXTCvkXKJ+0bVYmKOYufkvr49+ItiV6bVYF6xfsSg3iFTAv2CJyTGGDL9Z747'],
+    fflate: ['vendor/fflate-0.8.2.umd.js', 'sha384-DT0Ls0mO7JmjTnT+oBuMhEJzYJO1zUqzuuMXNdnOmOQRIpN2BgSjvBV/j50NngIT'],
+    Sealed: ['sealed.js', 'sha384-3QiOYAjKOjUimzokSr13TVO6o8T7mwjpx2sVoXcfFSLnX+slMlEH14GsyFCW1hgC'],
+    qrcode: ['https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js', 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k'],
+  };
+  // 6.5.1 timeouts (ms): every Telegram step ends in a definite state - connected, or a clear error with a retry
+  const T_CONNECT = 20000, T_RECONNECT = 15000, T_STATE = 8000, T_STATE2 = 12000, T_RESUME = 30000, T_ME = 15000,
+        T_STEP = 30000, T_CYCLE = 90000, T_LIB = 25000, GRACE = 4000, FRESH = 30000;
   const PERIOD = 45000, DEBOUNCE = 3000, MAX_DOC = 16 * 1024 * 1024;
   let A = null;                                  // what app.js hands over: SD, WS, store, get, put, drop, X, fmt, esc, button, loadScript, onSynced, onSettings
   let client = null, me = null, key = '';
@@ -48,25 +55,52 @@
   // 5.3: a phone sign-in that waits for its code survives a reload / the app going to the background: the number,
   // Telegram's code hash and the connection it was asked on are kept for this tab, 10 minutes at most (as the header
   // says). The code can then be typed without asking Telegram for a new one - every new request cancels the old code.
-  function setPending(p) { try { sessionStorage.setItem('bn_tg_pending', JSON.stringify(Object.assign({t: Date.now()}, p))); } catch (e) { /* no storage */ } }
+  // 6.5.1: when the viewer asked to stay connected, the pending sign-in (phone or QR) is also kept in localStorage
+  // under tn_tg_pending - outside the app's bn_* keys, so the backup and the sync never see it - and so survives the
+  // app being killed while the viewer reads the code in Telegram / SMS. Same 10-minute limit; removed from both.
+  const PEND_S = 'bn_tg_pending', PEND_L = 'tn_tg_pending';
+  const stores = () => [[() => root.sessionStorage, PEND_S], [() => root.localStorage, PEND_L]];
+  const pendOk = (p) => !!(p && typeof p.session === 'string' && p.session && (p.how === 'qr' || (p.phone && p.hash)) && Date.now() - p.t < 600000);
+  function setPending(p) {
+    const rec = JSON.stringify(Object.assign({t: Date.now()}, p));
+    try { root.sessionStorage.setItem(PEND_S, rec); } catch (e) { /* no storage */ }
+    if (p && p.keep) { try { root.localStorage.setItem(PEND_L, rec); } catch (e) { /* no storage */ } }
+  }
   function getPending() {
-    try {
-      const p = JSON.parse(sessionStorage.getItem('bn_tg_pending') || 'null');
-      if (p && p.phone && p.hash && typeof p.session === 'string' && p.session && Date.now() - p.t < 600000) return p;
-      if (p) sessionStorage.removeItem('bn_tg_pending');
-    } catch (e) { /* no storage */ }
+    for (const [S, k] of stores()) {
+      try {
+        const p = JSON.parse(S().getItem(k) || 'null');
+        if (pendOk(p)) return p;
+        if (p) S().removeItem(k);
+      } catch (e) { /* no storage */ }
+    }
     return null;
   }
-  function dropPending() { try { sessionStorage.removeItem('bn_tg_pending'); } catch (e) { /* no storage */ } }
+  function dropPending() { for (const [S, k] of stores()) { try { S().removeItem(k); } catch (e) { /* no storage */ } } }
   function setFlood(until) {
     try { if (until) sessionStorage.setItem('bn_tg_flood', String(Number(until) || 0)); else sessionStorage.removeItem('bn_tg_flood'); } catch (e) { /* no storage */ }
   }
   function set(s, patch) { state = s; Object.assign(info, patch || {}); draw(); }
 
-  async function libs() {
-    for (const [name, src, integrity] of LIBS) if (!root[name]) await A.loadScript(src, integrity);
-    if (!G() || !root.Sealed || !root.fflate || !root.qrcode) throw new Error('offline');
+  // a promise that settles within ms: else it rejects with Error(code)
+  function withTimeout(p, ms, code) {
+    let t = null;
+    return Promise.race([Promise.resolve(p).finally(() => clearTimeout(t)),
+                         new Promise((res, rej) => { t = setTimeout(() => rej(new Error(code || 'TG_TIMEOUT')), ms); })]);
   }
+  const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+  // 6.5.1: only what a step needs: connecting = GramJS + sealed.js; the sync adds fflate; the QR code adds qrcode
+  async function need(names) {
+    for (const n of names) if (!root[n]) await withTimeout(A.loadScript(LIBS[n][0], LIBS[n][1]), T_LIB, 'offline');
+    for (const n of names) if (!root[n]) throw new Error('offline');
+  }
+  const libsCore = () => need(['GramJS', 'Sealed']);
+  const libsSync = () => need(['fflate']);
+  const libsQr = () => need(['qrcode']);
+  const libs = () => need(['GramJS', 'fflate', 'Sealed', 'qrcode']);
+  // 6.5.1: the iOS / Mac offline copy (http://127.0.0.1): another origin with its own storage and no service worker -
+  // a sign-in there would be lost when the live site is back, so Telegram is not offered there
+  const localCopy = () => { try { return root.location.protocol === 'http:' && root.location.hostname === '127.0.0.1'; } catch (e) { return false; } };
   // what the viewer may see of an error: a text of ours, or Telegram's error code (PHONE_CODE_INVALID ...) - never anything else
   // the texts this file adds to the app's (he / en / ru, the same keys in each)
   const TEXTS = {
@@ -77,6 +111,8 @@
       tge_too_early: 'אפשר לבקש משלוח נוסף בעוד %s.',
       tge_restart: 'טלגרם איפס את תהליך הכניסה. נסו שוב.',
       tge_w_sec: '%s שניות', tge_w_min: '%s דקות', tge_w_hour: 'כ-%s שעות',
+      tgx_relogin: 'החיבור לטלגרם נכשל כמה פעמים ברצף. הכניסה השמורה לא נמחקה - אם זה נמשך, התחברו מחדש.',
+      tgx_local: 'זה העותק הלא-מקוון של האפליקציה. טלגרם עובד רק מול האתר החי - חזרו לרשת ומשכו לרענון.',
     },
     en: {
       tge_flood_for: 'Telegram asks you to wait %s before another attempt. Do not ask for a code again until then - every request makes the block longer. Signing in with the QR code still works.',
@@ -85,6 +121,8 @@
       tge_too_early: 'Another delivery can be asked for in %s.',
       tge_restart: 'Telegram restarted the sign-in. Try again.',
       tge_w_sec: '%s seconds', tge_w_min: '%s minutes', tge_w_hour: 'about %s hours',
+      tgx_relogin: 'Connecting to Telegram failed several times in a row. The saved sign-in was kept - if this continues, sign in again.',
+      tgx_local: 'This is the offline copy of the app. Telegram works only with the live site - get back online and pull to refresh.',
     },
     ru: {
       tge_flood_for: 'Telegram просит подождать %s перед новой попыткой. Не запрашивайте код до этого - каждый запрос продлевает блокировку. Вход по QR-коду по-прежнему работает.',
@@ -93,6 +131,8 @@
       tge_too_early: 'Запросить другую доставку можно через %s.',
       tge_restart: 'Telegram перезапустил вход. Попробуйте ещё раз.',
       tge_w_sec: '%s сек.', tge_w_min: '%s мин.', tge_w_hour: 'около %s ч.',
+      tgx_relogin: 'Подключение к Telegram несколько раз подряд не удалось. Сохранённый вход не удалён - если так продолжится, войдите снова.',
+      tgx_local: 'Это офлайн-копия приложения. Telegram работает только с сайтом онлайн - подключитесь к сети и потяните вниз для обновления.',
     },
   };
   let textsIn = false;
@@ -145,21 +185,154 @@
   function unlock() { if (releaseLock) { releaseLock(); releaseLock = null; } }
   // fresh: a new login. session: the not-yet-signed-in session a code was asked on (the code belongs to its key);
   // without it a fresh login starts on an empty session
-  async function open(fresh, session) {
+  // 6.5.1: GramJS's connect() resolves false (and its later requests wait forever) when it could not connect, and
+  // also false for "already connected" - so the result is never trusted: client.connected is checked after it, and
+  // the whole call is limited to 20 s. A client that did not connect is destroyed here and TG_CONNECT_FAILED thrown.
+  // stale (optional): () => true when the caller's attempt was given up meanwhile - then nothing is left connected.
+  async function open(fresh, session, stale) {
     const c = creds();
     if (!c) throw new Error('no api');
-    await libs();
+    await libsCore();
+    if (stale && stale()) throw new Error('TG_OFFLINE');
     if (client) return client;
-    client = new (G().TelegramClient)(new (G().sessions.StringSession)(fresh ? (session || '') : savedSession()), Number(c.id), c.hash,
-                                      {connectionRetries: 3, useWSS: true, deviceModel: 'BN Stream Web', appVersion: A.version, systemVersion: 'Browser'});
-    client.setLogLevel('none');
-    await client.connect();
-    return client;
+    const cl = new (G().TelegramClient)(new (G().sessions.StringSession)(fresh ? (session || '') : savedSession()), Number(c.id), c.hash,
+                                        {connectionRetries: 5, floodSleepThreshold: 10, useWSS: true, deviceModel: 'BN Stream Web', appVersion: A.version, systemVersion: 'Browser'});
+    client = cl;
+    try { cl.setLogLevel('none'); } catch (e) { /* (older bundles) */ }
+    let ok = false;
+    try { await withTimeout(cl.connect(), T_CONNECT, 'TG_CONNECT_FAILED'); ok = !!cl.connected; } catch (e) { ok = false; }
+    if (!ok || (stale && stale())) {
+      if (client === cl) await close(); else { try { await cl.destroy(); } catch (e) { /* gone */ } }
+      throw new Error(ok ? 'TG_OFFLINE' : 'TG_CONNECT_FAILED');
+    }
+    watch(cl);
+    return cl;
   }
   async function close(keepKey) {            // keepKey: a code is waiting on this connection's key - only hang up
     const c = client;
     client = null; me = null; key = '';
-    if (c) { try { if (keepKey) await c.disconnect(); else await c.destroy(); } catch (e) {} }
+    if (c) { try { if (keepKey) await withTimeout(c.disconnect(), 5000); else await withTimeout(c.destroy(), 5000); } catch (e) {} }
+  }
+
+  // ---------------------------------------------------------------- 6.5.1: the connection supervisor
+  // lastGood: the last time Telegram answered on this client (TG.touch() from a part read counts too). suspect: the
+  // page came back / the network came back / the transport reported a break - the next use checks first.
+  let lastGood = 0, suspect = false, aliveP = null, rebuildP = null, retryN = 0, resumeFails = 0, broken = 0, hiddenAt = 0;
+  // the transport's own state events (GramJS UpdateConnectionState: 1 connected, -1 disconnected, 0 broken key).
+  // A broken key on two fresh clients in a row means the server forgot the login: only then is it removed.
+  function watch(cl) {
+    try {
+      const N = G().network || {}, U = N.UpdateConnectionState;
+      if (!U || !cl.addEventHandler) return;
+      cl.addEventHandler((u) => {
+        if (!(u instanceof U) || client !== cl) return;
+        if (u.state === -1) suspect = true;
+        else if (u.state === 1) suspect = suspect && Date.now() - lastGood > FRESH;
+        else if (u.state === 0 && !cl.__tnBroken) {
+          cl.__tnBroken = true; broken++;
+          if (broken >= 2) { forget().then(() => set('off', {error: A.X('e_session')})); return; }
+          if (state === 'on') rebuild(cl).catch(() => {});
+        }
+      });
+    } catch (e) { /* no events in this bundle: the health checks still run */ }
+  }
+  // one GetState (8 s, then once more 12 s): true when Telegram answered. An RPC error (FLOOD...) is an answer too;
+  // a login the server no longer knows is thrown on.
+  async function health(c) {
+    c = c || client;
+    if (!c) return false;
+    const ask = (ms) => withTimeout(c.invoke(new (G().Api.updates.GetState)()), ms, 'TG_TIMEOUT');
+    for (const ms of [T_STATE, T_STATE2]) {
+      try { await ask(ms); } catch (e) {
+        if (dead(e)) throw e;
+        if (e && typeof e.errorMessage === 'string' && e.errorMessage) { /* answered */ } else continue;
+      }
+      if (client === c) { lastGood = Date.now(); suspect = false; broken = 0; }
+      return true;
+    }
+    return false;
+  }
+  // a connected, answering client, or an Error TG_OFFLINE / TG_NO_LOGIN. Single-flight: four parallel callers share
+  // one check. GramJS's own reconnect gets GRACE ms first, so two connections never run on one sender.
+  function ensureAlive(force) {
+    if (rebuildP) return rebuildP;             // a rebuild owns the client now: never touch it alongside open()
+    if (!aliveP) aliveP = doAlive(!!force).finally(() => { aliveP = null; });
+    return aliveP;
+  }
+  async function doAlive(force) {
+    if (rebuildP) return rebuildP;
+    const c = client;
+    if (!c || state !== 'on') throw new Error('TG_OFFLINE');
+    try {
+      if (!c.connected) {
+        for (let w = 0; w < GRACE && !c.connected && client === c; w += 250) await sleep(250);
+        if (client !== c) return current();
+        if (!c.connected) {
+          try { await withTimeout(c.connect(), T_RECONNECT, 'TG_CONNECT_FAILED'); } catch (e) { /* tested below */ }
+          if (!c.connected) throw new Error('TG_CONNECT_FAILED');
+          suspect = true;
+        }
+      }
+      if (force || suspect || Date.now() - lastGood > FRESH) { if (!(await health(c))) throw new Error('TG_TIMEOUT'); }
+      return client === c ? c : current();
+    } catch (e) {
+      if (dead(e)) { await forget(); set('off', {error: A.X('e_session')}); throw new Error('TG_NO_LOGIN'); }
+      return rebuild(c);
+    }
+  }
+  const current = () => (state === 'on' && client ? client : Promise.reject(new Error('TG_OFFLINE')));
+  // a new client from the saved session in place of a broken one. stale: the client the caller saw - when it was
+  // already replaced this is a no-op. On failure: state offline, the session kept, a retry in 5 / 15 / 45 s.
+  function rebuild(stale) {
+    if (rebuildP) return rebuildP;
+    if (stale && client !== stale) return Promise.resolve(current());
+    rebuildP = doRebuild().finally(() => { rebuildP = null; });
+    return rebuildP;
+  }
+  async function doRebuild() {
+    if (state !== 'on') throw new Error('TG_OFFLINE');
+    const m = me, k = key;
+    await close();
+    try {
+      await open();
+      if (!(await health(client))) throw new Error('TG_TIMEOUT');
+      me = m; key = k;
+      draw();
+      return client;
+    } catch (e) {
+      await close();
+      if (dead(e)) { await forget(); set('off', {error: A.X('e_session')}); throw new Error('TG_NO_LOGIN'); }
+      stopLoop();
+      set('offline', {error: say(e), busy: false});            // the lock stays: this tab keeps the connection
+      retryLater();
+      throw new Error('TG_OFFLINE');
+    }
+  }
+  // back to the front (or the network is back, or the app says so): a quick check, then a sync round. Never during a
+  // sign-in. native: the app shell asks (MainActivity.onResume / iOS); else only after 20 s or more in the background.
+  async function wake(native) {
+    if (state === 'on' && client) {
+      if (!native && hiddenAt && Date.now() - hiddenAt < 20000) return false;
+      suspect = true;
+      try { await ensureAlive(true); } catch (e) { return false; }
+      round('visible');
+      return true;
+    }
+    if ((state === 'off' || state === 'offline') && A && creds() && savedSession()) { resume(); return true; }
+    return false;
+  }
+  function wire() {
+    if (wired || !root.document || !root.addEventListener) return;
+    wired = true;
+    root.document.addEventListener('visibilitychange', () => {
+      if (root.document.hidden) { hiddenAt = Date.now(); return; }
+      suspect = true;
+      if (state === 'on') { wake(false).then((woke) => { if (!woke) round('visible'); }); try { linkStart(); } catch (e) { /* the sync round still runs */ } }
+      else wake(false);
+      hiddenAt = 0;
+    });
+    root.addEventListener('online', () => { suspect = true; if (state === 'on') round('online'); else wake(false); });
+    root.addEventListener('pageshow', (e) => { if (e && e.persisted) { suspect = true; wake(true); } });
   }
   // ---------------------------------------------------------------- 5.4: automatic Telegram sign-in on a restored device
   // Telegram signs a new device in when an ALREADY signed-in device accepts its login token (this is what scanning the
@@ -240,7 +413,7 @@
     } catch (e) { return false; }
   }
   // the device that is in: looks into the mailbox while it is open and signed in, and accepts what it finds
-  let linkTimer = null, linkBusy = false;
+  let linkTimer = null, linkBusy = false, linkN = 0;
   async function linkServe() {
     if (linkBusy || state !== 'on' || !client) return;
     const secret = linkSecret();
@@ -260,45 +433,91 @@
     } catch (e) { /* an expired token or no connection: the asking device sends a new one */ }
     linkBusy = false;
   }
+  // 6.5.1: the mailbox is not asked every 7 s for as long as the tab lives (about 12,000 requests a day on a TV that
+  // stays open). Every 7 s for the first ~5 minutes after a sign-in / a return to the tab, then every 20 s (a login
+  // token lives about 30 s, so a new device is still answered in time), once a minute while the tab is hidden; the
+  // timer ends by itself when the device signs out (the next sign-in calls linkStart() again).
+  const linkDelay = () => (root.document.hidden ? 60000 : linkN < 40 ? 7000 : 20000);
+  function linkTick() {
+    linkTimer = null;
+    if (state !== 'on' || !client) return;
+    linkN++;
+    linkServe();
+    linkTimer = setTimeout(linkTick, linkDelay());
+  }
   function linkStart() {
     ensureLinkSecret();
-    if (!linkTimer) linkTimer = setInterval(linkServe, 7000);
-    linkServe();
+    linkN = 0;
+    clearTimeout(linkTimer);
+    linkTick();
   }
+  // 6.5.1: the session is stored FIRST (an authorization Telegram just accepted is never lost to a failing getMe),
+  // then the account's name is asked, within 15 s
   async function signedIn(keep) {
     dropPending(); setFlood(0);
-    const user = await client.getMe();
-    me = {id: String(user.id), name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || '', username: user.username || ''};
-    key = root.Sealed.cloudKey(me.id);           // the document's password is made of the account's id, as the build makes it
-    const s = client.session.save();
+    const c = client;
+    const s = c.session.save();
     if (keep) { A.put('tg_session', s); memSession = ''; } else if (!A.get('tg_session', '')) memSession = s;
     info.kept = !!A.get('tg_session', '');
+    const user = await withTimeout(c.getMe(), T_ME, 'TG_TIMEOUT');
+    if (client !== c) throw new Error('TG_OFFLINE');
+    me = {id: String(user.id), name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || '', username: user.username || ''};
+    key = root.Sealed.cloudKey(me.id);           // the document's password is made of the account's id, as the build makes it
+    retryN = 0; resumeFails = 0; broken = 0; lastGood = Date.now(); suspect = false;
     set('on', {error: '', note: ''});
     startLoop();
     round('login');
     try { linkStart(); } catch (e) { /* the sign-in itself is done */ }
   }
-  // a browser that was connected before: connect and start syncing, with nothing on the screen
-  async function resume() {
-    if (state === 'on' || state === 'connecting' || state === 'login' || !creds() || !savedSession()) return;
-    if (!(await lock())) { set('other_tab'); retryLater(); return; }
-    set('connecting');
+  // a browser that was connected before: connect and start syncing, with nothing on the screen.
+  // 6.5.1: ONE shared attempt for every caller (app start, the panel, getClient, the retry timer), so a caller that
+  // comes while it runs waits for its real outcome instead of hearing "not signed in". It ends within 30 s.
+  let resuming = null, resumeGen = 0;
+  function resume() {
+    if (!resuming) resuming = doResume().finally(() => { resuming = null; });
+    return resuming;
+  }
+  async function doResume() {
+    if (state === 'on' || state === 'login' || !A || !creds() || !savedSession() || localCopy()) return;
+    if (!(await lock())) { set('other_tab'); retryLater(PERIOD); return; }
+    const g = ++resumeGen;
+    set('connecting', {error: ''});
     try {
-      await open();
-      if (await client.checkAuthorization()) return await signedIn(!!A.get('tg_session', ''));
-      await forget();                            // logged out from another device: the stale login is removed here
-      set('off', {error: A.X('e_session')});
+      const gone = () => g !== resumeGen;
+      const work = (async () => {
+        const c = await open(false, '', gone);
+        if (gone()) { if (client === c) await close(); throw new Error('TG_OFFLINE'); }
+        // our own check, not GramJS's checkAuthorization (that one says "signed out" for ANY error, and the login was
+        // then wiped after a network hiccup): only a dead login (AUTH_KEY_UNREGISTERED ...) removes the session
+        await withTimeout(c.invoke(new (G().Api.updates.GetState)()), 10000, 'TG_TIMEOUT');
+        if (g !== resumeGen || client !== c) throw new Error('TG_OFFLINE');
+        lastGood = Date.now();
+        await signedIn(!!A.get('tg_session', ''));
+      })();
+      // after the outer timeout the attempt is given up (resumeGen++ below); open(.., gone) then destroys the client
+      // it was still connecting (it would hold the saved key without the bn-tg lock); the late end is handled here
+      work.catch(() => {});
+      await withTimeout(work, T_RESUME, 'TG_TIMEOUT');
     } catch (e) {
+      resumeGen++;
+      if (dead(e)) { await forget(); set('off', {error: A.X('e_session')}); return; }
       await close();
       unlock();
-      set(root.GramJS ? 'off' : 'offline', {error: say(e)});
+      resumeFails++;
+      set('offline', {error: say(e)});
       retryLater();
     }
   }
   let retry = null;
-  function retryLater() { clearTimeout(retry); retry = setTimeout(() => { if (state !== 'on' && state !== 'login' && state !== 'connecting' && savedSession()) resume(); }, PERIOD); }
+  function retryLater(ms) {
+    clearTimeout(retry);
+    const wait = ms != null ? ms : [5000, 15000, 45000][Math.min(retryN++, 2)];
+    retry = setTimeout(() => { if (state !== 'on' && state !== 'login' && state !== 'connecting' && savedSession()) resume(); }, wait);
+  }
   async function forget() {
+    clearTimeout(retry); retryN = 0; resumeFails = 0; broken = 0; suspect = false; lastGood = 0;
     stopLoop();
+    clearTimeout(linkTimer); linkTimer = null;
     await close();
     unlock();
     memSession = '';
@@ -351,7 +570,7 @@
 
   async function phoneFlow(apiCreds, password, onError, pend, keep) {
     const Api = G().Api;
-    const remember = (phone, hash, where) => { try { setPending({phone, hash, where, keep: !!keep, session: String(client.session.save() || '')}); } catch (e) { /* not kept */ } };
+    const remember = (phone, hash, where) => { try { setPending({how: 'phone', phone, hash, where, keep: !!keep, session: String(client.session.save() || '')}); } catch (e) { /* not kept */ } };
     for (;;) {
       let phone, hash, where;
       if (pend) {                               // the code step of a sign-in that was interrupted
@@ -363,7 +582,8 @@
         if (!phone) { info.error = A.X('e_phone'); continue; }
         let sent;
         try {
-          sent = await client.invoke(new Api.auth.SendCode({phoneNumber: phone, apiId: apiCreds.apiId, apiHash: apiCreds.apiHash, settings: new Api.CodeSettings({})}));
+          // 6.5.1: 30 s, then back to the number with "no connection" - never re-sent by itself (a new request cancels the code)
+          sent = await withTimeout(client.invoke(new Api.auth.SendCode({phoneNumber: phone, apiId: apiCreds.apiId, apiHash: apiCreds.apiHash, settings: new Api.CodeSettings({})})), T_STEP, 'TG_TIMEOUT');
         } catch (e) { if (await onError(e)) throw new Error('AUTH_USER_CANCEL'); continue; }
         if (isCls(sent, 'auth.SentCodeSuccess')) return;
         hash = sent.phoneCodeHash; where = sentInfo(sent);
@@ -374,7 +594,7 @@
         if (code === BACK) { dropPending(); break; }
         if (code === RESEND) {
           try {
-            const r = await client.invoke(new Api.auth.ResendCode({phoneNumber: phone, phoneCodeHash: hash}));
+            const r = await withTimeout(client.invoke(new Api.auth.ResendCode({phoneNumber: phone, phoneCodeHash: hash})), T_STEP, 'TG_TIMEOUT');
             if (isCls(r, 'auth.SentCodeSuccess')) return;
             hash = r.phoneCodeHash; where = sentInfo(r); info.error = '';
             remember(phone, hash, where);
@@ -382,7 +602,8 @@
           continue;
         }
         try {
-          const r = await client.invoke(new Api.auth.SignIn({phoneNumber: phone, phoneCodeHash: hash, phoneCode: String(code)}));
+          // 30 s, then the same code step with "no connection" (typing the same code again is safe)
+          const r = await withTimeout(client.invoke(new Api.auth.SignIn({phoneNumber: phone, phoneCodeHash: hash, phoneCode: String(code)})), T_STEP, 'TG_TIMEOUT');
           if (isCls(r, 'auth.AuthorizationSignUpRequired')) { info.error = A.X('e_signup'); break; }
           return;
         } catch (e) {
@@ -394,8 +615,75 @@
       }
     }
   }
+  // 6.5.1: the QR sign-in is our own loop (it was GramJS's signInUserWithQrCode, which threw "Unexpected" when the
+  // confirmation came while the app was in the background and its update was missed - Telegram then said
+  // "confirmed" and the app stayed signed out). Every turn exports the login token again: LoginToken = still waiting
+  // (shown, and sent to the household's mailbox), LoginTokenSuccess = signed in, MigrateTo = the account lives on
+  // another DC. A turn ends early when the update arrives, the page comes back to the front or the network is back.
+  let qrKick = null;
+  async function qrFlow(apiCreds, password, onError, live, keep) {
+    const Api = G().Api;
+    let wakeUp = null;
+    const kick = () => { const w = wakeUp; wakeUp = null; if (w) w(); };
+    const pause = (ms) => new Promise((res) => { const t = setTimeout(() => { wakeUp = null; res(); }, ms); wakeUp = () => { clearTimeout(t); res(); }; });
+    const onUpd = (u) => { if (u && u.className === 'UpdateLoginToken') kick(); };
+    const onVis = () => { if (!root.document.hidden) kick(); };
+    const remember = () => { try { setPending({how: 'qr', keep: !!keep, session: String(client.session.save() || '')}); } catch (e) { /* not kept */ } };
+    const c0 = client;
+    let ev = null;
+    try { ev = G().events && G().events.Raw ? new (G().events.Raw)({}) : undefined; c0.addEventHandler(onUpd, ev); } catch (e) { /* the timer still turns */ }
+    root.document.addEventListener('visibilitychange', onVis);
+    root.addEventListener('online', kick);
+    qrKick = kick;
+    try {
+      for (let fails = 0; ;) {
+        if (!live()) throw new Error('AUTH_USER_CANCEL');
+        let r;
+        try {
+          r = await withTimeout(client.invoke(new Api.auth.ExportLoginToken({apiId: apiCreds.apiId, apiHash: apiCreds.apiHash, exceptIds: []})), T_STEP, 'TG_TIMEOUT');
+        } catch (e) {
+          if (!live()) throw new Error('AUTH_USER_CANCEL');
+          if (e && e.errorMessage === 'SESSION_PASSWORD_NEEDED') { await client.signInWithPassword(apiCreds, {password, onError}); return; }
+          if (await onError(e)) throw new Error('AUTH_USER_CANCEL');
+          if (e && e.errorMessage) throw e;
+          if (++fails >= 4) throw e;                 // no connection for ~2 minutes: the sign-in ends with "no connection"
+          await pause(5000);
+          continue;
+        }
+        fails = 0;
+        if (!live()) throw new Error('AUTH_USER_CANCEL');
+        if (isCls(r, 'auth.LoginTokenSuccess')) return;
+        if (isCls(r, 'auth.LoginTokenMigrateTo')) {
+          await withTimeout(client._switchDC(r.dcId), T_STEP, 'TG_TIMEOUT');
+          remember();
+          let s2;
+          try { s2 = await withTimeout(client.invoke(new Api.auth.ImportLoginToken({token: r.token})), T_STEP, 'TG_TIMEOUT'); }
+          catch (e) {
+            if (e && e.errorMessage === 'SESSION_PASSWORD_NEEDED') { await client.signInWithPassword(apiCreds, {password, onError}); return; }
+            throw e;
+          }
+          if (isCls(s2, 'auth.LoginTokenSuccess')) return;
+          continue;
+        }
+        const code = {token: r.token, expires: Number(r.expires) || 0};
+        loginUi = {step: 'qr', url: 'tg://login?token=' + b64url(code.token), expires: code.expires, auto: !!linkSecret()};
+        info.error = ''; draw();
+        linkAsk(code.token);                     // 5.4: a device of the household that is open approves it by itself
+        remember();
+        let left = code.expires * 1000 - Date.now();
+        if (!(left > 3000)) left = 25000;        // (a clock far off)
+        await pause(Math.min(left, 30000));
+      }
+    } finally {
+      qrKick = null;
+      try { c0.removeEventHandler(onUpd, ev); } catch (e) { /* gone with the client */ }
+      root.document.removeEventListener('visibilitychange', onVis);
+      root.removeEventListener('online', kick);
+    }
+  }
   async function login(how, keep, typed) {
     if (state === 'on') return;
+    if (localCopy()) return set('off', {error: tx('tgx_local')});
     // an earlier attempt still running (a QR code, a phone login that never got an answer) is closed first:
     // before, a press here did nothing at all
     if (state === 'login') { try { if (cancelLogin) await cancelLogin(); } catch (e) { /* already gone */ } }
@@ -407,6 +695,8 @@
     set('login', {error: '', note: ''});
     cancelLogin = async () => {
       cancelled = true; loginGen++; cancelLogin = null;
+      dropPending();                             // a cancelled sign-in must not come back by itself on the next #/tglogin
+      if (qrKick) qrKick();
       const ui = loginUi;
       loginUi = null;
       if (ui && ui.reject) ui.reject(new Error('cancel'));
@@ -419,26 +709,29 @@
     try {
       if (client) await close();                 // a fresh connection for a fresh login
       // ... except for a phone sign-in that was interrupted: its code is good only on the connection it was asked on
-      let pend = how === 'phone' ? getPending() : null;
-      if (pend && typed && normalizePhone(typed) && normalizePhone(typed) !== pend.phone) { pend = null; dropPending(); }
-      if (how !== 'phone') dropPending();
-      const opened = (s) => Promise.race([open(true, s), new Promise((res, rej) => setTimeout(() => rej(new Error('TIMEOUT')), 25000))]);
+      // 6.5.1: a pending sign-in of the same kind continues (phone: its code; QR: the key Telegram may already have
+      // accepted while the app was away); one of the other kind is dropped
+      let pend = getPending();
+      if (pend && (pend.how || 'phone') !== how) { pend = null; dropPending(); }
+      if (pend && how === 'phone' && typed && normalizePhone(typed) && normalizePhone(typed) !== pend.phone) { pend = null; dropPending(); }
+      const opened = (s) => withTimeout(open(true, s), 25000, 'TG_TIMEOUT');
       try { await opened(pend ? pend.session : ''); }
       catch (e) { if (!pend) throw e; pend = null; dropPending(); if (client) await close(); await opened(''); }
       const apiCreds = {apiId: Number(creds().id), apiHash: creds().hash};
       if (how === 'qr') {
-        await client.signInUserWithQrCode(apiCreds, {
-          qrCode: async (code) => {
-            if (cancelled || gen !== loginGen) return;
-            loginUi = {step: 'qr', url: 'tg://login?token=' + b64url(code.token), expires: Number(code.expires) || 0, auto: !!linkSecret()};
-            info.error = ''; draw();
-            linkAsk(code.token);                 // 5.4: a device of the household that is open approves it by itself
-          },
-          password, onError});
+        if (cancelled || gen !== loginGen) return;
+        await libsQr().catch(() => {});          // (only the drawing: the page shows the link without it)
+        await qrFlow(apiCreds, password, onError, () => !cancelled && gen === loginGen, keep);
       } else await phoneFlow(apiCreds, password, onError, pend, keep);
       if (gen !== loginGen) return;
       loginUi = null; cancelLogin = null;
-      await signedIn(keep);
+      try { await signedIn(keep); } catch (e) {
+        // the sign-in was accepted and its session is already stored: the connection is made again from it
+        if (dead(e)) { await forget(); return set('off', {error: A.X('e_session')}); }
+        await close();
+        set('offline', {error: say(e)});
+        resume();
+      }
     } catch (e) {
       if (gen !== loginGen) return;
       loginUi = null; cancelLogin = null;
@@ -528,27 +821,30 @@
     running = true;
     info.busy = true; draw();
     try {
-      if (!client.connected) await client.connect();
-      const res = await A.WS.cycle(host);
+      await libsSync();
+      await ensureAlive(why === 'online');
+      const res = await withTimeout(A.WS.cycle(host), T_CYCLE, 'TG_TIMEOUT');     // (uploads are slow: 90 s)
       info.sync = res.state; info.last = Date.now(); info.error = '';
+      if (state === 'on') lastGood = Date.now();
       if (res.users || res.data.length) A.onSynced(res);
     } catch (e) {
-      if (dead(e)) { await forget(); running = false; info.busy = false; return set('off', {error: A.X('e_session')}); }
-      info.error = say(e);
+      if (dead(e)) { await forget(); set('off', {error: A.X('e_session')}); }
+      else if (state === 'on') info.error = say(e);
+    } finally {
+      running = false; info.busy = false;      // 6.5.1: always (a hanging round kept "syncing" forever)
     }
-    running = false; info.busy = false;
     draw();
     if (again) { again = false; changed(); }
   }
   function changed() { clearTimeout(debounce); debounce = setTimeout(() => round('change'), DEBOUNCE); }
+  let storeWired = false;
   function startLoop() {
     clearInterval(timer);
     timer = setInterval(() => round('timer'), PERIOD);
-    if (wired) return;
-    wired = true;
+    wire();
+    if (storeWired) return;
+    storeWired = true;
     A.store.onChange(() => { if (state === 'on') changed(); });
-    root.document.addEventListener('visibilitychange', () => { if (!root.document.hidden) round('visible'); });
-    root.addEventListener('online', () => round('online'));
   }
   function stopLoop() { clearInterval(timer); clearTimeout(debounce); timer = null; }
 
@@ -564,7 +860,11 @@
     if (hadFocus) return;                        // not under the viewer's fingers
     const X = A.X, parts = [];
     const err = () => { const p = el('p', 'tgerr', info.error || ''); p.setAttribute('role', 'alert'); return p; };
-    if (state === 'offline') parts.push(el('p', 'hint', X('tg_offline')), err(), A.button('btn', X('tg_connect'), () => resume()));
+    if (localCopy()) parts.push(el('p', 'hint', tx('tgx_local')));
+    else if (state === 'offline') {
+      parts.push(el('p', 'hint', X('tg_offline')), err(), A.button('btn', X('tg_connect'), () => resume()));
+      if (resumeFails >= 3 && root.navigator.onLine !== false) parts.push(el('p', 'hint', tx('tgx_relogin')), loginLink('btn ghost', X('tg_connect')));
+    }
     else if (state === 'other_tab') parts.push(el('p', 'hint', X('tg_other_tab')), A.button('btn ghost', X('tg_connect'), () => { state = 'off'; if (savedSession()) resume(); else draw(); }));
     else if (state === 'connecting') parts.push(el('p', 'hint', X('tg_wait')));
     else if (state === 'login') parts.push(el('p', 'hint', X('tg_wait')), err(), loginLink('btn', X('tg_connect')));
@@ -573,7 +873,7 @@
       st.append(el('i'), el('span', '', A.fmt('tg_on', me ? me.name : '')));
       parts.push(st);
       const line = info.busy ? X('tg_syncing') : info.sync === 'nodoc' ? X('tg_nodoc') : info.sync === 'unreadable' ? X('tg_unreadable')
-        : info.last ? A.fmt('tg_last', new Date(info.last).toLocaleTimeString()) : '';
+        : info.last ? A.fmt('tg_last', A.fmtTime ? A.fmtTime(info.last) : new Date(info.last).toLocaleTimeString()) : '';
       parts.push(el('p', 'hint', line));
       if (!info.kept) parts.push(el('p', 'hint', X('tg_memory')));
       parts.push(err());
@@ -591,19 +891,17 @@
 
   // the client for the other modules (search, playback...): connected and signed in, or an Error with message
   // TG_NO_LOGIN | TG_OTHER_TAB | TG_LOGIN_RUNNING | TG_OFFLINE
-  let resuming = null;
+  // 6.5.1: while connecting it waits for the shared attempt; a state still "connecting" then is TG_OFFLINE, never
+  // TG_NO_LOGIN (the login is only "gone" when the session is)
   async function getClient() {
     if (!A) throw new Error('TG_NO_LOGIN');
-    if (state === 'on' && client) {
-      if (!client.connected) await client.connect();
-      return client;
-    }
+    if (rebuildP) return rebuildP;             // between close() and open() of a rebuild client is null for a moment
+    if (state === 'on' && client) return ensureAlive(false);
     if (state === 'login') throw new Error('TG_LOGIN_RUNNING');
     if (!creds() || !savedSession()) throw new Error('TG_NO_LOGIN');
-    if (!resuming) resuming = resume().finally(() => { resuming = null; });
-    await resuming;
+    await resume();
     if (state === 'on' && client) return client;
-    throw new Error(state === 'other_tab' ? 'TG_OTHER_TAB' : state === 'offline' ? 'TG_OFFLINE' : 'TG_NO_LOGIN');
+    throw new Error(state === 'other_tab' ? 'TG_OTHER_TAB' : !savedSession() ? 'TG_NO_LOGIN' : 'TG_OFFLINE');
   }
   const publicStep = () => {
     if (!loginUi) return state === 'login' ? {step: 'wait'} : null;
@@ -622,7 +920,15 @@
 
   const api = {
     ready: false,
-    init(app) { A = app; api.ready = true; },
+    // 6.5.1: the wake-up listeners from the start (they were wired only after a first successful sign-in, so a failed
+    // first connect waited for the 45 s timer)
+    init(app) { A = app; api.ready = true; wire(); },
+    // ---- 6.5.1 connection supervisor (tgplay.js, the app shells)
+    reconnect: (stale) => rebuild(stale),
+    health: async () => { if (state !== 'on' || !client) return false; try { return await health(client); } catch (e) { return false; } },
+    touch() { if (state === 'on') { lastGood = Date.now(); suspect = false; } },
+    wake: (native) => { wake(!!native).catch(() => {}); return true; },
+    localCopy, localText: () => tx('tgx_local'),
     // the small panel in Settings (state, sync, disconnect; "Connect" leads to #/tglogin)
     panel(box, paired) {
       panelEl = box;
@@ -671,7 +977,7 @@
     hasSession: () => !!savedSession(),
     canAutoLink: () => !!linkSecret() && !!creds(),
     _link: {linkSeal, linkOpen, linkKeys},
-    pending: () => { const p = getPending(); return p ? {phone: p.phone, keep: !!p.keep} : null; },
+    pending: () => { const p = getPending(); return p ? {how: p.how || 'phone', phone: p.phone || '', keep: !!p.keep} : null; },
     login,
     answer,
     resend: () => answer(RESEND),

@@ -108,6 +108,8 @@
     } catch (e) { /* no page */ }
     lib().catch(() => { warmed = false; });
   }
+  // 6.6: resolves when the engine script is loaded (the player's preparation steps); never loads twice
+  const ready = () => (supported() ? lib().then(() => true) : Promise.reject(new Error('unsupported')));
   const PROPS = ['currentTime', 'duration', 'paused', 'ended', 'volume', 'muted', 'playbackRate', 'readyState', 'videoWidth', 'videoHeight',
                  'buffered', 'error', 'play', 'pause', 'seeking'];
 
@@ -240,7 +242,7 @@
     try {
       // 6.1.5: deadlines - the wasm decoders come from jsDelivr (libmedia 1.3.1 takes wasmBaseUrl / getWasm, a URL
       // only, no fetch timeout), so a hang there is caught here
-      await deadline(player.load(url, {http: {credentials: 'omit'}}), 25000, 'load timeout');
+      await deadline(player.load(url, {http: {credentials: 'omit'}, ioLoaderOptions: {preload: 1048576}}), 25000, 'load timeout');
       if (st.dead) throw new Error('closed');
       const streams = player.getStreams() || [];
       const d = fromMs(player.getDuration());
@@ -279,7 +281,7 @@
       G.setTimeout(() => { try { if (supported() && G.document.head) { const l = G.document.createElement('link'); l.rel = 'dns-prefetch'; l.href = 'https://cdn.jsdelivr.net'; G.document.head.appendChild(l); } } catch (e) { /* no page */ } }, 3000);
     }
   } catch (e) { /* no timers */ }
-  const api = {supported, attach, warm, preloadSecs, toMs, fromMs, activeCues, cueHtml, pickSubtitle};
+  const api = {supported, attach, warm, ready, preloadSecs, toMs, fromMs, activeCues, cueHtml, pickSubtitle};
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (G.TN && G.TN.registerProvider) G.TN.registerProvider('compat', Object.assign({kinds: ['service'], label: 'Compatibility player'}, api));
 })(typeof self !== 'undefined' ? self : globalThis);

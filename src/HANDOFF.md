@@ -1,5 +1,7 @@
 # TeleNova – Handoff
 
+- **שוחרר: TeleNova 6.6.0 (V6.6)** (27/11): מפקח חיבור טלגרם (web `tg.js` + Kodi), תיקוני התחלת ניגון וסרגל כלים סימטרי חדש (`web/player.css`), גיליון קישורים קומפקטי, אחוז התקדמות + זמן משוער משותף (`web/progress.js`, Kodi `tnprogress.py`), 67 תיקוני UX/ביצועים, פרק V6.6 במדריך. השחרור נקרא קודם 6.5.1 (הערות בקוד עדיין אומרות 6.5.1). **פתוח (בדיקות הבעלים במכשיר):** מצב טיסה באמצע ניגון; רקע ארוך וחזרה; מעבר Wi-Fi→סלולר בניגון; התחברות QR לטלגרם; מראה סרגל הכלים החדש בנגן. אפליקציות Android/iOS/Mac 6.6 – shells בקוד, בנייה בסשנים שלהן.
+
 - **שוחרר: TeleNova 6.5.0 (V6.5)** (25/11): סנכרון שלב 2 הושלם – תיקון שעון (offset מול שרת הטלגרם), מיזוג רשימות לפי מפתח (כולל EPG), סיסמת סנכרון אופציונלית למפתחות (`syncseal.py`, מעטפת `secrets`, גם ב-web/websync.js), מסך סנכרון ב-Kodi (`sync_ui.py`: קטגוריות, מכשירים, סיסמה). web: עיצוב V6.5 (elevation/3D + מראה קל Lite), תפריט ⋯, תיקוני באגים web/Kodi; Kodi: skinpatch עומק, מדריך רוסי. מדריך guide.html עודכן (V6.5). בדיקות חדשות: t_helpcenter, t_skindepth, t_web65. **פתוח:** אפליקציות Android/iOS/Mac 6.5 (shells בקוד, בנייה בסשנים שלהן); אימות סיסמת סנכרון על שני מכשירים אמיתיים (בעלים).
 
 - **שוחרר: TeleNova 6.2.0** (25/11): סנכרון מלא שלב 1 – web/אפליקציות שותפים מלאים במסמך הסנכרון (twins.js, websync.js stamp/apply, כלל הצטרפות, תאריך לכל מפתח, מחיקות), Kodi: SESSION_RX, LOCAL מורחב, שמירת סקשנים של עמיתים, גיבוי בלי קובצי session. מסך סנכרון בהגדרות web. סקירה: 14 ממצאים תוקנו. מדריך + README עודכנו. **שלב 2 פתוח (docs/SYNC-PLAN.md):** סיסמת סנכרון אופציונלית, מיזוג רשימות לפי מפתח, הסרת "last" לסיכות שנמחקו בדפדפן, מסך סנכרון מורחב ב-Kodi.
@@ -151,7 +153,7 @@ git add -A; git commit; git push origin gh-pages   # ואז לוודא את repo
 cd "C:\My Projects\novaTV Addon\src"
 python -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read(),f,feature_version=(3,8)) for f in glob.glob(r'plugin.*\**\*.py',recursive=True)]; print('ok')"
 python qa\undef.py "C:\My Projects\novaTV Addon\src"
-foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs','t_linkspeed','t_slowwatch','t_recommend','t_linklogin','t_aio','t_links','t_helpcenter'){ python "qa\$t.py" }
+foreach($t in 't_services','t_autosync','t_syncdoc','t_pairing','t_ptt','t_dedup','t_bug012','t_bug014','t_tvfail','t_skinxml','t_epg_xml','t_channels_world','t_paging_probe','t_opensubs','t_linkspeed','t_slowwatch','t_recommend','t_linklogin','t_aio','t_links','t_helpcenter','t_skindepth','t_skin651','t_menus651','t_users','t_searchhist','t_tgauth','t_tgstate','t_rpcclient','t_qrflow','t_tnprogress'){ python "qa\$t.py" }
 cd qa\agentC; python test_all.py; python test_rd.py; cd ..\..; python qa\t_profiles.py plugin.video.nova\resources\lib
 python qa\web\run_web_tests.py   # כל בדיקות הרשת + ה-Worker
 python qa\deploy_local.py; & qa\qa_live.ps1      # על Kodi הראשי, כשהוא לא מנגן (deploy_local מעתיק גם json מ-resources)
@@ -173,7 +175,8 @@ python qa\deploy_local.py; & qa\qa_live.ps1      # על Kodi הראשי, כשה�
 6. **BUG-014**: לקרוא את `tv_fail.json` בפרופיל אחרי שימוש אמיתי – הוא יגיד את הסיבה.
 7. **Phases 3–5** (חולשות, מסכים, עיצוב מחדש) לפי PROGRESS. Phase 0 הושלם (`docs/ARCHITECTURE.md`).
 8. **החלטות הבעלים**: TorBox (3$/חודש). מפתח OpenSubtitles: ה-"http 400" היה באג שלנו ותוקן – לבדוק שוב את המפתח במסך השירותים.
-9. כל שינוי → בדיקות → `bump.py` → בילד → push → אימות באתר → עדכון הרשימה הזו.
+9. **6.6.0 – בדיקות הבעלים במכשיר**: מצב טיסה בזמן ניגון, רקע ארוך, מעבר Wi-Fi→סלולר, התחברות QR, מראה סרגל הכלים החדש.
+10. כל שינוי → בדיקות → `bump.py` → בילד → push → אימות באתר → עדכון הרשימה הזו.
 
 ## 0. עדכון ישן (2026-11-12 00:35) – היסטוריה
 

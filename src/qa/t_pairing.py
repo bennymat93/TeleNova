@@ -384,6 +384,38 @@ th.start()
 sres = F.run_sender(UI(), OldEngine(Telegram()), Host(BUNDLE), 'PC', ('127.0.0.1', lst.port))
 th.join(60)
 check(box['r']['ok'] and box['r']['login'].startswith('failed') and sres['ok'], 'an engine error at login: setup reported as arrived, login as failed: %r / %r' % (box['r'], sres))
+class FlakyEngine(NewEngine):
+    """6.5.1 (K6): the engine restarts while the setup is applied - two checks fall into the restart"""
+    flaky = ['service_down: ReadTimeout', 'service_starting']
+
+    def qr_check(self):
+        if self.flaky:
+            return self.flaky.pop(0)
+        return NewEngine.qr_check(self)
+
+
+class RefusedEngine(NewEngine):
+    def qr_check(self):
+        return 'AuthTokenInvalidError'
+
+    def qr_wait(self, s):
+        return 'AuthTokenInvalidError'
+
+
+_pause, F.RETRY_PAUSE = F.RETRY_PAUSE, 0.2
+check(F.transient('service_down: ReadTimeout') and F.transient('timeout') and not F.transient('AuthTokenInvalidError'),
+      'transient engine states are told apart from Telegram answers')
+for eng_cls, want in ((FlakyEngine, 'ok'), (RefusedEngine, 'failed: AuthTokenInvalidError')):
+    lst = P.Listener('TV salon', beacon=False)
+    box, acct = {}, Telegram()
+    th = threading.Thread(target=lambda: box.__setitem__('r', F.run_receiver(UI(), eng_cls(acct), Host(), 'TV salon', listener=lst)))
+    th.start()
+    t0 = time.time()
+    F.run_sender(UI(), OldEngine(acct), Host(BUNDLE), 'PC', ('127.0.0.1', lst.port))
+    th.join(60)
+    check(box['r']['login'] == want and time.time() - t0 < 15,
+          '%s: login %r (want %r)' % (eng_cls.__name__, box['r'].get('login'), want))
+F.RETRY_PAUSE = _pause
 F.ACK_WAIT, F.PROGRESS_EVERY = 2, 0.5               # a slow box: applying takes 5 s, far over the 2 s ack wait
 lst = P.Listener('TV salon', beacon=False)
 slow_host, box, acct = Host(slow=1.0), {}, Telegram()      # one account seen by both devices

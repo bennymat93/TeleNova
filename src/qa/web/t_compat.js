@@ -13,6 +13,12 @@ ok(C.toMs(1.5) === 1500n && C.toMs(-3) === 0n && C.toMs('x') === 0n && C.toMs(0.
 eq([C.fromMs(1500n), C.fromMs(0n), C.fromMs(undefined)], [1.5, 0, 0], 'engine milliseconds -> seconds');
 
 // 6.1.1: the engine runs without its worker - inside it AC3 / E-AC3 / DTS decoders did not open (DDP5.1 releases stopped)
+{ // 6.5.1: the loader asks for at most 1 MiB(+1 after a seek): the /tgstream/ answers (2 MiB cap) are always complete
+  const cs = fs.readFileSync(path.join(WEB, 'compat.js'), 'utf8'), m = /ioLoaderOptions:\s*\{preload:\s*(\d+)\}/.exec(cs);
+  ok(m && Number(m[1]) <= 1048576, 'compat.js passes ioLoaderOptions.preload <= 1 MiB');
+  const CAP = 2 * 1048576, complete = (pre) => pre + 1 <= CAP; // answer length must equal the asked length
+  ok(!complete(5242880) && complete(1048576), 'model: the 5 MiB default breaks at the 2 MiB cap, 1 MiB(+1) fits');
+}
 ok(/enableWorker:\s*false/.test(fs.readFileSync(path.join(WEB, 'compat.js'), 'utf8')), 'engine worker stays off (sound decoders)');
 
 const tracks = [

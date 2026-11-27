@@ -9,7 +9,7 @@ import xbmcgui
 from resources.lib.common import monitor
 import xbmcplugin
 
-from resources.lib.common import (T, tmdb, art, load, save, now_str, MEDIA, log, IMG)
+from resources.lib.common import (T, tmdb, art, load, save, now_str, MEDIA, log, IMG, ui_lang, plain_of, gold_item)
 from resources.lib import accounts, iptv, radio, backup, libraries, providers, status, sysupdate
 
 HANDLE = int(sys.argv[1])
@@ -20,20 +20,34 @@ def url(**kw):
     return BASE + '?' + urlencode(kw)
 
 
+# 6.5.1: almost every menu row showed the same white folder - none of these names has a picture in resources/media.
+# A picture file with the name still wins (real art can be added later); otherwise the skin's own symbol of the kind.
+ICON_FALLBACK = {'movies': 'DefaultMovies.png', 'series': 'DefaultTVShows.png', 'tv': 'DefaultAddonPVRClient.png',
+                 'radio': 'DefaultMusicSongs.png', 'history': 'DefaultRecentlyAddedMovies.png',
+                 'favourites': 'DefaultFavourites.png', 'libraries': 'DefaultAddonRepository.png',
+                 'accounts': 'DefaultAddonService.png', 'backup': 'DefaultHardDisk.png', 'genres': 'DefaultGenre.png',
+                 'languages': 'DefaultCountry.png', 'years': 'DefaultYear.png', 'search': 'DefaultAddonsSearch.png',
+                 'trending': 'DefaultInProgressShows.png', 'popular': 'DefaultMovieTitle.png',
+                 'top': 'DefaultMusicTop100.png', 'next': 'DefaultFolderBack.png', 'kitchen': 'DefaultTVShows.png',
+                 'channels': 'DefaultAddonPVRClient.png'}
+
+
 def icon(name):
-    import os
     for ext in ('.png', '.jpg'):
         p = os.path.join(MEDIA, name + ext)
         if os.path.exists(p):
             return p
-    return 'DefaultFolder.png'
+    return ICON_FALLBACK.get(name) or ('DefaultCountry.png' if name.startswith('lang_') else 'DefaultFolder.png')
 
 
-def folder(label, target, ic=None, plot='', fanart=None, context=None):
+def folder(label, target, ic=None, plot='', fanart=None, context=None, plain=''):
     li = xbmcgui.ListItem(label)
     li.setArt({'icon': ic or 'DefaultFolder.png', 'thumb': ic or 'DefaultFolder.png',
                'fanart': fanart or icon('fanart')})
     li.getVideoInfoTag().setPlot(plot)
+    plain = plain or plain_of(label)        # 6.5.1: an all-gold label stays readable on the gold focus bar
+    if plain:
+        li.setProperty('bn_plain', plain)
     if context:
         li.addContextMenuItems(context)
     xbmcplugin.addDirectoryItem(HANDLE, target, li, True)
@@ -43,12 +57,30 @@ BN_VIEW = 60          # BN Details view: backdrop + full info of the focused tit
 BN_EPISODES = 62      # BN Episodes view (1.4.12, skin View_62_BNEpisodes.xml)
 
 
-def end(content='', cache=True):
+def _clean_title(title):
+    import re
+    return re.sub(r'\[/?[A-Z]+[^\]]*\]', '', title or '').strip()
+
+
+def category(title):
+    """6.5.1: the name of the menu in the top bar ("Videos > Backup") - the bar showed only the window's name"""
+    title = _clean_title(title)
+    if title and HANDLE >= 0:
+        xbmcplugin.setPluginCategory(HANDLE, title)
+
+
+def end(content='', cache=True, title=''):
     if content:
         xbmcplugin.setContent(HANDLE, content)
+    category(title)
     xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=cache)
     # 4.0.8: no Container.SetViewMode here any more - it switched the view AFTER the list was on the screen (one
     # design, then another). The skin picks the view by the content while the list loads (skinpatch.default_views).
+
+
+def end_as(title):
+    """end() for the screens of other modules (they get end as a parameter), with this menu's name"""
+    return lambda content='', cache=True: end(content, cache, title)
 
 
 def details(m, ids):
@@ -120,30 +152,31 @@ def apply_details(li, tag, m, d):
 def root():
     # 5.1: All in one - first on a device where Telegram is not set up yet: one user name + password connect everything
     if not providers.telegram_on() or not _tg_api_set():
-        from resources.lib.common import ui_lang
-        he = ui_lang() == 'he'
-        folder('[COLOR gold][B]%s[/B][/COLOR]' % ('חיבור כולל (All in one)' if he else 'All in one'),
-               'plugin://plugin.video.telescope/?mode=aio', icon('accounts'))
-    folder(providers.s('hub_search'), url(a='hub_search'), os.path.join(MEDIA, 'search_all.png'))   # a search-box tile
-    folder(T('movies'), url(a='media_root', m='movie'), icon('movies'))
-    folder(T('series'), url(a='media_root', m='tv'), icon('series'))
-    folder(T('tv'), url(a='tv_root'), icon('tv'))
-    folder(T('radio'), url(a='radio_root'), icon('radio'))
+        aio = _t('חיבור כולל (All in one)', 'All in one', 'Всё в одном (All in one)')
+        folder('[COLOR gold][B]%s[/B][/COLOR]' % aio, 'plugin://plugin.video.telescope/?mode=aio', icon('accounts'),
+               plot=T('d_aio'), plain=aio)
+    folder(providers.s('hub_search'), url(a='hub_search'), os.path.join(MEDIA, 'search_all.png'),   # a search-box tile
+           plot=T('d_hub_search'))
+    folder(T('movies'), url(a='media_root', m='movie'), icon('movies'), plot=T('d_movies'))
+    folder(T('series'), url(a='media_root', m='tv'), icon('series'), plot=T('d_series'))
+    folder(T('tv'), url(a='tv_root'), icon('tv'), plot=T('d_tv'))
+    folder(T('radio'), url(a='radio_root'), icon('radio'), plot=T('d_radio'))
     if providers.telegram_on():                 # 1.7.0: the Telegram engine's own menus (Chiko Media, my channels, login)
         folder(providers.s('tg_menu'), 'plugin://plugin.video.telescope/',
-               'special://home/addons/plugin.video.telescope/resources/icon.png')
-    folder(T('history'), url(a='history'), icon('history'))
-    folder(T('favourites'), url(a='favs'), icon('favourites'))
-    folder(_he('עריכת מקורות', 'Edit sources'), url(a='src_menu'), icon('libraries'))
+               'special://home/addons/plugin.video.telescope/resources/icon.png', plot=T('d_tg_menu'))
+    folder(T('history'), url(a='history'), icon('history'), plot=T('d_history'))
+    folder(T('favourites'), url(a='favs'), icon('favourites'), plot=T('d_favourites'))
+    folder(_t(*SRC_TITLE), url(a='src_menu'), icon('libraries'), plot=T('d_src_menu'))
     folder('%s: %s' % (_users().s('title'), _users().current_name()), url(a='users'), 'DefaultUser.png', plot=_users().s('about'))
-    folder(T('accounts'), url(a='accounts'), icon('accounts'))
+    folder(T('accounts'), url(a='accounts'), icon('accounts'), plot=T('d_accounts'))
     # 5.2: one entry per job - backup holds Google Drive, "settings and system" holds Kodi's settings, the device
     # type, the status page and the update report (each was its own line in the main menu)
-    folder(_he('גיבוי, שחזור ו-Google Drive', 'Backup, restore and Google Drive'), url(a='bk_menu'), icon('backup'))
-    folder(_he('הגדרות ומערכת', 'Settings and system'), url(a='sys_menu'), 'DefaultAddonProgram.png')
-    folder('[COLOR gold]%s[/COLOR]' % _he('עדכון מלא של הבילד', 'Update the whole build'), url(a='sysreport'), 'DefaultAddonsUpdates.png',
-           plot=sysupdate.s('running'))
-    end(cache=False)
+    folder(_t(*BK_TITLE), url(a='bk_menu'), icon('backup'), plot=T('d_bk_menu'))
+    folder(_t(*SYS_TITLE), url(a='sys_menu'), 'DefaultAddonProgram.png', plot=T('d_sys_menu'))
+    upd = _t('עדכון מלא של הבילד', 'Update the whole build', 'Полное обновление сборки')
+    folder('[COLOR gold]%s[/COLOR]' % upd, url(a='sysreport'), 'DefaultAddonsUpdates.png',
+           plot=sysupdate.s('running'), plain=upd)
+    end(cache=False, title='TeleNova')
 
 
 def _tg_api_set():
@@ -155,70 +188,96 @@ def _tg_api_set():
         return False
 
 
-def _he(he, en):
-    from resources.lib.common import ui_lang
-    return he if ui_lang() == 'he' else en
+def _t(he, en, ru):
+    """6.5.1: a label in the interface language (was Hebrew / English only - a Russian interface got English)"""
+    return (he, en, ru)[{'he': 0, 'en': 1, 'ru': 2}[ui_lang()]]
+
+
+# the names of the three menus: the row that opens the menu and the menu's own title use the same text
+SRC_TITLE = ('עריכת מקורות', 'Edit sources', 'Правка источников')
+BK_TITLE = ('גיבוי, שחזור ו-Google Drive', 'Backup, restore and Google Drive', 'Копии, восстановление и Google Drive')
+SYS_TITLE = ('הגדרות ומערכת', 'Settings and system', 'Настройки и система')
 
 
 def sys_menu():
     from resources.lib import profiles
-    folder(T('kodi_settings'), url(a='kodi_settings'), 'DefaultAddonProgram.png')
-    folder('%s: %s' % (_he('סוג מכשיר', 'Device type'), profiles.label(profiles.current(), 'he' if _he(1, 0) else 'en')),
-           url(a='profile_pick'), 'DefaultAddonProgram.png')
-    folder(status.s('title'), url(a='status'), 'DefaultAddonService.png')
+    folder(T('kodi_settings'), url(a='kodi_settings'), 'DefaultAddonProgram.png', plot=T('d_kodi_settings'))
+    folder('%s: %s' % (_t('סוג מכשיר', 'Device type', 'Тип устройства'), profiles.label(profiles.current(), ui_lang())),
+           url(a='profile_pick'), 'DefaultAddonProgram.png', plot=T('d_profile_pick'))
+    folder(status.s('title'), url(a='status'), 'DefaultAddonService.png', plot=T('d_status'))
     folder(sysupdate.s('title'), url(a='sysreport'), 'DefaultAddonsUpdates.png', plot=sysupdate.s('running'))
-    end(cache=False)
+    end(cache=False, title=_t(*SYS_TITLE))
 
 
 def src_menu(cat=''):
     """5.2: Edit sources - one place per kind of content, each with the editors that already exist for it"""
     tele = 'plugin://plugin.video.telescope/'
-    cats = [('video', _he('סרטים וסדרות', 'Films and series'), icon('movies')), ('live', _he('טלוויזיה לייב', 'Live TV'), icon('tv')),
-            ('radio', _he('רדיו ומוזיקה', 'Radio and music'), icon('radio')),
-            ('tg', _he('טלגרם', 'Telegram'), 'special://home/addons/plugin.video.telescope/resources/icon.png'),
-            ('subs', _he('כתוביות', 'Subtitles'), 'DefaultSubtitles.png')]
+    cats = [('video', _t('סרטים וסדרות', 'Films and series', 'Фильмы и сериалы'), icon('movies'), 'd_src_video'),
+            ('live', _t('טלוויזיה לייב', 'Live TV', 'Прямое ТВ'), icon('tv'), 'd_src_live'),
+            ('radio', _t('רדיו ומוזיקה', 'Radio and music', 'Радио и музыка'), icon('radio'), 'd_src_radio'),
+            ('tg', _t('טלגרם', 'Telegram', 'Telegram'), 'special://home/addons/plugin.video.telescope/resources/icon.png',
+             'd_src_tg'),
+            ('subs', _t('כתוביות', 'Subtitles', 'Субтитры'), 'DefaultSubtitles.png', 'd_src_subs')]
     if not cat:
-        for key, label, ic in cats:
-            folder(label, url(a='src_menu', cat=key), ic)
-        return end(cache=False)
+        for key, label, ic, about in cats:
+            folder(label, url(a='src_menu', cat=key), ic, plot=T(about))
+        return end(cache=False, title=_t(*SRC_TITLE))
     if cat == 'video':
-        folder(_he('חיפוש בכל מקורות הסרטים והסדרות', 'Search every film and series source'), url(a='hub_search'), os.path.join(MEDIA, 'search_all.png'))
-        folder(providers.s('library'), url(a='libs'), icon('libraries'))
-        folder(_he('שרתי Stremio, Real-Debrid, StremThru ומפתחות', 'Stremio servers, Real-Debrid, StremThru and keys'), url(a='accounts'), icon('accounts'))
-        folder(_he('ערוצים ובוטים של טלגרם', 'Telegram channels and bots'), tele + '?mode=telegram', icon('accounts'))
+        folder(_t('חיפוש בכל מקורות הסרטים והסדרות', 'Search every film and series source',
+                  'Поиск по всем источникам фильмов и сериалов'), url(a='hub_search'), os.path.join(MEDIA, 'search_all.png'),
+               plot=T('d_hub_search'))
+        folder(providers.s('library'), url(a='libs'), icon('libraries'), plot=T('d_libs'))
+        folder(_t('שרתי Stremio, Real-Debrid, StremThru ומפתחות', 'Stremio servers, Real-Debrid, StremThru and keys',
+                  'Серверы Stremio, Real-Debrid, StremThru и ключи'), url(a='accounts'), icon('accounts'), plot=T('d_accounts'))
+        folder(_t('ערוצים ובוטים של טלגרם', 'Telegram channels and bots', 'Каналы и боты Telegram'), tele + '?mode=telegram',
+               icon('accounts'), plot=T('d_tg_channels'))
     elif cat == 'live':
-        li = xbmcgui.ListItem(_he('מקורות IPTV: M3U, Xtream ולוח שידורים (EPG)', 'IPTV sources: M3U, Xtream and guide (EPG)'))
+        li = xbmcgui.ListItem(_t('מקורות IPTV: M3U, Xtream ולוח שידורים (EPG)', 'IPTV sources: M3U, Xtream and guide (EPG)',
+                                 'Источники IPTV: M3U, Xtream и программа (EPG)'))
         li.setArt({'icon': 'DefaultAddonService.png'})
+        li.getVideoInfoTag().setPlot(T('d_src_iptv'))
         xbmcplugin.addDirectoryItem(HANDLE, url(a='src_iptv'), li, False)
-        folder(T('tv'), url(a='tv_root'), icon('tv'))
+        folder(T('tv'), url(a='tv_root'), icon('tv'), plot=T('d_tv'))
     elif cat == 'radio':
-        folder(T('radio'), url(a='radio_root'), icon('radio'))
+        folder(T('radio'), url(a='radio_root'), icon('radio'), plot=T('d_radio'))
     elif cat == 'tg':
-        folder(_he('הערוצים, הקבוצות והבוטים שלי', 'My channels, groups and bots'), tele + '?mode=telegram', icon('accounts'))
-        folder(_he('חשבון טלגרם', 'Telegram account'), tele + '?mode=account', icon('accounts'))
+        folder(_t('הערוצים, הקבוצות והבוטים שלי', 'My channels, groups and bots', 'Мои каналы, группы и боты'),
+               tele + '?mode=telegram', icon('accounts'), plot=T('d_tg_channels'))
+        folder(_t('חשבון טלגרם', 'Telegram account', 'Аккаунт Telegram'), tele + '?mode=account', icon('accounts'),
+               plot=T('d_tg_account'))
     elif cat == 'subs':
-        folder(_he('אתרי כתוביות, מפתחות ותרגום AI', 'Subtitle sites, keys and AI translation'), url(a='accounts'), icon('accounts'))
-    end(cache=False)
+        folder(_t('אתרי כתוביות, מפתחות ותרגום AI', 'Subtitle sites, keys and AI translation',
+                  'Сайты субтитров, ключи и перевод ИИ'), url(a='accounts'), icon('accounts'), plot=T('d_subs_keys'))
+    end(cache=False, title=next((label for key, label, _, _ in cats if key == cat), _t(*SRC_TITLE)))
 
 
 def bk_menu():
     from resources.lib import cloudsync                               # 4.0.4: the setup that follows the account
-    li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % cloudsync.s('title'))
+    li = gold_item(cloudsync.s('title'))
     li.getVideoInfoTag().setPlot(cloudsync.s('explain'))
     li.setArt({'icon': 'DefaultAddonProgram.png'})
     xbmcplugin.addDirectoryItem(HANDLE, url(a='svc', do='backup'), li, False)
-    for label, act in ((T('backup'), 'bk_do'), (T('restore'), 'bk_restore')):
+    li = xbmcgui.ListItem(cloudsync.s('sync_screen'))                 # 6.5.1: the sync settings screen, one press away
+    li.getVideoInfoTag().setPlot(T('d_sync_screen'))
+    li.setArt({'icon': 'DefaultAddonProgram.png'})
+    xbmcplugin.addDirectoryItem(HANDLE, url(a='sync_screen'), li, False)
+    for label, act, about in ((T('backup'), 'bk_do', 'd_backup'), (T('restore'), 'bk_restore', 'd_restore')):
         li = xbmcgui.ListItem(label)
+        li.getVideoInfoTag().setPlot(T(about))
         li.setArt({'icon': 'DefaultAddonProgram.png'})
         xbmcplugin.addDirectoryItem(HANDLE, url(a=act), li, False)
-    folder('Google Drive', url(a='gd_menu'), 'DefaultNetwork.png')      # backups on Drive, restore, sync
+    folder('Google Drive', url(a='gd_menu'), 'DefaultNetwork.png', plot=T('d_gdrive'))      # backups on Drive, restore, sync
     # 5.2: All in one, both ways, where backups are
-    for label, mode in ((_he('חיבור כולל: התחברות במשתמש וסיסמה', 'All in one: connect with user name and password'), 'aio'),
-                        (_he('חיבור כולל: שמירה / עדכון מהמכשיר הזה', 'All in one: save / update from this device'), 'aio_save')):
-        li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % label)
+    for label, mode, about in (
+            (_t('חיבור כולל: התחברות במשתמש וסיסמה', 'All in one: connect with user name and password',
+                'Всё в одном: вход по имени и паролю'), 'aio', 'd_aio_login'),
+            (_t('חיבור כולל: שמירה / עדכון מהמכשיר הזה', 'All in one: save / update from this device',
+                'Всё в одном: сохранить / обновить с этого устройства'), 'aio_save', 'd_aio_save')):
+        li = gold_item(label)
+        li.getVideoInfoTag().setPlot(T(about))
         li.setArt({'icon': 'DefaultAddonProgram.png'})
         xbmcplugin.addDirectoryItem(HANDLE, 'plugin://plugin.video.telescope/?mode=' + mode, li, False)
-    end(cache=False)
+    end(cache=False, title=_t(*BK_TITLE))
 
 
 def _users():
@@ -245,34 +304,37 @@ LANGS = [('he', 'hebrew'), ('en', 'english'), ('ru', 'russian'), ('fr', 'french'
 
 
 def media_root(m):
-    folder(T('search'), url(a='search', m=m), icon('search'))
-    folder(T('trending'), url(a='list', m=m, path='/trending/%s/week' % m), icon('trending'))
-    folder(T('popular'), url(a='list', m=m, path='/%s/popular' % m), icon('popular'))
-    folder(T('top_rated'), url(a='list', m=m, path='/%s/top_rated' % m), icon('top'))
+    folder(T('search'), url(a='search', m=m), icon('search'), plot=T('d_search'))
+    folder(T('trending'), url(a='list', m=m, path='/trending/%s/week' % m), icon('trending'), plot=T('d_trending'))
+    folder(T('popular'), url(a='list', m=m, path='/%s/popular' % m), icon('popular'), plot=T('d_popular'))
+    folder(T('top_rated'), url(a='list', m=m, path='/%s/top_rated' % m), icon('top'), plot=T('d_top_rated'))
     # 1.6.3: the rows a viewer looks for first (the split the big services use): new, Israeli, family
     if m == 'movie':
-        folder(T('now_playing'), url(a='list', m=m, path='/movie/now_playing'), icon('trending'))
+        folder(T('now_playing'), url(a='list', m=m, path='/movie/now_playing'), icon('trending'), plot=T('d_now_playing'))
         folder(T('il_movies'), url(a='list', m=m, path='/discover/movie', with_origin_country='IL',
-                                    sort_by='popularity.desc', **{'vote_count.gte': 3}), icon('languages'))
-        folder(T('family'), url(a='list', m=m, path='/discover/movie', with_genres=10751, sort_by='popularity.desc'), icon('genres'))
-        folder(T('docu'), url(a='list', m=m, path='/discover/movie', with_genres=99, sort_by='popularity.desc'), icon('genres'))
+                                    sort_by='popularity.desc', **{'vote_count.gte': 3}), icon('languages'), plot=T('d_il_movies'))
+        folder(T('family'), url(a='list', m=m, path='/discover/movie', with_genres=10751, sort_by='popularity.desc'),
+               icon('genres'), plot=T('d_family'))
+        folder(T('docu'), url(a='list', m=m, path='/discover/movie', with_genres=99, sort_by='popularity.desc'),
+               icon('genres'), plot=T('d_docu'))
     else:
         folder(T('il_series'), url(a='list', m=m, path='/discover/tv', with_origin_country='IL',
-                                    sort_by='popularity.desc', **{'vote_count.gte': 3}), icon('languages'))
-        folder(T('on_air'), url(a='list', m=m, path='/tv/on_the_air'), icon('trending'))
-        folder(T('kids_tv'), url(a='list', m=m, path='/discover/tv', with_genres=10762, sort_by='popularity.desc'), icon('genres'))
-        folder(T('docu'), url(a='list', m=m, path='/discover/tv', with_genres=99, sort_by='popularity.desc'), icon('genres'))
-    folder(T('genres'), url(a='genres', m=m), icon('genres'))
-    folder(T('languages'), url(a='langs', m=m), icon('languages'))
-    folder(T('years'), url(a='years', m=m), icon('years'))
+                                    sort_by='popularity.desc', **{'vote_count.gte': 3}), icon('languages'), plot=T('d_il_series'))
+        folder(T('on_air'), url(a='list', m=m, path='/tv/on_the_air'), icon('trending'), plot=T('d_on_air'))
+        folder(T('kids_tv'), url(a='list', m=m, path='/discover/tv', with_genres=10762, sort_by='popularity.desc'),
+               icon('genres'), plot=T('d_kids_tv'))
+        folder(T('docu'), url(a='list', m=m, path='/discover/tv', with_genres=99, sort_by='popularity.desc'),
+               icon('genres'), plot=T('d_docu'))
+    folder(T('genres'), url(a='genres', m=m), icon('genres'), plot=T('d_genres'))
+    folder(T('languages'), url(a='langs', m=m), icon('languages'), plot=T('d_languages'))
+    folder(T('years'), url(a='years', m=m), icon('years'), plot=T('d_years'))
     if m == 'tv':
-        folder(T('kukhnya'), url(a='kukhnya'), icon('kitchen'))
-    end(cache=False)
+        folder(T('kukhnya'), url(a='kukhnya'), icon('kitchen'), plot=T('d_kukhnya'))
+    end(cache=False, title=T('movies') if m == 'movie' else T('series'))
 
 
 def _tile(name, fallback):
     """category tile made at build time (tools/make_category_art.py): symbol / year / language on a card"""
-    import os
     p = os.path.join(MEDIA, 'cats', name + '.png')
     return p if os.path.exists(p) else fallback
 
@@ -286,14 +348,14 @@ def genres(m):
     for g in gl:
         folder(g['name'], url(a='list', m=m, path='/discover/%s' % m, with_genres=g['id'],
                               sort_by='popularity.desc'), _tile('genre_%d' % g['id'], icon('genres')))
-    end()
+    end(title=T('genres'))
 
 
 def langs(m):
     for code, key in LANGS:
         folder(T(key), url(a='list', m=m, path='/discover/%s' % m, with_original_language=code,
                            sort_by='popularity.desc'), _tile('lang_' + code, icon('lang_' + code)))
-    end()
+    end(title=T('languages'))
 
 
 def years(m):
@@ -302,7 +364,7 @@ def years(m):
     for y in range(datetime.date.today().year, 1949, -1):
         folder(str(y), url(a='list', m=m, path='/discover/%s' % m, sort_by='popularity.desc', **{field: y}),
                _tile('year_%d' % y, icon('years')))
-    end()
+    end(title=T('years'))
 
 
 def _topics():
@@ -331,7 +393,7 @@ def tvradio():
     folder(T('channels'), url(a='tv_root'), 'DefaultTVShows.png')
     folder(T('world'), url(a='tv_countries'), 'DefaultCountry.png')
     folder(T('radio'), url(a='radio_root'), 'DefaultMusicGenres.png')
-    end(cache=False)
+    end(cache=False, title=T('tv'))
 
 
 def _fav_ctx(kind, item_id, label, extra=''):
@@ -492,7 +554,6 @@ def seasons(tv_id):
 def hebrew_plots(tv_id, s, season):
     """episode descriptions TMDb has no Hebrew text for: the English ones, machine-translated once and kept
     (Hebrew interface only). {episode number: text}"""
-    from resources.lib.common import ui_lang
     if ui_lang() != 'he' or all(e.get('overview') for e in season.get('episodes', [])):
         return {}
     cache = load('plots_he.json', {})
@@ -615,7 +676,7 @@ def history():
     if items:
         li = xbmcgui.ListItem('[COLOR red]%s[/COLOR]' % T('clear'))
         xbmcplugin.addDirectoryItem(HANDLE, url(a='history_clear'), li, False)
-    end(cache=False)
+    end(cache=False, title=T('history'))
 
 
 FAV_KINDS = [('movie', 'movies'), ('series', 'series'), ('channel', 'channels'), ('radio', 'radio')]
@@ -627,7 +688,7 @@ def favs(kind=None):
         for k, label in FAV_KINDS:
             n = sum(1 for f in data if f['kind'] == k)
             folder('%s (%d)' % (T(label), n), url(a='favs', kind=k), icon(label))
-        return end(cache=False)
+        return end(cache=False, title=T('favourites'))
     if not any(f['kind'] == kind for f in data):        # 3.3: an empty list says so
         folder(T('empty'), url(a='noop'))
     for f in [f for f in data if f['kind'] == kind]:
@@ -648,7 +709,7 @@ def favs(kind=None):
             li.setProperty('IsPlayable', 'true')
             li.addContextMenuItems(rm)
             xbmcplugin.addDirectoryItem(HANDLE, f.get('extra', ''), li, False)
-    end(cache=False)
+    end(cache=False, title=T(dict(FAV_KINDS).get(kind, 'favourites')))
 
 
 def fav_add(kind, id, label, extra=''):
@@ -728,28 +789,29 @@ def router(p):
         'kukhnya': kukhnya,
         'history': history,
         'history_clear': lambda: (save('history.json', []), _users().mark(_users()._root(), 'history_cleared'), refresh()),
-        'users': lambda: _users().menu(HANDLE, url),                      # 4.1.0
+        'users': lambda: (category(_users().s('title')), _users().menu(HANDLE, url)),                      # 4.1.0
         'pair_send': lambda: __import__('resources.lib.pairui', fromlist=['x']).send(),        # 4.2
         'pair_receive': lambda: __import__('resources.lib.pairui', fromlist=['x']).receive(),
         'user_do': lambda: _users().action(p['id']),
         'favs': lambda: favs(p.get('kind')),
         'fav_add': lambda: fav_add(**p),
         'fav_rm': lambda: fav_rm(**p),
-        'accounts': lambda: __import__('resources.lib.services', fromlist=['x']).screen(HANDLE, url),   # 4.0.4
+        'accounts': lambda: (category(T('accounts')), __import__('resources.lib.services', fromlist=['x']).screen(HANDLE, url)),   # 4.0.4
         'svc': lambda: __import__('resources.lib.services', fromlist=['x']).action(p['do']),
         'acc': lambda: accounts.action(p['do']),
         'web_pair': lambda: __import__('resources.lib.webpair', fromlist=['x']).show(),           # 4.2.9
-        'tv_root': lambda: iptv.menu(HANDLE, url, folder, end),
+        'sync_screen': lambda: __import__('resources.lib.sync_ui', fromlist=['x']).screen(),      # 6.5.1
+        'tv_root': lambda: iptv.menu(HANDLE, url, folder, end_as(T('tv'))),
         'tv_do': lambda: iptv.action(p['do']),
         'tv_list': lambda: iptv.channel_list(HANDLE, p.get('group'), p.get('gname'), p.get('w') == '1'),
         'tv_play': lambda: iptv.play_channel(p['id']),
         'tv_countries': lambda: iptv.countries_list(HANDLE, url),
         'tv_country': lambda: iptv.country_channels(HANDLE, p['cc']),
-        'radio_root': lambda: radio.menu(HANDLE, url, folder, end),
+        'radio_root': lambda: radio.menu(HANDLE, url, folder, end_as(T('radio'))),
         'radio_tags': lambda: radio.tags(HANDLE, url, folder, end),
         'radio_list': lambda: radio.listing(HANDLE, url, end, **p),
         'noop': lambda: HANDLE >= 0 and xbmcplugin.endOfDirectory(HANDLE, succeeded=True, cacheToDisc=False),
-        'libs': lambda: providers.library(HANDLE, url),
+        'libs': lambda: (category(providers.s('library')), providers.library(HANDLE, url)),
         'lib_cat': lambda: providers.library_cat(HANDLE, url, p['cat']),
         'lib_open': lambda: providers.open_provider(HANDLE, p['id'], p.get('q', '')),
         'sources': lambda: providers.sources_screen(HANDLE, url),
@@ -764,8 +826,8 @@ def router(p):
         'sh_clear': lambda: _sh().clear(),
         'sh_add': lambda: _sh().record(p.get('q', '')),
         'sh_remove': lambda: _sh().forget(p.get('q', '')),
-        'status': lambda: status.listing(HANDLE),
-        'sysreport': lambda: sysupdate.listing(HANDLE, url),
+        'status': lambda: (category(status.s('title')), status.listing(HANDLE)),
+        'sysreport': lambda: (category(sysupdate.s('title')), sysupdate.listing(HANDLE, url)),
         'sysupdate': system_update,
         'sysfix': lambda: (sysupdate.do_fix(p['id']), refresh()),
         'sysrollback': sysupdate.rollback,
@@ -776,7 +838,7 @@ def router(p):
         'live_subs_off': lambda: __import__('resources.lib.livesubs', fromlist=['x']).off(),
         'sync_menu': lambda: _pm().sync(),
         'settings_menu': lambda: _pm().settings(),
-        'kodi_settings': lambda: __import__('resources.lib.kodisettings', fromlist=['x']).menu(HANDLE, url),
+        'kodi_settings': lambda: (category(T('kodi_settings')), __import__('resources.lib.kodisettings', fromlist=['x']).menu(HANDLE, url)),
         'kodi_go': lambda: __import__('resources.lib.kodisettings', fromlist=['x']).go(p.get('k', '')),
         'audio_menu': lambda: _pm().audio(),
         'subs_pick': lambda: _pm().picker(),
@@ -792,7 +854,7 @@ def router(p):
         'sys_menu': sys_menu,
         'src_menu': lambda: src_menu(p.get('cat', '')),
         'src_iptv': lambda: __import__('resources.lib.iptv', fromlist=['x']).edit_sources(),
-        'gd_menu': lambda: _gd().menu(HANDLE, url),
+        'gd_menu': lambda: (category('Google Drive'), _gd().menu(HANDLE, url)),
         'gd': lambda: _gd().action(p['do']),
         'gd_browse': lambda: _gd().browse(HANDLE, url, p.get('id', '')),
         'gd_play': lambda: _gd().play(HANDLE, p['id'], p.get('name', '')),
@@ -816,7 +878,7 @@ def router(p):
 
 
 ACTIONS = {'src_iptv', 'fav_add', 'fav_rm', 'history_clear', 'acc', 'svc', 'ac_pick', 'sh_clear', 'sh_remove', 'sh_add', 'user_do', 'tv_do', 'tv_play', 'lib_install', 'bk_do', 'bk_restore', 'bk_auto', 'gd', 'gd_play',
-           'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu', 'pair_send', 'pair_receive', 'web_pair',
+           'play', 'prov_toggle', 'prov_all_on', 'prov_all_off', 'prov_install_all', 'sysupdate', 'sysfix', 'sysrollback', 'help_show', 'help_about', 'help_lang', 'speedtest', 'profile_pick', 'lb_play', 'ai_subs_now', 'subs_menu', 'live_subs', 'live_subs_start', 'live_subs_off', 'sync_menu', 'pair_send', 'pair_receive', 'web_pair', 'sync_screen',
            'settings_menu', 'audio_menu', 'subs_pick', 'next_episode', 'kodi_go', 'clip_paste', 'clip_menu', 'clip_copy'}
 
 
@@ -886,7 +948,6 @@ if __name__ == '__main__':
         if is_net_error(e):
             # 4.2.4: no internet / the movie database unreachable: one short line, shown at most once a minute
             # (a car box showed a stack of long ConnectionError texts, one per widget)
-            from resources.lib.common import ui_lang
             win = xbmcgui.Window(10000)
             import time
             if time.time() - float(win.getProperty('bn.neterr') or 0) > 60:

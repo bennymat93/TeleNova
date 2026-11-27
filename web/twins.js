@@ -50,7 +50,7 @@
   // stores of this browser that travel in section "web" as 'bn_<name>' (no Kodi twin)
   const WEB_STORES = Object.freeze(['radio_own', 'iptv_off', 'tg_link']);
   // never synced: this device's screen, network, caches and pairings (bn_cfg keys and bn_* stores)
-  const LOCAL = Object.freeze(['device', 'zoom', 'theme', 'home_rows', 'net_bw', 'net_bw_t', 'player_vol', 'osk_lang', 'install_seen', 'tv_offer',
+  const LOCAL = Object.freeze(['device', 'zoom', 'theme', 'home_rows', 'net_bw', 'net_bw_t', 'player_vol', 'osk_lang', 'osk_show', 'install_seen', 'tv_offer',
     'aio_done', 'clip_hist', 'art', 'rd_dead', 'subs_offsets', 'helper_token', 'tn_gd', 'tn_gd_state', 'tn_gdrive', 'user', 'player_resume',
     'subs_ktuvit', 'synced', 'sync_meta', 'cfg', 'iptv_probe',
     // 6.2.0: the same device-only keys as Kodi's autosync.LOCAL

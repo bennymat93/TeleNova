@@ -16,10 +16,20 @@ def _endpoint():
     return 'http://127.0.0.1:%d' % info['port'], info.get('secret')
 
 
+START_WAIT = 75         # seconds a call waits for an engine that says it is still starting
+START_PAUSE = 2.0
+
+
 def call(method, timeout=90, **params):
+    """6.5.1: three different endings instead of one "service not running, restart Kodi":
+    RPCError('service_starting') - the engine answers but is still starting / restarting after START_WAIT seconds
+    RPCError('timeout')          - the engine took the call and did not answer within `timeout`
+    RPCError('service_down')     - nothing answers on the port (three tries)"""
     import requests         # 3.3: loaded on first use - a static menu makes no request
     last = None
-    for attempt in range(3):
+    attempt = 0
+    began = time.time()
+    while attempt < 3:
         try:
             base, secret = _endpoint()
             r = requests.post(base + '/rpc', json={'method': method, 'params': params, 'secret': secret},
@@ -32,16 +42,25 @@ def call(method, timeout=90, **params):
                 raise RPCError('service_down')
             if 'error' in data:
                 if 'service_starting' in str(data['error']):
-                    raise RPCError('service_down')      # 3.3: still connecting - repeated below
+                    raise RPCError('service_starting')  # 3.3: still connecting - repeated below
                 raise RPCError(common.scrub(data['error']))
             return data.get('result')
         except (requests.ConnectionError, requests.Timeout, RPCError) as exc:
             last = exc
+            if isinstance(exc, RPCError) and str(exc) == 'service_starting':
+                if time.time() - began >= START_WAIT:
+                    raise
+                time.sleep(START_PAUSE)    # the engine is alive: asked again, not counted as a failed try
+                continue
             if isinstance(exc, RPCError) and str(exc) != 'service_down':
                 raise
             if isinstance(exc, requests.Timeout) and not isinstance(exc, requests.ConnectionError):
-                break                  # 3.3: a read timeout already took the caller's whole timeout - not repeated
-            time.sleep(1.0 + attempt)  # service may still be starting
+                # 3.3: a read timeout already took the caller's whole timeout - not repeated
+                common.log('rpc %s: no answer in %s s' % (method, timeout))
+                raise RPCError('timeout')
+            attempt += 1
+            if attempt < 3:
+                time.sleep(float(attempt))  # service may still be starting
     if isinstance(last, RPCError):
         raise last
     # 3.3: a dead port (stale port.json, service still starting) is "service down", not a raw urllib3 error

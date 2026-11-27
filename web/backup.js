@@ -243,7 +243,7 @@
          bk_no_crypto: 'В этом браузере нет нужного шифрования (требуется https)'},
   });
   const t = TN.t;
-  const FFLATE = ['https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js', 'sha384-DT0Ls0mO7JmjTnT+oBuMhEJzYJO1zUqzuuMXNdnOmOQRIpN2BgSjvBV/j50NngIT'];
+  const FFLATE = ['vendor/fflate-0.8.2.umd.js', 'sha384-DT0Ls0mO7JmjTnT+oBuMhEJzYJO1zUqzuuMXNdnOmOQRIpN2BgSjvBV/j50NngIT'];
   async function fflate() { if (!root.fflate) await TN.loadScript(FFLATE[0], FFLATE[1]); return root.fflate; }
   async function sealed() { await fflate(); if (!root.Sealed) await TN.loadScript('sealed.js'); return root.Sealed; }
   const cfgNow = () => { const c = TN.get('cfg', {}) || {}; return typeof c === 'object' ? c : {}; };
@@ -609,7 +609,14 @@
     const box = el('div', 'panel settings'); view.append(box);
     if (intro) box.append(el('p', '', intro));
     const msg = el('p', 'hint'); msg.setAttribute('role', 'status');
-    box.say = (s) => { msg.textContent = s || ''; };
+    // 6.6: "please wait" opens the shared progress display (no percent: a backup has no true one); any other
+    // message (the result or an error) closes it
+    let pg = null;
+    box.say = (s) => {
+      msg.textContent = s || '';
+      if (s && (s === t('bk_wait') || s === t('bk_move_wait'))) { if (!pg && TN.progress) pg = TN.progress.open({title: title, host: box}); }
+      else if (pg) { pg.done(true); pg = null; }
+    };
     box.msg = msg;
     return box;
   }
@@ -646,7 +653,7 @@
         syState.textContent = tgSaved() ? t('bk_sync_wait') : t('bk_sync_off');
         syActs.append(Object.assign(el('a', 'btn' + (tgSaved() ? ' ghost' : ''), t('bk_sync_connect')), {href: '#/tglogin'}));
       } else {
-        const when = st.last ? new Date(st.last * (st.last < 1e12 ? 1000 : 1)).toLocaleTimeString() : '';
+        const when = st.last ? (TN.fmtTime ? TN.fmtTime(st.last * (st.last < 1e12 ? 1000 : 1)) : new Date(st.last * (st.last < 1e12 ? 1000 : 1)).toLocaleTimeString()) : '';
         syState.textContent = [t('bk_sync_on'), st.name, when ? t('bk_sync_last', when) : ''].filter(Boolean).join(' · ');
         syActs.append(TN.button('btn', t('bk_sync_now'), async () => {
           sy.say(t('bk_wait'));

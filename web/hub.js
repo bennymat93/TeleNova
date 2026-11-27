@@ -297,8 +297,10 @@
     if (cm) { cat = cm[1]; q = cm[2].trim(); }
     const qi = document.getElementById('q');
     if (qi) qi.value = q;
+    // 6.5.1: an empty search (a cleared address, a bad link) is not a blank "Results" page: the search screen, in this
+    // history entry (so Back does not come back here)
+    if (!q) { setTimeout(() => { if (ctx.current()) TN.go('#/hub', {replace: true}); }, 0); return; }
     TN.page('', `${TN.t('results')} “${q}”`);
-    if (!q) return;
     const direct = linkTarget(q);                 // a link typed into the search box opens, it is not searched for
     if (direct) { box(q); return go(q); }
     const view = TN.view();
@@ -340,9 +342,12 @@
     if (!document.getElementById('hub_srcs_css')) {
       const st = document.createElement('style');
       st.id = 'hub_srcs_css';
-      st.textContent = '.hub_srcs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}.hub_src{display:inline-flex;gap:6px;align-items:center;padding:4px 10px;border-radius:999px;' +
+      // 6.5.1: 36 px pills (40 on touch, a TV size), theme colours, and a pill that does nothing is not a focus stop
+      st.textContent = '.hub_srcs{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}.hub_src{display:inline-flex;gap:6px;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;' +
         'border:1px solid var(--line,rgba(127,127,127,.35));font-size:13px;color:inherit;text-decoration:none;background:none;cursor:pointer;font-family:inherit}' +
-        '.hub_src b{font-weight:600}.hub_src.ok{border-color:#3ddc84}.hub_src.ok i{color:#3ddc84}.hub_src.wait{opacity:.7}.hub_src.none{opacity:.6}.hub_src.off,.hub_src.late{border-color:#ffc857}.hub_src i{font-style:normal}';
+        'html[data-input="touch"] .hub_src,html[data-shell="phone"] .hub_src{min-height:40px}html[data-shell="tv"] .hub_src{min-height:3.5rem;padding:0 1rem;font-size:inherit}' +
+        '.hub_src[disabled]{cursor:default}.hub_src b{font-weight:600}.hub_src.ok{border-color:var(--ok,#3ddc84)}.hub_src.ok i{color:var(--ok,#3ddc84)}.hub_src.wait{opacity:.7}.hub_src.none{opacity:.6}' +
+        '.hub_src.off,.hub_src.late{border-color:var(--accent-text,#ffc857)}.hub_src i{font-style:normal}';
       document.head.append(st);
     }
     view.insertBefore(srcBar, bestH);
@@ -350,6 +355,7 @@
       const c = document.createElement('button');
       c.type = 'button';
       c.className = 'hub_src wait';
+      c.disabled = true;                          // (a waiting pill does nothing; mark() enables the ones that do)
       c.innerHTML = `<b>${TN.esc(j.label)}</b><i>…</i>`;
       srcBar.append(c);
       return c;
@@ -361,6 +367,7 @@
       c.lastChild.textContent = state === 'ok' ? String(n) : TN.t(state === 'off' ? 'hub_src_off' : state === 'late' ? 'hub_src_late' : 'hub_src_none');
       c.onclick = state === 'ok' ? () => { if (slots[i] && slots[i].scrollIntoView) slots[i].scrollIntoView({behavior: 'smooth', block: 'start'}); }
         : state === 'off' && LINK[name] ? () => TN.go(LINK[name]) : null;
+      c.disabled = !c.onclick;
     };
     // is a source that gave nothing simply not connected?
     const isOff = async (name) => {
@@ -372,6 +379,11 @@
     };
     // one place per provider, in registry order, so sections never jump around as answers arrive
     const slots = jobs.map(() => { const d = document.createElement('div'); view.append(d); return d; });
+    // 6.5.1: one shared placeholder until the first source brought something (or all answered with nothing)
+    const sk = document.createElement('div');
+    view.append(sk);
+    if (TN.skeleton) TN.skeleton(6, 'poster', sk);
+    const dropSk = () => { if (sk.parentNode) sk.remove(); };
     const groups = [];
     let left = jobs.length, total = 0;
     status.textContent = TN.t('hub_wait', left);
@@ -400,14 +412,20 @@
       const g = document.createElement('div');
       g.className = 'grid';
       items.forEach((it) => g.append(TN.card(it.img || 'icon.png', it.title, it.sub, () => it.open(), shapeOf(it.kind))));
+      dropSk();
       slots[i].append(h, g);
       const best = bestOf(groups.filter(Boolean), q);
       if (best.length >= 2 && groups.filter(Boolean).length > 1) {
+        // 6.5.1: one shape for the whole "best matches" grid (posters next to 16:9 cards gave ragged rows): the cards'
+        // own shape when they agree, else wide for all (a poster is letterboxed in it); the ranking order is kept
+        const shapes = best.map((it) => shapeOf(it.kind)), one = shapes.every((x) => x === shapes[0]) ? shapes[0] : 'wide';
         bestG.textContent = '';
-        best.forEach((it) => bestG.append(TN.card(it.img || 'icon.png', it.title, it.sub, () => it.open(), shapeOf(it.kind))));
+        if (one) bestG.setAttribute('data-shape', one); else bestG.removeAttribute('data-shape');
+        best.forEach((it) => bestG.append(TN.card(it.img || 'icon.png', it.title, it.sub, () => it.open(), one)));
         bestH.hidden = bestG.hidden = false;
       }
     }));
+    dropSk();
     offRoute();
     if (ctx.current() && !total) {
       const holder = document.createElement('div');

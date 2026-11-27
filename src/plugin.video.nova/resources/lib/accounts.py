@@ -7,7 +7,7 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from .common import ADDON, T, load, ui_lang
+from .common import ADDON, T, load, ui_lang, gold_item
 
 HINTS = {
     'telegram': ('פתח כדי להתחבר לטלגרם (מספר טלפון או קוד QR). המקורות מגיעים מהערוצים והקבוצות שהצטרפת אליהם.',
@@ -141,7 +141,7 @@ ROWS = [('telegram', 'Telegram (TeleScope AI)'), ('gdrive', 'Google Drive'), ('i
 def screen(handle, url):
     from . import preset
     for do, key, ic in (('preset_unlock', 'unlock', 'DefaultUser.png'), ('preset_create', 'create', 'DefaultAddonService.png')):
-        li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % preset.s(key))
+        li = gold_item(preset.s(key))
         li.setArt({'icon': ic})
         xbmcplugin.addDirectoryItem(handle, url(a='acc', do=do), li, False)
     for k, name in ROWS:

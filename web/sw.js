@@ -5,13 +5,14 @@
 // WP-3 (Telegram playback): the Range proxy for /tgstream/ below; nobody else edits this file.
 importScripts('version.js');
 const CACHE = 'bn-web-' + self.WEB_VERSION;
-const SHELL = ['./', 'index.html', 'style.css', 'version.js', 'i18n.js', 'shell_core.js', 'app.js', 'osk.js', 'syncdoc.js', 'store.js', 'twins.js', 'websync.js', 'sealed.js', 'tg.js',
+const SHELL = ['./', 'index.html', 'style.css', 'player.css', 'progress.js', 'version.js', 'i18n.js', 'shell_core.js', 'app.js', 'osk.js', 'syncdoc.js', 'store.js', 'twins.js', 'websync.js', 'sealed.js', 'tg.js',
                'channels_il.json', 'icon.png', 'icon-180.png', 'icon-192.png', 'manifest.webmanifest'];
 // every module file of the plan (web_plan.md section 3). Precached when it exists; a file a package has not written
 // yet is skipped without failing the install.
 const MODULES = ['tglogin.js', 'matcher.js', 'epmatch.js', 'tgsearch.js', 'telegram.js', 'tgplay.js', 'catalog.js', 'sources.js',
                  'player.js', 'compat.js', 'rd.js', 'srt.js', 'subs.js', 'iptv.js', 'epg.js', 'radio.js', 'yt.js', 'topics.js', 'hub.js',
-                 'services.js', 'library.js', 'backup.js', 'result.js', 'aio.js', 'srcedit.js', 'aisubs.js', 'gdrive.js', 'help.js', 'status.js', 'helper.js', 'icon-512.png'];
+                 'services.js', 'library.js', 'backup.js', 'result.js', 'aio.js', 'srcedit.js', 'aisubs.js', 'gdrive.js', 'help.js', 'status.js', 'helper.js', 'icon-512.png',
+                 'vendor/fflate-0.8.2.umd.js'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, {cache: 'reload'}))).then(() => Promise.all(MODULES.map((m) => c.add(new Request(m, {cache: 'reload'})).catch(() => {})))))
   );
@@ -85,6 +86,9 @@ async function tgServe(req, key, signal, clientId) {
   }
   if (signal && signal.aborted) return fail(499);
   if (!info || !info.ok) return fail(info && info.status ? info.status : 503);
+  // 6.5.1: HEAD (the compat engine asks for the size first): the length from 'info', no body, no read
+  if (req.method === 'HEAD') return new Response(null, {status: 200, headers: {
+    'Content-Type': info.mime || 'video/mp4', 'Content-Length': String(info.size), 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store'}});
   const size = info.size, header = req.headers.get('range');
   const r = tgRange(header || 'bytes=0-', size);
   if (!r) return new Response(null, {status: 416, headers: {'Content-Range': 'bytes */' + size}});
@@ -112,19 +116,47 @@ async function tgServe(req, key, signal, clientId) {
 }
 self.tgRange = tgRange;                          // for the tests
 
+// 6.5.1: network first, but not for ever. raceCache(net, cached, ms): the network answer when it comes within `ms`;
+// after that the cached copy when there is one (else the wait for the network goes on, as before); a network failure
+// gives the cached copy, or rejects so the caller's fallback runs. `cached` is a function (asked only when needed)
+// or a promise of Response | undefined. A late network failure after the cached answer won raises nothing.
+const NET_WAIT = 4000;
+function raceCache(net, cached, ms) {
+  const copy = () => Promise.resolve(typeof cached === 'function' ? cached() : cached);
+  return new Promise((resolve, reject) => {
+    let settled = false, timer = null;
+    const end = (fn, v) => { if (settled) return; settled = true; clearTimeout(timer); fn(v); };
+    net.then((r) => end(resolve, r), (err) => {
+      clearTimeout(timer);
+      if (settled) return;
+      copy().then((c) => (c ? end(resolve, c) : end(reject, err)), () => end(reject, err));
+    });
+    timer = setTimeout(() => { copy().then((c) => { if (c) end(resolve, c); }, () => { /* keep waiting for the network */ }); }, ms);
+  });
+}
+self.raceCache = raceCache;                      // for the tests
+
 self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
-  const tgm = u.origin === location.origin && e.request.method === 'GET' && /\/tgstream\/([A-Za-z0-9_-]{8,64})$/.exec(u.pathname);
+  const tgm = u.origin === location.origin && (e.request.method === 'GET' || e.request.method === 'HEAD') && /\/tgstream\/([A-Za-z0-9_-]{8,64})$/.exec(u.pathname);
   if (tgm) { e.respondWith(tgServe(e.request, tgm[1], null, e.clientId).catch(() => new Response(null, {status: 503}))); return; }
   if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.includes('/api/')) return;
-  // network first (a new version shows at once), the cached shell when offline
+  // network first (a new version shows at once); the cached copy after 4 s on a stalled link, or when offline
   // 6.1.7: past the browser's HTTP cache too, so a new version never stores the old files
-  e.respondWith(fetch(e.request, {cache: 'no-cache'}).then((r) => {
+  const nav = e.request.mode === 'navigate';
+  const net = fetch(e.request, {cache: 'no-cache'}).then((r) => {
     // 6.2.1: only whole 200 answers without a query (version.js?u=... would grow the cache without end; a 206 Range
     // answer cannot be stored and its put rejected unhandled). The offline match ignores the query anyway.
     if (r.status === 200 && r.type === 'basic' && !e.request.headers.has('range') && !u.search) {
       const copy = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
     }
     return r;
-  }).catch(() => caches.match(e.request, {ignoreSearch: true}).then((r) => r || (e.request.mode === 'navigate' ? caches.match('index.html') : Response.error()))));
+  });
+  const cached = () => caches.match(e.request, {ignoreSearch: true}).then((r) => r || (nav ? caches.match('index.html') : undefined));
+  const offline = () => cached().then((r) => r || Response.error());
+  // 6.5.1: no race for a request with a query (the update check "version.js?u=..." must never get the old cached
+  // version.js) or a Range request (never a whole cached 200); a navigation is raced even with a query.
+  if ((u.search && !nav) || e.request.headers.has('range')) { e.respondWith(net.catch(offline)); return; }
+  e.respondWith(raceCache(net, cached, NET_WAIT).catch(offline));
+  e.waitUntil(net.then(() => {}, () => {}));      // a late network answer still refreshes the cache
 });

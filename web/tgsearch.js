@@ -232,16 +232,44 @@
   }
 
   // ------------------------------------------------------------ cache (IndexedDB, never throws)
-  const DB = 'tn_tgsearch';
+  // 6.5.1: one shared connection (it was opened anew for every read and write and never closed), and the store is
+  // pruned once per visit: rows older than CACHE_MS were only ignored, never deleted, so it grew with every distinct
+  // search for the life of the profile (a small TV quota then refuses other writes).
+  const DB = 'tn_tgsearch', CACHE_MAX = 300;
+  let dbP = null, pruned = false;
   function idb() {
-    return new Promise((ok) => {
+    if (dbP) return dbP;
+    const p = new Promise((ok) => {
       try {
         const r = indexedDB.open(DB, 1);
         r.onupgradeneeded = () => r.result.createObjectStore('c');
-        r.onsuccess = () => ok(r.result);
-        r.onerror = () => ok(null);
+        r.onsuccess = () => {
+          const db = r.result;
+          db.onversionchange = () => { try { db.close(); } catch (e) { /* closed */ } if (dbP === p) dbP = null; };
+          db.onclose = () => { if (dbP === p) dbP = null; };
+          ok(db);
+        };
+        r.onerror = () => { if (dbP === p) dbP = null; ok(null); };
+        r.onblocked = () => { if (dbP === p) dbP = null; ok(null); };
       } catch (e) { ok(null); }
     });
+    dbP = p;
+    p.then((db) => { if (!db && dbP === p) dbP = null; });       // a failure is not kept: the next call tries again
+    return p;
+  }
+  // expired, malformed and future-dated rows go; more than CACHE_MAX live rows (all under 30 minutes old): start over
+  function prune(db) {
+    try {
+      const st = db.transaction('c', 'readwrite').objectStore('c'), r = st.openCursor();
+      let kept = 0;
+      r.onsuccess = () => {
+        const cur = r.result;
+        if (!cur) { if (kept > CACHE_MAX) { try { st.clear(); } catch (e) { /* next visit */ } } return; }
+        const age = cur.value ? Date.now() - cur.value.t : NaN;
+        if (!(age >= 0 && age < CACHE_MS)) cur.delete(); else kept++;
+        cur.continue();
+      };
+    } catch (e) { /* the cache is optional */ }
   }
   async function cacheGet(k) {
     const db = await idb();
@@ -251,14 +279,16 @@
         const r = db.transaction('c').objectStore('c').get(k);
         r.onsuccess = () => ok(r.result && Date.now() - r.result.t < CACHE_MS ? r.result.v : null);
         r.onerror = () => ok(null);
-      } catch (e) { ok(null); }
+      } catch (e) { dbP = null; ok(null); }        // (a connection the browser closed: the next call opens a new one)
     });
   }
   async function cachePut(k, v) {
     const db = await idb();
-    try { if (db) db.transaction('c', 'readwrite').objectStore('c').put({t: Date.now(), v}, k); } catch (e) {}
+    if (!db) return;
+    try { db.transaction('c', 'readwrite').objectStore('c').put({t: Date.now(), v}, k); } catch (e) { dbP = null; return; }
+    if (!pruned) { pruned = true; prune(db); }
   }
-  TN.on('clearcache', async () => { freeState.clear(); const db = await idb(); try { if (db) db.transaction('c', 'readwrite').objectStore('c').clear(); } catch (e) {} });
+  TN.on('clearcache', async () => { freeState.clear(); pruned = false; const db = await idb(); try { if (db) db.transaction('c', 'readwrite').objectStore('c').clear(); } catch (e) { dbP = null; } });
 
   // ------------------------------------------------------------ t.me links (tgbots.py tme)
   // -> ['start', bot, code] | ['msg', channel | '-100<id>', message id] | ['join', link] | null
@@ -556,6 +586,7 @@
         if (!res.answered) { if (idle >= sec(7)) { res.error = 'no_answer'; break; } }
         else if (idle >= sec(res.files.length ? 2 : 4.5)) break;
       }
+      if (!res.answered && !res.error) res.error = 'no_answer';   // the deadline came before the idle check (slow timers)
       await seen(ent);
       return done();
     } finally { release(); }                    // the next request to this bot may start

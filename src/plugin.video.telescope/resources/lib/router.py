@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Plugin entry point: menus, catalogs, login UI, source selection and playback."""
 import json
+import re
 import sys
 import time
 
@@ -67,8 +68,14 @@ def meta():
 
 
 # ------------------------------------------------------------------ directory helpers
+_GOLD_ROW = re.compile(r'^\s*\[COLOR gold\](?:\[B\])?(.*?)(?:\[/B\])?\[/COLOR\]\s*$', re.S)
+
+
 def add_dir(label, query, icon=None, fanart=None, plot='', folder=True, context=None, info=None, playable=False):
     li = common.make_listitem(label)
+    m = _GOLD_ROW.match(label or '')    # 6.5.1: an all-gold row carries its plain text for the gold focus bar
+    if m and '[COLOR' not in m.group(1):
+        li.setProperty('bn_plain', m.group(1).strip())
     common.set_art(li, icon, fanart)
     if info or plot:
         data = dict(info or {})
@@ -82,9 +89,12 @@ def add_dir(label, query, icon=None, fanart=None, plot='', folder=True, context=
     xbmcplugin.addDirectoryItem(HANDLE, url(**query), li, isFolder=folder)
 
 
-def end(content=None, cache=True):
+def end(content=None, cache=True, title=''):
     if content:
         xbmcplugin.setContent(HANDLE, content)
+    if title:               # 6.5.1: the menu's name in the top bar
+        import re
+        xbmcplugin.setPluginCategory(HANDLE, re.sub(r'\[/?[A-Z]+[^\]]*\]', '', title).strip())
     xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=cache)
 
 
@@ -100,7 +110,7 @@ def root(_):
     add_dir(L(30006), {'mode': 'telegram'})
     add_dir(L(30007), {'mode': 'account'})
     add_dir(L(30008), {'mode': 'settings'}, folder=False)
-    end(cache=False)
+    end(cache=False, title=common.ADDON.getAddonInfo('name'))
     first_run_check()
 
 
@@ -121,7 +131,7 @@ def movies(_):
         add_dir(L(sid), {'mode': 'list', 'kind': 'movie', 'cat': cat})
     add_dir(L(30015), {'mode': 'genres', 'kind': 'movie'})
     add_dir(L(30016), {'mode': 'years', 'kind': 'movie'})
-    end()
+    end(title=L(30001))
 
 
 def tvshows(_):
@@ -132,7 +142,7 @@ def tvshows(_):
     add_dir(L(30016), {'mode': 'years', 'kind': 'tv'})
     add_dir(L(30024), {'mode': 'list', 'kind': 'tv', 'cat': 'discover', 'f': {'with_original_language': 'tr'}})
     add_dir(L(30025), {'mode': 'list', 'kind': 'tv', 'cat': 'discover', 'f': {'with_original_language': 'ko'}})
-    end()
+    end(title=L(30002))
 
 
 def hebrew(_):
@@ -149,7 +159,7 @@ def hebrew(_):
     add_dir(L(30026) + ' (' + L(30094) + ')', {'mode': 'list', 'kind': 'movie', 'cat': 'discover',
                                                 'f': {'with_genres': '16', 'with_origin_country': 'IL|US',
                                                       'sort_by': 'popularity.desc'}})
-    end()
+    end(title=L(30003))
 
 
 def russian(_):
@@ -167,14 +177,14 @@ def russian(_):
                        'f': {'with_original_language': 'ru', 'max_year': 1991, 'sort_by': 'vote_count.desc'}})
     add_dir(L(30026), {'mode': 'list', 'kind': 'movie', 'cat': 'discover',
                        'f': {'with_original_language': 'ru', 'with_genres': '16'}})
-    end()
+    end(title=L(30004))
 
 
 def kids(_):
     add_dir(L(30001), {'mode': 'list', 'kind': 'movie', 'cat': 'discover', 'f': {'with_genres': '10751'}})
     add_dir(L(30026), {'mode': 'list', 'kind': 'movie', 'cat': 'discover', 'f': {'with_genres': '16'}})
     add_dir(L(30002), {'mode': 'list', 'kind': 'tv', 'cat': 'discover', 'f': {'with_genres': '10762'}})
-    end()
+    end(title=L(30005))
 
 
 def genres(p):
@@ -275,7 +285,7 @@ def search_menu(_):
     add_dir(L(30031), {'mode': 'search', 'kind': 'tv'})
     add_dir(L(30032), {'mode': 'ai_search'})
     add_dir(L(30033), {'mode': 'tg_search'})
-    end(cache=False)
+    end(cache=False, title=L(30000))
 
 
 def _ask(heading=30034, default=''):
@@ -499,7 +509,7 @@ def telegram(_):
     add_dir(L(30041), {'mode': 'discover'})
     add_dir(L(30042), {'mode': 'join'}, folder=False)
     add_dir(L(30033), {'mode': 'tg_search'})
-    end(cache=False)
+    end(cache=False, title=L(30006))
 
 
 def _chat_label(c, state=''):
@@ -755,7 +765,7 @@ def chiko(p):
         add_dir('[COLOR orange]%s[/COLOR]' % L(30098), {'mode': 'join'}, folder=False)
     add_dir(L(30042), {'mode': 'join'}, folder=False)
     add_dir(L(30099), {'mode': 'chiko', 'refresh': 1})
-    end(cache=False)
+    end(cache=False, title=L(30009))
 
 
 def chiko_chat(p):
@@ -828,7 +838,7 @@ def account(_):
     add_dir('    ' + L(30054), {'mode': 'ai_test'}, folder=False)
     add_dir('    ' + L(30055), {'mode': 'clear_cache'}, folder=False)
     add_dir('    ' + L(30056), {'mode': 'reinstall'}, folder=False)
-    end(cache=False)
+    end(cache=False, title=L(30007))
 
 
 # ------------------------------------------------------------------ Real-Debrid login (3.3.4)
@@ -1016,12 +1026,26 @@ def hub_go(p):
         xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.nova/?a=accounts,return)')
 
 
+def _rpc_text(exc):
+    """6.5.1: an engine failure in the viewer's words, or '' for one that has no fixed text. "Still starting" and
+    "no answer in time" used to be shown as "the service is not running, restart Kodi"."""
+    msg = str(exc)
+    if 'not_configured' in msg or 'no_backend' in msg:
+        return L(30062)
+    if 'service_starting' in msg:
+        return LT('starting')
+    if 'service_down' in msg:
+        return L(30064)
+    if msg == 'timeout' or msg.startswith('TimeoutError'):
+        return LT('rpc_timeout')
+    return ''
+
+
 def _rpc_fail(exc):
     msg = str(exc)
-    if 'not_configured' in msg:
-        xbmcgui.Dialog().ok(common.ADDON_NAME, L(30062))
-    elif 'service_down' in msg:
-        xbmcgui.Dialog().ok(common.ADDON_NAME, L(30064))
+    text = _rpc_text(exc)
+    if text:
+        xbmcgui.Dialog().ok(common.ADDON_NAME, text)
     elif 'authoriz' in msg.lower() or 'AuthKey' in msg:
         xbmcgui.Dialog().ok(common.ADDON_NAME, L(30063))
     else:
@@ -1063,38 +1087,90 @@ class QRWindow(xbmcgui.WindowDialog):
             self.close()
 
 
+QR_LOGIN_WAIT = 180
+
+
+def _qr_login():
+    """6.5.1: the QR login always ends in ONE definite state, said to the viewer: logged in, the two-step
+    password, a refusal with its reason, "the code expired", or closed by the viewer. The window and the picture
+    with the login token never stay behind, and the engine is told when the login was given up.
+    -> True (logged in) | False"""
+    win = None
+    cancel = False                      # the engine still holds a login that nobody waits for
+    try:
+        res = rpc.call('qr_start') or {}
+        if not res.get('url'):
+            _login_error(res if res.get('error') else {'error': 'network'})
+            return False
+        cancel = True
+        win = QRWindow(res['url'])
+        win.show()
+        state, r = 'expired', {}
+        deadline = time.time() + QR_LOGIN_WAIT
+        while time.time() < deadline:
+            if win.closed:
+                state = 'closed'
+                break
+            r = rpc.call('qr_wait', timeout=30) or {}
+            if r.get('ok'):
+                state = 'ok'
+                break
+            if r.get('password'):
+                state = 'password'
+                break
+            if r.get('url'):
+                win.close()
+                win = QRWindow(r['url'])
+                win.show()
+            elif r.get('error') == 'network':
+                # a passing network drop: the engine keeps the QR login (tgclient._qr_settle),
+                # so keep waiting until the deadline instead of giving it up
+                pause = time.time() + 2
+                while time.time() < min(pause, deadline) and not win.closed:
+                    time.sleep(0.2)
+            elif r.get('error'):
+                state = 'error'
+                break
+        if win.closed and state == 'expired':
+            state = 'closed'
+        win.close()
+        win = None
+        if state in ('ok', 'password'):
+            cancel = False              # the engine has finished its QR login by itself
+        if state == 'ok':
+            return True
+        if state == 'password':
+            return _password(r.get('hint') or '')
+        if state == 'error':
+            _login_error(r)
+        elif state == 'expired':
+            xbmcgui.Dialog().ok(common.ADDON_NAME, LT('qr_expired'))
+        return False
+    except rpc.RPCError:
+        cancel = False                  # the engine does not answer: nothing to tell it
+        raise
+    finally:
+        if win is not None:
+            win.close()
+        if cancel:
+            try:
+                rpc.call('qr_cancel', timeout=10)
+            except rpc.RPCError:
+                pass
+
+
 def login(p):
     try:
-        if p.get('how') == 'qr':
-            res = rpc.call('qr_start')
-            win = QRWindow(res['url'])
-            win.show()
-            ok = False
-            needs_pw = False
-            deadline = time.time() + 180
-            while not win.closed and time.time() < deadline:
-                r = rpc.call('qr_wait', timeout=30)
-                if r.get('ok'):
-                    ok = True
-                    break
-                if r.get('password'):
-                    needs_pw = True
-                    break
-                if r.get('url'):
-                    win.close()
-                    win = QRWindow(r['url'])
-                    win.show()
-            win.close()
-            if needs_pw:
-                ok = _password(r.get('hint') or '')
-        else:
-            ok = _phone_login()
+        ok = _qr_login() if p.get('how') == 'qr' else _phone_login()
         if ok:
-            st = rpc.call('status')
+            try:
+                st = rpc.call('status', timeout=30) or {}
+            except rpc.RPCError:
+                st = {}                 # logged in all the same: the name is only for the greeting
             common.notify(Lf(30060, ((st.get('me')) or {}).get('name') or ''))
             xbmc.executebuiltin('Container.Refresh')
     except rpc.RPCError as exc:
-        xbmcgui.Dialog().ok(common.ADDON_NAME, str(exc))
+        xbmcgui.Dialog().ok(common.ADDON_NAME, _rpc_text(exc) or str(exc)[:300])
 
 
 # 4.0.6: the login by phone, one clear step after another (resources/lib/tgauth.py explains why)
@@ -1150,6 +1226,14 @@ LOGIN_TEXT = {
     'acc_backup': (u'הגדרות וגיבוי', 'Settings and backup', u'Настройки и копии'),
     'acc_tools': (u'כלים', 'Tools', u'Инструменты'),
     'tries': (u'יותר מדי ניסיונות. התחילו את הכניסה מחדש.', 'Too many tries. Start the login again.', u'Слишком много попыток. Начните вход заново.'),
+    # 6.5.1: every ending of connect / login has its own words
+    'starting': (u'מנוע הטלגרם עדיין עולה. נסו שוב בעוד רגע.', 'The Telegram engine is still starting. Try again in a moment.',
+                 u'Модуль Telegram ещё запускается. Повторите через минуту.'),
+    'rpc_timeout': (u'טלגרם לא ענה בזמן. בדקו את החיבור לאינטרנט ונסו שוב.', 'Telegram did not answer in time. Check the internet connection and try again.',
+                    u'Telegram не ответил вовремя. Проверьте интернет и повторите.'),
+    'qr_expired': (u'הקוד לא נסרק בזמן ופג תוקפו. בחרו שוב "כניסה עם קוד QR" כדי לקבל קוד חדש.',
+                   'The code was not scanned in time and has expired. Choose the QR login again for a new code.',
+                   u'Код не был отсканирован вовремя и истёк. Выберите вход по QR-коду ещё раз.'),
 }
 
 
@@ -1267,7 +1351,12 @@ def _password(hint=''):
 
 def logout(_):
     if xbmcgui.Dialog().yesno(common.ADDON_NAME, L(30052) + '?'):
-        rpc.call('logout')
+        try:
+            rpc.call('logout')
+        except rpc.RPCError as exc:         # 6.5.1: was a Kodi script error (Telegram unreachable, engine restarting)
+            xbmcgui.Dialog().ok(common.ADDON_NAME, _rpc_text(exc) or LT('other') % str(exc)[:120])
+            xbmc.executebuiltin('Container.Refresh')
+            return
         common.notify(L(30066))
         xbmc.executebuiltin('Container.Refresh')
 
@@ -1546,10 +1635,9 @@ def playrd(p):
 
 def _rpc_fail_play(exc):
     msg = str(exc)
-    if 'not_configured' in msg or 'no_backend' in msg:
-        xbmcgui.Dialog().ok(common.ADDON_NAME, L(30062))
-    elif 'service_down' in msg:
-        xbmcgui.Dialog().ok(common.ADDON_NAME, L(30064))
+    text = _rpc_text(exc)
+    if text:
+        xbmcgui.Dialog().ok(common.ADDON_NAME, text)
     elif 'not_authorized' in msg:              # 3.3: logged out - "join channels" was the wrong advice
         xbmcgui.Dialog().ok(common.ADDON_NAME, L(30063))
     else:

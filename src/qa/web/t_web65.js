@@ -41,5 +41,66 @@ ok(/s\.userSeek = false;\s*\/?\/?[^\n]*\n?\s*const again = \(\) => \{ if \(!aliv
 // app.js: rebuilding the passphrase row keeps focus inside it
 ok(/had = !!\(pr && ae && pr\.contains\(ae\)\)[\s\S]{0,300}if \(had\) \{[^\n]*focusEl\(tgt\)/.test(rd('app.js')), 'app.js: drawPass drops focus to body');
 
+// ---- 6.5.1
+// app.js: fmt() puts a user's name in as text ('$&' is not a replacement pattern)
+ok(/const fmt = \(k, v\) => String\(X\(k\)\)\.replace\('%s', \(\) => String\(v\)\)/.test(rd('app.js')), 'app.js: fmt expands $ patterns of a user name');
+ok('Active user: %s'.replace('%s', () => 'Dan$&') === 'Active user: Dan$&', 'a replacer function keeps $& as text');
+
+// app.js popBackdrop: while a menu / confirmation is up the page and the sheet under it are hidden from assistive
+// technology and the sheet is not "modal"; closing restores what was there, also after pop A -> pop B
+{
+  const src = (rd('app.js').match(/function popBackdrop\(on\) \{[\s\S]*?\n\}/) || [''])[0];
+  ok(src, 'app.js: popBackdrop not found');
+  if (src) {
+    const mk = (id, attrs) => ({id, a: Object.assign({}, attrs), getAttribute(k) { return k in this.a ? this.a[k] : null; }, setAttribute(k, v) { this.a[k] = String(v); }, removeAttribute(k) { delete this.a[k]; }});
+    const els = {'#rail': mk('rail'), '#top': mk('top'), '#tabs': mk('tabs', {'aria-hidden': 'true'}), '#toasts': mk('toasts')};
+    const view = mk('view'), modalEl = mk('modal', {'aria-modal': 'true'});
+    const pb = new Function('$', 'view', 'modalEl', 'let popBack = null; ' + src + ' return popBackdrop;')((q) => els[q] || null, view, modalEl);
+    pb(true); pb(true);                                  // (openPop over an open pop)
+    ok(view.a['aria-hidden'] === 'true' && els['#rail'].a['aria-hidden'] === 'true' && els['#top'].a['aria-hidden'] === 'true' && modalEl.a['aria-hidden'] === 'true', 'popBackdrop: the background is hidden');
+    ok(modalEl.a['aria-modal'] === 'false', 'popBackdrop: the sheet under a pop is not modal');
+    ok(!('aria-hidden' in els['#toasts'].a), 'popBackdrop: toasts stay announced');
+    pb(false);
+    ok(!('aria-hidden' in view.a) && !('aria-hidden' in els['#rail'].a) && !('aria-hidden' in modalEl.a) && els['#tabs'].a['aria-hidden'] === 'true', 'popBackdrop: earlier values come back');
+    ok(modalEl.a['aria-modal'] === 'true', 'popBackdrop: the sheet is modal again');
+    pb(false);
+    ok(!('aria-hidden' in view.a), 'popBackdrop: closing twice is harmless');
+  }
+  const a = rd('app.js');
+  const cp = (a.match(/function closePop\(result\) \{[\s\S]*?\n\}/) || [''])[0];
+  ok(cp.indexOf('popBackdrop(false)') > 0 && cp.indexOf('popBackdrop(false)') < cp.indexOf('focusEl(op, true)'), 'app.js: closePop restores the page before the focus returns');
+  ok(/box\.setAttribute\('aria-label', \(anchor && anchor\.getAttribute/.test(a), 'app.js: a menu has a label');
+}
+
+// osk.js: the keyboard bar stays off a computer with a mouse and a keyboard unless the viewer asked for it
+{
+  const src = (rd('osk.js').match(/function wanted\(\) \{[\s\S]*?\n  \}/) || [''])[0];
+  ok(src, 'osk.js: wanted() not found');
+  if (src) {
+    const w = (shell, o) => new Function('TN', 'root', 'ls', src + ' return wanted();')({shell: () => shell},
+      Object.assign({navigator: {maxTouchPoints: 0}, matchMedia: () => ({matches: false})}, o && o.root), {get: (k, d) => (o && k in (o.ls || {}) ? o.ls[k] : d)});
+    ok(w('desktop') === false, 'osk: no bar on a desktop with a mouse');
+    ok(w('tv') && w('phone') && w('tablet'), 'osk: television, phone and tablet keep the bar');
+    ok(w('desktop', {root: {navigator: {maxTouchPoints: 5}}}) === true, 'osk: a touch screen in the desktop shell (iPad) keeps the bar');
+    ok(w('desktop', {root: {matchMedia: () => ({matches: true})}}) === true, 'osk: a coarse pointer keeps the bar');
+    ok(w('desktop', {root: {BNNative: {}}}) === true, 'osk: the app shells keep the bar');
+    ok(w('desktop', {ls: {bn_osk_show: true}}) === true && w('desktop', {ls: {bn_osk_show: false}}) === false, 'osk: the setting turns it on');
+  }
+  ok(/if \(!wanted\(\)\) return;[^\n]*\n\s*wrapEl\(\)\.hidden = false;/.test(rd('osk.js')), 'osk.js: focusin does not consult wanted()');
+  ok(/put\('osk_show', sw\.checked\)/.test(rd('app.js')), 'app.js: the keyboard-bar switch is missing');
+}
+
+// subs.js: the subtitle settings block belongs to the Playback tab only
+ok(/ctx\.arg !== 'playback'|ctx\.arg === 'playback'/.test(rd('subs.js')), 'subs.js: the settings block is not tied to the playback tab');
+// index.html: one i-dots symbol, no hls.js tag in the head, pinch zoom not disabled
+{
+  const h = rd('index.html');
+  ok((h.match(/id="i-dots"/g) || []).length === 1, 'index.html: i-dots defined once');
+  ok(!/hls\.js@/.test(h), 'index.html: hls.js is loaded on demand');
+  ok(!/maximum-scale/.test(h), 'index.html: pinch zoom stays possible');
+  const ids = (h.match(/<symbol id="[^"]+"/g) || []);
+  ok(new Set(ids).size === ids.length, 'index.html: a sprite id is defined twice');
+}
+
 console.log(bad ? 't_web65: ' + bad + ' problems' : 't_web65 OK');
 process.exit(bad ? 1 : 0);

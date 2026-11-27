@@ -1,0 +1,73 @@
+/* TeleNova player (web/player.js): every player control style. Loaded from index.html after style.css;
+ * player.js adds this link itself when a page did not (test fixtures, an older cached index.html). */
+.pl-root{position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;background:#000;color:#fff;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;overflow:hidden;outline:0;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.pl-root *{box-sizing:border-box}.pl-root [hidden]{display:none!important}
+.pl-video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;background:#000}.pl-root.pl-cover .pl-video{object-fit:cover}
+.pl-tap{position:absolute;top:0;left:0;right:0;bottom:0}
+.pl-root.pl-idle{cursor:none}.pl-root.pl-idle .pl-top,.pl-root.pl-idle .pl-bottom{opacity:0;pointer-events:none;visibility:hidden}
+.pl-top,.pl-bottom{position:absolute;left:0;right:0;transition:opacity .15s,visibility .15s;opacity:1;visibility:visible}
+.pl-top{top:0;display:flex;gap:12px;align-items:center;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(16px + env(safe-area-inset-left,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));background:linear-gradient(#000c,#0000)}
+.pl-titles{flex:1;min-width:0;display:flex;flex-direction:column;text-align:start}.pl-titles b{font-size:1.15em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.pl-titles span{opacity:.8;font-size:.9em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-live{background:#d32f2f;border-radius:6px;padding:2px 10px;font-size:.8em;font-weight:700;letter-spacing:.05em}.pl-clock{opacity:.85;font-variant-numeric:tabular-nums}
+.pl-bottom{bottom:0;padding:28px 16px 10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));background:linear-gradient(#0000,#000d)}
+.pl-status{min-height:1.4em;font-size:.9em;opacity:.9;text-align:center;margin-bottom:4px;text-shadow:0 0 4px #000}
+.pl-seekrow{display:flex;align-items:center;gap:12px;font-variant-numeric:tabular-nums;font-size:.9em}
+.pl-seek{position:relative;flex:1;height:28px;cursor:pointer;outline:0;touch-action:none}
+.pl-seek::before{content:"";position:absolute;left:0;right:0;top:11px;height:6px;border-radius:3px;background:#fff3}
+.pl-buf,.pl-pos{position:absolute;left:0;top:11px;height:6px;border-radius:3px;width:0}.pl-buf{background:#fff6}.pl-pos{background:var(--accent,#4da3ff)}
+.pl-knob{position:absolute;top:6px;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:#fff;left:0;box-shadow:0 0 4px #000;transition:transform .1s}
+/* 6.5.1: the bar is grabbed from 10 px above it too (the pseudo-element's events are the bar's), and it grows while dragged */
+.pl-seek::after{content:"";position:absolute;left:0;right:0;top:-10px;bottom:-4px}
+.pl-seek.pl-drag .pl-knob{transform:scale(1.4)}.pl-seek.pl-drag::before,.pl-seek.pl-drag .pl-buf,.pl-seek.pl-drag .pl-pos{height:8px;top:10px}
+.pl-seek:focus-visible::before,.pl-seek.pl-kb::before{outline:3px solid var(--accent,#4da3ff);outline-offset:3px}
+.pl-bubble{position:absolute;bottom:30px;transform:translateX(-50%);background:#000d;border-radius:6px;padding:2px 8px;font-size:.85em;white-space:nowrap;pointer-events:none}
+/* 6.5.1: one deterministic bar: [tools | rew play fwd | tools], play on the centre line whatever is hidden */
+.pl-root .pl-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;margin-top:4px;flex-wrap:nowrap}
+.pl-root .pl-row>*{margin:0}.pl-zs,.pl-zc,.pl-ze{display:flex;align-items:center;gap:6px;min-width:0}.pl-zs{justify-self:start}.pl-ze{justify-self:end}.pl-zc{gap:14px}
+.pl-zs .pl-btn,.pl-ze .pl-btn{flex-direction:column;gap:2px;height:52px;min-width:56px;padding:0 6px}.pl-zs .pl-ico,.pl-ze .pl-ico{width:24px;height:24px}
+.pl-lbl{display:block;font-size:11px;line-height:1.2;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-zc .pl-btn{min-width:48px;height:48px;border-radius:50%}.pl-zc .pl-play{min-width:56px;height:56px}.pl-zc .pl-play .pl-ico{width:32px;height:32px}
+/* outside CSS never moves these (the legacy stage rules are scoped to .pl-host; this is belt and braces) */
+.pl-root .pl-top,.pl-root .pl-bottom{z-index:2}.pl-root .pl-card{z-index:3;left:50%;right:auto}.pl-root .pl-panel{z-index:4;padding:0}
+.pl-btn{appearance:none;-webkit-appearance:none;border:0;background:transparent;color:#fff;min-width:44px;height:44px;border-radius:10px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font:inherit;text-decoration:none;flex:none}
+.pl-btn:hover{background:#fff2}.pl-btn:focus-visible,.pl-prow:focus-visible,.pl-chip:focus-visible,.pl-cbtn:focus-visible{outline:3px solid var(--accent,#4da3ff);outline-offset:2px}
+.pl-btn[aria-pressed="true"]{color:var(--accent,#4da3ff)}.pl-ico{width:26px;height:26px;fill:currentColor;flex:none}.pl-ico text{fill:currentColor}
+.pl-root[dir=rtl] .pl-back .pl-ico{transform:scaleX(-1)}
+.pl-vol{width:90px;accent-color:var(--accent,#4da3ff);height:28px}
+.pl-big{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:50%;border:0;background:#000a;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pl-big .pl-ico{width:52px;height:52px}.pl-big:focus-visible{outline:3px solid var(--accent,#4da3ff);outline-offset:3px}
+.pl-big+.pl-bigtxt{position:absolute;top:calc(50% + 62px);left:0;right:0;text-align:center;text-shadow:0 0 6px #000}
+.pl-spin{position:absolute;top:50%;left:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:5px solid #fff3;border-top-color:#fff;animation:pl-spin .9s linear infinite;pointer-events:none}
+@keyframes pl-spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.pl-spin{animation-duration:3s}}
+.pl-flash{position:absolute;top:22%;left:50%;transform:translateX(-50%);background:#000b;border-radius:10px;padding:8px 16px;font-size:1.1em;pointer-events:none;opacity:0;transition:opacity .15s;max-width:86%;text-align:center}.pl-flash.pl-show{opacity:1}
+.pl-card{position:absolute;left:50%;bottom:26%;transform:translateX(-50%);background:rgba(18,20,28,.96);border-radius:14px;padding:16px 18px;max-width:min(560px,92%);width:max-content;text-align:center;box-shadow:0 10px 40px #000a;max-height:64%;overflow:auto;user-select:text;-webkit-user-select:text}
+.pl-card p{margin:0 0 6px}.pl-card p:empty{display:none}.pl-note{margin-top:8px}.pl-card small{display:block;opacity:.8;margin:0 0 8px}.pl-cbtns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.pl-cbtn{appearance:none;-webkit-appearance:none;border:1px solid #fff5;background:transparent;color:#fff;border-radius:10px;min-height:44px;padding:8px 16px;font:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+.pl-cbtn.pl-pri{background:var(--accent,#4da3ff);border-color:transparent;color:#000;font-weight:600}.pl-card input{width:100%;min-height:40px;background:#000;color:#fff;border:1px solid #fff5;border-radius:8px;padding:6px 10px;font:inherit;margin-top:8px}
+.pl-panel{position:absolute;top:0;bottom:0;width:min(380px,100%);background:rgba(16,18,26,.97);display:flex;flex-direction:column;box-shadow:0 0 40px #000a;text-align:start;user-select:text;-webkit-user-select:text}
+.pl-root[dir=ltr] .pl-panel{right:0}.pl-root[dir=rtl] .pl-panel{left:0}
+.pl-phead{display:flex;align-items:center;gap:8px;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top,0px));border-bottom:1px solid #fff2}.pl-phead h3{flex:1;margin:0;font-size:1.1em}
+.pl-pbody{flex:1;overflow:auto;padding:8px 10px calc(14px + env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch}
+.pl-pbody h4{margin:14px 6px 4px;font-size:.85em;opacity:.7;font-weight:600}.pl-pmsg{margin:8px 6px;font-size:.92em;opacity:.9}
+.pl-prow{appearance:none;-webkit-appearance:none;display:flex;align-items:center;gap:10px;width:100%;min-height:46px;border:0;border-radius:10px;background:transparent;color:#fff;font:inherit;text-align:start;padding:8px 10px;cursor:pointer;text-decoration:none}
+.pl-prow:hover{background:#fff1}.pl-prow::before{content:"";flex:none;width:18px;height:18px;border-radius:50%;border:2px solid #fff8}
+.pl-prow[aria-checked="true"]::before{border-color:var(--accent,#4da3ff);background:radial-gradient(var(--accent,#4da3ff) 45%,transparent 50%)}
+.pl-prow.pl-act::before{display:none}.pl-prow.pl-sw::before{border-radius:5px}.pl-prow.pl-sw[aria-checked="true"]::before{background:var(--accent,#4da3ff)}
+.pl-prow span{flex:1;min-width:0;overflow-wrap:anywhere}.pl-tag{flex:none!important;font-size:.72em;border:1px solid #fff6;border-radius:5px;padding:0 6px;text-transform:uppercase}
+.pl-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 6px}.pl-line>b{flex:1 1 100%;font-weight:500;font-size:.92em}
+.pl-chip{appearance:none;-webkit-appearance:none;border:1px solid #fff5;background:transparent;color:#fff;border-radius:999px;min-height:40px;min-width:44px;padding:4px 14px;font:inherit;cursor:pointer}
+.pl-chip[aria-checked="true"],.pl-chip[aria-pressed="true"]{background:var(--accent,#4da3ff);color:#000;border-color:transparent}
+.pl-val{min-width:5.5em;text-align:center;font-variant-numeric:tabular-nums}
+@media (max-width:600px){.pl-root{font-size:15px}.pl-panel{top:auto;width:100%;max-height:72%;border-radius:16px 16px 0 0}.pl-card{bottom:18%}}
+/* phone / tablet portrait: transport centred on its own line, the tools below in equal columns edge to edge */
+@media (max-width:600px),(max-width:900px) and (min-height:481px){.pl-root .pl-row{display:flex;flex-wrap:wrap;gap:4px 2px}.pl-zc{order:-1;flex:0 0 100%;justify-content:center;gap:28px}
+.pl-zs,.pl-ze{display:contents}.pl-zs .pl-btn,.pl-ze .pl-btn{flex:1 1 0;min-width:44px;padding:0 2px}.pl-vol{display:none}}
+/* landscape phone: one line, lower buttons */
+@media (max-height:480px){.pl-vol{display:none}.pl-zs .pl-btn,.pl-ze .pl-btn{height:46px;min-width:50px}.pl-lbl{font-size:10px}.pl-bottom{padding-top:16px}.pl-status{margin-bottom:0}}
+html.tv .pl-root,html[data-shell=tv] .pl-root{font-size:24px}html.tv .pl-btn,html[data-shell=tv] .pl-btn{min-width:64px;height:64px}html.tv .pl-ico,html[data-shell=tv] .pl-ico{width:36px;height:36px}
+html.tv .pl-lbl,html[data-shell=tv] .pl-lbl{font-size:.55em}html.tv .pl-zs .pl-btn,html.tv .pl-ze .pl-btn,html[data-shell=tv] .pl-zs .pl-btn,html[data-shell=tv] .pl-ze .pl-btn{height:84px;min-width:96px}
+html.tv .pl-zc .pl-btn,html[data-shell=tv] .pl-zc .pl-btn{min-width:72px;height:72px}html.tv .pl-zc .pl-play,html[data-shell=tv] .pl-zc .pl-play{min-width:84px;height:84px}
+html.tv .pl-vol,html[data-shell=tv] .pl-vol,html.tv .pl-mute,html[data-shell=tv] .pl-mute{display:none}html.tv .pl-panel,html[data-shell=tv] .pl-panel{width:min(560px,100%)}
+html.tv .pl-prow,html[data-shell=tv] .pl-prow{min-height:64px}html.tv .pl-top,html.tv .pl-bottom,html[data-shell=tv] .pl-top,html[data-shell=tv] .pl-bottom{padding-left:5vw;padding-right:5vw}html.tv .pl-bottom,html[data-shell=tv] .pl-bottom{padding-bottom:5vh}html.tv .pl-top,html[data-shell=tv] .pl-top{padding-top:5vh}
+.pl-root .subs-set{padding:4px 6px}

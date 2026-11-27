@@ -41,7 +41,7 @@ function make() {
     return self;
   }
   const document = {
-    createElement: (tag) => el(tag), getElementById: (id) => (id === '__none__' ? null : el('#' + id)), querySelector: () => el('q'), querySelectorAll: () => [],
+    createElement: (tag) => el(tag), createDocumentFragment: () => el('frag'), getElementById: (id) => (id === '__none__' ? null : el('#' + id)), querySelector: () => el('q'), querySelectorAll: () => [],
     head: el('head'), body: el('body'), addEventListener() {}, removeEventListener() {},
   };
   // the TN members that draw: the same stand-in elements; TN.button keeps its handler
@@ -51,7 +51,7 @@ function make() {
     chips(items, cur, go) { for (const it of items) texts.push(String(it[1])); if (typeof go === 'function' && items.length) handlers.push(['chips', () => go(items[items.length - 1][0])]); return el('chips'); },
     button(cls, text, fn) { texts.push(String(text)); const b = el('button'); if (typeof fn === 'function') handlers.push(['button:' + text, fn]); b.textContent = String(text); return b; },
     modal(html) { texts.push(String(html)); }, closeModal() {}, favButton: () => el('fav'), esc: (s) => String(s === undefined || s === null ? '' : s),
-    httpsOnly: (u) => (typeof u === 'string' && /^https:\/\//i.test(u) ? u : ''), cssUrl: (u) => u, paint() {}, kodiOnly() {},
+    httpsOnly: (u) => (typeof u === 'string' && /^https:\/\//i.test(u) ? u : ''), cssUrl: (u) => u, paint() {}, kodiOnly() {}, icon: (id) => '<svg class="ico" data-i="' + id + '"></svg>',
   };
   // call every handler collected so far (once each), wait for them; -> [label, error] of the ones that failed
   async function press(skip) {

@@ -43,6 +43,11 @@ const L = box.api;
   ok(!/A\.put\('tg_session'[^)]*\)[^\n]*link|tg_session[^\n]*web\.tg_link/.test(src), 'a Telegram session is not part of it');
   const bk = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'web', 'backup.js'), 'utf8');
   ok(/web\.tg_link = lk/.test(bk) && !/web\.tg_session|tg_session'\)[^\n]*web\./.test(bk), 'the backup carries the household secret, never a Telegram session');
+  // 6.5.1 connection supervisor: no second connect while a rebuild runs; a timed-out resume leaves nothing connected
+  ok(/function ensureAlive\(force\) \{\n\s*if \(rebuildP\) return rebuildP;/.test(src) && /async function doAlive\(force\) \{\n\s*if \(rebuildP\) return rebuildP;/.test(src), 'ensureAlive waits for a running rebuild');
+  ok(/async function getClient\(\) \{[\s\S]{0,120}if \(rebuildP\) return rebuildP;/.test(src), 'getClient waits for a running rebuild');
+  ok(/async function open\(fresh, session, stale\)/.test(src) && /!ok \|\| \(stale && stale\(\)\)/.test(src), 'open() destroys a client whose attempt was given up');
+  ok(/open\(false, '', gone\)/.test(src) && /work\.catch\(/.test(src), 'resume passes its generation to open() and handles a late end');
   console.log(fails ? 't_tglink FAILED ' + fails + ' of ' + n : 't_tglink OK (' + n + ' checks)');
   process.exit(fails ? 1 : 0);
 })();

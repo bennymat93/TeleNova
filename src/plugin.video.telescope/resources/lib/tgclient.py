@@ -100,6 +100,8 @@ class TG(object):
                 return True
         if self.me is None and await self.client.is_user_authorized():
             self.me = await self.client.get_me()
+        if not getattr(self, '_lag_task', None):     # 6.5.1: a start that was cut after connect() never made it
+            self._lag_task = asyncio.ensure_future(self._lag_watch())
         return True
 
     def stop(self, timeout=10):
@@ -288,9 +290,47 @@ class TG(object):
         self._auth().forget()
         return {'ok': True}
 
+    def _qr_clear(self):
+        """6.5.1: the QR login is over (done, cancelled, failed for good): its token and its update handler go"""
+        self._qr = None
+        handler, self._qr_handler = getattr(self, '_qr_handler', None), None
+        self._qr_event = None
+        if handler is not None and self.client is not None:
+            try:
+                self.client.remove_event_handler(handler)
+            except Exception:
+                pass
+
     async def qr_start(self):
-        self._qr = await self.client.qr_login()
+        """-> {'url', 'expires'} | {'ok': False, 'error': reason} (6.5.1: never an exception - no client yet, no
+        network and a refusal by Telegram each end the login with a reason the viewer can read)"""
+        from . import tgauth
+        if not self.client or not self.client.is_connected():
+            return {'ok': False, 'error': 'network', 'detail': 'not connected'}
+        self._qr_clear()
+        try:
+            from telethon import events
+            from telethon.tl import types
+            self._qr = await self.client.qr_login()
+            # ONE handler for the whole login. Telethon's own wait() adds and removes its handler on every call;
+            # this engine waits in short slices, so an approval that arrived between two of them was noticed only
+            # when the token expired (up to ~30 s later).
+            event = asyncio.Event()
+
+            async def on_token(_update):
+                event.set()
+            self.client.add_event_handler(on_token, events.Raw(types.UpdateLoginToken))
+            self._qr_event, self._qr_handler = event, on_token
+        except Exception as exc:
+            self._qr_clear()
+            self.log('login: QR start refused: %s' % type(exc).__name__)
+            return dict(tgauth.error_info(exc), ok=False)
         return {'url': self._qr.url, 'expires': self._qr.expires.timestamp() if self._qr.expires else 0}
+
+    async def qr_cancel(self):
+        """6.5.1: the login window was closed - nothing of the login stays behind in the engine"""
+        self._qr_clear()
+        return {'ok': True}
 
     async def qr_accept(self, token):
         """4.2 (device pairing): this logged-in session approves another device's login token
@@ -319,7 +359,9 @@ class TG(object):
         been accepted, the next export came back as LoginTokenMigrateTo (the account lives in another data
         centre), which has no expiry: AttributeError. This asks again and finishes the way Telethon does:
         LoginTokenMigrateTo -> switch data centre + importLoginToken; LoginTokenSuccess -> logged in.
-        -> {'ok': True} | {'ok': False} | {'ok': False, 'password': True, ...}"""
+        -> {'ok': True} | {'ok': False} | {'ok': False, 'url'} | {'ok': False, 'password': True, ...}
+           | {'ok': False, 'error': reason, 'detail'} (6.5.1: every other failure - it used to be raised raw)"""
+        from . import tgauth
         from telethon.errors import SessionPasswordNeededError
         from telethon.tl import functions, types
         try:
@@ -331,15 +373,30 @@ class TG(object):
                 user = resp.authorization.user
                 await self.client._on_login(user)
                 self.me = user
-                self._qr = None
+                self._qr_clear()
                 return {'ok': True}
             if isinstance(resp, types.auth.LoginToken):
                 self._qr._resp = resp                  # not accepted yet: a fresh token (the URL changes)
                 return {'ok': False, 'url': self._qr.url}
-            return {'ok': False, 'error': type(resp).__name__}
+            self._qr_clear()
+            return {'ok': False, 'error': 'other', 'detail': type(resp).__name__}
         except SessionPasswordNeededError:
-            self._qr = None
+            self._qr_clear()
             return {'ok': False, 'password': True, 'hint': await self._password_hint()}
+        except Exception as exc:
+            if 'AuthTokenExpired' in type(exc).__name__:
+                try:                                   # the token ran out: a new one, the same login goes on
+                    self._qr._resp = await self.client(self._qr._request)
+                    if isinstance(self._qr._resp, types.auth.LoginToken):
+                        return {'ok': False, 'url': self._qr.url}
+                    exc = RuntimeError(type(self._qr._resp).__name__)
+                except Exception as again:
+                    exc = again
+            info = tgauth.error_info(exc)
+            self.log('login: QR not finished: %s' % info['detail'])
+            if info['error'] != 'network':             # no network: the login itself still stands, asked again later
+                self._qr_clear()
+            return dict(info, ok=False)
 
     async def qr_check(self):
         """4.2 (device pairing): the configured device has accepted this device's token - finish the login now"""
@@ -348,23 +405,35 @@ class TG(object):
         return await self._qr_settle()
 
     async def qr_wait(self, timeout=5):
-        from telethon.errors import SessionPasswordNeededError
+        """waits up to `timeout` s for Telegram's "token accepted" update (one handler for the whole login, see
+        qr_start), then asks Telegram where the login stands. Answers like _qr_settle()."""
         if not self._qr:
             return {'ok': bool(self.me)}
         try:
-            self.me = await self._qr.wait(timeout)
-            self._qr = None
-            return {'ok': True}
+            timeout = min(25.0, max(0.0, float(timeout)))
+        except (TypeError, ValueError):
+            timeout = 4.0
+        event = getattr(self, '_qr_event', None)
+        got = False
+        try:
+            if event is None:
+                await asyncio.sleep(timeout)
+            else:
+                await asyncio.wait_for(event.wait(), timeout)
+                got = True
         except asyncio.TimeoutError:
-            expires = getattr(self._qr._resp, 'expires', None)      # 4.2: a migrate / success answer has none
-            if expires is None or expires.timestamp() < time.time() + 2:
-                # expired (or already answered): Telegram tells where the login stands - accepted meanwhile
-                # (the update fell between two waits), or a fresh token for the QR code
-                return await self._qr_settle()
-            return {'ok': False}
-        except SessionPasswordNeededError:
-            self._qr = None
-            return {'ok': False, 'password': True, 'hint': await self._password_hint()}
+            pass
+        if not self._qr:                               # cancelled meanwhile (the window was closed)
+            return {'ok': bool(self.me)}
+        if got:
+            event.clear()
+            return await self._qr_settle()
+        expires = getattr(self._qr._resp, 'expires', None)          # 4.2: a migrate / success answer has none
+        if expires is None or expires.timestamp() < time.time() + 2:
+            # expired (or already answered): Telegram tells where the login stands - accepted meanwhile, or a
+            # fresh token for the QR code
+            return await self._qr_settle()
+        return {'ok': False}
 
     async def logout(self):
         """4.2 (found in the live pairing test, 17/11): Telethon's log_out() deletes the session and closes it, and
@@ -374,7 +443,7 @@ class TG(object):
             await self.client.log_out()
         finally:
             self.me = None
-            self._qr = None
+            self._qr_clear()
             try:
                 await self.client.disconnect()
             except Exception:

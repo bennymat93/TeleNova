@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Background service: owns the Telegram session, the streaming proxy and the search jobs."""
+import contextlib
 import os
 import secrets
 import threading
@@ -130,6 +131,29 @@ class Service(xbmc.Monitor):
         self.meta = None
         self.ai = None
         self._started = threading.Event()   # 3.3: set when start() finished (the HTTP server answers before that)
+        self._init_tg_state()
+
+    def _init_tg_state(self):
+        """6.5.1: what makes connect / restart / status end in a definite state (also called by the unit tests)"""
+        self._tg_lock = threading.RLock()   # one engine (re)start at a time: two Telethon clients on one session
+        self._restart_depth = 0             # ... file would fight over its SQLite database
+        self._restarting = False
+        self._gen = 0                       # setting changes: only the last one of a burst is applied
+        self._last_tg_status = None         # the last good answer of tg.status(), shown when Telegram is slow
+        self._wd_down = False               # the watchdog logs a lost connection once, not every 30 s
+        self._wd_fail = ''
+
+    @contextlib.contextmanager
+    def _restart(self):
+        """the engine is being (re)started: calls that need Telegram answer 'service_starting' meanwhile"""
+        with self._tg_lock:
+            self._restart_depth += 1
+            self._restarting = True
+            try:
+                yield
+            finally:
+                self._restart_depth -= 1
+                self._restarting = self._restart_depth > 0
 
     # ------------------------------------------------------------------ setup
     def _deps(self):
@@ -148,6 +172,13 @@ class Service(xbmc.Monitor):
             common.log_error('dependency install failed: %r' % exc)
 
     def _start_tg(self, timeout=60):
+        # 6.5.1: reached from the main thread (settings, watchdog) and from RPC threads (the HTTP server is
+        # threaded). Without the lock two starts could open two clients on one session file, and a call that fell
+        # into the gap (self.tg is None for a moment) was told 'API ID / hash missing'.
+        with self._restart():
+            self._start_tg_locked(timeout)
+
+    def _start_tg_locked(self, timeout):
         from .tgclient import TG
         if self.tg:
             try:
@@ -165,11 +196,14 @@ class Service(xbmc.Monitor):
                          parallel=self.s['parallel'])
             self.tg.info = lambda m: common.log(m, xbmc.LOGINFO)     # 3.3.1: flood waits are always logged
             self.tg.quiet = self.s.get('tg_quiet', True)
-            self.tg.start(timeout)
             if self.app:                 # 3.3.5: the chunk a player waits for is requested before the read-ahead
+                # 6.5.1: wired BEFORE start() - a start that failed late (the client stays, the watchdog revives
+                # it) used to leave the store bound to the client that was stopped
                 self.app.store.on_wait = self.tg.bump
                 self.app.store.on_drop = self.tg.drop
                 self.app.store.on_low = self.tg.lower
+            self._last_tg_status = None
+            self.tg.start(timeout)
             self.tg_error = None
         except Exception as exc:
             self.tg_error = '%s: %s' % (type(exc).__name__, exc)
@@ -329,44 +363,8 @@ class Service(xbmc.Monitor):
         known = set(self._setting_ids())
         self._importing = True
         try:
-            if self.tg:
-                try:
-                    self.tg.stop()
-                except Exception:
-                    pass
-                self.tg = None
-            if sess is not None:
-                path = common.SESSION_FILE + '.session'
-                for junk in (path + '-journal', path + '-wal', path + '-shm'):
-                    try:
-                        os.remove(junk)
-                    except OSError:
-                        pass
-                with open(path + '.new', 'wb') as fh:
-                    fh.write(sess)
-                os.replace(path + '.new', path)
-            if 'bots.json' in files and self.s.get('bots_file'):
-                with open(self.s['bots_file'], 'wb') as fh:
-                    fh.write(files['bots.json'])
-            n = 0
-            for key, val in settings.items():
-                if key in known and isinstance(val, str) and common.setting(key, '') != val:
-                    common.set_setting(key, val)
-                    n += 1
-            web = extra.get('web') if isinstance(extra.get('web'), dict) else {}
-            from . import linklogin
-            if linklogin.valid(web.get('tg_link')):
-                self._link_secret(set_to=str(web['tg_link']))
-            for key, val in (extra.get('shared') or {}).items():
-                if key in ('tmdb_key', 'gemini_key') and val and not _foreign('plugin.video.nova', key):
-                    try:
-                        import xbmcaddon
-                        xbmcaddon.Addon('plugin.video.nova').setSetting(key, str(val))
-                    except Exception:
-                        pass
-            self.s = load_settings()
-            self._start_tg()
-            self._build()
+            with self._restart():               # 6.5.1: no other start runs while the engine is taken apart
+                n = self._config_apply(settings, files, extra, sess, known)
         finally:
             self._later(4.0, lambda: setattr(self, '_importing', False))
         st = {}
@@ -377,6 +375,48 @@ class Service(xbmc.Monitor):
                 st = {'error': str(exc)}
         return {'ok': True, 'settings': n, 'session': sess is not None, 'authorized': bool(st.get('authorized')),
                 'me': st.get('me'), 'error': self.tg_error or st.get('error')}
+
+    def _config_apply(self, settings, files, extra, sess, known):
+        """the checked content of a configuration file is written and the engine restarted -> settings changed"""
+        if self.tg:
+            try:
+                self.tg.stop()
+            except Exception:
+                pass
+            self.tg = None
+        if sess is not None:
+            path = common.SESSION_FILE + '.session'
+            for junk in (path + '-journal', path + '-wal', path + '-shm'):
+                try:
+                    os.remove(junk)
+                except OSError:
+                    pass
+            with open(path + '.new', 'wb') as fh:
+                fh.write(sess)
+            os.replace(path + '.new', path)
+        if 'bots.json' in files and self.s.get('bots_file'):
+            with open(self.s['bots_file'], 'wb') as fh:
+                fh.write(files['bots.json'])
+        n = 0
+        for key, val in settings.items():
+            if key in known and isinstance(val, str) and common.setting(key, '') != val:
+                common.set_setting(key, val)
+                n += 1
+        web = extra.get('web') if isinstance(extra.get('web'), dict) else {}
+        from . import linklogin
+        if linklogin.valid(web.get('tg_link')):
+            self._link_secret(set_to=str(web['tg_link']))
+        for key, val in (extra.get('shared') or {}).items():
+            if key in ('tmdb_key', 'gemini_key') and val and not _foreign('plugin.video.nova', key):
+                try:
+                    import xbmcaddon
+                    xbmcaddon.Addon('plugin.video.nova').setSetting(key, str(val))
+                except Exception:
+                    pass
+        self.s = load_settings()
+        self._start_tg()
+        self._build()
+        return n
 
     # ------------------------------------------------------------------ 4.0.4: setup kept in the account
     def _cloud_key(self):
@@ -395,7 +435,7 @@ class Service(xbmc.Monitor):
         import base64
         from . import configio
         if not self.tg:
-            raise RuntimeError(self.tg_error or 'not_configured')
+            raise RuntimeError('service_starting' if self._restarting else (self.tg_error or 'not_configured'))
         if not self.tg.run(self.tg.status(), 30).get('authorized'):
             raise RuntimeError('not_authorized')
         if method == 'cloud_list':
@@ -425,24 +465,63 @@ class Service(xbmc.Monitor):
     def onSettingsChanged(self):
         if getattr(self, '_importing', False):       # config_import() restarts everything once, at its end
             return
-        old = self.s
-        self.s = load_settings()
-        if self.tg:
-            self.tg.quiet = self.s.get('tg_quiet', True)
-        if (old['api_id'], old['api_hash'], old['parallel']) != (self.s['api_id'], self.s['api_hash'],
-                                                                 self.s['parallel']):
-            self._start_tg()
-        self._build()
+        # 6.5.1: Kodi calls this once per setting written. Pairing writes the API id and then the hash (two engine
+        # restarts, the first with half a pair) and a restored setup writes ~130 settings (a finder rebuilt each
+        # time). Only the last change of a burst is applied, SETTLE seconds after it.
+        self._gen += 1
+        gen = self._gen
+        self._later(self.SETTLE, lambda: self._apply_settings(gen))
+
+    SETTLE = 1.5
+
+    def _apply_settings(self, gen):
+        if gen != self._gen:                         # a newer change is waiting: that one applies them all
+            return
+        with self._tg_lock:
+            old = self.s
+            self.s = load_settings()
+            if self.tg:
+                self.tg.quiet = self.s.get('tg_quiet', True)
+            if (old['api_id'], old['api_hash'], old['parallel']) != (self.s['api_id'], self.s['api_hash'],
+                                                                     self.s['parallel']):
+                self._start_tg()
+            self._build()
 
     def _watchdog(self):
         """3.3: called about every 30 s. A client that lost its connection for good, or one that could not be
         started (no Wi-Fi when Kodi started), is brought back without restarting Kodi."""
+        if self._restarting:                         # a (re)start runs in another thread: it decides
+            return
         tg = self.tg
         if tg is not None and tg.client is not None:
             if not tg.client.is_connected():
-                common.log('telegram is disconnected - reconnecting', xbmc.LOGINFO)
-                tg.run(tg.reconnect(), 30)
+                if not self._wd_down:                # 6.5.1: one line when the connection is lost, not one per 30 s
+                    common.log('telegram is disconnected - reconnecting', xbmc.LOGINFO)
+                self._wd_down = True
+                try:
+                    tg.run(tg.reconnect(), 30)
+                except Exception as exc:
+                    name = type(exc).__name__
+                    if name != self._wd_fail:
+                        common.log('telegram reconnect failed: %s (tried again every 30 s)' % name, xbmc.LOGINFO)
+                    self._wd_fail = name
+                    return
                 self.tg_error = None
+                self._wd_down, self._wd_fail = False, ''
+                common.log('telegram reconnected', xbmc.LOGINFO)
+            elif self.tg_error and self.tg_error != 'not_configured' and not self.tg_error.startswith('deps:'):
+                # 6.5.1: start() was cut by its time limit AFTER connect() had returned (the account check was
+                # slow). The client works, but the old error stayed for good: pairing waited 180 s for an engine
+                # that was ready, and the account screen showed a failure.
+                common.log('telegram is connected - the start error is cleared (%s)' % self.tg_error, xbmc.LOGINFO)
+                self.tg_error = None
+                self._wd_down, self._wd_fail = False, ''
+                try:
+                    tg.run(tg.reconnect(), 30)       # connected already: this only reads who is logged in
+                except Exception as exc:
+                    common.log('telegram account check: %s' % type(exc).__name__)
+            elif self._wd_down:                      # Telethon came back by itself
+                self._wd_down, self._wd_fail = False, ''
                 common.log('telegram reconnected', xbmc.LOGINFO)
         elif self.deps_ok and self.tg_error and self.tg_error != 'not_configured':
             self._start_tg(30)
@@ -469,18 +548,30 @@ class Service(xbmc.Monitor):
             return ''
         return self._link_secret(set_to=linklogin.new_secret())
 
+    def _link_post(self, tg):
+        """this device's current login token goes to the household mailbox (when there is a household secret).
+        The HTTP call runs in its own thread, never inside the Telegram loop. -> True when it is being posted"""
+        secret = self._link_secret()
+        token = getattr(getattr(getattr(tg, '_qr', None), '_resp', None), 'token', None)
+        if not (secret and token):
+            return False
+        from . import linklogin
+
+        def post():
+            try:
+                linklogin.Mailbox().ask(secret, token)
+            except Exception as exc:
+                common.log('automatic sign-in: token not posted (%s)' % type(exc).__name__)
+        self._later(0.1, post)
+        return True
+
     def _qr_start_linked(self, tg):
         """the QR login of this device; with a household secret its token also goes to the mailbox, where a
         signed-in device of the household approves it by itself"""
         async def run():
             res = await tg.qr_start()
-            secret = self._link_secret()
-            if secret and getattr(tg, '_qr', None) is not None:
-                from . import linklogin
-                token = getattr(getattr(tg._qr, '_resp', None), 'token', None)
-                if token:
-                    self._later(0.1, lambda: linklogin.Mailbox().ask(secret, token))
-                    res = dict(res, auto=True)
+            if isinstance(res, dict) and res.get('url') and self._link_post(tg):
+                res = dict(res, auto=True)
             return res
         return run()
 
@@ -496,7 +587,12 @@ class Service(xbmc.Monitor):
         token = self._mailbox.take(secret)
         if not token:
             return
-        res = tg.submit(tg.qr_accept(linklogin.token_text(token))).result(timeout=30)
+        fut = tg.submit(tg.qr_accept(linklogin.token_text(token)))
+        try:
+            res = fut.result(timeout=30)
+        except Exception:
+            fut.cancel()                 # 6.5.1: a call that got no answer is not left running in the Telegram loop
+            raise
         if res.get('ok'):
             common.log('automatic sign-in: another device of this household was approved', xbmc.LOGINFO)
             try:
@@ -506,18 +602,24 @@ class Service(xbmc.Monitor):
         else:
             common.log('automatic sign-in: not approved (%s)' % res.get('error'))
 
+    def _link_loop(self):
+        """6.5.1: the household mailbox is asked from its own thread. It is an HTTP call of up to 10 s plus a
+        Telegram call of up to 30 s, and it used to run in the service's main loop, in front of the watchdog."""
+        while not self.waitForAbort(10):
+            try:
+                self._link_tick()
+            except Exception as exc:
+                common.log('automatic sign-in: %s' % type(exc).__name__)
+
     def run(self):
         self.start()
+        threading.Thread(target=self._link_loop, name='telescope-link', daemon=True).start()
         ticks = 0
         purged = 0
         while not self.abortRequested():
             if self.waitForAbort(10):
                 break
             ticks += 1
-            try:
-                self._link_tick()
-            except Exception as exc:
-                common.log('automatic sign-in: %s' % type(exc).__name__)
             if ticks % 3 == 0:
                 try:
                     self._watchdog()
@@ -566,12 +668,32 @@ class Service(xbmc.Monitor):
             common.log('exit: %r' % exc)
 
     # ------------------------------------------------------------------ RPC
+    def _state(self, st):
+        """6.5.1: ONE word for where the Telegram engine stands, derived from what is known right now (nothing is
+        stored): starting | no_deps | not_configured | connecting | connected_unauth | authorized | error"""
+        if not self._started.is_set() or self._restarting:
+            return 'starting'
+        if not self.deps_ok:
+            return 'no_deps'
+        if not self.tg:
+            return 'not_configured' if (self.tg_error or 'not_configured') == 'not_configured' else 'error'
+        if st.get('authorized'):
+            return 'authorized'
+        if st.get('connected'):
+            return 'error' if (self.tg_error and not st.get('stale')) else 'connected_unauth'
+        if 'connected' not in st:                # Telegram has not answered once since this client was started
+            return 'error'
+        return 'connecting'
+
     def _need_tg(self):
+        if self._restarting:                     # 6.5.1: mid-restart self.tg is None - that is not 'not configured'
+            raise RuntimeError('service_starting')
         if not self.deps_ok:                     # a failed first-run download is retried on demand
-            self._deps()
-            if self.deps_ok:
-                self._start_tg()
-                self._build()
+            with self._restart():
+                self._deps()
+                if self.deps_ok:
+                    self._start_tg()
+                    self._build()
         if not self.tg:
             raise RuntimeError(self.tg_error or 'not_configured')
         return self.tg
@@ -588,11 +710,21 @@ class Service(xbmc.Monitor):
             st = {'deps': self.deps_ok, 'error': self.tg_error, 'crypto': '%s, %s MB/s%s' % (aesfast.impl_name(), aesfast.bench(),
                                                (' (%s)' % aesfast.note()) if aesfast.note() else ''),
                   'versions': deps.versions(), 'ai': bool(self.ai), 'tmdb': bool(self.s['tmdb_key'])}
-            if self.tg:
+            tg = self.tg
+            if tg:
                 try:
-                    st.update(self.tg.run(self.tg.status(), 20))
+                    live = tg.run(tg.status(), 20)
+                    st.update(live)
+                    if self.tg is tg:
+                        self._last_tg_status = dict(live)
                 except Exception as exc:
-                    st['error'] = str(exc)
+                    # 6.5.1: str() of a futures TimeoutError is '' - the answer had no account and no error, so a
+                    # logged-in viewer was shown the login screen (and the sync stopped). A slow Telegram now
+                    # answers with what was last known, marked stale.
+                    st.update(self._last_tg_status or {})
+                    st['error'] = ('%s: %s' % (type(exc).__name__, exc)) if str(exc) else 'timeout'
+                    st['stale'] = True
+            st['state'] = self._state(st)
             if self.finder:
                 st['telemedia_bridge'] = self.finder.bridge_ok()
                 st['stremio_servers'] = len(self.finder.servers.bases) if self.finder.servers else 0
@@ -606,10 +738,11 @@ class Service(xbmc.Monitor):
                     pass
             return st
         if method == 'reinstall_deps':
-            deps.ensure(force=True)
-            self._deps()
-            self._start_tg()
-            self._build()
+            with self._restart():
+                deps.ensure(force=True)
+                self._deps()
+                self._start_tg()
+                self._build()
             return True
         if method.startswith('rd_'):                     # 3.3.4: Real-Debrid
             if not getattr(self, 'rd', None):
@@ -756,6 +889,7 @@ class Service(xbmc.Monitor):
             'qr_wait': lambda: tg.qr_wait(p.get('timeout', 4)),
             'qr_accept': lambda: tg.qr_accept(p.get('token')),          # 4.2: device pairing
             'qr_check': lambda: tg.qr_check(),
+            'qr_cancel': lambda: tg.qr_cancel(),                         # 6.5.1: the login window was closed
             'logout': lambda: tg.logout(),
             'dialogs': lambda: tg.dialogs(p.get('limit', 300)),
             'chat_videos': lambda: tg.chat_videos(p['chat_id'], int(p.get('offset', 0)), int(p.get('limit', 50)),
@@ -772,6 +906,10 @@ class Service(xbmc.Monitor):
                     c.pop('parsed', None)
             if method in ('sign_in', 'sign_in_password', 'qr_wait', 'qr_check') and isinstance(res, dict) and res.get('ok'):
                 self._build()
+            if method in ('qr_wait', 'qr_check') and isinstance(res, dict) and res.get('url'):
+                # 6.5.1: a login token lives ~30 s and only the first one went to the household mailbox, so the
+                # automatic approval worked for the first half minute of the 3-minute window only
+                self._link_post(tg)
             return res
         raise RuntimeError('unknown method %s' % method)
 

@@ -285,7 +285,8 @@ def live(handle, key, alt=''):
             return xbmcplugin.setResolvedUrl(handle, True, li)
     # every source failed: say so clearly (before: a spinner, then nothing)
     from .common import ui_lang
-    msg = ('%s אינו זמין כרגע מאף מקור - נסו שוב בעוד כמה דקות' if ui_lang() == 'he'
-           else '%s is not available from any source right now - try again in a few minutes') % label
+    msg = {'he': '%s אינו זמין כרגע מאף מקור - נסו שוב בעוד כמה דקות',
+           'ru': '%s сейчас недоступен ни из одного источника - попробуйте через несколько минут'}.get(
+        ui_lang(), '%s is not available from any source right now - try again in a few minutes') % label
     xbmcgui.Dialog().notification('BN Stream', msg, xbmcgui.NOTIFICATION_WARNING, 6000)
     return xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())

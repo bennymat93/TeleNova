@@ -20,7 +20,7 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 
-from .common import T, ui_lang, load, save, log, ADDON_PATH
+from .common import T, ui_lang, load, save, log, ADDON_PATH, gold_item
 
 # ------------------------------------------------------------------ registry
 # id, add-on, (he, en, ru), category, search template ({q} = url-quoted query) or None = browse only
@@ -299,7 +299,7 @@ def _radio_matches(q):
         return []
 
 def _header(handle, text, target='plugin://plugin.video.nova/?a=noop', folder=False):
-    li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % text)     # 4.2.8: the skin bolds the focused row
+    li = gold_item(text)     # 4.2.8: the skin bolds the focused row
     li.setArt({'icon': 'DefaultAddonsSearch.png', 'thumb': 'DefaultAddonsSearch.png'})
     xbmcplugin.addDirectoryItem(handle, target, li, folder)
 
@@ -525,7 +525,7 @@ def library(handle, url):
             li = xbmcgui.ListItem('%s  [COLOR grey](%d)[/COLOR]' % (names[col], n))
             li.setArt({'icon': 'DefaultAddonVideo.png', 'thumb': 'DefaultAddonVideo.png'})
             xbmcplugin.addDirectoryItem(handle, url(a='lib_cat', cat=cat), li, True)
-    li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % s('sources'))
+    li = gold_item(s('sources'))
     li.setArt({'icon': 'DefaultAddonProgram.png'})
     xbmcplugin.addDirectoryItem(handle, url(a='sources'), li, True)
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
@@ -685,7 +685,7 @@ def sources_screen(handle, url):
     st = status()
     for key, a, icon in (('install_all', 'prov_install_all', 'DefaultAddonService.png'),
                          ('all_on', 'prov_all_on', 'DefaultAddonService.png'), ('all_off', 'prov_all_off', 'DefaultAddonService.png')):
-        li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % s(key))
+        li = gold_item(s(key))
         li.setArt({'icon': icon})
         xbmcplugin.addDirectoryItem(handle, url(a=a), li, False)
     _header(handle, s('builtin'))
@@ -729,12 +729,12 @@ def install_all():
     from .iptv import install_addon
     st = status()
     todo = [p for p in PROVIDERS if not installed(p[1]) and st.get(p[0], {}).get('stable', True)]
-    pd = xbmcgui.DialogProgress()
-    pd.create('TeleNova', s('install_all'))
+    from .tnprogress import Progress
+    pd = Progress('TeleNova', s('install_all'))
     for i, p in enumerate(todo):
         if pd.iscanceled():
             break
-        pd.update(int(i * 100 / max(1, len(todo))), name_of(p))
+        pd.step(i + 1, len(todo), name_of(p))
         install_addon(p[1], timeout=90)
     pd.close()
     forget()

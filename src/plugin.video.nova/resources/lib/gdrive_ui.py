@@ -8,7 +8,7 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
-from .common import ADDON, PROFILE, load, save, log, ui_lang, now_str, monitor
+from .common import ADDON, PROFILE, load, save, log, ui_lang, now_str, monitor, gold_item, mark_plain
 from . import gdrive
 
 S = {
@@ -151,7 +151,7 @@ def logout():
 # ------------------------------------------------------------ menu
 def menu(handle, url):
     def row(label, target, folder=False, icon='DefaultAddonService.png', plot=''):
-        li = xbmcgui.ListItem(label)
+        li = mark_plain(xbmcgui.ListItem(label), label)
         li.setArt({'icon': icon, 'thumb': icon})
         if plot:
             li.getVideoInfoTag().setPlot(plot)
@@ -338,11 +338,13 @@ def upload_subtitles():
     pd.create('Google Drive', s('working'))
     try:
         names = sorted(f for f in os.listdir(local_dir) if f.lower().endswith(('.srt', '.ass', '.ssa', '.vtt')))
+        from .tnprogress import Eta
+        eta = Eta()
         for i, name in enumerate(names):
             if name not in have:
                 d.upload(os.path.join(local_dir, name), folder, name, 'application/x-subrip')
                 n += 1
-            pd.update(int(100 * (i + 1) / max(1, len(names))))
+            pd.update(int(100 * (i + 1) / max(1, len(names))), 'Google Drive', eta.line(i + 1, len(names)))
     finally:
         pd.close()
     _note(s('subs_done') % n)
@@ -351,7 +353,7 @@ def upload_subtitles():
 # ------------------------------------------------------------ browse the BN Stream folder
 def browse(handle, url, fid=''):
     if not configured() or not drive().signed_in():
-        li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % (s('connect') if configured() else s('no_client')))
+        li = gold_item(s('connect') if configured() else s('no_client'))
         xbmcplugin.addDirectoryItem(handle, url(a='gd', do='login') if configured() else url(a='noop'), li, False)
         return xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
     d = drive()

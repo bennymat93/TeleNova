@@ -296,6 +296,8 @@ def run():
         backup.make_zip(os.path.join(PROFILE, 'pre_update.zip'))
     except Exception as e:
         log('pre-update backup: %s' % e, xbmc.LOGWARNING)
+    from .tnprogress import Eta, step_line, tx, fmt_left
+    eta = Eta()
     rows = []
     jobs = [(s('internet'), check_internet), (s('repos'), 'repos'), (s('autoupd'), check_autoupdate)]
     jobs += [(name, (lambda a=aid, n=name: check_addon(a, n))) for aid, name in core_addons()]
@@ -306,10 +308,13 @@ def run():
         if pd.iscanceled():
             break
         base = int(i * 100 / len(jobs))
-        pd.update(base, '%s\n%s' % (s('running'), label))
+        eta.feed(i, len(jobs))
+        left = eta.seconds_left()
+        sl = step_line(i + 1, len(jobs)) + (u' \u00b7 ' + tx('left') % fmt_left(left) if left is not None else '')
+        pd.update(base, '%s\n%s\n%s' % (s('running'), label, sl))
         try:
             if job == 'repos':
-                r = run_repos(lambda p, b=base: pd.update(b, '%s\n%s  %d%%' % (s('running'), label, p)))
+                r = run_repos(lambda p, b=base: pd.update(b, '%s\n%s  %d%%\n%s' % (s('running'), label, p, sl)))
             else:
                 r = job()
         except Exception as e:
@@ -339,7 +344,8 @@ def listing(handle, url):
     rep = load('sysupdate.json', {})
 
     def add(label, target, plot='', folder=False):
-        li = xbmcgui.ListItem(label)
+        from .common import mark_plain
+        li = mark_plain(xbmcgui.ListItem(label), label)
         li.getVideoInfoTag().setPlot(plot)
         li.setArt({'icon': 'DefaultAddonService.png'})
         xbmcplugin.addDirectoryItem(handle, target, li, folder)
@@ -378,13 +384,13 @@ def rollback():
 def do_fix(rid):
     rep = load('sysupdate.json', {'rows': []})
     targets = [r for r in rep['rows'] if r['ok'] is False and (rid == '*' or r['id'] == rid)]
-    pd = xbmcgui.DialogProgress()
-    pd.create('BN Stream – ' + s('fix'), '')
+    from .tnprogress import Progress
+    pd = Progress('BN Stream – ' + s('fix'))
     results = []
     for i, r in enumerate(targets):
         if pd.iscanceled():
             break
-        pd.update(int(i * 100 / max(1, len(targets))), '%s\n%s' % (s('fix'), r['name']))
+        pd.step(i + 1, len(targets), '%s\n%s' % (s('fix'), r['name']))
         try:
             new = fix(r['id']) if not r['id'].startswith('err:') else None
         except Exception as e:

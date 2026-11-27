@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Copies the changed source files of the hub and the engine into the running Kodi profile (accounts untouched).
-addon.xml is left alone (Kodi reads versions at start).  deploy_local.py [--check]"""
+addon.xml is left alone (Kodi reads versions at start). 6.5.1: pictures under resources/media are copied too.  deploy_local.py [--check]"""
 import filecmp, os, shutil, sys
 
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
@@ -11,7 +11,8 @@ for a in ('plugin.video.nova', 'plugin.video.telescope'):
     for dp, dn, fn in os.walk(base):
         dn[:] = [d for d in dn if d != '__pycache__']
         for f in fn:
-            if not (f.endswith(('.py', '.xml', '.po')) or f == 'channels_world.json') or f == 'addon.xml':
+            media = os.path.relpath(dp, base).startswith(os.path.join('resources', 'media')) and f.endswith(('.png', '.jpg'))
+            if not (f.endswith(('.py', '.xml', '.po')) or f == 'channels_world.json' or media) or f == 'addon.xml':
                 continue
             s = os.path.join(dp, f)
             d = os.path.join(KODI, a, os.path.relpath(s, base))

@@ -7,13 +7,13 @@ import time
 DOWN = 'https://speed.cloudflare.com/__down?bytes=%d'
 UP = 'https://speed.cloudflare.com/__up'
 STR = {
-    'title': ('בדיקת מהירות', 'Speed test'), 'ping': ('זמן תגובה', 'Latency'), 'jitter': ('ג׳יטר', 'Jitter'),
-    'down': ('הורדה', 'Download'), 'up': ('העלאה', 'Upload'), 'ms': ('מ"ש', 'ms'), 'mbps': ('Mbps', 'Mbps'),
-    'fail': ('אין חיבור לאינטרנט או שהבדיקה נכשלה', 'No internet connection or the test failed'),
-    'ok': ('מתאים', 'good'), 'no': ('לא מספיק', 'not enough'), 'weak': ('גבולי', 'borderline'),
-    'sd': ('צפייה ב-SD / רדיו', 'SD video / radio'), 'hd': ('צפייה ב-HD (720p)', 'HD video (720p)'),
-    'fhd': ('צפייה ב-Full HD (1080p)', 'Full HD (1080p)'), 'uhd': ('צפייה ב-4K', '4K video'),
-    'live': ('טלוויזיה חיה', 'Live TV'), 'measuring': ('בודק...', 'Measuring...'), 'result': ('תוצאה', 'Result'),
+    'title': ('בדיקת מהירות', 'Speed test', 'Проверка скорости'), 'ping': ('זמן תגובה', 'Latency', 'Задержка'), 'jitter': ('ג׳יטר', 'Jitter', 'Джиттер'),
+    'down': ('הורדה', 'Download', 'Загрузка'), 'up': ('העלאה', 'Upload', 'Отдача'), 'ms': ('מ"ש', 'ms', 'мс'), 'mbps': ('Mbps', 'Mbps', 'Мбит/с'),
+    'fail': ('אין חיבור לאינטרנט או שהבדיקה נכשלה', 'No internet connection or the test failed', 'Нет подключения к интернету или проверка не удалась'),
+    'ok': ('מתאים', 'good', 'подходит'), 'no': ('לא מספיק', 'not enough', 'недостаточно'), 'weak': ('גבולי', 'borderline', 'на грани'),
+    'sd': ('צפייה ב-SD / רדיו', 'SD video / radio', 'Видео SD / радио'), 'hd': ('צפייה ב-HD (720p)', 'HD video (720p)', 'Видео HD (720p)'),
+    'fhd': ('צפייה ב-Full HD (1080p)', 'Full HD (1080p)', 'Full HD (1080p)'), 'uhd': ('צפייה ב-4K', '4K video', 'Видео 4K'),
+    'live': ('טלוויזיה חיה', 'Live TV', 'Прямой эфир'), 'measuring': ('בודק...', 'Measuring...', 'Проверка...'), 'result': ('תוצאה', 'Result', 'Результат'),
 }
 # Mbps a stream of that kind needs to play without stalls (with headroom for adaptive / debrid streams)
 NEEDS = (('sd', 3), ('hd', 6), ('fhd', 12), ('uhd', 30), ('live', 8))
@@ -101,7 +101,7 @@ class Test(object):
 
 # ------------------------------------------------------------ Kodi
 def _s(k, lang):
-    return STR[k][0 if lang == 'he' else 1]
+    return STR[k][{'he': 0, 'en': 1, 'ru': 2}.get(lang, 1)]
 
 
 def lines(res, lang):
@@ -115,7 +115,7 @@ def lines(res, lang):
 def run_dialog():
     import xbmcgui
     from .common import ui_lang, log
-    lang = 'he' if ui_lang() == 'he' else 'en'
+    lang = ui_lang()
     pd = xbmcgui.DialogProgress()
     pd.create(_s('title', lang), _s('measuring', lang))
     stage = {'ping': 10, 'down': 20, 'up': 75}

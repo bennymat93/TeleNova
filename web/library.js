@@ -139,7 +139,7 @@
       const s = el('style'); s.id = 'lb_css';
       s.textContent = '.lb_list{display:grid;gap:10px;margin-top:10px;max-width:760px}.lb_row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}' +
         '.lb_row b{flex:1 1 180px}.lb_dim{background:var(--panel2);color:var(--muted)}.lb_h2{margin:22px 0 0;font-size:18px}' +
-        '.lb_row .btn{min-width:84px}.lb_row a.tag{text-decoration:underline}';
+        '.lb_row .switch{flex:0 0 auto}.lb_row a.tag{text-decoration:underline}a.lb_dim{min-height:36px;padding:0 10px}';
       document.head.append(s);
     }
     // the first web version stored 'hub' and 'subs', names no provider has: replace them once by what they meant
@@ -163,10 +163,12 @@
         r.append(el('b', '', t('lb_n_' + name)));
         const miss = lacks(need);
         if (miss) { const a = el('a', 'tag lb_dim', t('lb_need_' + miss)); a.href = SETUP[miss] || '#/services'; r.append(a); } else r.append(el('span', 'tag', t('lb_ready')));
-        const b = TN.button('btn' + (on ? '' : ' ghost'), on ? t('lb_on') : t('lb_off'), () => { TN.setProviderOn(name, !on); draw(name); });
-        b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(on));
-        b.setAttribute('aria-label', t('lb_n_' + name)); b.dataset.lb = name;
-        r.append(b);
+        // 6.5.1: a compact switch, as the Home rows list in Settings (fifteen gold buttons hid the two real actions above)
+        const sw = el('input', 'switch');
+        sw.type = 'checkbox'; sw.setAttribute('role', 'switch'); sw.checked = on;
+        sw.setAttribute('aria-label', t('lb_n_' + name)); sw.title = t(on ? 'lb_on' : 'lb_off'); sw.dataset.lb = name;
+        sw.onchange = () => { TN.setProviderOn(name, sw.checked); draw(name); };
+        r.append(sw);
         list.append(r);
       }
     }

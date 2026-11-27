@@ -502,6 +502,23 @@ def set_on(on):
     save(FLAGS, f)
 
 
+def switch_settled(root=None, now=None):
+    """6.5.1: False while a user switch is under way (users.store_switch) - a round then would read one user's lists
+    under the other's name. A switch that has been waiting for 30 s was cut: it is finished here first."""
+    from . import users
+    try:
+        root = root or users._root()
+        age = users.store_switch_age(root, now)
+        if age is None:
+            return True
+        if age <= 30:
+            return False
+        users.store_recover(root)
+        return users.store_switch_age(root, now) is None
+    except Exception:
+        return False
+
+
 def run_once(reason=''):
     """one round with the real host; never raises. -> the round's result or None when it could not run"""
     import xbmc
@@ -510,6 +527,8 @@ def run_once(reason=''):
     if xbmcgui.Window(10000).getProperty('NovaTV.restoring'):
         return None
     if not cloudsync.account_ready():
+        return None
+    if not switch_settled():
         return None
     try:
         res = cycle(KodiHost())

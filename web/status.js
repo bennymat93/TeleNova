@@ -105,7 +105,7 @@
     if (extra === false) return {ok: false, text: t('st_fail')};
     return {ok: true, text: t('st_ok', ms) + (extra ? ' · ' + extra : '')};
   }
-  const num = (n) => Number(n || 0).toLocaleString();
+  const num = (n) => (TN.fmtNum ? TN.fmtNum(n) : Number(n || 0).toLocaleString());       // 6.5.1: in the app's language
 
   // ------------------------------------------------------------ the speed test
   async function speedTest(on, stopped) {
@@ -236,7 +236,7 @@
       let tg = null;
       if (root.TG && root.TG.ready) { try { tg = root.TG.status(); } catch (e) {} }
       if (tg && tg.state === 'on') {
-        const when = tg.last ? new Date(tg.last * (tg.last < 1e12 ? 1000 : 1)).toLocaleTimeString() : '';
+        const when = tg.last ? (TN.fmtTime ? TN.fmtTime(tg.last * (tg.last < 1e12 ? 1000 : 1)) : new Date(tg.last * (tg.last < 1e12 ? 1000 : 1)).toLocaleTimeString()) : '';
         const bad = tg.sync === 'nodoc' || tg.sync === 'unreadable';
         const extra = tg.sync === 'nodoc' ? t('st_sync_nodoc') : tg.sync === 'unreadable' ? t('st_sync_unreadable') : when ? t('st_sync_last', when) : '';
         tgSet([t('st_tg_on'), tg.name, extra].filter(Boolean).join(' · '), bad ? false : true, tg.sync === 'nodoc' ? {label: t('m_backup'), href: '#/backup'} : null);
@@ -304,7 +304,7 @@
       const lm = r.headers.get('last-modified');
       const d = lm ? new Date(lm) : null;
       const old = d && Date.now() - d.getTime() > 3 * 864e5;
-      return {ok: old ? false : true, text: d && !isNaN(d) ? t('st_epg_date', d.toLocaleString()) : t('st_ok', 0).replace(/\s*\(.*\)/, '')};
+      return {ok: old ? false : true, text: d && !isNaN(d) ? t('st_epg_date', TN.fmtDate ? TN.fmtDate(d) : d.toLocaleString()) : t('st_ok', 0).replace(/\s*\(.*\)/, '')};
     }));
 
     // ---------------- content (H07 counts)

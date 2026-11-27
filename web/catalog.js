@@ -92,41 +92,41 @@
   const yearField = (m) => (m === 'movie' ? 'primary_release_year' : 'first_air_date_year');
   const disc = (m, f) => Object.assign({path: '/discover/' + m, sort_by: 'popularity.desc'}, f);
 
-  // media_root(m): [key, emoji, list definition | page def]  (hub rows first, then the engine's rows - router.py movies / tvshows)
+  // media_root(m): [key, icon id of the sprite (6.5.1: line icons, as on Home - no colour emoji), list definition | page def]  (hub rows first, then the engine's rows - router.py movies / tvshows)
   function roots(m) {
-    const r = [['cat_trending', '🔥', {path: `/trending/${m}/week`}], ['cat_popular', '⭐', {path: `/${m}/popular`}],
-               ['cat_top', '🏆', {path: `/${m}/top_rated`}]];
+    const r = [['cat_trending', 'fire', {path: `/trending/${m}/week`}], ['cat_popular', 'star', {path: `/${m}/popular`}],
+               ['cat_top', 'trophy', {path: `/${m}/top_rated`}]];
     if (m === 'movie') {
-      r.push(['cat_now', '🎟', {path: '/movie/now_playing'}], ['cat_upcoming', '🗓', {path: '/movie/upcoming'}],
-             ['cat_il_movies', '🇮🇱', disc(m, {with_origin_country: 'IL', 'vote_count.gte': 3})],
-             ['cat_family', '👪', disc(m, {with_genres: 10751})], ['cat_docu', '🎥', disc(m, {with_genres: 99})]);
+      r.push(['cat_now', 'ticket', {path: '/movie/now_playing'}], ['cat_upcoming', 'calendar', {path: '/movie/upcoming'}],
+             ['cat_il_movies', 'globe', disc(m, {with_origin_country: 'IL', 'vote_count.gte': 3})],
+             ['cat_family', 'family', disc(m, {with_genres: 10751})], ['cat_docu', 'film', disc(m, {with_genres: 99})]);
     } else {
-      r.push(['cat_il_series', '🇮🇱', disc(m, {with_origin_country: 'IL', 'vote_count.gte': 3})],
-             ['cat_on_air', '📡', {path: '/tv/on_the_air'}], ['cat_airing', '📺', {path: '/tv/airing_today'}],
-             ['cat_kids_tv', '🧸', disc(m, {with_genres: 10762})], ['cat_docu', '🎥', disc(m, {with_genres: 99})],
-             ['cat_tr', '🇹🇷', disc(m, {with_original_language: 'tr'})], ['cat_ko', '🇰🇷', disc(m, {with_original_language: 'ko'})]);
+      r.push(['cat_il_series', 'globe', disc(m, {with_origin_country: 'IL', 'vote_count.gte': 3})],
+             ['cat_on_air', 'live', {path: '/tv/on_the_air'}], ['cat_airing', 'tv', {path: '/tv/airing_today'}],
+             ['cat_kids_tv', 'kids', disc(m, {with_genres: 10762})], ['cat_docu', 'film', disc(m, {with_genres: 99})],
+             ['cat_tr', 'globe', disc(m, {with_original_language: 'tr'})], ['cat_ko', 'globe', disc(m, {with_original_language: 'ko'})]);
     }
-    r.push(['cat_g_hebrew', '🕎', {v: 'group', g: 'hebrew'}], ['cat_g_russian', '🪆', {v: 'group', g: 'russian'}], ['cat_g_kids', '🎈', {v: 'group', g: 'kids'}],
-           ['cat_genres', '🎭', {v: 'genres'}], ['cat_langs', '🌐', {v: 'langs'}], ['cat_years', '📅', {v: 'years'}]);
-    if (m === 'tv') r.push(['cat_kukhnya', '🍳', {v: 'kukhnya'}]);
+    r.push(['cat_g_hebrew', 'globe', {v: 'group', g: 'hebrew'}], ['cat_g_russian', 'globe', {v: 'group', g: 'russian'}], ['cat_g_kids', 'kids', {v: 'group', g: 'kids'}],
+           ['cat_genres', 'masks', {v: 'genres'}], ['cat_langs', 'globe', {v: 'langs'}], ['cat_years', 'calendar', {v: 'years'}]);
+    if (m === 'tv') r.push(['cat_kukhnya', 'tv', {v: 'kukhnya'}]);
     return r.map(([key, ic, d]) => ({key, ic, def: Object.assign({m, v: d.v || 'list', title: key}, d)}));
   }
   // the engine's Hebrew / Russian / Kids menus (router.py hebrew, russian, kids): [key, emoji, kind, filters]
   const top = (lang, votes) => ({with_original_language: lang, sort_by: 'vote_average.desc', 'vote_count.gte': votes});
   const GROUPS = {
-    hebrew: [['cat_he_movies', '🎬', 'movie', {with_original_language: 'he', 'vote_count.gte': 1}],
-             ['cat_he_series', '📺', 'tv', {with_original_language: 'he', 'vote_count.gte': 1}],
-             ['cat_he_movies_top', '🏆', 'movie', top('he', 20)], ['cat_he_series_top', '🏆', 'tv', top('he', 10)],
-             ['cat_il_movies', '🇮🇱', 'movie', {with_origin_country: 'IL', 'vote_count.gte': 3}],
-             ['cat_il_series', '🇮🇱', 'tv', {with_origin_country: 'IL', 'vote_count.gte': 3}],
-             ['cat_anim_ilus', '🧚', 'movie', {with_genres: 16, with_origin_country: 'IL|US'}]],
-    russian: [['cat_ru_movies', '🎬', 'movie', {with_original_language: 'ru', 'vote_count.gte': 5}],
-              ['cat_ru_series', '📺', 'tv', {with_original_language: 'ru', 'vote_count.gte': 2}],
-              ['cat_ru_movies_top', '🏆', 'movie', top('ru', 100)], ['cat_ru_series_top', '🏆', 'tv', top('ru', 30)],
-              ['cat_soviet', '🎞', 'movie', {with_original_language: 'ru', 'primary_release_date.lte': '1991-12-31', sort_by: 'vote_count.desc', 'vote_count.gte': 1}],
-              ['cat_anim', '🧸', 'movie', {with_original_language: 'ru', with_genres: 16, 'vote_count.gte': 1}]],
-    kids: [['cat_kids_movies', '👪', 'movie', {with_genres: 10751}], ['cat_anim', '🧚', 'movie', {with_genres: 16}],
-           ['cat_kids_tv', '🧸', 'tv', {with_genres: 10762}]],
+    hebrew: [['cat_he_movies', 'movies', 'movie', {with_original_language: 'he', 'vote_count.gte': 1}],
+             ['cat_he_series', 'tv', 'tv', {with_original_language: 'he', 'vote_count.gte': 1}],
+             ['cat_he_movies_top', 'trophy', 'movie', top('he', 20)], ['cat_he_series_top', 'trophy', 'tv', top('he', 10)],
+             ['cat_il_movies', 'globe', 'movie', {with_origin_country: 'IL', 'vote_count.gte': 3}],
+             ['cat_il_series', 'globe', 'tv', {with_origin_country: 'IL', 'vote_count.gte': 3}],
+             ['cat_anim_ilus', 'kids', 'movie', {with_genres: 16, with_origin_country: 'IL|US'}]],
+    russian: [['cat_ru_movies', 'movies', 'movie', {with_original_language: 'ru', 'vote_count.gte': 5}],
+              ['cat_ru_series', 'tv', 'tv', {with_original_language: 'ru', 'vote_count.gte': 2}],
+              ['cat_ru_movies_top', 'trophy', 'movie', top('ru', 100)], ['cat_ru_series_top', 'trophy', 'tv', top('ru', 30)],
+              ['cat_soviet', 'film', 'movie', {with_original_language: 'ru', 'primary_release_date.lte': '1991-12-31', sort_by: 'vote_count.desc', 'vote_count.gte': 1}],
+              ['cat_anim', 'kids', 'movie', {with_original_language: 'ru', with_genres: 16, 'vote_count.gte': 1}]],
+    kids: [['cat_kids_movies', 'family', 'movie', {with_genres: 10751}], ['cat_anim', 'kids', 'movie', {with_genres: 16}],
+           ['cat_kids_tv', 'kids', 'tv', {with_genres: 10762}]],
   };
   function groupRows(g) {
     return (GROUPS[g] || []).map(([key, ic, m, f]) => ({key, ic, def: Object.assign({m, v: 'list', title: key}, disc(m, f))}));
@@ -228,9 +228,9 @@
   }
   function cineRoots(m) {
     const y = String(new Date().getFullYear());
-    return [['cat_popular', '⭐', {cat: 'top'}], ['cat_new', '🆕', {cat: 'year', genre: y}], ['cat_featured', '🏆', {cat: 'imdbRating'}],
-            ['cat_family', '👪', {cat: 'top', genre: 'Family'}], ['cat_anim', '🧚', {cat: 'top', genre: 'Animation'}], ['cat_docu', '🎥', {cat: 'top', genre: 'Documentary'}],
-            ['cat_genres', '🎭', {v: 'cgenres'}], ['cat_years', '📅', {v: 'cyears'}]]
+    return [['cat_popular', 'star', {cat: 'top'}], ['cat_new', 'sparkles', {cat: 'year', genre: y}], ['cat_featured', 'trophy', {cat: 'imdbRating'}],
+            ['cat_family', 'family', {cat: 'top', genre: 'Family'}], ['cat_anim', 'kids', {cat: 'top', genre: 'Animation'}], ['cat_docu', 'film', {cat: 'top', genre: 'Documentary'}],
+            ['cat_genres', 'masks', {v: 'cgenres'}], ['cat_years', 'calendar', {v: 'cyears'}]]
       .map(([key, ic, d]) => ({key, ic, def: Object.assign({m, v: 'cine', title: key}, d)}));
   }
   const pageTitle = (def) => (def.title ? t(def.title) : def.name || '');
@@ -265,8 +265,12 @@
       '.cat-fav:focus-visible{outline:3px solid #fff}.cat-more{display:block;margin:20px auto}' +
       '.cat-form{display:flex;gap:8px;margin:0 0 16px;max-width:720px}.cat-form input{flex:1;min-width:0;background:var(--panel);color:var(--text);' +
       'border:1px solid var(--panel2);border-radius:10px;padding:10px 14px;font:inherit;min-height:44px}.cat-form input:focus-visible{outline:3px solid var(--ring)}' +
-      '.cat-sheet{display:grid;grid-template-columns:minmax(120px,220px) 1fr;gap:16px;align-items:start}.cat-sheet .img{aspect-ratio:2/3;border-radius:10px;background:#222 center/cover no-repeat}' +
-      '@media (max-width:520px){.cat-sheet{grid-template-columns:1fr}.cat-sheet .img{max-width:160px}}.cat-rowcard{flex:0 0 auto;width:var(--card-w,150px)}' +
+      // 6.5.1: the sheet has its own padding, theme colours, and the title keeps clear of the round close button (the
+      // reserve is on .cat-head, which follows the page direction - the h2 is dir=auto and may run the other way)
+      '.cat-sheet{display:grid;grid-template-columns:minmax(120px,220px) 1fr;gap:var(--sp-5);align-items:start;padding:var(--sp-5)}' +
+      '.cat-sheet .img{aspect-ratio:2/3;border-radius:var(--r);background:var(--s2) center/cover no-repeat;box-shadow:var(--e2)}' +
+      '.cat-sheet .cat-txt{min-width:0}.cat-sheet .cat-head{padding-inline-end:40px}.cat-sheet h2{margin-top:0}' +
+      '@media (max-width:520px){.cat-sheet{grid-template-columns:96px 1fr;gap:var(--sp-4);padding:var(--sp-4)}}.cat-rowcard{flex:0 0 auto;width:var(--card-w,150px)}' +
       '.cat-ep{display:grid;grid-template-columns:160px 1fr;gap:12px;align-items:start;text-align:start;width:100%}' +
       '.cat-ep .img{aspect-ratio:16/9;border-radius:8px;background:#222 center/cover no-repeat}.cat-ep p{margin:4px 0 0;opacity:.85;font-size:.92em}' +
       '.cat-ep .w{color:limegreen}.cat-ep small{opacity:.7}@media (max-width:520px){.cat-ep{grid-template-columns:110px 1fr}}';
@@ -309,7 +313,7 @@
       a.className = 'card square';
       a.innerHTML = `<div class="img"></div><div class="t" dir="auto">${esc(label)}</div>`;
       TN.paint(a.querySelector('.img'), img);
-    } else a.innerHTML = `<span class="ic">${ic}</span><b>${esc(label)}</b>`;
+    } else a.innerHTML = `<span class="ic">${/^[a-z]+$/.test(ic) ? TN.icon(ic) : esc(ic)}</span><b>${esc(label)}</b>`;
     return a;
   }
   function searchForm(m, q) {
@@ -447,7 +451,7 @@
     const draw = (x) => {
       const name = x.title || x.name || '', year = (x.release_date || x.first_air_date || '');
       const meta = [year, x.runtime, x.vote_average ? '★ ' + Number(x.vote_average).toFixed(1) : '', (x.genres || []).join(', ')].filter(Boolean).join(' · ');
-      TN.modal(`<div class="cat-sheet"><div class="img"></div><div><h2 dir="auto">${esc(name)}</h2><p class="hint" dir="auto">${esc(meta)}</p>` +
+      TN.modal(`<div class="cat-sheet"><div class="img"></div><div class="cat-txt"><div class="cat-head"><h2 dir="auto">${esc(name)}</h2></div><p class="hint" dir="auto">${esc(meta)}</p>` +
         `<p dir="auto">${esc(x.overview || '')}</p><div class="actions" id="cat_acts"></div></div></div>`);
       const sheet = document.getElementById('cat_acts');
       if (!sheet) return;

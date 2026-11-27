@@ -185,7 +185,11 @@ class Engine(object):
         while time.time() < end and not mon.abortRequested():
             try:
                 st = self.call('status', 20) or {}
-                seen = seen + 1 if (st.get('connected') and not st.get('error')) else 0
+                if st.get('state'):                 # 6.5.1: the engine says where it stands in one word
+                    good = st['state'] in ('connected_unauth', 'authorized')
+                else:                               # an older engine
+                    good = bool(st.get('connected') and not st.get('error'))
+                seen = seen + 1 if good else 0
             except RuntimeError:
                 seen = 0
             if seen >= 2:
@@ -216,7 +220,13 @@ class Engine(object):
             return 'ok'
         if r.get('password'):
             return 'password'
-        return 'wait'
+        return 'wait' if not r.get('error') else self._qr_error(r)
+
+    @staticmethod
+    def _qr_error(r):
+        """6.5.1: the engine's refusal as one word: 'network' (pairflow waits) or Telegram's own reason"""
+        err = str(r.get('error') or '')
+        return err if err in ('network', 'flood') or not r.get('detail') else str(r['detail'])[:80]
 
     def qr_check(self):
         try:
@@ -227,7 +237,7 @@ class Engine(object):
             return 'ok'
         if r.get('password'):
             return 'password'
-        return 'wait' if not r.get('error') else str(r['error'])
+        return 'wait' if not r.get('error') else self._qr_error(r)
 
     def sign_in_password(self, pw):
         try:

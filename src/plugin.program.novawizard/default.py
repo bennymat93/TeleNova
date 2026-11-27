@@ -100,6 +100,8 @@ def main():
     target = os.path.join(TEMP, 'novatv_build.zip')
     pd = xbmcgui.DialogProgress()
     pd.create(t('title'), t('dl'))
+    import tnprogress       # 6.5.1: percent + time left
+    eta = tnprogress.Eta()
     try:
         # 3.1: the build may come in several parts (each under GitHub's 100 MB file limit) that are joined here
         urls = info.get('parts') or [info['url']]
@@ -118,7 +120,7 @@ def main():
                             f.write(chunk)
                             got += len(chunk)
                             if total:
-                                pd.update(min(100, int(got * 100 / total)), '%s %.1f / %.1f MB' % (t('dl'), got / 1e6, total / 1e6))
+                                pd.update(min(100, int(got * 100 / total)), '%s %.1f / %.1f MB\n%s' % (t('dl'), got / 1e6, total / 1e6, eta.line(got, total)))
                             if pd.iscanceled():
                                 pd.close()
                                 f.close()
@@ -140,6 +142,7 @@ def main():
             d.ok(t('title'), t('bad'))
             return
         pd.update(0, t('ex'))
+        eta = tnprogress.Eta()
         keep_root = os.path.join(TEMP, 'nova_keep')
         shutil.rmtree(keep_root, ignore_errors=True)
         data_dir = os.path.join(HOME, 'userdata', 'addon_data')
@@ -171,7 +174,7 @@ def main():
                 except Exception as e:      # a locked file must not abort the whole install
                     xbmc.log('[NovaWizard] extract %s: %s' % (n, e), xbmc.LOGWARNING)
                 if i % 200 == 0:
-                    pd.update(int(i * 100 / len(names)), t('ex'))
+                    pd.update(int(i * 100 / len(names)), '%s\n%s' % (t('ex'), eta.line(i, len(names))))
             in_zip = {tuple(n.split('/')[:2]) for n in names if n.count('/') >= 1}
         for sub in ('addons', 'userdata'):
             base = os.path.join(HOME, sub)

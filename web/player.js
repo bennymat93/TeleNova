@@ -67,7 +67,7 @@
   // an address that hands a media link to an app. Android: an intent for that app; elsewhere VLC's own scheme.
   function intentLink(url, pkg) {
     const m = /^(https?):\/\/(.+)$/i.exec(String(url || ''));
-    return m ? 'intent://' + m[2] + '#Intent;scheme=' + m[1].toLowerCase() + ';type=video/*;package=' + pkg + ';end' : '';
+    return m ? 'intent://' + m[2] + '#Intent;scheme=' + m[1].toLowerCase() + ';type=video/' + '*;package=' + pkg + ';end' : '';
   }
   function vlcLink(url, ua) {
     if (linkKind(url) !== 'http') return '';
@@ -149,6 +149,7 @@
   // ------------------------------------------------------------ texts
   TN.i18n.add({
     he: {pl_play: 'נגן', pl_pause: 'השהה', pl_rew: '10 שניות אחורה', pl_fwd: '10 שניות קדימה', pl_next: 'הפרק הבא', pl_mute: 'השתק', pl_unmute: 'הפעל קול',
+      pl_l_mute: 'קול', pl_l_subs: 'כתוביות', pl_l_audio: 'שמע', pl_l_settings: 'הגדרות', pl_l_links: 'קישורים', pl_l_next: 'הבא', pl_l_full: 'מסך מלא', pl_l_unfull: 'יציאה',
       pl_volume: 'עוצמת קול', pl_subs: 'כתוביות', pl_audio: 'שמע', pl_settings: 'הגדרות ניגון', pl_pip: 'תמונה בתוך תמונה', pl_full: 'מסך מלא',
       pl_unfull: 'יציאה ממסך מלא', pl_cast: 'נגן במסך אחר', pl_back: 'חזרה', pl_other: 'קישור אחר', pl_seek: 'מיקום בסרט', pl_live: 'שידור חי',
       pl_loading: 'טוען...', pl_resume: 'ממשיך מ-%s', pl_continue: 'המשך', pl_start: 'מההתחלה', pl_tap: 'לחצו כדי להתחיל לנגן',
@@ -174,6 +175,7 @@
       pl_ended: 'הסתיים', pl_replay: 'צפה שוב', pl_close: 'סגור', pl_menu_back: 'חזרה לתפריט', pl_earlier: 'מוקדם יותר', pl_later: 'מאוחר יותר',
       pl_keys: 'מקשים: רווח נגן / השהה · ← → 10 שניות · ↑ ↓ עוצמה · F מסך מלא · M השתק · C כתוביות · N הבא · Esc חזרה'},
     en: {pl_play: 'Play', pl_pause: 'Pause', pl_rew: '10 seconds back', pl_fwd: '10 seconds forward', pl_next: 'Next episode', pl_mute: 'Mute', pl_unmute: 'Sound on',
+      pl_l_mute: 'Sound', pl_l_subs: 'Subtitles', pl_l_audio: 'Audio', pl_l_settings: 'Settings', pl_l_links: 'Links', pl_l_next: 'Next', pl_l_full: 'Full screen', pl_l_unfull: 'Exit',
       pl_volume: 'Volume', pl_subs: 'Subtitles', pl_audio: 'Audio', pl_settings: 'Playback settings', pl_pip: 'Picture in picture', pl_full: 'Full screen',
       pl_unfull: 'Exit full screen', pl_cast: 'Play on another screen', pl_back: 'Back', pl_other: 'Another link', pl_seek: 'Position', pl_live: 'LIVE',
       pl_loading: 'Loading...', pl_resume: 'Resuming from %s', pl_continue: 'Continue', pl_start: 'From the start', pl_tap: 'Press to start playing',
@@ -199,6 +201,7 @@
       pl_ended: 'Finished', pl_replay: 'Watch again', pl_close: 'Close', pl_menu_back: 'Back to the menu', pl_earlier: 'Earlier', pl_later: 'Later',
       pl_keys: 'Keys: Space play / pause · ← → 10 s · ↑ ↓ volume · F full screen · M mute · C subtitles · N next · Esc back'},
     ru: {pl_play: 'Воспроизвести', pl_pause: 'Пауза', pl_rew: 'На 10 секунд назад', pl_fwd: 'На 10 секунд вперёд', pl_next: 'Следующая серия', pl_mute: 'Выключить звук', pl_unmute: 'Включить звук',
+      pl_l_mute: 'Звук', pl_l_subs: 'Субтитры', pl_l_audio: 'Дорожка', pl_l_settings: 'Настройки', pl_l_links: 'Ссылки', pl_l_next: 'Далее', pl_l_full: 'Экран', pl_l_unfull: 'Выйти',
       pl_volume: 'Громкость', pl_subs: 'Субтитры', pl_audio: 'Звук', pl_settings: 'Настройки воспроизведения', pl_pip: 'Картинка в картинке', pl_full: 'Во весь экран',
       pl_unfull: 'Выйти из полного экрана', pl_cast: 'Смотреть на другом экране', pl_back: 'Назад', pl_other: 'Другая ссылка', pl_seek: 'Позиция', pl_live: 'ЭФИР',
       pl_loading: 'Загрузка...', pl_resume: 'Продолжаем с %s', pl_continue: 'Продолжить', pl_start: 'С начала', pl_tap: 'Нажмите, чтобы начать',
@@ -226,8 +229,6 @@
   });
   const t = TN.t, esc = TN.esc;
   const RES = 'player_resume';
-  const HLS_SRC = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js';
-  const HLS_SRI = 'sha384-w6Gb3fXHb5e1LUYa/hYA5Q41bEDglN5ZPCG7Jvnoo8/X90oGnlPqBlBJCe38mEMm';      // the pin index.html uses
   const doc = document, html = doc.documentElement;
   const isTv = () => html.classList.contains('tv') || html.getAttribute('data-shell') === 'tv';
   const isPhone = () => html.getAttribute('data-shell') === 'phone' || html.classList.contains('phone') ||
@@ -252,83 +253,40 @@
     mute: 'M3 9v6h4l5 5V4L7 9H3zm12 .4L16.4 8l2.1 2.1L20.6 8 22 9.4l-2.1 2.1 2.1 2.1-1.4 1.4-2.1-2.1-2.1 2.1-1.4-1.4 2.1-2.1z',
     subs: 'M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm1 6v2h6v-2H5zm8 0v2h6v-2h-6zm-8 4v2h10v-2H5zm12 0v2h2v-2h-2z',
     audio: 'M12 3a9 9 0 0 0-9 9v6a2 2 0 0 0 2 2h3v-7H5v-1a7 7 0 0 1 14 0v1h-3v7h3a2 2 0 0 0 2-2v-6a9 9 0 0 0-9-9z',
-    gear: 'M3 6h10v2H3zm14 0h4v2h-4zm-4-2h2v6h-2zM3 16h4v2H3zm8 0h10v2H11zm-4-2h2v6H7z',
+    gear: 'M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7 7 0 0 0-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.67 8.48a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96a7 7 0 0 0 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54a7 7 0 0 0 1.62-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z',
     pip: 'M3 5h18v14H3V5zm2 2v10h14V7H5zm7 4h6v5h-6v-5z',
     full: 'M4 4h6v2H6v4H4V4zm10 0h6v6h-2V6h-4V4zM4 14h2v4h4v2H4v-6zm14 0h2v6h-6v-2h4v-4z',
     unfull: 'M8 4h2v6H4V8h4V4zm6 0h2v4h4v2h-6V4zM4 14h6v6H8v-4H4v-2zm10 0h6v2h-4v4h-2v-6z',
     back: 'M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z',
     cast: 'M3 18v3h3a3 3 0 0 0-3-3zm0-4v2a5 5 0 0 1 5 5h2a7 7 0 0 0-7-7zm0-4v2a9 9 0 0 1 9 9h2A11 11 0 0 0 3 10zm18-7H3a2 2 0 0 0-2 2v3h2V5h18v14h-7v2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z',
-    list: 'M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z',
+    list: 'M3.9 12a3.1 3.1 0 0 1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7A3.1 3.1 0 0 1 3.9 12zM8 13h8v-2H8v2zm9-6h-4v1.9h4a3.1 3.1 0 0 1 0 6.2h-4V17h4a5 5 0 0 0 0-10z',
+  };
+  // 6.5.1: swap only the icon of a button, its label stays
+  const setIco = (b, n, lbl) => {
+    const w = doc.createElement('span'); w.innerHTML = ico(n);
+    const old = b.querySelector('svg');
+    if (old) old.replaceWith(w.firstChild); else b.prepend(w.firstChild);
+    const l = lbl != null && b.querySelector('.pl-lbl'); if (l) l.textContent = lbl;
   };
   const ico = (n) => `<svg class="pl-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${ICON[n]}"/>` +
     (n === 'rew' || n === 'fwd' ? '<text x="12" y="16.4" text-anchor="middle" font-size="6.5" font-weight="700" font-family="Arial,sans-serif">10</text>' : '') + '</svg>';
+  // 6.6: every control style lives in web/player.css (index.html links it after style.css); a page that did not link
+  // it (a test fixture, an index.html cached before 6.6) gets the link here, next to player.js
+  const CSS_URL = (() => { try { return new URL('player.css', (doc.currentScript && doc.currentScript.src) || location.href).href; } catch (e) { return 'player.css'; } })();
   function style() {
     if (doc.getElementById('pl-style')) return;
-    const s = doc.createElement('style');
-    s.id = 'pl-style';
-    s.textContent = [
-      '.pl-root{position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;background:#000;color:#fff;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;overflow:hidden;outline:0;user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}',
-      '.pl-root *{box-sizing:border-box}.pl-root [hidden]{display:none!important}',
-      '.pl-video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;background:#000}.pl-root.pl-cover .pl-video{object-fit:cover}',
-      '.pl-tap{position:absolute;top:0;left:0;right:0;bottom:0}',
-      '.pl-root.pl-idle{cursor:none}.pl-root.pl-idle .pl-top,.pl-root.pl-idle .pl-bottom{opacity:0;pointer-events:none;visibility:hidden}',
-      '.pl-top,.pl-bottom{position:absolute;left:0;right:0;transition:opacity .15s,visibility .15s;opacity:1;visibility:visible}',
-      '.pl-top{top:0;display:flex;gap:12px;align-items:center;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(16px + env(safe-area-inset-left,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));background:linear-gradient(#000c,#0000)}',
-      '.pl-titles{flex:1;min-width:0;display:flex;flex-direction:column;text-align:start}.pl-titles b{font-size:1.15em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}',
-      '.pl-titles span{opacity:.8;font-size:.9em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.pl-live{background:#d32f2f;border-radius:6px;padding:2px 10px;font-size:.8em;font-weight:700;letter-spacing:.05em}.pl-clock{opacity:.85;font-variant-numeric:tabular-nums}',
-      '.pl-bottom{bottom:0;padding:28px 16px 10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));background:linear-gradient(#0000,#000d)}',
-      '.pl-status{min-height:1.4em;font-size:.9em;opacity:.9;text-align:center;margin-bottom:4px;text-shadow:0 0 4px #000}',
-      '.pl-seekrow{display:flex;align-items:center;gap:12px;font-variant-numeric:tabular-nums;font-size:.9em}',
-      '.pl-seek{position:relative;flex:1;height:28px;cursor:pointer;outline:0;touch-action:none}',
-      '.pl-seek::before{content:"";position:absolute;left:0;right:0;top:11px;height:6px;border-radius:3px;background:#fff3}',
-      '.pl-buf,.pl-pos{position:absolute;left:0;top:11px;height:6px;border-radius:3px;width:0}.pl-buf{background:#fff6}.pl-pos{background:var(--accent,#4da3ff)}',
-      '.pl-knob{position:absolute;top:6px;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:#fff;left:0;box-shadow:0 0 4px #000}',
-      '.pl-seek:focus-visible::before,.pl-seek.pl-kb::before{outline:3px solid var(--accent,#4da3ff);outline-offset:3px}',
-      '.pl-bubble{position:absolute;bottom:30px;transform:translateX(-50%);background:#000d;border-radius:6px;padding:2px 8px;font-size:.85em;white-space:nowrap;pointer-events:none}',
-      '.pl-row{display:flex;align-items:center;gap:6px;margin-top:4px}.pl-gap{flex:1}',
-      '.pl-btn{appearance:none;-webkit-appearance:none;border:0;background:transparent;color:#fff;min-width:44px;height:44px;border-radius:10px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font:inherit;text-decoration:none;flex:none}',
-      '.pl-btn:hover{background:#fff2}.pl-btn:focus-visible,.pl-prow:focus-visible,.pl-chip:focus-visible,.pl-cbtn:focus-visible{outline:3px solid var(--accent,#4da3ff);outline-offset:2px}',
-      '.pl-btn[aria-pressed="true"]{color:var(--accent,#4da3ff)}.pl-ico{width:26px;height:26px;fill:currentColor;flex:none}.pl-ico text{fill:currentColor}',
-      '.pl-root[dir=rtl] .pl-back .pl-ico{transform:scaleX(-1)}.pl-btn.pl-txt span{font-size:.9em;max-width:11em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.pl-vol{width:90px;accent-color:var(--accent,#4da3ff);height:28px}',
-      '.pl-big{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:50%;border:0;background:#000a;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}',
-      '.pl-big .pl-ico{width:52px;height:52px}.pl-big:focus-visible{outline:3px solid var(--accent,#4da3ff);outline-offset:3px}',
-      '.pl-big+.pl-bigtxt{position:absolute;top:calc(50% + 62px);left:0;right:0;text-align:center;text-shadow:0 0 6px #000}',
-      '.pl-spin{position:absolute;top:50%;left:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:5px solid #fff3;border-top-color:#fff;animation:pl-spin .9s linear infinite;pointer-events:none}',
-      '@keyframes pl-spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.pl-spin{animation-duration:3s}}',
-      '.pl-flash{position:absolute;top:22%;left:50%;transform:translateX(-50%);background:#000b;border-radius:10px;padding:8px 16px;font-size:1.1em;pointer-events:none;opacity:0;transition:opacity .15s;max-width:86%;text-align:center}.pl-flash.pl-show{opacity:1}',
-      '.pl-card{position:absolute;left:50%;bottom:26%;transform:translateX(-50%);background:rgba(18,20,28,.96);border-radius:14px;padding:16px 18px;max-width:min(560px,92%);width:max-content;text-align:center;box-shadow:0 10px 40px #000a;max-height:64%;overflow:auto;user-select:text;-webkit-user-select:text}',
-      '.pl-card p{margin:0 0 6px}.pl-card p:empty{display:none}.pl-note{margin-top:8px}.pl-card small{display:block;opacity:.8;margin:0 0 8px}.pl-cbtns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}',
-      '.pl-cbtn{appearance:none;-webkit-appearance:none;border:1px solid #fff5;background:transparent;color:#fff;border-radius:10px;min-height:44px;padding:8px 16px;font:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}',
-      '.pl-cbtn.pl-pri{background:var(--accent,#4da3ff);border-color:transparent;color:#000;font-weight:600}.pl-card input{width:100%;min-height:40px;background:#000;color:#fff;border:1px solid #fff5;border-radius:8px;padding:6px 10px;font:inherit;margin-top:8px}',
-      '.pl-panel{position:absolute;top:0;bottom:0;width:min(380px,100%);background:rgba(16,18,26,.97);display:flex;flex-direction:column;box-shadow:0 0 40px #000a;text-align:start;user-select:text;-webkit-user-select:text}',
-      '.pl-root[dir=ltr] .pl-panel{right:0}.pl-root[dir=rtl] .pl-panel{left:0}',
-      '.pl-phead{display:flex;align-items:center;gap:8px;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top,0px));border-bottom:1px solid #fff2}.pl-phead h3{flex:1;margin:0;font-size:1.1em}',
-      '.pl-pbody{flex:1;overflow:auto;padding:8px 10px calc(14px + env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch}',
-      '.pl-pbody h4{margin:14px 6px 4px;font-size:.85em;opacity:.7;font-weight:600}.pl-pmsg{margin:8px 6px;font-size:.92em;opacity:.9}',
-      '.pl-prow{appearance:none;-webkit-appearance:none;display:flex;align-items:center;gap:10px;width:100%;min-height:46px;border:0;border-radius:10px;background:transparent;color:#fff;font:inherit;text-align:start;padding:8px 10px;cursor:pointer;text-decoration:none}',
-      '.pl-prow:hover{background:#fff1}.pl-prow::before{content:"";flex:none;width:18px;height:18px;border-radius:50%;border:2px solid #fff8}',
-      '.pl-prow[aria-checked="true"]::before{border-color:var(--accent,#4da3ff);background:radial-gradient(var(--accent,#4da3ff) 45%,transparent 50%)}',
-      '.pl-prow.pl-act::before{display:none}.pl-prow.pl-sw::before{border-radius:5px}.pl-prow.pl-sw[aria-checked="true"]::before{background:var(--accent,#4da3ff)}',
-      '.pl-prow span{flex:1;min-width:0;overflow-wrap:anywhere}.pl-tag{flex:none!important;font-size:.72em;border:1px solid #fff6;border-radius:5px;padding:0 6px;text-transform:uppercase}',
-      '.pl-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 6px}.pl-line>b{flex:1 1 100%;font-weight:500;font-size:.92em}',
-      '.pl-chip{appearance:none;-webkit-appearance:none;border:1px solid #fff5;background:transparent;color:#fff;border-radius:999px;min-height:40px;min-width:44px;padding:4px 14px;font:inherit;cursor:pointer}',
-      '.pl-chip[aria-checked="true"],.pl-chip[aria-pressed="true"]{background:var(--accent,#4da3ff);color:#000;border-color:transparent}',
-      '.pl-val{min-width:5.5em;text-align:center;font-variant-numeric:tabular-nums}',
-      '@media (max-width:600px){.pl-root{font-size:15px}.pl-panel{top:auto;width:100%;max-height:72%;border-radius:16px 16px 0 0}.pl-vol{display:none}.pl-btn{min-width:40px;padding:0 6px}.pl-row{gap:2px}.pl-btn.pl-txt span{display:none}.pl-card{bottom:18%}}',
-      'html.tv .pl-root,html[data-shell=tv] .pl-root{font-size:24px}html.tv .pl-btn,html[data-shell=tv] .pl-btn{min-width:64px;height:64px}html.tv .pl-ico,html[data-shell=tv] .pl-ico{width:36px;height:36px}',
-      'html.tv .pl-vol,html[data-shell=tv] .pl-vol,html.tv .pl-mute,html[data-shell=tv] .pl-mute{display:none}html.tv .pl-panel,html[data-shell=tv] .pl-panel{width:min(560px,100%)}',
-      'html.tv .pl-prow,html[data-shell=tv] .pl-prow{min-height:64px}html.tv .pl-top,html.tv .pl-bottom,html[data-shell=tv] .pl-top,html[data-shell=tv] .pl-bottom{padding-left:5vw;padding-right:5vw}html.tv .pl-bottom,html[data-shell=tv] .pl-bottom{padding-bottom:5vh}html.tv .pl-top,html[data-shell=tv] .pl-top{padding-top:5vh}',
-      '.pl-root .subs-set{padding:4px 6px}',
-    ].join('');
+    const has = [...doc.querySelectorAll('link[rel="stylesheet"]')].some((l) => (l.getAttribute('href') || '').split('?')[0].split('/').pop() === 'player.css');
+    if (has) return;
+    const s = doc.createElement('link');
+    s.id = 'pl-style'; s.rel = 'stylesheet'; s.href = CSS_URL;
     doc.head.append(s);
   }
   function el(tag, cls, text) { const e = doc.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  // text: a short visible label under the icon (tool buttons); transport buttons have none
   function btn(cls, icon, label, on, text) {
     const b = el('button', 'pl-btn ' + cls);
     b.type = 'button';
-    b.innerHTML = (icon ? ico(icon) : '') + (text ? `<span>${esc(text)}</span>` : '');
+    b.innerHTML = (icon ? ico(icon) : '') + (text ? `<span class="pl-lbl">${esc(text)}</span>` : '');
     b.setAttribute('aria-label', label); b.title = label;
     b.addEventListener('click', (e) => { e.stopPropagation(); on(e); });
     return b;
@@ -373,9 +331,10 @@
   }
   if (TN.on) TN.on('route', (ctx) => { if (session && !(ctx && ctx.keep)) end(true); });
 
+  // 6.5.1: hls.js comes from the shell's one shared loader (app.js ensureHls: pinned address + hash, never rejects)
   async function ensureHls() {
     if (G.Hls) return G.Hls;
-    try { await TN.loadScript(HLS_SRC, HLS_SRI); } catch (e) { /* native HLS, where there is one */ }
+    try { if (TN.ensureHls) await TN.ensureHls(); } catch (e) { /* native HLS, where there is one */ }
     return G.Hls || null;
   }
 
@@ -435,17 +394,21 @@
     const playB = btn('pl-play', 'play', t('pl_play'), () => toggle());
     const rewB = btn('pl-rew', 'rew', t('pl_rew'), () => nudge(-1));
     const fwdB = btn('pl-fwd', 'fwd', t('pl_fwd'), () => nudge(1));
-    const nextB = btn('pl-next pl-txt', 'next', t('pl_next'), () => goNext(), t('pl_next')); nextB.hidden = true;
-    const muteB = btn('pl-mute', 'vol', t('pl_mute'), () => setMuted(!v.muted));
+    const nextB = btn('pl-next', 'next', t('pl_next'), () => goNext(), t('pl_l_next')); nextB.hidden = true;
+    const muteB = btn('pl-mute', 'vol', t('pl_mute'), () => setMuted(!v.muted), t('pl_l_mute'));
     const vol = el('input', 'pl-vol'); vol.type = 'range'; vol.min = '0'; vol.max = '1'; vol.step = '0.05'; vol.setAttribute('aria-label', t('pl_volume'));
-    const otherB = btn('pl-other pl-txt', 'list', t('pl_other'), () => { const b = o.back; leave(() => b()); }, t('pl_other')); otherB.hidden = !o.back;
-    const subsB = btn('pl-subs', 'subs', t('pl_subs'), () => togglePanel('subs'));
-    const audioB = btn('pl-audio', 'audio', t('pl_audio'), () => togglePanel('audio'));
-    const gearB = btn('pl-gear', 'gear', t('pl_settings'), () => togglePanel('gear'));
+    const otherB = btn('pl-other', 'list', t('pl_other'), () => { const b = o.back; leave(() => b()); }, t('pl_l_links')); otherB.hidden = !o.back;
+    const subsB = btn('pl-subs', 'subs', t('pl_subs'), () => togglePanel('subs'), t('pl_l_subs'));
+    const audioB = btn('pl-audio', 'audio', t('pl_audio'), () => togglePanel('audio'), t('pl_l_audio'));
+    const gearB = btn('pl-gear', 'gear', t('pl_settings'), () => togglePanel('gear'), t('pl_l_settings'));
     const castB = btn('pl-cast', 'cast', t('pl_cast'), () => cast()); castB.hidden = true;
     const pipB = btn('pl-pip', 'pip', t('pl_pip'), () => pip());
-    const fullB = btn('pl-full', 'full', t('pl_full'), () => fullscreen());
-    row.append(playB, rewB, fwdB, nextB, muteB, vol, el('span', 'pl-gap'), otherB, subsB, audioB, gearB, castB, pipB, fullB);
+    const fullB = btn('pl-full', 'full', t('pl_full'), () => fullscreen(), t('pl_l_full'));
+    // 6.5.1: three zones (start tools | transport | end tools); cast and PiP sit in the top bar
+    const zs = el('div', 'pl-zs'), zc = el('div', 'pl-zc'), ze = el('div', 'pl-ze');
+    zs.append(muteB, vol, subsB, audioB, gearB); zc.append(rewB, playB, fwdB); ze.append(otherB, nextB, fullB);
+    row.append(zs, zc, ze);
+    top.append(castB, pipB);
     bottom.append(status, seekRow, row);
     root.append(v, tap, spin, big, bigTxt, flashEl, top, bottom, card, panel);
     doc.body.append(root);
@@ -507,7 +470,7 @@
     try { v.volume = volSaved.v >= 0 && volSaved.v <= 1 ? volSaved.v : 1; v.muted = !!volSaved.m; } catch (e) { /* fixed volume (iOS) */ }
     function drawVol() {
       const m = v.muted || v.volume === 0;
-      muteB.innerHTML = ico(m ? 'mute' : 'vol');
+      setIco(muteB, m ? 'mute' : 'vol');
       muteB.setAttribute('aria-label', t(m ? 'pl_unmute' : 'pl_mute')); muteB.title = t(m ? 'pl_unmute' : 'pl_mute');
       vol.value = String(v.muted ? 0 : v.volume);
     }
@@ -540,27 +503,49 @@
     // the seek bar: mouse, touch, pen
     const fracAt = (x) => { const r = seek.getBoundingClientRect(); return r.width ? Math.max(0, Math.min(1, (x - r.left) / r.width)) : 0; };
     function dragMove(x) { const f = fracAt(x), d = total(); s.seekTo = f * d; bubble.hidden = false; bubble.style.left = (f * 100) + '%'; bubble.textContent = clock(f * d); draw(); }
-    function dragEnd() { if (!s.dragging) return; s.dragging = false; bubble.hidden = true; if (s.seekTo != null) seekTo(s.seekTo, true); poke(); }
+    function dragEnd() { seek.classList.remove('pl-drag'); if (!s.dragging) return; s.dragging = false; bubble.hidden = true; if (s.seekTo != null) seekTo(s.seekTo, true); poke(); }
     if (G.PointerEvent) {
-      seek.addEventListener('pointerdown', (e) => { if (!total()) return; s.dragging = true; try { seek.setPointerCapture(e.pointerId); } catch (er) { /* old browser */ } dragMove(e.clientX); e.preventDefault(); });
+      seek.addEventListener('pointerdown', (e) => { if (!total()) return; s.dragging = true; seek.classList.add('pl-drag'); try { seek.setPointerCapture(e.pointerId); } catch (er) { /* old browser */ } dragMove(e.clientX); e.preventDefault(); });
       seek.addEventListener('pointermove', (e) => { if (s.dragging) dragMove(e.clientX); else if (e.pointerType === 'mouse' && total()) { const f = fracAt(e.clientX); bubble.hidden = false; bubble.style.left = (f * 100) + '%'; bubble.textContent = clock(f * total()); } });
       seek.addEventListener('pointerup', dragEnd); seek.addEventListener('pointercancel', dragEnd);
       seek.addEventListener('pointerleave', () => { if (!s.dragging) bubble.hidden = true; });
     } else {
-      seek.addEventListener('mousedown', (e) => { if (!total()) return; s.dragging = true; dragMove(e.clientX); });
+      seek.addEventListener('mousedown', (e) => { if (!total()) return; s.dragging = true; seek.classList.add('pl-drag'); dragMove(e.clientX); });
       on(doc, 'mousemove', (e) => { if (s.dragging) dragMove(e.clientX); });
       on(doc, 'mouseup', dragEnd);
-      seek.addEventListener('touchstart', (e) => { if (!total()) return; s.dragging = true; dragMove(e.touches[0].clientX); }, {passive: true});
+      seek.addEventListener('touchstart', (e) => { if (!total()) return; s.dragging = true; seek.classList.add('pl-drag'); dragMove(e.touches[0].clientX); }, {passive: true});
       seek.addEventListener('touchmove', (e) => { if (s.dragging) dragMove(e.touches[0].clientX); }, {passive: true});
       seek.addEventListener('touchend', dragEnd);
     }
     seek.addEventListener('click', (e) => e.stopPropagation());
 
     // taps on the picture: mouse = play / pause (double = full screen); touch = show / hide, double tap on a side = 10 s
-    let lastTap = 0, tapT = 0, lastType = 'mouse';
-    if (G.PointerEvent) tap.addEventListener('pointerdown', (e) => { lastType = e.pointerType || 'mouse'; });
-    else tap.addEventListener('touchstart', () => { lastType = 'touch'; }, {passive: true});
+    // 6.5.1: press and hold (touch / pen) = 2x while held; the earlier speed comes back on release. Not on a live
+    // stream, not while paused, not with a panel or the "next" card open. The click that ends a hold is swallowed.
+    let lastTap = 0, tapT = 0, lastType = 'mouse', holdT = 0, held = null, swallow = false;
+    const holdEnd = () => { clearTimeout(holdT); if (held != null) { try { v.playbackRate = held; } catch (er) { /* refused */ } held = null; } };
+    if (G.PointerEvent) {
+      tap.addEventListener('pointerdown', (e) => {
+        lastType = e.pointerType || 'mouse';
+        swallow = false;
+        clearTimeout(holdT);
+        if (lastType !== 'mouse' && !s.live && !v.paused && panel.hidden && card.hidden) {
+          holdT = setTimeout(() => {
+            if (!alive() || v.paused) return;
+            held = v.playbackRate || 1;
+            if (held >= 2) { held = null; return; }
+            try { v.playbackRate = 2; } catch (er) { /* refused */ }
+            swallow = true;
+            flash('2×');
+          }, 500);
+        }
+      });
+      for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) tap.addEventListener(ev, holdEnd);
+      tap.addEventListener('contextmenu', (e) => { if (held != null || lastType !== 'mouse') e.preventDefault(); });
+      s.cleanup.push(holdEnd);
+    } else tap.addEventListener('touchstart', () => { lastType = 'touch'; }, {passive: true});
     tap.addEventListener('click', (e) => {
+      if (swallow) { swallow = false; return; }
       if (!panel.hidden) { closePanel(); return; }
       if (lastType === 'mouse') { toggle(); return; }
       const now = Date.now(), r = root.getBoundingClientRect(), f = (e.clientX - r.left) / Math.max(1, r.width);
@@ -589,7 +574,7 @@
         } else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();       // iPhone: the system player
       } catch (e) { /* refused */ }
     }
-    const onFs = () => { const f = !!fsEl(); fullB.innerHTML = ico(f ? 'unfull' : 'full'); fullB.setAttribute('aria-label', t(f ? 'pl_unfull' : 'pl_full')); fullB.title = t(f ? 'pl_unfull' : 'pl_full'); };
+    const onFs = () => { const f = !!fsEl(); setIco(fullB, f ? 'unfull' : 'full', t(f ? 'pl_l_unfull' : 'pl_l_full')); fullB.setAttribute('aria-label', t(f ? 'pl_unfull' : 'pl_full')); fullB.title = t(f ? 'pl_unfull' : 'pl_full'); };
     on(doc, 'fullscreenchange', onFs); on(doc, 'webkitfullscreenchange', onFs);
     function pip() {
       try {
@@ -675,6 +660,19 @@
       return out;
     }
     function share() { try { navigator.share({title: o.title || '', url: s.url}).catch(() => {}); } catch (e) { /* refused */ } }
+    // 6.6: a Telegram download / save shows the shared progress sheet (web/progress.js: percent, smoothed time left,
+    // Cancel); without it the old percent line in the status. on(percent, doneBytes, size) is tgplay's onProgress
+    function progress(title, ctl, steps) {
+      let p = null;
+      try { if (TN.progress && TN.progress.open) p = TN.progress.open({title, steps: steps || null, cancel: ctl ? () => { try { ctl.abort(); } catch (e) { /* gone */ } } : null}); } catch (e) { p = null; }
+      const call = (n, ...a) => { try { if (p && typeof p[n] === 'function') p[n](...a); } catch (e) { /* the sheet is optional */ } };
+      return {
+        on: (pc, done, size) => { if (!alive()) return; if (p) call('set', size > 0 ? done : pc, size > 0 ? size : 100); else say(t('pl_tg_progress', pc)); },
+        step: (i) => call('step', i), note: (x) => call('note', x),
+        done: () => { call('done'); p = null; },
+        fail: (e) => { if (!p) return; if (e && e.name === 'AbortError') call('done'); else call('fail', s.tgp && s.tgp.errorText ? s.tgp.errorText(e) : t('pl_fail')); p = null; },
+      };
+    }
     // Telegram files: open in Telegram, save to the device (then VLC / Kodi), download into memory and play here
     function tgButtons(why) {
       if (!s.tgp) return [];
@@ -688,7 +686,10 @@
         const ctl = G.AbortController ? new AbortController() : null;
         s.cleanup.push(() => ctl && ctl.abort());
         try {
-          const f = await s.tgp.fallback(ref, {signal: ctl && ctl.signal, onProgress: (p) => { if (alive()) say(t('pl_tg_progress', p)); }});
+          const pg = progress(t('plp_tg_dl'), ctl);
+          let f;
+          try { f = await s.tgp.fallback(ref, {signal: ctl && ctl.signal, onProgress: pg.on}); } catch (e) { pg.fail(e); throw e; }
+          pg.done();
           if (!alive()) { if (f.revoke) f.revoke(); return; }
           if (f.kind === 'blob') { s.cleanup.push(f.revoke); say(''); s.failed = false; start(f.url, s.tgh ? s.tgh.mime : ''); }
           else { spin.hidden = true; say(''); showCard({kind: 'error', text: t('pl_tg_big', sizeText(f.size || 0)), buttons: [f.url ? {label: t('pl_tg_open'), href: f.url, pri: true, keep: true} : null, {label: t('pl_close'), act: () => leave()}]}); }
@@ -698,7 +699,9 @@
         const ctl = G.AbortController ? new AbortController() : null;
         s.cleanup.push(() => ctl && ctl.abort());
         try {
-          await s.tgp.save(ref, {signal: ctl && ctl.signal, onProgress: (p) => { if (alive()) say(t('pl_tg_progress', p)); }});
+          const pg = progress(t('plp_tg_save'), ctl);
+          try { await s.tgp.save(ref, {signal: ctl && ctl.signal, onProgress: pg.on}); } catch (e) { pg.fail(e); throw e; }
+          pg.done();
           if (alive()) { say(''); flash(t('pl_tg_saved')); }
         } catch (e) {
           if (!alive() || (e && e.name === 'AbortError')) return;
@@ -745,23 +748,35 @@
       const url = s.url;
       if (!url || isHlsUrl(url, s.mime)) return false;
       s.compatBusy = true;   // 6.1.5: the watchdog waits while the engine attaches
+      let pg = null;
+      // 6.5.1: leaving the player (Back / another route) closes the sheet quietly; it never shows 'Failed' later
+      const here = () => alive() && s.url === url;
+      const closePg = (bad) => { if (pg) { const g = pg; pg = null; try { if (bad && here()) g.fail(); else g.done(); } catch (e) { /* gone */ } } };
       try {
         const cp = await TN.provider('compat').catch(() => null);
         if (!cp || !cp.supported() || !alive() || s.url !== url) return false;
         hideCard(); spin.hidden = false; say(t('pl_compat'));
-        // 6.1.5: an engine that does not come up in 30 s is not waited for: the error card / notice instead
+        // 6.6: Telegram streams show the preparation steps in the shared progress sheet (engine, file, start)
+        pg = s.tgh ? progress(t('plp_engine'), null, [t('plp_load'), t('plp_read'), t('plp_start')]) : null;
+        if (pg) s.cleanup.push(() => closePg(false));
+        if (pg) pg.step(0);
+        if (pg && typeof cp.ready === 'function') cp.ready().then(() => { if (pg && here()) pg.step(1); }, () => {});
+        else if (pg) pg.step(1);
+        // 6.1.5: an engine that does not come up in 40 s is not waited for: the error card / notice instead
         const pr = cp.attach(v, new URL(url, location.href).href, {at: at > 0 ? at : 0, live: s.live, langs: [TN.lang()]});
         let dl = 0;
-        const h = await Promise.race([pr, new Promise((res) => { dl = setTimeout(() => res(null), 30000); })]);
+        const h = await Promise.race([pr, new Promise((res) => { dl = setTimeout(() => res(null), 40000); })]);   // 6.5.1: >= attach's own 25 s load + 12 s play
         clearTimeout(dl);
-        if (!h) { pr.then((x) => x && x.detach(), () => {}); say(''); return false; }
+        if (!h) { pr.then((x) => x && x.detach(), () => {}); say(''); closePg(true); return false; }
+        if (pg && here()) pg.step(2);
+        closePg(false);
         if (!alive() || s.url !== url) { h.detach(); return true; }
         s.compat = h; s.failed = false;
         say(''); spin.hidden = true; flash(t('pl_compat_on'));
         // 6.1.5: iOS holds the engine's sound until a tap
         if (typeof h.suspended === 'function' && typeof h.resumeAudio === 'function' && h.suspended()) { bigTxt.textContent = t('pl_tap_sound'); big.hidden = false; bigTxt.hidden = false; }
         return true;
-      } catch (e) { say(''); return false; } finally { s.compatBusy = false; }
+      } catch (e) { say(''); closePg(true); return false; } finally { s.compatBusy = false; }
     }
     // kind: 'media' (the <video> / hls.js gave up: looked into first) | 'tg' | 'login' | 'nosw' | 'open'
     async function fail(kind, info) {
@@ -772,6 +787,17 @@
       const at = s.pos();
       try { v.pause(); } catch (e) { /* nothing plays */ }
       let text = info.text || t('pl_fail'), sub = '';
+      // 6.5.1: a Telegram stream whose part reads failed (or that got nothing at all) is a connection problem, not a
+      // file the browser cannot play: the Telegram card with Retry (a new stream), no link test, no built-in engine
+      if (kind === 'media' && s.tgh && s.tgp && s.tgp.status) {
+        let st = null;
+        try { st = s.tgp.status(s.tgh.key); } catch (e) { st = null; }
+        if (st && (st.lastError || !st.read)) {
+          kind = 'tg';
+          text = s.tgp.errorText ? s.tgp.errorText({code: st.lastError || 'TGPLAY_TIMEOUT'}) : t('pl_fail');
+          s.tgRetryNew = true;
+        }
+      }
       if (kind === 'media') {
         say(t('pl_loading'));
         const probe = await diagnose();
@@ -787,7 +813,14 @@
         if (!s.started && o.autoAlt && o.alt) { flash(t('pl_next_try')); const a = o.alt; setTimeout(() => { if (alive()) leave(() => a()); }, 900); return; }
       }
       const buttons = [];
-      if (kind === 'media' || kind === 'tg') buttons.push({label: t('pl_retry'), pri: !o.alt, act: () => { s.failed = false; hideCard(); if (s.tgh || !o.tg) start(s.url, s.mime, at); else openTg(); }});
+      const viaEngine = kind === 'media' && s.compatTried;
+      if (kind === 'media' || kind === 'tg') buttons.push({label: t('pl_retry'), pri: !o.alt, act: () => {
+        s.failed = false; hideCard();
+        if (s.tgRetryNew && o.tg) { s.tgRetryNew = false; const old = s.tgh; s.tgh = null; if (old && s.tgp) { try { s.tgp.close(old.key); } catch (e) { /* gone */ } } openTg(); }
+        // 6.5.1: the engine failed: Retry tries the engine again (start() would keep compatTried and stay native)
+        else if (viaEngine && s.url) { s.compatTried = false; dropCompat(); tryCompat(at).then((ok) => { if (!ok && alive()) fail('media', {code: 4}); }); }
+        else if (s.tgh || !o.tg) start(s.url, s.mime, at); else openTg();
+      }});
       if (o.alt) buttons.push({label: t('pl_next_link'), pri: true, act: () => { const a = o.alt; leave(() => a()); }});
       if (o.back) buttons.push({label: t('pl_other'), pri: !o.alt && kind !== 'media' && kind !== 'tg', act: () => { const b = o.back; leave(() => b()); }});
       tgButtons(kind).forEach((b) => buttons.push(b));
@@ -954,6 +987,25 @@
       }, 2000);
       s.cleanup.push(() => clearInterval(wd));
     }
+    // 6.5.1: -> true when the engine took (or is taking) this Telegram stream; false: the <video> path as before
+    async function directCompat(h) {
+      try {
+        const cp = await TN.provider('compat').catch(() => null);
+        if (!cp || !cp.supported() || !alive()) return false;
+        if (typeof cp.warm === 'function') cp.warm();     // the engine script loads while part 0 is sniffed
+        const src = await TN.provider('sources').catch(() => null);
+        if (!src || !src.sniff || !s.tgp.probe || !alive()) return false;
+        const p = await s.tgp.probe({key: h.key});
+        if (!alive()) return true;
+        const sn = src.sniff(p.head), vd = src.verdict(sn, (m) => !!v.canPlayType(m));
+        if (!vd || vd.play !== 'no') return false;
+        s.sniff = sn;
+        s.url = h.url; s.mime = h.mime || ''; s.failed = false; s.compatTried = false; s.compatUrl = h.url;
+        s.wdGen = (s.wdGen || 0) + 1;
+        if (!(await tryCompat(0)) && alive()) fail('media', {code: 4});
+        return true;
+      } catch (e) { return false; }
+    }
     async function openTg() {
       say(t('pl_loading')); spin.hidden = false;
       const tgp = await TN.provider('tgplay').catch(() => null);
@@ -961,15 +1013,26 @@
       if (!tgp) { fail('open'); return; }
       s.tgp = tgp;
       try {
-        const h = await tgp.open(tgRef(), {onEvent: (ev) => {
+        // 6.5.1: opening ends within 45 s (connect + the message), with the Telegram card and Retry
+        let otm = 0;
+        const opening = tgp.open(tgRef(), {onEvent: (ev) => {
           if (!alive() || !ev) return;
-          if (ev.type === 'flood' || ev.type === 'error') { say(ev.text || ''); poke(); } else if (ev.type === 'read') { s.tgRead = (s.tgRead || 0) + 1; if (status.textContent && !s.subsBusy) say(''); }
+          if (ev.type === 'flood' || ev.type === 'error') { say(ev.text || ''); poke(); } else if (ev.type === 'read') { if (ev.need !== false) s.tgRead = (s.tgRead || 0) + 1;   // 6.5.1: read-ahead is not progress
+            if (status.textContent && !s.subsBusy) say(''); }
         }});
+        const h = await Promise.race([opening, new Promise((res, rej) => { otm = setTimeout(() => {
+          opening.then((late) => { try { tgp.close(late.key); } catch (e2) { /* gone */ } }, () => {});
+          rej(Object.assign(new Error('TGPLAY_TIMEOUT'), {code: 'TGPLAY_TIMEOUT'}));
+        }, 45000); })]).finally(() => clearTimeout(otm));
         if (!alive()) { tgp.close(h.key); return; }
         s.tgh = h;
         s.cleanup.push(() => tgp.close(h.key));
         // 6.1.6: the length known -> the file's bitrate sizes Telegram's read-ahead
         say('');
+        // 6.5.1: a file this browser cannot play (MKV / HEVC / AC3 on iOS ...) goes straight to the engine: no wait for
+        // a WebKit error, part 0 is read once (probe reads through the stream's cache)
+        if (h.playable !== 'yes' && (await directCompat(h))) return;
+        if (!alive()) return;
         start(h.url, h.mime);
         // 6.2.1: added after start() and tied to its gen, so a compat / source switch never reports a foreign length
         if (typeof tgp.setDuration === 'function') {
@@ -1460,13 +1523,21 @@
     function chromeMove(dir) {
       const a = doc.activeElement;
       if (!card.hidden) { const list = focusables(card); moveIn(list, dir === 'Right' || dir === 'Down' ? 1 : -1); return; }
-      const levels = [focusables(top), seekRow.hidden ? [] : [seek], focusables(row)].filter((l) => l.length);
+      // 6.5.1: the button row by what is seen: on a phone transport is one line and the tools the next, left to right
+      const rowLines = () => {
+        const l = focusables(row).map((e) => ({e, r: e.getBoundingClientRect()}));
+        if (!l.length || !l.some((x) => x.r.width || x.r.height)) return [l.map((x) => x.e)];
+        const lines = [];
+        l.sort((a, b) => a.r.top - b.r.top).forEach((x) => { const ln = lines.find((y) => Math.abs(y.top - x.r.top) < x.r.height / 2); if (ln) ln.items.push(x); else lines.push({top: x.r.top, items: [x]}); });
+        return lines.map((y) => y.items.sort((a, b) => a.r.left - b.r.left).map((x) => x.e));
+      };
+      const levels = [focusables(top), seekRow.hidden ? [] : [seek], ...rowLines()].filter((l) => l.length);
       let li = levels.findIndex((l) => l.includes(a));
-      if (li < 0) { (levels[levels.length - 1][0] || root).focus({preventScroll: true}); return; }
+      if (li < 0) { (levels.some((l) => l.includes(playB)) ? playB : (levels[levels.length - 1][0] || root)).focus({preventScroll: true}); return; }
       if (dir === 'Left' || dir === 'Right') { moveIn(levels[li], dir === 'Right' ? 1 : -1); return; }
       li = Math.max(0, Math.min(levels.length - 1, li + (dir === 'Down' ? 1 : -1)));
       const l = levels[li];
-      if (!l.includes(a)) (l === levels[levels.length - 1] && l.includes(playB) ? playB : l[0]).focus({preventScroll: true});
+      if (!l.includes(a)) (l.includes(playB) ? playB : l[0]).focus({preventScroll: true});
     }
     function onKey(e) {
       if (!alive()) return;

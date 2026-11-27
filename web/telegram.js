@@ -160,16 +160,19 @@
   function needLogin(e) {
     const v = TN.view(), box = document.createElement('div');
     box.className = 'panel';
-    const msg = /TG_NO_LOGIN/.test(String(e && e.message)) ? t('tgm_need_login') : t('tgm_err', errText(e));
+    const G = window.TG, local = !!(G && G.localCopy && G.localCopy());      // 6.5.1: the iOS / Mac offline copy
+    const msg = local ? G.localText() : /TG_NO_LOGIN/.test(String(e && e.message)) ? t('tgm_need_login') : t('tgm_err', errText(e));
     box.innerHTML = `<p class="msg">${esc(msg)}</p>`;
     box.append(TN.button('btn', t('tgm_login'), () => TN.go('#/tglogin')));
     v.append(box);
   }
   function grid(title, n) { return TN.section(title, n); }
+  // 6.5.1: the app's own menu tile (a line icon of the sprite in a rounded tile), as on Home and the "more" page
+  function menuBox() { const g = document.createElement('div'); g.className = 'menu'; TN.view().append(g); return g; }
   function tile(g, icon, label, href) {
     const a = document.createElement('a');
-    a.className = 'card'; a.href = href;
-    a.innerHTML = `<div class="tgm-ic" aria-hidden="true">${icon}</div><div class="t">${esc(label)}</div>`;
+    a.className = 'tile'; a.href = href;
+    a.innerHTML = `<span class="ic">${TN.icon(icon)}</span><b>${esc(label)}</b>`;
     g.append(a);
   }
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; return x; };
@@ -204,7 +207,7 @@
     if (document.getElementById('tgm-style')) return;
     const s = document.createElement('style');
     s.id = 'tgm-style';
-    s.textContent = '.tgm-ic{font-size:2.2rem;text-align:center;padding:18px 0}.tgm-form{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px;align-items:center}' +
+    s.textContent = '.tgm-form{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px;align-items:center}' +
       '.tgm-form input{flex:1 1 180px;min-width:0}.tgm-acts{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.tgm-list .hrow{display:flex;flex-direction:column;' +
       'align-items:flex-start;text-align:start;width:100%}.tgm-list small{opacity:.75}.tgm-w{color:var(--accent)}.tgm-seen .t{opacity:.8}' +
       '.tgm-set .hrow{display:flex;gap:12px;align-items:center;justify-content:space-between;text-align:start}.tgm-set .hrow>div{flex:1 1 auto;min-width:0}' +
@@ -256,24 +259,24 @@
   // ------------------------------------------------------------ screens
   async function root() {
     TN.page('telegram', t('tgm_title'));
-    const g = grid('');
+    const g = menuBox();
     const cat = (m, extra, title) => '#/catalog/' + new URLSearchParams(Object.assign({m, v: 'list', name: title, path: '/discover/' + m, sort_by: 'popularity.desc'}, extra));
-    tile(g, '🔍', t('tgm_find'), L({v: 'find'}));
-    tile(g, '✈', t('tgm_chats'), L({v: 'chats'}));
-    tile(g, '🤖', t('tgm_bots'), L({v: 'bots'}));
-    tile(g, '🧭', t('tgm_discover'), L({v: 'discover'}));
-    tile(g, '➕', t('tgm_join'), L({v: 'join'}));
-    tile(g, '🔖', t('tgm_saved'), L({v: 'saved'}));
-    tile(g, '🎞', t('tgm_chiko'), L({v: 'chiko'}));
-    tile(g, '📌', t('tgm_pins'), L({v: 'pins'}));
-    tile(g, '✨', t('tgm_ai'), L({v: 'ai'}));
-    tile(g, '🎬', t('tgm_movies'), '#/movies');
-    tile(g, '📺', t('tgm_tv'), '#/tv');
-    tile(g, '🇮🇱', t('tgm_heb'), cat('movie', {with_original_language: 'he'}, t('tgm_heb')));
-    tile(g, '🇷🇺', t('tgm_rus'), cat('movie', {with_original_language: 'ru'}, t('tgm_rus')));
-    tile(g, '🧸', t('tgm_kids'), cat('movie', {with_genres: '16'}, t('tgm_kids')));
-    tile(g, '⚙', t('tgm_settings'), L({v: 'settings'}));
-    tile(g, '👤', t('tgm_account'), '#/tglogin');
+    tile(g, 'search', t('tgm_find'), L({v: 'find'}));
+    tile(g, 'telegram', t('tgm_chats'), L({v: 'chats'}));
+    tile(g, 'bot', t('tgm_bots'), L({v: 'bots'}));
+    tile(g, 'compass', t('tgm_discover'), L({v: 'discover'}));
+    tile(g, 'plus', t('tgm_join'), L({v: 'join'}));
+    tile(g, 'mine', t('tgm_saved'), L({v: 'saved'}));
+    tile(g, 'film', t('tgm_chiko'), L({v: 'chiko'}));
+    tile(g, 'pin', t('tgm_pins'), L({v: 'pins'}));
+    tile(g, 'sparkles', t('tgm_ai'), L({v: 'ai'}));
+    tile(g, 'movies', t('tgm_movies'), '#/movies');
+    tile(g, 'tv', t('tgm_tv'), '#/tv');
+    tile(g, 'globe', t('tgm_heb'), cat('movie', {with_original_language: 'he'}, t('tgm_heb')));
+    tile(g, 'globe', t('tgm_rus'), cat('movie', {with_original_language: 'ru'}, t('tgm_rus')));
+    tile(g, 'kids', t('tgm_kids'), cat('movie', {with_genres: '16'}, t('tgm_kids')));
+    tile(g, 'settings', t('tgm_settings'), L({v: 'settings'}));
+    tile(g, 'user', t('tgm_account'), '#/tglogin');
     // a pasted link opens from here too
     const h = el('h2', '', t('tgm_link_open'));
     TN.view().append(h);
@@ -289,7 +292,7 @@
     TN.chips([['', t('tgm_k_all')], ['channel', t('tgm_k_channel')], ['group', t('tgm_k_group')], ['bot', t('tgm_k_bot')]], kind,
       (k) => TN.go(L(Object.assign({v: 'chats'}, k ? {k} : {}))));
     const n = Math.min(500, parseInt(p.n, 10) || 100);
-    const sk = TN.skeleton();
+    const sk = TN.skeleton(12, 'wide');
     let ds;
     try { ds = await R.c.getDialogs({limit: n}); } catch (e) { if (ctx.current()) { sk.remove(); note('msg', t('tgm_err', errText(e))); } return; }
     if (!ctx.current()) return;
@@ -399,7 +402,7 @@
       };
       TN.view().append(f);
     }
-    const sk = TN.skeleton();
+    const sk = TN.skeleton(8, 'row');
     let res;
     try { res = await R.S.chatVideos(ref, {offsetId: parseInt(p.o, 10) || 0, limit: 50, q: p.q || ''}); } catch (e) {
       if (ctx.current()) { sk.remove(); note('msg', /TG_NO_CHAT|CHANNEL_PRIVATE|USERNAME_NOT_OCCUPIED|USERNAME_INVALID/.test(errText(e) + (e.code || '')) ? t('tgm_chat_gone') : t('tgm_err', errText(e))); }
@@ -506,7 +509,7 @@
     const id = R.S.entityId(ent), ref = ent.username ? '@' + ent.username : id, k = kindOf(ent);
     const members = ent.participantsCount || ent.botActiveUsers || 0;
     TN.modal(`<div class="detail" style="grid-template-columns:1fr"><div><h3 dir="auto">${esc(titleOf(ent))}</h3>` +
-      `<div class="meta" dir="auto">${esc([KIND_ICON[k], ent.username ? '@' + ent.username : '', members ? t('tgm_members', Number(members).toLocaleString()) : '', joined ? t('tgm_member') : ''].filter(Boolean).join(' · '))}</div>` +
+      `<div class="meta" dir="auto">${esc([KIND_ICON[k], ent.username ? '@' + ent.username : '', members ? t('tgm_members', TN.fmtNum ? TN.fmtNum(members) : Number(members).toLocaleString()) : '', joined ? t('tgm_member') : ''].filter(Boolean).join(' · '))}</div>` +
       `<div class="actions" id="acts"></div><p class="hint">${esc(t('tgm_pin_hint'))}</p></div></div>`);
     const acts = document.getElementById('acts');
     if (!acts) return;
@@ -526,9 +529,9 @@
     TN.page('telegram', t('tgm_discover'));
     if (p.p === undefined && !p.q && !p.similar) {
       searchBox(t('tgm_discover'), '', (q) => TN.go(L({v: 'discover', q})));
-      const g = grid('');
-      PRESETS.forEach(([k], i) => tile(g, '🧭', t(k), L({v: 'discover', p: i})));
-      tile(g, '✨', t('tgm_similar_mine'), L({v: 'discover', similar: 'mine'}));
+      const g = menuBox();
+      PRESETS.forEach(([k], i) => tile(g, 'compass', t(k), L({v: 'discover', p: i})));
+      tile(g, 'sparkles', t('tgm_similar_mine'), L({v: 'discover', similar: 'mine'}));
       return;
     }
     let R;
@@ -583,7 +586,7 @@
     const g = grid(title, rows.length);
     for (const x of rows) {
       const ch = x.ent, id = R.S.entityId(ch);
-      const sub = [KIND_ICON[kindOf(ch)], size(x) ? Number(size(x)).toLocaleString() : '', x.joined ? t('tgm_member') : '', isPinned(id) ? '📌' : '', ch.username ? '@' + ch.username : ''].filter(Boolean).join(' · ');
+      const sub = [KIND_ICON[kindOf(ch)], size(x) ? (TN.fmtNum ? TN.fmtNum(size(x)) : Number(size(x)).toLocaleString()) : '', x.joined ? t('tgm_member') : '', isPinned(id) ? '📌' : '', ch.username ? '@' + ch.username : ''].filter(Boolean).join(' · ');
       chatCard(g, ch, sub, () => chatSheet(R, ch, x.joined), R);
     }
     if (!rows.length) TN.empty(g, t('tgm_none'));

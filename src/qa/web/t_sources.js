@@ -4,6 +4,16 @@ const assert = require('assert');
 const S = require('../../../web/sources.js');
 let n = 0;
 const eq = (a, b, m) => { assert.deepStrictEqual(a, b, m); n++; };
+// 6.5.1: "Continue S02E05" on a series page - the newest episode of that series in the history
+{
+  const H = [{key: 'movie:5'}, {key: 'tv:123:9:9'}, {key: 'tv:12:2:5', progress: {t: 600, d: 2400}}, {key: 'tv:12:1:1'}, {key: 'tv:12'}, null, {key: 'tv:12:x:1'}];
+  const eqj = (a, b, m) => { if (JSON.stringify(a) !== JSON.stringify(b)) { console.log('FAIL ' + m + ' (got ' + JSON.stringify(a) + ')'); process.exitCode = 1; } };
+  eqj(S.lastEpisodeOf(H, 12), {season: 2, episode: 5, key: 'tv:12:2:5', progress: {t: 600, d: 2400}}, 'lastEpisodeOf: the newest entry of the series wins (a number id)');
+  eqj(S.lastEpisodeOf(H, '12'), {season: 2, episode: 5, key: 'tv:12:2:5', progress: {t: 600, d: 2400}}, 'lastEpisodeOf: a text id');
+  eqj(S.lastEpisodeOf(H, 123), {season: 9, episode: 9, key: 'tv:123:9:9', progress: null}, 'lastEpisodeOf: 12 is not 123');
+  eqj([S.lastEpisodeOf(H, 1), S.lastEpisodeOf(H, 5), S.lastEpisodeOf(null, 12), S.lastEpisodeOf([], 12)], [null, null, null, null], 'lastEpisodeOf: no episode of that series, a film key, no history');
+  eqj([S.seCode(2, 5), S.seCode(1, 12), S.seCode('3', '7')], ['S02E05', 'S01E12', 'S03E07'], 'seCode');
+}
 const tor = S.parseStream({name: '[RD+] Torrentio\n1080p', title: 'The.Matrix.1999.1080p.BluRay.x264.mkv\n👤 120 💾 8.2 GB ⚙️ YTS\n🇬🇧 / 🇮🇱',
   url: 'https://torrentio.strem.fun/resolve/realdebrid/X/abc/null/0/a.mkv', behaviorHints: {bingeGroup: 'x'}}, 'Torrentio');
 eq([tor.status, tor.quality, tor.lang, tor.seeds, tor.size], ['cached', 1080, 'he,en', 120, Math.round(8.2 * 1073741824)]);

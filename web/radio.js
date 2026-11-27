@@ -235,9 +235,11 @@
       '.radio-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}.radio-tools input{flex:1 1 200px;min-width:0}';
     document.head.append(s);
   }
+  const num = (n) => (TN.fmtNum ? TN.fmtNum(n) : Number(n || 0).toLocaleString());       // in the app's language
   function radioCard(s) {
     const sub = [s.country, s.tags && String(s.tags).split(',')[0], Number(s.bitrate) ? t('radio_kbps', s.bitrate) : ''].filter(Boolean).join(' · ');
-    const c = TN.card(TN.httpsOnly(s.favicon) || 'icon.png', s.name, sub, () => play(s), 'square' + (s.http_only ? ' dim' : ''), s.http_only ? t('radio_b_http') : '');
+    // (6.5.1: mono - a station without a logo shows its initials on a coloured plate, not the app icon again)
+    const c = TN.card(TN.httpsOnly(s.favicon) || 'icon.png', s.name, sub, () => play(s), 'square' + (s.http_only ? ' dim' : ''), s.http_only ? t('radio_b_http') : '', {mono: true});
     c.classList.add('radio-card');
     c.dataset.id = String(s.stationuuid || '');
     if (c.dataset.id === current) { c.classList.add('radio-on'); c.setAttribute('aria-current', 'true'); }
@@ -345,8 +347,8 @@
       const h = document.createElement('h2');
       h.textContent = t(special === 'countries' ? 'radio_countries' : 'radio_styles');
       view.append(h, special === 'countries'
-        ? tiles(rows, (r) => TN.link('radio', {cc: r.code}), (r) => (flag(r.code) ? flag(r.code) + ' ' : '') + r.name, (r) => t('radio_n', r.n.toLocaleString()))
-        : tiles(rows, (r) => TN.link('radio', {tag: r.name}), (r) => { const k = TAGS.find((x) => x[0] === r.name); return k ? t('radio_t_' + k[1]) : r.name; }, (r) => t('radio_n', r.n.toLocaleString())));
+        ? tiles(rows, (r) => TN.link('radio', {cc: r.code}), (r) => (flag(r.code) ? flag(r.code) + ' ' : '') + r.name, (r) => t('radio_n', num(r.n)))
+        : tiles(rows, (r) => TN.link('radio', {tag: r.name}), (r) => { const k = TAGS.find((x) => x[0] === r.name); return k ? t('radio_t_' + k[1]) : r.name; }, (r) => t('radio_n', num(r.n))));
       return;
     }
 
@@ -354,7 +356,7 @@
     if (special === 'favs') { const items = favStations(); data = {items: items.filter((s) => !s.http_only).concat(items.filter((s) => s.http_only)), http: items.filter((s) => s.http_only).length}; }
     else if (special === 'recent') { const items = recentStations(); data = {items, http: items.filter((s) => s.http_only).length}; }
     else {
-      const sk = TN.skeleton();
+      const sk = TN.skeleton(12, 'square');
       try { data = await stations(f); } catch (e) { if (ctx.current()) { sk.remove(); failBox(e); } return; }
       if (!ctx.current()) return;
       sk.remove();

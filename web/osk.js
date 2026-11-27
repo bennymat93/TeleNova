@@ -202,6 +202,21 @@
   }
 
   // ---------------------------------------------------------------- following the focus
+  // 6.5.1: the bar belongs where a keyboard may be missing or lacks Hebrew / Russian - a television, a phone, a tablet,
+  // any touch screen (an iPad runs the desktop shell), our own app shells - and wherever the viewer asked for it
+  // (Settings > General, bn_osk_show). A computer with a mouse and a keyboard is left alone: there it only covered the
+  // page. Decided from the shell and the touch capability, never from data-input (that one flips as the mouse moves).
+  function wanted() {
+    try {
+      const sh = TN.shell ? TN.shell() : '';
+      if (sh === 'tv' || sh === 'phone' || sh === 'tablet') return true;
+      const nav = root.navigator || {};
+      if (nav.maxTouchPoints > 0) return true;
+      if (root.matchMedia && root.matchMedia('(any-pointer: coarse)').matches) return true;
+      if (root.BNNative) return true;
+      return ls.get('bn_osk_show', false) === true;
+    } catch (e) { return true; }
+  }
   let hideTimer = 0;
   doc.addEventListener('focusin', (e) => {
     const el = e.target;
@@ -211,6 +226,7 @@
     if (el !== target) userClosed = false;
     target = el;
     build();
+    if (!wanted()) return;                             // (the target is kept: BN_OSK.open() and the history still work)
     wrapEl().hidden = false;
     // a television has a remote and usually no Hebrew / Russian keyboard: ours opens by itself
     if (TN.shell && TN.shell() === 'tv' && !kbdOpen && !userClosed) openKbd();
@@ -235,5 +251,5 @@
 
   // for the tests
   // (TN is frozen: the tests reach the keyboard through its own name)
-  root.BN_OSK = {LAYOUTS, ORDER, remember, hist, isText, isSecret, open: openKbd, close: closeKbd};
+  root.BN_OSK = {LAYOUTS, ORDER, remember, hist, isText, isSecret, open: openKbd, close: closeKbd, wanted};
 })(typeof self !== 'undefined' ? self : this);

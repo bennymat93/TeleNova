@@ -2,6 +2,7 @@
 """Shared helpers: i18n (he/en/ru), JSON storage, TMDb client."""
 import json
 import os
+import re
 import time
 
 import xbmc
@@ -124,8 +125,149 @@ STRINGS = {
     'usa':         ('ארה"ב', 'USA', 'США'),
     'uk':          ('בריטניה', 'UK', 'Великобритания'),
     'ukraine':     ('אוקראינה', 'Ukraine', 'Украина'),
+    # 6.5.1: one sentence per menu row - the BN view shows it in the panel beside the list (it was empty)
+    'd_aio': ('שם משתמש וסיסמה אחת מחברים את כל השירותים במכשיר הזה בבת אחת.',
+              'One user name and password connect every service on this device at once.',
+              'Одно имя пользователя и пароль подключают все сервисы на этом устройстве сразу.'),
+    'd_hub_search': ('חיפוש אחד בכל המקורות: סרטים, סדרות, ערוצים, רדיו וטלגרם.',
+                     'One search across every source: films, series, channels, radio and Telegram.',
+                     'Один поиск по всем источникам: фильмы, сериалы, каналы, радио и Telegram.'),
+    'd_movies': ("סרטים לפי פופולריות, דירוג, ז'אנר, שפה ושנה - וחיפוש.",
+                 'Films by popularity, rating, genre, language and year - and search.',
+                 'Фильмы по популярности, рейтингу, жанру, языку и году - и поиск.'),
+    'd_series': ("סדרות לפי פופולריות, דירוג, ז'אנר, שפה ושנה - וחיפוש.",
+                 'Series by popularity, rating, genre, language and year - and search.',
+                 'Сериалы по популярности, рейтингу, жанру, языку и году - и поиск.'),
+    'd_tv': ('ערוצי טלוויזיה בשידור חי מישראל ומהעולם, עם לוח שידורים.',
+             'Live TV channels from Israel and the world, with a guide.',
+             'Прямые ТВ-каналы Израиля и мира с программой передач.'),
+    'd_radio': ('תחנות רדיו מישראל ומהעולם, לפי סגנון ובחיפוש.',
+                'Radio stations from Israel and the world, by style and by search.',
+                'Радиостанции Израиля и мира: по стилю и поиском.'),
+    'd_tg_menu': ('התפריטים של מנוע הטלגרם: הערוצים שלי, Chiko Media והחשבון.',
+                  "The Telegram engine's own menus: my channels, Chiko Media and the account.",
+                  'Меню движка Telegram: мои каналы, Chiko Media и аккаунт.'),
+    'd_history': ('מה שנצפה כאן, החדש למעלה. לחיצה מנגנת שוב.',
+                  'What was watched here, newest first. A press plays it again.',
+                  'Что смотрели здесь, новое сверху. Нажатие запускает снова.'),
+    'd_favourites': ('הסרטים, הסדרות, הערוצים והתחנות ששמרת.',
+                     'The films, series, channels and stations you saved.',
+                     'Сохранённые фильмы, сериалы, каналы и станции.'),
+    'd_src_menu': ('מאיפה מגיע התוכן: מקורות לסרטים ולסדרות, טלוויזיה, רדיו, טלגרם וכתוביות.',
+                   'Where the content comes from: sources for films and series, TV, radio, Telegram and subtitles.',
+                   'Откуда берётся контент: источники фильмов и сериалов, ТВ, радио, Telegram и субтитров.'),
+    'd_accounts': ('החיבורים לשירותים: Real-Debrid, שרתי Stremio, אתרי כתוביות ומפתחות - מה מחובר ומה חסר.',
+                   'Service logins: Real-Debrid, Stremio servers, subtitle sites and keys - what is connected and what is missing.',
+                   'Входы в сервисы: Real-Debrid, серверы Stremio, сайты субтитров и ключи - что подключено и чего не хватает.'),
+    'd_bk_menu': ('סנכרון אוטומטי בין מכשירים, גיבוי לקובץ, שחזור ו-Google Drive.',
+                  'Automatic sync between devices, backup to a file, restore and Google Drive.',
+                  'Автосинхронизация между устройствами, копия в файл, восстановление и Google Drive.'),
+    'd_sys_menu': ('הגדרות Kodi, סוג המכשיר, מצב המערכת ועדכון הבילד.',
+                   'Kodi settings, the device type, system status and the build update.',
+                   'Настройки Kodi, тип устройства, состояние системы и обновление сборки.'),
+    'd_kodi_settings': ('ההגדרות של Kodi עצמו: תצוגה, שמע, נגן ורשת.',
+                        "Kodi's own settings: display, audio, player and network.",
+                        'Настройки самого Kodi: экран, звук, плеер и сеть.'),
+    'd_profile_pick': ('התאמת הבילד למכשיר: קופסה חלשה, טלוויזיה, מחשב או רכב.',
+                       'Fits the build to the device: a weak box, a TV, a computer or a car.',
+                       'Подстройка сборки под устройство: слабая приставка, ТВ, компьютер или автомобиль.'),
+    'd_status': ('מה פועל ומה לא: שירותים, חיבורים וגרסאות.',
+                 'What works and what does not: services, logins and versions.',
+                 'Что работает, а что нет: службы, входы и версии.'),
+    'd_src_video': ('מקורות לסרטים ולסדרות: ספריות, שרתי Stremio, Real-Debrid וטלגרם.',
+                    'Sources for films and series: libraries, Stremio servers, Real-Debrid and Telegram.',
+                    'Источники фильмов и сериалов: библиотеки, серверы Stremio, Real-Debrid и Telegram.'),
+    'd_src_live': ('מקורות לטלוויזיה חיה: רשימות M3U, Xtream ולוח שידורים.',
+                   'Sources for live TV: M3U lists, Xtream and the guide.',
+                   'Источники прямого ТВ: списки M3U, Xtream и программа передач.'),
+    'd_src_radio': ('תחנות הרדיו והמוזיקה.', 'Radio and music stations.', 'Радио и музыкальные станции.'),
+    'd_src_tg': ('הערוצים, הקבוצות והבוטים בטלגרם, וחשבון הטלגרם.',
+                 'Telegram channels, groups and bots, and the Telegram account.',
+                 'Каналы, группы и боты Telegram и сам аккаунт.'),
+    'd_src_subs': ('אתרי הכתוביות, המפתחות ותרגום ה-AI.', 'Subtitle sites, keys and AI translation.',
+                   'Сайты субтитров, ключи и перевод ИИ.'),
+    'd_libs': ('ספריות התוכן המותקנות: הפעלה, כיבוי והתקנה.',
+               'The installed content libraries: switch on, off and install.',
+               'Установленные библиотеки контента: включение, выключение и установка.'),
+    'd_src_iptv': ('הוספה ועריכה של רשימות M3U, חשבונות Xtream וכתובת לוח השידורים (EPG).',
+                   'Add and edit M3U lists, Xtream accounts and the guide (EPG) address.',
+                   'Добавление и правка списков M3U, аккаунтов Xtream и адреса программы (EPG).'),
+    'd_tg_channels': ('הערוצים, הקבוצות והבוטים שמהם מגיעים הקבצים.',
+                      'The channels, groups and bots the files come from.',
+                      'Каналы, группы и боты, откуда приходят файлы.'),
+    'd_tg_account': ('החיבור לטלגרם: מצב, כניסה ויציאה.', 'The Telegram login: state, log in and log out.',
+                     'Вход в Telegram: состояние, вход и выход.'),
+    'd_subs_keys': ('אילו אתרי כתוביות פעילים, המפתחות שלהם ותרגום ב-AI.',
+                    'Which subtitle sites are on, their keys, and AI translation.',
+                    'Какие сайты субтитров включены, их ключи и перевод ИИ.'),
+    'd_backup': ('שומר את ההגדרות, החיבורים והרשימות לקובץ אחד.',
+                 'Saves the settings, logins and lists to one file.',
+                 'Сохраняет настройки, входы и списки в один файл.'),
+    'd_restore': ('מחזיר הגדרות, חיבורים ורשימות מקובץ גיבוי.',
+                  'Brings settings, logins and lists back from a backup file.',
+                  'Возвращает настройки, входы и списки из файла копии.'),
+    'd_gdrive': ('גיבויים ב-Google Drive, שחזור מהם וקובצי הווידאו שבכונן.',
+                 'Backups on Google Drive, restore from them, and the video files on the drive.',
+                 'Копии на Google Drive, восстановление из них и видеофайлы на диске.'),
+    'd_sync_screen': ('מה מסתנכרן במכשיר הזה, המכשירים בחשבון והסיסמה למפתחות.',
+                      'What this device syncs, the devices in the account and the passphrase for the keys.',
+                      'Что синхронизирует это устройство, устройства аккаунта и пароль для ключей.'),
+    'd_aio_login': ('מחבר את המכשיר הזה לכל השירותים עם שם משתמש וסיסמה אחת.',
+                    'Connects this device to every service with one user name and password.',
+                    'Подключает это устройство ко всем сервисам одним именем и паролем.'),
+    'd_aio_save': ('שומר או מעדכן בחיבור הכולל את מה שמחובר במכשיר הזה.',
+                   'Saves or updates in All in one what is connected on this device.',
+                   'Сохраняет или обновляет в «Всё в одном» то, что подключено на этом устройстве.'),
+    'd_search': ('חיפוש לפי שם, עם השלמות והיסטוריית חיפושים.',
+                 'Search by name, with suggestions and the search history.',
+                 'Поиск по названию, с подсказками и историей поиска.'),
+    'd_trending': ('מה שצופים בו הכי הרבה השבוע.', 'What is watched most this week.',
+                   'Что смотрят больше всего на этой неделе.'),
+    'd_popular': ('הכותרים הפופולריים ביותר כרגע.', 'The most popular titles right now.', 'Самые популярные сейчас.'),
+    'd_top_rated': ('הכותרים עם הדירוג הגבוה ביותר.', 'The titles with the highest rating.', 'С самым высоким рейтингом.'),
+    'd_now_playing': ('סרטים שיצאו לאחרונה.', 'Films released recently.', 'Недавно вышедшие фильмы.'),
+    'd_il_movies': ('סרטים ישראליים.', 'Israeli films.', 'Израильские фильмы.'),
+    'd_il_series': ('סדרות ישראליות.', 'Israeli series.', 'Израильские сериалы.'),
+    'd_family': ('סרטים לכל המשפחה.', 'Films for the whole family.', 'Фильмы для всей семьи.'),
+    'd_docu': ('סרטים וסדרות תיעודיים.', 'Documentaries.', 'Документальные.'),
+    'd_on_air': ('סדרות שמשודרות עכשיו, עם פרקים חדשים.', 'Series on air now, with new episodes.',
+                 'Сериалы в эфире с новыми сериями.'),
+    'd_kids_tv': ('סדרות לילדים.', 'Series for children.', 'Детские сериалы.'),
+    'd_genres': ("בחירה לפי ז'אנר: פעולה, קומדיה, דרמה ועוד.", 'Pick by genre: action, comedy, drama and more.',
+                 'Выбор по жанру: боевик, комедия, драма и другие.'),
+    'd_languages': ('בחירה לפי שפת המקור.', 'Pick by original language.', 'Выбор по языку оригинала.'),
+    'd_years': ('בחירה לפי שנת יציאה.', 'Pick by year of release.', 'Выбор по году выхода.'),
+    'd_kukhnya': ('הסדרה הרוסית "קוכניה" (המטבח) - כל העונות.', 'The Russian series "Kukhnya" (Kitchen) - every season.',
+                  'Сериал «Кухня» - все сезоны.'),
 }
 _LANG_INDEX = {'he': 0, 'en': 1, 'ru': 2}
+
+# 6.5.1: a row whose whole label is gold was gold text on the gold focus bar. The row also carries its text without
+# tags (property bn_plain); the focused row of the BN view draws that copy (skinpatch.plain_text).
+_GOLD_RX = re.compile(r'^\s*\[COLOR (?:gold|FFE8BE5A)\](.*)\[/COLOR\]\s*$', re.S)
+
+
+def plain_of(label):
+    """the text of a label that is ONE gold [COLOR] from end to end, without tags; '' for any other label (pure)"""
+    m = _GOLD_RX.match(label or '')
+    if not m or '[COLOR' in m.group(1) or '[/COLOR]' in m.group(1):
+        return ''
+    return re.sub(r'\[/?(?:B|I|UPPERCASE|LOWERCASE|CAPITALIZE|LIGHT)\]', '', m.group(1)).strip()
+
+
+def mark_plain(li, label):
+    """sets bn_plain on a list item whose label is all gold. -> the item"""
+    p = plain_of(label)
+    if p:
+        li.setProperty('bn_plain', p)
+    return li
+
+
+def gold_item(text, bold=False):
+    """a list item with a gold label that stays readable on the gold focus bar"""
+    import xbmcgui
+    return mark_plain(xbmcgui.ListItem(('[COLOR gold][B]%s[/B][/COLOR]' if bold else '[COLOR gold]%s[/COLOR]') % text),
+                      '[COLOR gold]%s[/COLOR]' % text)
 
 
 def ui_lang():

@@ -1047,6 +1047,12 @@ class Player(xbmc.Player):
                 if WIN.getProperty('NovaTV.restoring'):     # a backup is being restored: never write over it
                     return
                 with _HIST_LOCK:
+                    try:        # 6.5.1: the account's clock, and never under the last "clear history" mark
+                        from resources.lib import users
+                        from resources.lib.common import PROFILE as _root
+                        entry['ts'] = users.history_ts(_root)
+                    except Exception as e:
+                        log('history clock: %s' % e, xbmc.LOGWARNING)
                     hist = [h for h in load('history.json', []) if h.get('key') != key]
                     hist.insert(0, entry)
                     save('history.json', hist[:500])
@@ -1111,6 +1117,7 @@ def main():
     player = Player()
     player._box_off()        # 4.0: a black subtitle box left by a crash is taken off again
     mon = Monitor(player)
+    skin_xml, skin_n = '', 0
     try:        # boxes updated from the repository: add the AI subtitle button to the installed skin once
         import xbmcvfs
         from resources.lib import skinpatch
@@ -1126,17 +1133,37 @@ def main():
                 xbmc.executebuiltin('ReloadSkin()')
     except Exception as e:
         log('keyboard buttons: %s' % e, xbmc.LOGWARNING)
+    def patched():          # 6.5.1: which patches changed files ("depth 2, includes 3"), not one fixed text
+        return ', '.join('%s %d' % kv for kv in sorted(skinpatch.LAST.items()) if kv[1]) or 'none'
     try:
-        if os.path.isdir(skin_xml) and skinpatch.apply(skin_xml):
-            log('AI subtitle button added to the skin')
-            xbmc.executebuiltin('ReloadSkin()')
+        if skin_xml and os.path.isdir(skin_xml):
+            skin_n = skinpatch.apply(skin_xml)
+            if skin_n:
+                log('skin patched: %d file(s) (%s)%s' % (skin_n, patched(), ' - failed steps: %s' % ', '.join(
+                    skinpatch.LAST_ERRORS) if skinpatch.LAST_ERRORS else ''))
+                xbmc.executebuiltin('ReloadSkin()')
     except Exception as e:
         log('skin button: %s' % e, xbmc.LOGWARNING)
+        try:
+            log('skin patches that landed before it: %s' % patched(), xbmc.LOGWARNING)
+        except Exception:
+            pass
         try:    # 3.3: a skin file that changed shape stopped the buttons - the BN player does not depend on them
             if os.path.isdir(skin_xml) and skinpatch.bn_player(skin_xml):
                 xbmc.executebuiltin('ReloadSkin()')
         except Exception as e2:
             log('skin BN player: %s' % e2, xbmc.LOGWARNING)
+    # 6.5.1: one line that says this service is up and which version it is (the log showed nothing after an update)
+    log('service ready %s (skin patches: %d changed)' % (ADDON.getAddonInfo('version'), skin_n))
+    try:        # 6.5.1: a user switch that was cut is finished, temp files of failed writes are removed
+        from resources.lib import users as _users
+        if _users.store_recover(PROFILE):
+            log('users: an unfinished switch was completed')
+        gone = _users.store_sweep(PROFILE)
+        if gone:
+            log('users: %d stray temp file(s) removed' % gone)
+    except Exception as e:
+        log('users start-up: %s' % e, xbmc.LOGWARNING)
     try:        # every created subtitle is saved in one folder; Kodi uses it as its subtitle folder too
         from resources.lib import player_menus, playerctl
         folder = player_menus.subs_folder()
@@ -1369,7 +1396,7 @@ def main():
             return v
         try:
             ticker.run(monitor(), on, lambda: ADDON.getSetting('ticker_city') or 'באר שבע',
-                       lambda: 'he' if ui_lang() == 'he' else 'en')
+                       ui_lang)
         except Exception as e:
             log('ticker: %s' % e, xbmc.LOGWARNING)
     later(3, ticker_job)

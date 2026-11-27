@@ -263,6 +263,35 @@
     h7.close();
     ok(closedKeys.includes('k1'), 'F: the stream is released when the player closes');
     await sleep(300);
+    // 6.5.1: a Telegram file this browser cannot play goes straight to the engine (no <video> attempt), part 0 sniffed once
+    let probes = 0, warms = 0, attachFail = false;
+    const attached = [];
+    const tgOpen = providers.tgplay.open;
+    providers.tgplay.open = async (ref, o) => (mode === 'mkv' ? {key: 'k2', url: media + '#mkv', mime: 'video/x-matroska', size: 1000, name: 'f.mkv', tgLink: '', playable: 'no'} : tgOpen(ref, o));
+    providers.tgplay.probe = async () => { probes++; return {head: new Uint8Array(16), size: 1000, mime: 'video/x-matroska'}; };
+    providers.sources.sniff = () => ({container: 'mkv', video: 'hevc', audio: ['ac3']});
+    providers.sources.verdict = () => ({play: 'no', why: 'video'});
+    providers.compat = {name: 'compat', supported: () => true, warm() { warms++; },
+      attach: async (vid, url) => { attached.push(url); if (attachFail) throw new Error('engine'); return {detach() {}, suspended: () => false}; }};
+    mode = 'mkv';
+    const f8 = await P.open({tg: {chat_id: -1001, msg_id: 3}, title: 'MKV'});
+    ok(await until(() => attached.length === 1, 3000) && !f8.video.getAttribute('src') && probes === 1 && warms === 1, 'F2: MKV/HEVC from Telegram: the engine at once, <video> never gets the address, one sniff, warm() once');
+    f8.close(); await sleep(300);
+    mode = 'ok'; probes = 0; warms = 0;
+    const f9 = await P.open({tg: {chat_id: -1001, msg_id: 2}, title: 'MP4'});
+    ok(await until(() => !f9.video.paused && f9.video.currentTime > 0.1) && probes === 0 && warms === 0 && attached.length === 1, 'F2: an MP4 (playable yes) plays in <video>; no sniff, no engine warm-up');
+    f9.close(); await sleep(300);
+    mode = 'mkv'; attachFail = true; attached.length = 0;
+    await P.open({tg: {chat_id: -1001, msg_id: 3}, title: 'MKV'});
+    const ec2 = await until(cardEl, 4000);
+    ok(ec2 && attached.length === 1 && byText(ec2, /Retry|Try again/i), 'F2: the engine failed: the card with Retry');
+    attachFail = false;
+    byText(ec2, /Retry|Try again/i).click();
+    ok(await until(() => attached.length === 2, 3000), 'F2: Retry after an engine failure tries the engine again (not only the native attempt)');
+    P.close();
+    await sleep(300);
+    delete providers.compat; delete providers.sources.sniff; delete providers.sources.verdict; delete providers.tgplay.probe;
+    providers.tgplay.open = tgOpen; mode = 'ok';
 
     // ---------------------------------------------------------------- G. the automatic subtitle flow
     const realFind = S.find;
@@ -295,10 +324,72 @@
     box.querySelector('#subs_s_auto').checked = false; box.querySelector('#subs_s_auto').dispatchEvent(new Event('change'));
     box.querySelector('#subs_s_lang').value = 'ru'; box.querySelector('#subs_s_lang').dispatchEvent(new Event('change'));
     ok(cfg.subs_auto === false && cfg.subs_lang === 'ru' && S.prefLang() === 'ru' && S.autoOn() === false, 'H: the switches are kept as browser settings');
-    emit('route', {key: 'settings'});
-    TN.here = () => ({key: 'settings'});
-    emit('route', {key: 'settings'});
-    ok(await until(() => document.querySelector('#subs_settings_box #subs_s_osk'), 1500), 'H: on the Settings page the block is added by subs.js itself');
+    // 6.5.1: only on the Watching tab (it was appended under every Settings tab)
+    TN.here = () => ({key: 'settings', arg: 'data'});
+    emit('route', {key: 'settings', arg: 'data'});
+    emit('route', {key: 'settings', arg: ''});
+    await new Promise((res) => setTimeout(res, 200));
+    ok(!document.querySelector('#subs_settings_box'), 'H: no subtitle block on the other Settings tabs');
+    emit('route', {key: 'settings', arg: 'playback'});
+    await new Promise((res) => setTimeout(res, 200));
+    ok(!document.querySelector('#subs_settings_box'), 'H: a tab switch within the 60 ms (the page is on Data again) adds nothing');
+    TN.here = () => ({key: 'settings', arg: 'playback'});
+    emit('route', {key: 'settings', arg: 'playback'});
+    emit('route', {key: 'settings', arg: 'playback'});
+    ok(await until(() => document.querySelector('#subs_settings_box #subs_s_osk'), 1500) && document.querySelectorAll('#subs_settings_box').length === 1, 'H: on the Watching tab of Settings the block is added by subs.js itself, once');
+
+    // ---------------------------------------------------------------- L. 6.6 layout: the real style.css + player.css at real sizes
+    // The open player's DOM is copied into iframes of each size (media queries follow the iframe); nothing else runs there.
+    await P.open({url: media, mime: 'audio/wav', title: 'Layout', back: () => {}});
+    const lroot = rootEl();
+    lroot.querySelector('.pl-next').hidden = false;
+    const card0 = lroot.querySelector('.pl-card'); card0.hidden = false; card0.textContent = 'Another link card';
+    const snap = lroot.outerHTML;
+    P.close();
+    const SIZES = [[390, 844, 'rtl', 'phone'], [390, 844, 'ltr', 'phone'], [844, 390, 'rtl', 'phone'], [820, 1180, 'rtl', 'desktop'], [1280, 720, 'ltr', 'desktop'], [1280, 720, 'rtl', 'tv']];
+    const near = (a, b) => Math.abs(a - b) <= 1.5;
+    for (const [w, hh, dir, shell] of SIZES) {
+      const tag = 'L ' + w + 'x' + hh + ' ' + dir + ' ' + shell + ': ';
+      const fr = document.createElement('iframe');
+      fr.style.cssText = 'position:absolute;left:-5000px;top:0;border:0;width:' + w + 'px;height:' + hh + 'px';
+      document.body.append(fr);
+      const d = fr.contentDocument;
+      d.open();
+      d.write('<!doctype html><html dir="' + dir + '" data-shell="' + shell + '"' + (shell === 'tv' ? ' class="tv"' : '') + '><head><meta charset="utf-8">' +
+        '<link rel="stylesheet" href="/web/style.css"><link rel="stylesheet" href="/web/player.css"></head><body>' + snap.replace('dir="ltr"', 'dir="' + dir + '"') + '</body></html>');
+      d.close();
+      await until(() => [...d.styleSheets].length >= 2 && d.querySelector('.pl-root') && fr.contentWindow.getComputedStyle(d.querySelector('.pl-root')).position === 'fixed', 3000);
+      const W = fr.contentWindow, R = d.querySelector('.pl-root'), rr = R.getBoundingClientRect();
+      const vis = (sel) => [...d.querySelectorAll(sel)].filter((b) => b.offsetParent !== null && W.getComputedStyle(b).display !== 'none');
+      const check = (when) => {
+        const tools = vis('.pl-zs .pl-btn, .pl-ze .pl-btn'), all = vis('.pl-bottom .pl-btn, .pl-top .pl-btn');
+        const tops = tools.map((b) => Math.round(b.getBoundingClientRect().top));
+        ok(tools.length > 0 && tops.every((x) => near(x, tops[0])), tag + when + 'every tool button on one line');
+        const pr = d.querySelector('.pl-play').getBoundingClientRect();
+        ok(near(pr.left + pr.width / 2, rr.left + rr.width / 2), tag + when + 'play on the centre line');
+        ok(all.every((b) => { const r = b.getBoundingClientRect(); return r.width >= 43.5 && r.height >= 43.5; }), tag + when + 'every button at least 44 x 44');
+        ok(tools.every((b) => (b.querySelector('.pl-lbl') || {}).textContent), tag + when + 'every tool button has a label');
+        const row = d.querySelector('.pl-row');
+        ok(row.scrollWidth <= row.clientWidth + 1, tag + when + 'the row does not overflow');
+        if (shell === 'phone' && w < 600) {
+          const ws = tools.map((b) => b.getBoundingClientRect().width);
+          ok(ws.every((x) => near(x, ws[0])), tag + when + 'equal tool widths');
+          const br = row.getBoundingClientRect(), f = tools.map((b) => b.getBoundingClientRect());
+          const l = Math.min(...f.map((r) => r.left)) - br.left, r2 = br.right - Math.max(...f.map((r) => r.right));
+          ok(near(l, r2), tag + when + 'equal insets at both ends');
+        }
+      };
+      check('');
+      ['.pl-next', '.pl-other', '.pl-full'].forEach((c) => { d.querySelector(c).hidden = true; });
+      check('(next, links, full hidden) ');
+      const cr = d.querySelector('.pl-card').getBoundingClientRect();
+      ok(near(cr.left + cr.width / 2, rr.left + rr.width / 2) && cr.left >= -1 && cr.right <= rr.right + 1, tag + 'the card is centred and on screen');
+      ok(W.getComputedStyle(d.querySelector('.pl-panel')).paddingTop === '0px', tag + 'the panel keeps its own padding');
+      R.classList.add('pl-idle');
+      await new Promise((res) => setTimeout(res, 250));   // the bars fade out in .15 s
+      ok(W.getComputedStyle(d.querySelector('.pl-bottom')).visibility === 'hidden' && W.getComputedStyle(d.querySelector('.pl-top')).visibility === 'hidden', tag + 'idle hides both bars');
+      fr.remove();
+    }
   } catch (e) {
     lines.push('FAIL exception: ' + String((e && e.stack) || e).slice(0, 500));
   }

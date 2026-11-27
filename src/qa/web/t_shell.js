@@ -18,7 +18,41 @@ eq(SC.pickShell('auto', false, 800), 'tablet', '800 px is a tablet');
 eq(SC.pickShell('auto', false, 1400), 'desktop', 'wide window is a desktop');
 eq(SC.pickShell('auto', true, 1920), 'tv', 'TV browser');
 eq(SC.pickShell('phone', true, 1920), 'phone', "the viewer's choice wins");
-eq([SC.posterSize('phone', 1), SC.posterSize('phone', 3), SC.posterSize('desktop', 1), SC.posterSize('tv', 1)], ['w185', 'w342', 'w342', 'w500'], 'poster sizes');
+eq([SC.posterSize('phone', 1), SC.posterSize('phone', 3), SC.posterSize('desktop', 1), SC.posterSize('tv', 1)], ['w185', 'w342', 'w342', 'w342'], 'poster sizes');
+// 6.5.1: a TV asks for w500 only when it really draws more than 2000 device pixels across
+eq([SC.posterSize('tv', 1, 3840), SC.posterSize('tv', 2, 1920), SC.posterSize('tv', 1.5, 1280), SC.posterSize('tv', 2, 960), SC.posterSize('tv', 1, 1920), SC.posterSize('desktop', 2)],
+   ['w500', 'w500', 'w342', 'w342', 'w342', 'w500'], 'TV poster size follows the real pixel width');
+// 6.5.1: the language of a first visit
+eq([SC.pickLang(['uk', 'ru']), SC.pickLang(['de', 'en-US']), SC.pickLang(['iw-IL']), SC.pickLang(['he']), SC.pickLang(['fr', 'de']), SC.pickLang(['ru-RU', 'he']),
+    SC.pickLang('en_GB'), SC.pickLang([]), SC.pickLang(undefined), SC.pickLang([null, '']), SC.pickLang(['EN']), SC.pickLang([42, {}, 'ru'])],
+   ['ru', 'en', 'he', 'he', 'en', 'ru', 'en', 'he', 'he', 'he', 'en', 'ru'], 'pickLang: first supported entry, English for other languages, Hebrew with no information');
+// 6.5.1: storage whose refused writes are read back
+{
+  const back = {a: 'old'};
+  let fail = true, calls = [];
+  const ls = {getItem: (k) => (k in back ? back[k] : null), setItem: (k, v) => { if (fail) throw new Error('QuotaExceededError'); back[k] = String(v); }, removeItem: (k) => { delete back[k]; }};
+  const st = SC.makeSafeStore(() => ls, (k) => calls.push(k));
+  eq(st.getItem('a'), 'old', 'safeStore reads the storage');
+  st.setItem('a', 'new');
+  eq([st.getItem('a'), back.a, calls], ['new', 'old', ['a']], 'a refused write is read back from memory, and reported');
+  st.setItem('a', 'newer');
+  eq([st.getItem('a'), calls.length], ['newer', 2], 'every refused write is reported (once per visit is the caller\'s rule)');
+  fail = false;
+  st.setItem('a', 'stored');
+  back.a = 'changed elsewhere';
+  eq(st.getItem('a'), 'changed elsewhere', 'a write that worked leaves no stale copy in memory');
+  fail = true;
+  st.setItem('b', 1);
+  st.removeItem('b'); st.removeItem('a');
+  eq([st.getItem('b'), st.getItem('a')], [null, null], 'removeItem clears the storage and the memory copy');
+  const none = SC.makeSafeStore(() => { throw new Error('SecurityError'); });
+  eq(none.getItem('x'), null, 'a browser that refuses storage reads null');
+  none.setItem('x', 'v');
+  eq(none.getItem('x'), 'v', '... and keeps this visit in memory');
+  const boom = SC.makeSafeStore(() => { throw new Error('x'); }, () => { throw new Error('notice failed'); });
+  boom.setItem('k', '1');
+  eq(boom.getItem('k'), '1', 'a failing notice never breaks the write');
+}
 eq([SC.backdropSize('phone'), SC.backdropSize('tv')], ['w780', 'w1280'], 'backdrop sizes');
 
 // ---- navigation tables
@@ -37,6 +71,16 @@ eq(SC.navOwner('status', '', SC.RAIL), 'menu', 'rail item of a system page');
 eq(SC.navOwner('favs', '', SC.TABS), 'mine', 'phone tab of Favourites');
 eq(SC.navOwner('tglogin', '', SC.TABS), 'menu', 'phone tab of the Telegram sign-in');
 eq(SC.navOwner('', '', SC.TABS), '', 'home is its own tab');
+// 6.5.1: a page that is not on the bar and only leads back to Home lights nothing (Home is lit on Home alone)
+eq(SC.navOwner('movies', '', SC.TABS), null, 'phone: Movies lights no tab');
+eq(SC.navOwner('title', 'tv/1', SC.TABS), null, 'phone: a title page lights no tab');
+eq(SC.navOwner('telegram', '', SC.TABS), null, 'phone: Telegram lights no tab');
+eq(SC.navOwner('radio', '', SC.TABS), null, 'phone: Radio lights no tab');
+eq(SC.navOwner('nosuchpage', '', SC.TABS), null, 'an unknown page lights no tab');
+eq(SC.navOwner('youtube', '', SC.TABS), 'menu', 'phone: YouTube lights More');
+eq(SC.navOwner('live', '', SC.TABS), 'live', 'phone: Live is its own tab');
+eq(SC.navOwner('movies', '', SC.RAIL), 'movies', 'rail: Movies is its own item');
+eq(SC.navOwner('', '', SC.RAIL), '', 'rail: home is its own item');
 
 // ---- provider switches
 ok(SC.providerOnIn([], 'wizdom') && SC.providerOnIn(null, 'rd'), 'everything is on by default');

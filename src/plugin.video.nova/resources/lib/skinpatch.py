@@ -15,22 +15,39 @@ MENU_LABEL = 'כתוביות BN'
 def apply(xml):
     """'AI Subtitle Generation' next to the subtitle buttons of every player style and in the subtitle window.
     Returns how many skin files were changed (0 = already there)."""
+    LAST.clear()
+    del LAST_ERRORS[:]
+    n = 0
+    # 4.2.7: expr first, so a skin file that changed shape below does not stop it; review 17/11: an unreadable skin
+    # file never stops the other patches. 6.5.1: every step's own count is kept in LAST (the service logs it)
+    for name, step in (('expr', expr_fixes), ('focus', focus_label),       # 4.2.7, 4.2.8
+                       ('wellformed', wellformed), ('depth', depth),       # 6.0.2, 6.5.0
+                       ('includes', includes_fix), ('topbar', top_sub)):   # 6.5.1
+        try:
+            k = step(xml)
+        except Exception:
+            LAST_ERRORS.append(name)
+            k = 0
+        LAST[name] = k
+        n += k
+    before = n
     try:
-        n = expr_fixes(xml)     # 4.2.7: first, so a skin file that changed shape below does not stop it
-    except Exception:           # review 17/11: an unreadable skin file never stops the other patches
-        n = 0
-    try:
-        n += focus_label(xml)  # 4.2.8
-    except Exception:
-        pass
-    try:
-        n += wellformed(xml)   # 6.0.2
-    except Exception:
-        pass
-    try:
-        n += depth(xml)        # 6.5.0
-    except Exception:
-        pass
+        n = _ai_buttons(xml, n)
+    finally:
+        LAST['ai_button'] = _AI_COUNT[0] - before if _AI_COUNT[0] >= before else 0
+    LAST['menu'] = _menu_button(xml)
+    LAST['bn_player'] = bn_player(xml)
+    return n + LAST['menu'] + LAST['bn_player']
+
+
+LAST = {}               # 6.5.1: files changed by each step of the last apply() ({'depth': 2, ...})
+LAST_ERRORS = []        # steps of the last apply() that raised (their count is 0)
+_AI_COUNT = [0]
+
+
+def _ai_buttons(xml, n):
+    """the AI subtitle button itself (raises AssertionError when a player file changed shape) -> n + files changed"""
+    _AI_COUNT[0] = n
     item = ('\n\t<item>\n\t\t<label>%s</label>\n\t\t<icon>osd/fullscreen/buttons/subs3.png</icon>\n'
             '\t\t<onclick>%s</onclick>\n\t\t<visible>!VideoPlayer.Content(LiveTV)</visible>\n\t</item>') % (AI_LABEL, AI_RUN)
     # item-list players (advanced, netflix): right after "search subtitles"
@@ -44,6 +61,7 @@ def apply(xml):
             assert k, 'subtitle item not found in ' + fn
             open(p, 'w', encoding='utf-8', newline='').write(t)
             n += 1
+            _AI_COUNT[0] = n
     # simple player: a button after the DarkSubs button
     p = os.path.join(xml, 'Includes_VideoOsd3.xml')
     t = open(p, encoding='utf-8', newline='').read()
@@ -59,6 +77,7 @@ def apply(xml):
         assert k, 'DarkSubs button not found'
         open(p, 'w', encoding='utf-8', newline='').write(t)
         n += 1
+        _AI_COUNT[0] = n
     # Kodi's subtitle window (the default "search subtitles" of the player): a button above the services list
     p = os.path.join(xml, 'DialogSubtitles.xml')
     t = open(p, encoding='utf-8', newline='').read()
@@ -77,6 +96,7 @@ def apply(xml):
         t = t.replace('<onup>150</onup>', '<onup>7160</onup>', 1)
         open(p, 'w', encoding='utf-8', newline='').write(t)
         n += 1
+        _AI_COUNT[0] = n
     # Up from the results list reaches the AI button too (also for skins patched by 0.2.1)
     t = open(p, encoding='utf-8', newline='').read()
     old = '<control type="list" id="120">\n\t\t\t\t<top>50</top>\n\t\t\t\t<onup>false</onup>'
@@ -84,8 +104,7 @@ def apply(xml):
         t = t.replace(old, old.replace('<onup>false</onup>', '<onup>7160</onup>'), 1)
         open(p, 'w', encoding='utf-8', newline='').write(t)
         n += 1
-    n += _menu_button(xml)
-    n += bn_player(xml)
+    _AI_COUNT[0] = n
     return n
 
 
@@ -347,10 +366,152 @@ def focus_label(xml):
         if '<shadowcolor>FF101010' not in new:
             new = new.replace('<textcolor>FF101010</textcolor>',
                               '<textcolor>FF101010</textcolor><shadowcolor>FF101010</shadowcolor>')
+        new = plain_text(new)       # 6.5.1
         if new != t:
             with open(p, 'w', encoding='utf-8', newline='') as f:
                 f.write(new)
             n += 1
+    return n
+
+
+# ------------------------------------------------------------------ 6.5.1: a gold row stays readable when focused
+# A row whose whole label is [COLOR gold]...[/COLOR] was gold text on the gold focus bar: the inline colour wins over
+# the dark colour of the focused label. Such rows carry their text without tags in the property bn_plain (common.
+# gold_item / default.folder(plain=...)); the focused layout draws that copy instead. Only the focused title label is
+# touched; a view without exactly one such label stays as it is. Rows without the property look as before.
+PLAIN_MARK = '<!-- BN plain v1 -->'
+_PLAIN_RX = re.compile(r'([ \t]*)<control type="label">((?:(?!</control>).)*?)<label>\$INFO\[ListItem\.Label\]</label>'
+                       r'((?:(?!</control>).)*?)</control>', re.S)
+
+
+def plain_text(t):
+    """-> the patched text, or t itself (already patched / no single focused title label)"""
+    if PLAIN_MARK in t:
+        return t
+    cut = t.find('<focusedlayout')
+    end = t.find('</focusedlayout>', cut)
+    if cut < 0 or end < 0:
+        return t
+    body = t[cut:end]
+    hits = [m for m in _PLAIN_RX.finditer(body) if 'FF101010' in m.group(0)]
+    if len(hits) != 1 or '<visible>' in hits[0].group(0):
+        return t
+    m = hits[0]
+    nl = '\r\n' if '\r\n' in t else '\n'
+    ind = m.group(1)
+
+    def block(label, cond):
+        return ('%s<control type="label">%s<label>%s</label>%s%s\t<visible>%s</visible>%s</control>'
+                % (ind, m.group(2), label, nl, ind, cond, m.group(3)))
+    new = (block('$INFO[ListItem.Label]', 'String.IsEmpty(ListItem.Property(bn_plain))') + nl
+           + ind + PLAIN_MARK + nl
+           + block('$INFO[ListItem.Property(bn_plain)]', '!String.IsEmpty(ListItem.Property(bn_plain))'))
+    return t[:cut] + body[:m.start()] + new + body[m.end():] + t[end:]
+
+
+# ------------------------------------------------------------------ 6.5.1: includes that do not exist
+# Every load of a video window logged "Skin has invalid include": Includes.xml asks for __backgroundconfiganim__
+# (defined nowhere) and IconSizedBackGround includes two parameters that are empty for most callers. The missing name
+# is removed; the two parameters default to an include that exists and adds nothing.
+INC_MARK = '<!-- BN includes v1 -->'
+INC_STUB = '<include name="BNNoInclude"><description>BN includes v1</description></include>'
+_INC_DEAD = '<include>__backgroundconfiganim__</include>'
+_INC_PARAM = '<param name="SizedBgAnim" value="$PARAM[SizedBgAnim]" default="$PARAM[SizedBgAnim]"/>'
+_INC_EMPTY = '<param name="animation"></param>'
+
+
+def _rw(p, new=None):
+    if new is None:
+        with open(p, encoding='utf-8', newline='') as f:
+            return f.read()
+    with open(p, 'w', encoding='utf-8', newline='') as f:
+        f.write(new)
+
+
+def includes_fix(xml):
+    """-> files changed (0 = already there, not this skin, or the files changed shape)"""
+    n = 0
+    p = os.path.join(xml, 'Includes.xml')
+    if os.path.exists(p):
+        t = _rw(p)
+        if t.count(_INC_DEAD) == 1:
+            defined = False
+            for fn in os.listdir(xml):
+                if fn.endswith('.xml') and 'name="__backgroundconfiganim__"' in _rw(os.path.join(xml, fn)):
+                    defined = True
+                    break
+            if not defined:
+                new, k = re.subn(r'[ \t]*' + re.escape(_INC_DEAD) + r'[ \t]*\r?\n', '', t)
+                if k == 1:
+                    _rw(p, new)
+                    n += 1
+    p = os.path.join(xml, 'Includes_Obj.xml')
+    if not os.path.exists(p):
+        return n
+    t = _rw(p)
+    if INC_MARK not in t:
+        m = re.search(r'<includes>[ \t]*\r?\n', t)
+        if m and t.count(_INC_PARAM) == 1 and t.count('<include name="IconSizedBackGround">') == 1 \
+                and 'name="BNNoInclude"' not in t:
+            nl = '\r\n' if '\r\n' in t else '\n'
+            t = t.replace(_INC_PARAM, '<param name="SizedBgAnim" default="BNNoInclude"/>' + nl
+                          + '<param name="animation" default="BNNoInclude"/>', 1)
+            t = t[:m.end()] + INC_MARK + nl + INC_STUB + nl + t[m.end():]
+            _rw(p, t)
+            n += 1
+    if INC_MARK in t:                  # callers that hand over an empty name (it replaces the default)
+        p = os.path.join(xml, 'View_630_Advanced_List.xml')
+        if os.path.exists(p):
+            v = _rw(p)
+            if v.count(_INC_EMPTY) == 3:
+                _rw(p, v.replace(_INC_EMPTY, '<param name="animation">BNNoInclude</param>'))
+                n += 1
+    return n
+
+
+# ------------------------------------------------------------------ 6.5.1: no "sort by" line on plain TeleNova menus
+# The top bar wrote "Sort by: date - 15 / 15" under the title of every TeleNova menu (the main menu, settings, backup),
+# where sorting means nothing. On lists of the two TeleNova add-ons that have no content type the line is empty (the
+# bar then centres the title by itself); lists of films / series / episodes keep it. The menu's own name comes from
+# the add-on (setPluginCategory), which the bar already shows.
+TOPSUB_VAR = 'BNTopSub'
+_TOPSUB_RX = re.compile(r'(<include name="TopBar">\s*<param name="sublabel">)(\$INFO\[Container\.SortMethod[^<]*)(</param>)')
+_TOPSUB_COND = ('[String.IsEqual(Container.PluginName,plugin.video.nova) | '
+                'String.IsEqual(Container.PluginName,plugin.video.telescope)] + String.IsEmpty(Container.Content)')
+
+
+def top_sub_text(inc, var):
+    """(Includes.xml, Variables.xml) -> the two patched texts; both unchanged when an anchor is missing"""
+    ms = list(_TOPSUB_RX.finditer(inc))
+    have = 'name="%s"' % TOPSUB_VAR in var
+    if len(ms) != 1:
+        return inc, var
+    m = ms[0]
+    if not have:
+        k = var.rfind('</includes>')
+        if k < 0:
+            return inc, var
+        nl = '\r\n' if '\r\n' in var else '\n'
+        var = (var[:k] + '\t<variable name="%s">%s\t\t<value condition="%s"></value>%s\t\t<value>%s</value>%s\t</variable>%s'
+               % (TOPSUB_VAR, nl, _TOPSUB_COND, nl, m.group(2), nl, nl) + var[k:])
+    inc = inc[:m.start(2)] + '$VAR[%s]' % TOPSUB_VAR + inc[m.end(2):]
+    return inc, var
+
+
+def top_sub(xml):
+    """-> files changed (0 = already there, not this skin, or the files changed shape)"""
+    pi, pv = os.path.join(xml, 'Includes.xml'), os.path.join(xml, 'Variables.xml')
+    if not (os.path.exists(pi) and os.path.exists(pv)):
+        return 0
+    inc, var = _rw(pi), _rw(pv)
+    inc2, var2 = top_sub_text(inc, var)
+    n = 0
+    if var2 != var:                    # the variable first: the bar never points at a name that is not there
+        _rw(pv, var2)
+        n += 1
+    if inc2 != inc:
+        _rw(pi, inc2)
+        n += 1
     return n
 
 

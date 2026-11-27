@@ -118,7 +118,7 @@
     for (const k of Object.keys(CATS)) {
       const a = el('a', 'tile');
       a.href = '#/srcedit/' + k;
-      a.innerHTML = `<b>${esc(t('se_' + k))}</b><small>${esc(t('se_' + k + '_t'))}</small>`;
+      a.innerHTML = `<span class="ic">${TN.icon(CATS[k].icon)}</span><b>${esc(t('se_' + k))}</b><small>${esc(t('se_' + k + '_t'))}</small>`;
       g.append(a);
     }
     view.append(g);
@@ -192,10 +192,11 @@
   TN.registerPage('info', () => {
     TN.page('info', t('info_title'));
     const g = el('div', 'menu');
+    const INFO_ICON = {help: 'help', status: 'status', about: 'info', bn: 'device'};
     for (const [k, title, sub] of [['help', 'm_help', 'ms_help'], ['status', 'm_status', 'ms_status'], ['about', 'm_about', 'ms_about'], ['bn', 'm_bn', 'ms_bn']]) {
       const a = el('a', 'tile');
       a.href = '#/' + k;
-      a.innerHTML = `<b>${esc(TN.N ? TN.N(title) : t(title))}</b><small>${esc(TN.N ? TN.N(sub) : t(sub))}</small>`;
+      a.innerHTML = `<span class="ic">${TN.icon(INFO_ICON[k])}</span><b>${esc(TN.N ? TN.N(title) : t(title))}</b><small>${esc(TN.N ? TN.N(sub) : t(sub))}</small>`;
       g.append(a);
     }
     TN.view().append(g);

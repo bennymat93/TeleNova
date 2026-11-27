@@ -20,15 +20,16 @@ NEWS = ['https://www.ynet.co.il/Integration/StoryRss1854.xml',       # ynet flas
 MAX_NEWS = 12
 SEP = '   •   '
 
-# WMO weather codes -> (he, en)
-WMO = {0: ('בהיר', 'clear'), 1: ('בהיר ברובו', 'mainly clear'), 2: ('מעונן חלקית', 'partly cloudy'),
-       3: ('מעונן', 'overcast'), 45: ('ערפל', 'fog'), 48: ('ערפל', 'fog'), 51: ('טפטוף', 'drizzle'),
-       53: ('טפטוף', 'drizzle'), 55: ('טפטוף', 'drizzle'), 61: ('גשם קל', 'light rain'), 63: ('גשם', 'rain'),
-       65: ('גשם חזק', 'heavy rain'), 71: ('שלג', 'snow'), 80: ('ממטרים', 'showers'), 81: ('ממטרים', 'showers'),
-       82: ('ממטרים חזקים', 'heavy showers'), 95: ('סופת רעמים', 'thunderstorm'), 96: ('סופת רעמים', 'thunderstorm'),
-       99: ('סופת רעמים', 'thunderstorm')}
+# WMO weather codes -> (he, en, ru)
+WMO = {0: ('בהיר', 'clear', 'ясно'), 1: ('בהיר ברובו', 'mainly clear', 'преимущественно ясно'), 2: ('מעונן חלקית', 'partly cloudy', 'переменная облачность'),
+       3: ('מעונן', 'overcast', 'пасмурно'), 45: ('ערפל', 'fog', 'туман'), 48: ('ערפל', 'fog', 'туман'), 51: ('טפטוף', 'drizzle', 'морось'),
+       53: ('טפטוף', 'drizzle', 'морось'), 55: ('טפטוף', 'drizzle', 'морось'), 61: ('גשם קל', 'light rain', 'небольшой дождь'), 63: ('גשם', 'rain', 'дождь'),
+       65: ('גשם חזק', 'heavy rain', 'сильный дождь'), 71: ('שלג', 'snow', 'снег'), 80: ('ממטרים', 'showers', 'ливни'), 81: ('ממטרים', 'showers', 'ливни'),
+       82: ('ממטרים חזקים', 'heavy showers', 'сильные ливни'), 95: ('סופת רעמים', 'thunderstorm', 'гроза'), 96: ('סופת רעמים', 'thunderstorm', 'гроза'),
+       99: ('סופת רעמים', 'thunderstorm', 'гроза')}
 DAYS = {'he': ('שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון'),
-        'en': ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')}
+        'en': ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'),
+        'ru': ('Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс')}
 
 
 # ------------------------------------------------------------ pure
@@ -47,14 +48,14 @@ def items(xml_text, limit=MAX_NEWS):
 def weather_line(data, city, lang='he'):
     """Open-Meteo forecast JSON -> 'באר שבע 25° מעונן חלקית · חמישי 31°/19° · ...'"""
     import datetime
-    k = 0 if lang == 'he' else 1
+    k = {'he': 0, 'en': 1, 'ru': 2}.get(lang, 1)
     cur = data['current']
-    parts = ['%s %d° %s' % (city, round(cur['temperature_2m']), WMO.get(cur['weather_code'], ('', ''))[k])]
+    parts = ['%s %d° %s' % (city, round(cur['temperature_2m']), WMO.get(cur['weather_code'], ('', '', ''))[k])]
     d = data['daily']
     for i, day in enumerate(d['time'][1:4], 1):
-        wd = DAYS['he' if lang == 'he' else 'en'][datetime.date.fromisoformat(day).weekday()]
+        wd = DAYS.get(lang, DAYS['en'])[datetime.date.fromisoformat(day).weekday()]
         parts.append('%s %d°/%d° %s' % (wd, round(d['temperature_2m_max'][i]), round(d['temperature_2m_min'][i]),
-                                        WMO.get(d['weather_code'][i], ('', ''))[k]))
+                                        WMO.get(d['weather_code'][i], ('', '', ''))[k]))
     return ' · '.join(p.strip() for p in parts)
 
 

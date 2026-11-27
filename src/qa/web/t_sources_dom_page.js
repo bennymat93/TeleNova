@@ -176,7 +176,7 @@
     await SRC.pick(req, {noAuto: true});
     const cached = rowOf(/BluRay\.x264/), tor = rowOf(/720p\.WEB/);
     ok(cached && tor && /Ready/.test(cached.querySelector('.src_st').textContent) && /Checked at RD/.test(tor.querySelector('.src_st').textContent), 'C: Torrentio rows: ready (cached) and "RD is asked when chosen"');
-    ok(Array.from(cached.querySelectorAll('.src_bd')).some((b) => b.textContent === '8.0 GB') && /👤 50/.test(cached.textContent) && /EN/.test(cached.textContent), 'C: size, seeds and language from the Torrentio text');
+    ok(Array.from(cached.querySelectorAll('.src_bd')).some((b) => b.textContent === '8.0 GB') && ((cached.querySelector('.src_seed') || {}).textContent || '').trim() === '50' && /EN/.test(cached.textContent), 'C: size, seeds and language from the Torrentio text');
     const tcall = calls.find((c) => /torrentio/.test(c.url));
     const tu = new URL(tcall.url);
     ok(tu.search === '' && tu.pathname.includes('/realdebrid=' + TOKEN + '/') && !tcall.headers.authorization, 'C: key mode: the token is in the address PATH of Torrentio only (its design), never in a query');

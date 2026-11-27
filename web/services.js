@@ -270,7 +270,7 @@
       'background:var(--panel);color:var(--text);border:1px solid var(--muted);border-radius:10px;padding:9px 14px;font:inherit}' +
       '.sv_row input:focus-visible{outline:3px solid var(--ring)}.sv_h2{margin:24px 0 0;font-size:18px}.sv_row .hint{margin:0}' +
       '.sv_sw{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}.sv_sw>span{flex:1 1 240px}.sv_sw small{display:block;color:var(--muted)}' +
-      '.sv_msg{min-height:1.2em}.dv_opts{display:grid;gap:10px;max-width:520px;margin-top:16px}.dv_opts .btn.on{box-shadow:0 0 0 2px var(--ring)}';
+      '.sv_msg{min-height:1.2em}.dv_opts{display:grid;gap:10px;max-width:520px;margin-top:16px}.dv_opts .btn.on{box-shadow:0 0 0 2px var(--ring)}.dv_opts+.hint{margin-top:var(--sp-4,16px)}';
     document.head.append(s);
   }
   // one row: name, state tag, hint; .acts (buttons), .say(text), .setState('on' | 'off' | 'fix', text)

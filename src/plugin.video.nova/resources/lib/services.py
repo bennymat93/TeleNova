@@ -307,8 +307,10 @@ def screen(handle, url):
     finally:
         busy.close()
 
+    from .common import gold_item, mark_plain
+
     def row(text, do, plot='', icon='DefaultAddonService.png'):
-        li = xbmcgui.ListItem(text)
+        li = mark_plain(xbmcgui.ListItem(text), text)
         li.getVideoInfoTag().setPlot(plot)
         li.setArt({'icon': icon})
         xbmcplugin.addDirectoryItem(handle, url(a='svc', do=do), li, False)
@@ -334,7 +336,7 @@ def screen(handle, url):
         st, detail = states[key]
         row('    ' + label(name, st, detail), key, '%s\n\n%s' % (about(key), detail or ''))
     for do, key in (('preset_unlock', 'unlock'), ('preset_create', 'create')):
-        li = xbmcgui.ListItem('[COLOR gold]%s[/COLOR]' % preset.s(key))
+        li = gold_item(preset.s(key))
         li.setArt({'icon': 'DefaultUser.png'})
         xbmcplugin.addDirectoryItem(handle, url(a='acc', do=do), li, False)
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
@@ -386,7 +388,13 @@ def action(key):
     if key == 'refresh':
         return xbmc.executebuiltin('Container.Refresh')
     if key == 'backup':
-        cloudsync.menu()
+        from . import autosync as _as
+        if _as.status()[0] == 'locked':     # 6.5.1: "enter it on the sync screen" opens that screen
+            from . import sync_ui
+            if sync_ui.screen():
+                return
+        else:
+            cloudsync.menu()
         return xbmc.executebuiltin('Container.Refresh')
     if key == 'sync_now':               # no questions: for a remote button / QA
         from . import autosync

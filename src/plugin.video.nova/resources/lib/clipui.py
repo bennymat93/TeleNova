@@ -18,24 +18,24 @@ from .common import PROFILE, log, ui_lang
 
 HOME = 10000
 STR = {
-    'paste': (u'הדבק', 'Paste'),
-    'hist': (u'היסטוריית העתקות', 'Clipboard history'),
-    'empty': (u'לא הועתק טקסט', 'Nothing was copied'),
-    'failed': (u'ההדבקה לא הצליחה - הטקסט בשדה לא השתנה', 'Paste failed - the field was left unchanged'),
-    'no_hist': (u'אין עדיין העתקות בהיסטוריה', 'The clipboard history is empty'),
-    'act_paste': (u'הדבק', 'Paste'),
-    'act_pin': (u'הצמד (נשאר תמיד למעלה)', 'Pin (always on top)'),
-    'act_unpin': (u'בטל הצמדה', 'Unpin'),
-    'act_del': (u'מחק מההיסטוריה', 'Delete from history'),
-    'act_clear': (u'נקה היסטוריה (ההצמדות נשארות)', 'Clear history (pinned stay)'),
-    'pinned': (u'מוצמד', 'pinned'),
-    'copied': (u'הועתק', 'Copied'),
-    'unreadable': (u'במכשיר הזה אין גישה ללוח ההעתקה של המערכת - השתמש בהיסטוריה', 'This device clipboard cannot be read - use the history'),
+    'paste': (u'הדבק', 'Paste', 'Вставить'),
+    'hist': (u'היסטוריית העתקות', 'Clipboard history', 'История копирования'),
+    'empty': (u'לא הועתק טקסט', 'Nothing was copied', 'Текст не скопирован'),
+    'failed': (u'ההדבקה לא הצליחה - הטקסט בשדה לא השתנה', 'Paste failed - the field was left unchanged', 'Вставить не удалось - текст в поле не изменён'),
+    'no_hist': (u'אין עדיין העתקות בהיסטוריה', 'The clipboard history is empty', 'История копирования пуста'),
+    'act_paste': (u'הדבק', 'Paste', 'Вставить'),
+    'act_pin': (u'הצמד (נשאר תמיד למעלה)', 'Pin (always on top)', 'Закрепить (всегда сверху)'),
+    'act_unpin': (u'בטל הצמדה', 'Unpin', 'Открепить'),
+    'act_del': (u'מחק מההיסטוריה', 'Delete from history', 'Удалить из истории'),
+    'act_clear': (u'נקה היסטוריה (ההצמדות נשארות)', 'Clear history (pinned stay)', 'Очистить историю (закреплённые остаются)'),
+    'pinned': (u'מוצמד', 'pinned', 'закреплено'),
+    'copied': (u'הועתק', 'Copied', 'Скопировано'),
+    'unreadable': (u'במכשיר הזה אין גישה ללוח ההעתקה של המערכת - השתמש בהיסטוריה', 'This device clipboard cannot be read - use the history', 'На этом устройстве нет доступа к системному буферу обмена - используйте историю'),
 }
 
 
 def _s(k):
-    return STR[k][0 if ui_lang() == 'he' else 1]
+    return STR[k][{'he': 0, 'en': 1, 'ru': 2}[ui_lang()]]
 
 
 _store = None

@@ -99,7 +99,9 @@
     const next = list.find((p) => p.start >= (now ? now.stop : at)) || null;
     return now || next ? {key: k, now, next} : null;
   }
-  const hm = (ms) => new Date(ms).toLocaleTimeString(TN.lang() === 'he' ? 'he-IL' : TN.lang(), {hour: '2-digit', minute: '2-digit'});
+  // 6.5.1: times and dates in the app's language (TN.fmtTime / fmtDate), not the browser's
+  const hm = (ms) => (TN.fmtTime ? TN.fmtTime(ms, {hour: '2-digit', minute: '2-digit'}) : new Date(ms).toLocaleTimeString(TN.lang() === 'he' ? 'he-IL' : TN.lang(), {hour: '2-digit', minute: '2-digit'}));
+  const when = (ms) => (TN.fmtDate ? TN.fmtDate(ms) : new Date(ms).toLocaleString());
 
   // the now / next line under a channel (a card or the player sheet)
   function bar(c) {
@@ -119,7 +121,7 @@
       `<div><div dir="auto">${TN.esc(p.title)}</div>${p.desc ? `<small dir="auto">${TN.esc(p.desc)}</small>` : ''}</div></div>`).join('');
     const old = data && Date.now() - data.generated * 1000 > 18 * 3600 * 1000;
     TN.modal(`<div class="detail" style="grid-template-columns:1fr"><div><h3 dir="auto">${TN.esc(title || (c && c.name) || '')} · ${TN.esc(TN.t('epg_guide'))}</h3>
-      ${old ? `<p class="msg">${TN.esc(TN.t('epg_old', new Date(data.generated * 1000).toLocaleString()))}</p>` : ''}
+      ${old ? `<p class="msg">${TN.esc(TN.t('epg_old', when(data.generated * 1000)))}</p>` : ''}
       <div class="hlist">${rows || `<p class="hint">${TN.esc(TN.t('epg_none'))}</p>`}</div>
       <p class="hint">${TN.esc(TN.t('epg_src'))}</p></div></div>`);
   }
@@ -183,7 +185,7 @@
                  TN.button('btn ghost', TN.t('epg_later'), () => { from += 2 * HOUR; draw(); }));
     box.append(tools, wrap);
     if (data && Date.now() - data.generated * 1000 > 18 * HOUR) {
-      box.insertAdjacentHTML('beforeend', `<p class="msg">${TN.esc(TN.t('epg_old', new Date(data.generated * 1000).toLocaleString()))}</p>`);
+      box.insertAdjacentHTML('beforeend', `<p class="msg">${TN.esc(TN.t('epg_old', when(data.generated * 1000)))}</p>`);
     }
     box.insertAdjacentHTML('beforeend', `<p class="hint">${TN.esc(TN.t('epg_src'))}</p>`);
     draw();

@@ -27,6 +27,9 @@ WAIT_SENDER = 600          # the new device waits ten minutes for a sender
 CONFIRM_WAIT = 300         # the other side may take five minutes to press OK
 LOGIN_WAIT = 150
 TOKEN_TRIES = 3
+# 6.5.1: answers that say "the engine is busy" (it restarts during pairing) - the login waits, it does not fail
+TRANSIENT = ('service_down', 'service_starting', 'timeout', 'TimeoutError', 'network')
+RETRY_PAUSE = 2
 PROGRESS_EVERY = 3          # seconds between progress reports while the setup is applied
 ACK_WAIT = 120
 PASSWORD_TRIES = 3
@@ -175,9 +178,21 @@ def _receiver_login(ch, ui, eng):
             return 'ok'
         if state == 'password':
             return _receiver_password(ch, eng)
+        if transient(state):
+            # 6.5.1: the engine restarts while the setup is applied, and one call that fell into the restart
+            # ("service_down: ReadTimeout") ended a login whose token had already been approved
+            pause = time.time() + RETRY_PAUSE
+            while time.time() < pause and not ui.cancelled():
+                time.sleep(min(0.25, RETRY_PAUSE))
+            continue
         if state != 'wait':
             return 'failed: %s' % state
     return 'failed: timeout'
+
+
+def transient(state):
+    """the engine could not be asked right now - not an answer of Telegram about the login"""
+    return str(state).startswith(TRANSIENT)
 
 
 def _receiver_password(ch, eng):

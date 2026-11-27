@@ -145,6 +145,8 @@ for (const file of ['player.js', 'sources.js', 'subs.js', 'rd.js', 'tgplay.js'])
   // every text the file asks for by a literal key exists in its own table (or is another module's: checked below)
   const src = fs.readFileSync(path.join(WEB, file), 'utf8');
   const own = new Set([].concat(...L.tables.map((tb) => Object.keys(tb.en))));
+  // 6.5.1: the stream's "last part" clock starts at the open (a 0 made a cold slow first part rebuild the connection)
+  if (file === 'tgplay.js') ok(!/let gotAt = 0\b/.test(src) && /let gotAt = Date\.now\(\)/.test(src), 'tgplay: gotAt starts when the stream opens');
   const prefix = {'player.js': 'pl_', 'sources.js': 'src_', 'subs.js': 'subs_', 'rd.js': 'rd_', 'tgplay.js': 'tgplay_'}[file];
   for (const m of src.matchAll(/[^\w.]t\('([a-z0-9_]+)'/g)) if (m[1].startsWith(prefix)) assert.ok(own.has(m[1]), `${file} asks for the text ${m[1]}, which does not exist`);
   for (const m of src.matchAll(/TN\.t\('([a-z0-9_]+)'/g)) if (m[1].startsWith(prefix)) assert.ok(own.has(m[1]), `${file} asks for the text ${m[1]}, which does not exist`);
@@ -206,12 +208,17 @@ for (const p of ['wizdom', 'opensubs', 'yify', 'ktuvit', 'subsrv', 'subs_ai']) o
   eq([info.known, info.ok, info.size, info.mime], [true, true, SIZE, 'video/webm'], 'Matroska is answered as video/webm for Chromium');
   eq((await ask({tgplay: 'info', key: 'nope'})).known, false);
   const got = await ask({tgplay: 'read', key: h.key, start: PART - 10, end: PART + 9});
+  eq(reads.slice().sort(), [0, 1], '6.5.1: cold start: only the needed parts, no read-ahead before the first part arrives');
+  ok(events.filter((e) => e.type === 'read').every((e) => e.need === true), '6.5.1: parts a request waited for are flagged need');
   const bytes = new Uint8Array(got.bytes);
   eq(bytes.length, 20);
   eq(Array.from(bytes), Array.from({length: 20}, (x, k) => byteAt(PART - 10 + k)), 'a range across two parts is exact');
   const tail = new Uint8Array((await ask({tgplay: 'read', key: h.key, start: SIZE - 5, end: SIZE + 100})).bytes);
   eq(Array.from(tail), Array.from({length: 5}, (x, k) => byteAt(SIZE - 5 + k)), 'the end of the file is clamped');
+  await ask({tgplay: 'read', key: h.key, start: PART - 10, end: PART + 9});   // warm now: the read-ahead is queued
   await new Promise((r) => setTimeout(r, 20));
+  ok(reads.includes(2), '6.5.1: after the first part the next request queues the read-ahead as before');
+  ok(events.some((e) => e.type === 'read' && e.need === false), '6.5.1: read-ahead parts are flagged need:false (not watchdog progress)');
   const before = reads.length;
   await ask({tgplay: 'read', key: h.key, start: 0, end: 99});
   eq(reads.length, before, 'a part that was read is served from the cache');
@@ -222,7 +229,13 @@ for (const p of ['wizdom', 'opensubs', 'yify', 'ktuvit', 'subsrv', 'subs_ai']) o
   // the link test
   const pr = await tp.probe({key: h.key});
   eq([pr.head.length, pr.size, pr.mime, pr.name, pr.head[5]], [262144, SIZE, 'video/x-matroska', 'Film.2020.1080p.mkv', byteAt(5)]);
-  ok(pr.mbit > 0);
+  eq([reads.length, pr.mbit], [before, 0], '6.5.1: probe of an open stream reads part 0 through the cache (no second download)');
+  // 6.5.1: a file on Telegram's CDN: one call, no retries, TGPLAY_CDN with its own text
+  let cdnCalls = 0;
+  const cdn = await tp.openSource({size: PART, mime: 'video/mp4', readPart: async () => { cdnCalls++; throw new Error('CDN Not supported'); }}, {});
+  const cf = await ask({tgplay: 'read', key: cdn.key, start: 0, end: 10});
+  ok(cf.ok === false && tp.status(cdn.key).lastError === 'TGPLAY_CDN' && tp.errorText({code: 'TGPLAY_CDN'}) === 'tgplay_cdn', 'CDN redirect: TGPLAY_CDN and its text');
+  tp.close(cdn.key);
   // a failing source: the error reaches the service worker as "not ok" and the page as an event with a text
   const bad = await tp.openSource({size: PART, mime: 'video/mp4', readPart: async () => { const e = new Error('x'); e.errorMessage = 'CHANNEL_PRIVATE'; throw e; }}, {onEvent: (e) => events.push(e)});
   const fail = await ask({tgplay: 'read', key: bad.key, start: 0, end: 10});
@@ -259,6 +272,20 @@ for (const p of ['wizdom', 'opensubs', 'yify', 'ktuvit', 'subsrv', 'subs_ai']) o
   eq([tp.tgLink('@some_channel', 5), tp.tgLink('-1001234567', 9), tp.tgLink('x', 0)], ['https://t.me/some_channel/5', 'https://t.me/c/1234567/9', '']);
   tp.closeAll();
   eq(tp.stats().streams, 0);
+  // a bare reference (no open stream) still reads directly and measures the line
+  const rawReads = [];
+  const pr2 = await tp.probe({readPart: async (i, sz) => { rawReads.push(i); return new Uint8Array(sz); }, size: PART * 2, mime: 'video/mp4'});
+  ok(rawReads.length === 1 && pr2.mbit > 0, 'probe of a bare source reads part 0 directly');
+
+  // 6.6: the control styles live in web/player.css, linked once right after style.css and precached
+  const css = fs.readFileSync(path.join(WEB, 'player.css'), 'utf8'), idx = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const pjs = fs.readFileSync(path.join(WEB, 'player.js'), 'utf8'), swjs = fs.readFileSync(path.join(WEB, 'sw.js'), 'utf8');
+  ok(['.pl-root{', '.pl-zc', '.pl-lbl', 'safe-area-inset-bottom', 'html[data-shell=tv]', '.pl-root .pl-card{'].every((x) => css.includes(x)), 'player.css holds the player rules');
+  ok(/href="style\.css">\r?\n<link rel="stylesheet" href="player\.css">/.test(idx) && idx.split('player.css').length === 2, 'index.html links player.css once, right after style.css');
+  ok(!/\.pl-root\{position:fixed/.test(pjs) && /rel = 'stylesheet'/.test(pjs), 'player.js no longer carries the CSS text; it only adds the link when missing');
+  ok(/'player\.css'/.test(swjs) && /'progress\.js'/.test(swjs), 'sw.js precaches player.css and progress.js');
+  ok(/TN\.progress && TN\.progress\.open/.test(pjs) && /onProgress: pg\.on/.test(pjs), 'downloads report to the shared progress sheet when it exists');
+  ok(/ready,/.test(fs.readFileSync(path.join(WEB, 'compat.js'), 'utf8')), 'compat exports ready() for the preparation steps');
 
   console.log('t_player OK (' + n + ' checks, ' + texts + ' texts in he / en / ru)');
 })().catch((e) => { console.error('FAIL', e && e.stack || e); process.exit(1); });

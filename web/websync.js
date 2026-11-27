@@ -379,7 +379,9 @@
           for (const aid of Object.keys(opened)) if (isDict(opened[aid])) remote.settings[aid] = SD.merge_stamped(SD.get(remote.settings, aid), opened[aid]);
         } else out.locked = true;
       }
-      // from here to the upload nothing waits: what the viewer does meanwhile lands either in this merge or in the next round
+      // from here to the signature (sigNow, below) nothing waits. The seal after it may wait (a passphrase: PBKDF2 +
+      // HMAC), and so does the upload: what the viewer changes meanwhile is not in this merge, and - because the
+      // signature was taken before - the next round sees it as a change and sends it.
       const mine = localDoc(host);
       if (!meta.device_id) meta.device_id = rid();             // 6.3.0: this browser in the list of devices
       const want = {sv: SD.LEVEL, kind: 'web', name: String(host.deviceName ? host.deviceName() || '' : '').slice(0, 40)};
@@ -398,6 +400,9 @@
       for (const uid of Object.keys(merged.data)) if (host.putUserData(uid, merged.data[uid])) out.data.push(uid);
       if (port) { out.settings = applyFrom(port, meta, merged, forced); meta.ssig = ssig(port); }
       host.takeSettings(port ? syncedMap(merged.settings) : reads(merged.settings));
+      // 6.5.1: the local state as merged, BEFORE the seal waits (taken after it, a favourite added during the seal was
+      // recorded as already sent and stayed on this device until some later change)
+      const sigNow = sig(host);
       // 6.3.0 (P2): keys travel sealed when this browser has the passphrase (and every device understands it); next to an
       // envelope it cannot open, its own keys are never put in plain text
       // 6.5.0: an envelope this browser opened is always sealed again (same salt), even while an older device is around
@@ -405,7 +410,7 @@
         const secret = takeSecrets(merged.settings);
         if (!out.locked) merged.secrets = await seal(secret, pw, env ? unb64(env.salt) : null);
       }
-      meta.sig = sig(host);
+      meta.sig = sigNow;
       meta.cloud_mark = mark;
       meta.last = now;
       meta.dirty = !SD.same(merged, remoteAsIs);   // this browser has something the account does not

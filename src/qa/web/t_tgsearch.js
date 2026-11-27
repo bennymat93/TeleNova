@@ -211,7 +211,7 @@ vm.runInContext(fs.readFileSync(path.join(WEB, 'telegram.js'), 'utf8'), ctx);
   const rank = B.defaultRank('The Matrix 1999');
   ok(rank('The Matrix 1999 1080p') === 1 && rank('Shrek 2001') === 0 && Math.abs(rank('matrix reloaded') - 1 / 3) < 1e-9, 'default rank = share of the wanted words');
   // moviesbot: never opened -> /start, then the title; the fitting button is pressed, the file taken, the other film is not
-  const a1 = await B.raw('@moviesbot', 'The Matrix 1999', {speed: 60});
+  const a1 = await B.raw('@moviesbot', 'The Matrix 1999', {speed: 25});
   ok(a1.error === null && a1.answered && a1.files.length === 1 && a1.files[0].file === 'The.Matrix.1999.1080p.WEB.x264.mkv', 'bot: file after pressing the fitting button: ' + JSON.stringify([a1.error, a1.files.map((f) => f.file)]));
   ok(a1.clicked === 1, 'bot: exactly one button pressed (not "Shrek", not the page counter): ' + a1.clicked);
   ok(a1.files[0].via_bot === 'moviesbot' && a1.files[0].chat_kind === 'bot' && a1.files[0].chat_id === '900', 'bot file: marked as brought by the bot');
@@ -219,20 +219,20 @@ vm.runInContext(fs.readFileSync(path.join(WEB, 'telegram.js'), 'utf8'), ctx);
   ok(calls.includes('UpdateNotifySettings') && calls.includes('markAsRead'), 'quiet mode: the bot chat is muted and its answers marked as read');
   ok(!calls.includes('EditPeerFolders'), 'a bot chat is muted, not archived');
   // joinbot: "join our channel first" is reported, nothing is joined without permission
-  const a2 = await B.raw('joinbot', 'The Matrix 1999', {speed: 60});
+  const a2 = await B.raw('joinbot', 'The Matrix 1999', {speed: 25});
   ok(a2.files.length === 0 && JSON.stringify(a2.join) === '["https://t.me/needjoin"]' && !calls.includes('JoinChannel'), 'bot demands a channel: reported, not joined: ' + JSON.stringify(a2.join));
-  const a2b = await B.raw('joinbot', 'The Matrix 1999', {speed: 60, autojoin: true});
+  const a2b = await B.raw('joinbot', 'The Matrix 1999', {speed: 25, autojoin: true});
   ok(a2b.joined === 1 && calls.includes('JoinChannel') && calls.includes('EditPeerFolders'), 'with auto-join allowed: joined, muted and archived');
   // linkbot: a t.me/<bot>?start=<code> link is followed, the file store bot sends the file
-  const a3 = await B.raw('https://t.me/linkbot', 'The Matrix 1999', {speed: 60});
+  const a3 = await B.raw('https://t.me/linkbot', 'The Matrix 1999', {speed: 25});
   ok(a3.files.length === 1 && a3.files[0].file === 'The.Matrix.1999.2160p.UHD.mkv' && sent.some((x) => x[0] === 'storebot' && x[1] === '/start CODE1'), 'bot start link followed: ' + JSON.stringify(a3.files.map((f) => f.file)));
-  const a4 = await B.raw('deadbot', 'x y', {speed: 200});
+  const a4 = await B.raw('deadbot', 'x y', {speed: 60});
   ok(a4.error === 'no_answer' && !a4.answered, 'a bot that never answers: no_answer, got ' + a4.error);
-  ok((await B.raw('someone', 'x', {speed: 60})).error === 'not_a_bot', 'a person is never written to');
+  ok((await B.raw('someone', 'x', {speed: 25})).error === 'not_a_bot', 'a person is never written to');
   ok(!sent.some((x) => x[0] === 'someone'), 'nothing was sent to a person');
-  ok((await B.raw('nosuch', 'x', {speed: 60})).error === 'bot_not_found', 'unknown name: bot_not_found');
+  ok((await B.raw('nosuch', 'x', {speed: 25})).error === 'bot_not_found', 'unknown name: bot_not_found');
   // the viewer's request ("Ask a bot"): rows + statistics
-  const ask = await B.ask('moviesbot', 'The Matrix 1999', {speed: 60});
+  const ask = await B.ask('moviesbot', 'The Matrix 1999', {speed: 25});
   ok(ask.files.length === 1 && ask.files[0].quality === 1080 && !('parsed' in ask.files[0]) && ask.text === '', 'ask: slim rows with quality: ' + JSON.stringify(ask.files[0] && ask.files[0].quality));
   ok(store.tg_bots.stats.moviesbot.asked === 1 && store.tg_bots.stats.moviesbot.hits === 1, 'ask: the bot\'s statistics are kept');
   ok(B.errorText({error: 'no_answer'}) === 'tgs_bot_none' && B.errorText({error: 'flood_wait_30'}) === 'tgs_bot_flood:30' && B.errorText({}) === '', 'bot errors as texts');

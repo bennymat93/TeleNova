@@ -13,7 +13,41 @@
     const w = Number(width) || 0;
     return w < 600 ? 'phone' : w < 1024 ? 'tablet' : 'desktop';
   }
-  function posterSize(shell, dpr) { return shell === 'tv' || (dpr || 1) >= 2 ? (shell === 'phone' ? 'w342' : 'w500') : shell === 'phone' ? 'w185' : 'w342'; }
+  // 6.5.1: a TV card is about 250 CSS px wide (6 columns): w342 is enough until the set really draws more than 2000
+  // device pixels across (4K at dpr 1, 1920 at dpr 2) - half the download and half the decoded bitmap of w500
+  function posterSize(shell, dpr, width) {
+    if (shell === 'tv') return (Number(width) || 1920) * (dpr || 1) > 2000 ? 'w500' : 'w342';
+    return (dpr || 1) >= 2 ? (shell === 'phone' ? 'w342' : 'w500') : shell === 'phone' ? 'w185' : 'w342';
+  }
+  // 6.5.1: the interface language of a first visit: the first supported entry of the browser's list ('iw' is Hebrew's
+  // old code). A list with entries but none of ours gives English; no information at all (some TV browsers) keeps Hebrew.
+  function pickLang(list, supported) {
+    const sup = Array.isArray(supported) && supported.length ? supported : ['he', 'en', 'ru'];
+    const arr = Array.isArray(list) ? list : list == null ? [] : [list];
+    let any = false;
+    for (const x of arr) {
+      if (typeof x !== 'string' || !x.trim()) continue;
+      any = true;
+      let c = x.trim().toLowerCase().split(/[-_]/)[0];
+      if (c === 'iw') c = 'he';
+      if (sup.indexOf(c) >= 0) return c;
+    }
+    return any ? 'en' : 'he';
+  }
+  // 6.5.1: per-browser storage that never loses a write of this visit. A write the browser refuses (quota full, a
+  // private mode where only writes throw, blocked cookies) is kept in memory and READ BACK from there - before, a read
+  // still asked the storage and returned the old value. getLs is a function: touching localStorage itself can throw.
+  function makeSafeStore(getLs, onFallback) {
+    const mem = new Map();
+    return {
+      getItem(k) { if (mem.has(k)) return mem.get(k); try { return getLs().getItem(k); } catch (e) { return null; } },
+      setItem(k, v) {
+        try { getLs().setItem(k, v); mem.delete(k); }
+        catch (e) { mem.set(k, String(v)); if (onFallback) { try { onFallback(k); } catch (e2) { /* the notice is optional */ } } }
+      },
+      removeItem(k) { try { getLs().removeItem(k); } catch (e) { /* refused */ } mem.delete(k); },
+    };
+  }
   function backdropSize(shell) { return shell === 'phone' ? 'w780' : 'w1280'; }
   // 6.5: lite look (no shadows, blur, sheen) for weak devices. pref 'on' | 'off' | anything else = auto;
   // auto is on for the TV shell, a device that reports 2 GB of memory or less, or ?lite=1 in the address.
@@ -55,13 +89,17 @@
   }
   const backHash = (key, arg) => '#/' + parentOf(key, arg);
   // the bar item a page belongs to: itself when the bar has it, else its parent chain
+  // 6.5.1: a page whose chain only ends at Home (Movies on the phone bar, a title, an unknown page) lights nothing
+  // (null) - Home is lit on Home itself
   function navOwner(key, arg, items) {
     const has = (k) => items.some((it) => it && it[0] === k);
-    let k = String(key || ''), a = arg, n = 0;
+    const k0 = String(key || '');
+    let k = k0, a = arg, n = 0;
     // the phone bar has one "My things" item for Favourites and History (asked first: their parent chain ends at home,
     // which every bar has, so the test after the loop never reached this)
     if (!has(k) && has('mine') && (k === 'favs' || k === 'history')) return 'mine';
     while (!has(k) && n++ < 4) { k = parentOf(k, a); a = ''; }
+    if (has(k) && k === '' && k0 !== '') return null;
     return has(k) ? k : '';
   }
 
@@ -216,7 +254,7 @@
 
   const api = {isTvUA, pickShell, posterSize, backdropSize, MENU, GROUPS, RAIL, TABS, PARENT, parentOf, backHash, navOwner,
                PROVIDER_GROUP, providerOnIn, httpsOnly, picOf, histTarget, continueWatching, leftText, kodiPlay,
-               HOME_ROWS, homeRows, moveRow, gridStep, pickDir, pickOverlap, wantLite, verLabel};
+               HOME_ROWS, homeRows, moveRow, gridStep, pickDir, pickOverlap, wantLite, verLabel, pickLang, makeSafeStore};
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.ShellCore = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

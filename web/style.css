@@ -86,7 +86,7 @@ html[data-shell="tv"] .btn:focus,html[data-shell="tv"] .chip:focus,html[data-she
 main{display:block;width:100%;max-width:1760px;margin:0 auto;min-height:60vh;
   padding:var(--sp-2) var(--gutter) calc(var(--tabs-h) + var(--radio-h) + var(--safe-b) + 40px)}
 html[data-shell="tv"] main{max-width:none;padding:3.375rem var(--gutter) calc(3.375rem + var(--radio-h)) 2rem}
-html[data-shell="tv"] .top,html[data-shell="tv"] .backbtn,html[data-shell="tv"] .netbar{display:none}
+html[data-shell="tv"] .top,html[data-shell="tv"] .backbtn{display:none}
 html[data-shell="phone"] .rail{display:none}
 .tabs{display:none}
 
@@ -171,11 +171,11 @@ html[data-shell="phone"].hdr-hide:not(.searching) .top{transform:translateY(-110
 html.searching[data-shell="phone"] .search{display:flex;flex-wrap:wrap;align-content:flex-start;position:fixed;top:0;right:0;bottom:0;left:0;z-index:45;max-width:none;margin:0;
   background:var(--bg);padding:8px 12px}
 @supports (padding:env(safe-area-inset-top)){html.searching[data-shell="phone"] .search{padding-top:calc(8px + env(safe-area-inset-top))}}
-html.searching[data-shell="phone"] .search>.ico{top:8px;margin-top:20px}
+html.searching[data-shell="phone"] .search>.ico{top:8px;margin-top:10px}
 @supports (padding:env(safe-area-inset-top)){html.searching[data-shell="phone"] .search>.ico{top:calc(8px + env(safe-area-inset-top))}}
 html[dir="rtl"].searching[data-shell="phone"] .search>.ico{right:24px}html[dir="ltr"].searching[data-shell="phone"] .search>.ico{left:24px}
 html.searching[data-shell="phone"] .search input{flex:1;width:auto;min-width:0}
-html.searching[data-shell="phone"] .sclose{display:inline-flex;margin-inline-start:4px}
+html.searching[data-shell="phone"] .sclose{display:inline-flex;margin-inline-start:4px;width:44px;height:44px;margin-top:-2px;margin-bottom:-2px}
 html.searching[data-shell="phone"] .sug{position:static;flex:0 0 100%;max-height:none;height:calc(100% - 60px);border:0;box-shadow:none;background:none;padding:8px 0;margin:0}
 /* ---- suggestion list (combobox) */
 .sug{position:absolute;top:100%;left:0;right:0;z-index:40;margin-top:6px;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:6px;box-shadow:var(--e2);max-height:70vh;overflow:auto}
@@ -187,6 +187,10 @@ html.searching[data-shell="phone"] .sug{position:static;flex:0 0 100%;max-height
 .sugclear{width:100%;color:var(--text2);font-size:var(--fs-2);border-top:1px solid var(--line);border-radius:0 0 var(--r-s) var(--r-s);margin-top:4px}
 /* ---- offline banner */
 .netbar{position:sticky;top:var(--top-h);z-index:29;background:var(--s3);color:var(--text);text-align:center;font-size:var(--fs-2);padding:6px var(--gutter)}
+/* 6.5.1: the TV shell keeps a small "no connection" pill at the top (under sheets and the player; the toast announces it there) */
+html[data-shell="tv"] .netbar{position:fixed;top:.75rem;z-index:45;width:auto;padding:.375rem 1rem;border-radius:var(--r-s);box-shadow:var(--e2);pointer-events:none}
+html[dir="rtl"][data-shell="tv"] .netbar{left:6rem}html[dir="ltr"][data-shell="tv"] .netbar{right:6rem}
+.netbar .ico,html[data-shell="tv"] .netbar .ico{width:1.15em;height:1.15em;margin-inline-end:.5em}
 /* ---- page head */
 .pagehead{display:flex;align-items:center;flex-wrap:wrap;margin:var(--sp-4) 0 var(--sp-2)}
 .pagehead>*+*{margin-inline-start:var(--sp-4)}
@@ -211,6 +215,8 @@ html[data-shell="phone"] .pagehead.solo{display:none}
 .card .img{position:relative;display:block;width:100%;aspect-ratio:2/3;border-radius:var(--r);background:var(--s2) center/cover no-repeat;overflow:hidden;box-shadow:var(--e2);transition:transform var(--t) var(--ease),box-shadow var(--t) var(--ease)}
 .card.wide .img,.card.live .img,.card.tg .img{aspect-ratio:16/9;background-size:contain;background-origin:content-box;padding:6% 12%}
 .card.wide.cover .img,.card.land .img{aspect-ratio:16/9;background-size:cover;background-origin:padding-box;padding:0}
+/* 6.5.1: a channel logo sits on a mid-tone plate, so black logos (dark theme) and white ones (light theme) both read */
+.card.logo .img:not(.noimg){background-color:#7f8798}
 .card.square .img,.card.radio .img{aspect-ratio:1/1;background-size:contain;background-origin:content-box;padding:14%}
 .card.square.cover .img{background-size:cover;background-origin:padding-box;padding:0}
 .card.round .img{border-radius:50%}
@@ -334,9 +340,15 @@ html[data-shell="tv"] .tile{min-height:11rem}html[data-shell="tv"] .tile .ic{wid
 .menuh{margin:var(--sp-6) 0 0;font-size:var(--fs-2);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;display:block}
 /* ---- forms and settings */
 .input,.settings input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),.settings select,.settings textarea,select,.uform input,.hubform input,
-.tgpanel input[type="text"],.tgpanel input[type="password"],.tgpanel input[type="tel"],textarea.input{
+.tgpanel input[type="text"],.tgpanel input[type="password"],.tgpanel input[type="tel"],textarea.input,
+.tgm-form input,.radio-tools input,.links>input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.iptv-src input:not([type="file"]):not([type="checkbox"]):not([type="radio"]){
   min-height:var(--ctl);max-width:100%;background:var(--s2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-s);padding:0 12px;font:inherit}
 .input,.settings input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),.settings select,.settings textarea{width:100%}
+/* 6.5.1: the filter / search fields of Live TV, Radio and Telegram grow beside their buttons, with the themed look */
+.links>input[type="search"],.links>input[type="text"]{flex:1 1 200px;min-width:0;max-width:24rem}
+.radio-tools input{max-width:24rem}
+.links>input[type="search"],.radio-tools input,.tgm-form input[type="search"]{-webkit-appearance:none;appearance:none}
 textarea.input,.settings textarea{padding:10px 12px;min-height:96px}
 select{padding-inline-end:28px;cursor:pointer}
 input::placeholder,textarea::placeholder{color:var(--text3);opacity:1}
@@ -347,7 +359,7 @@ input[type="checkbox"].switch:checked,input[role="switch"]:checked{background:va
 input[type="checkbox"].switch:checked::before,input[role="switch"]:checked::before{transform:translateX(20px);background:var(--on-accent)}
 .settings{display:grid;grid-gap:var(--sp-4);gap:var(--sp-4);max-width:720px}
 .settings label{display:grid;grid-gap:6px;gap:6px;font-weight:600}
-.settings .row{display:grid;grid-gap:4px;gap:4px}.settings .row span{color:var(--text2)}
+.settings .kv{display:grid;grid-gap:4px;gap:4px}.settings .kv span{color:var(--text2)}
 .setgroup{max-width:760px}
 .setgroup>h2{margin-top:var(--sp-5)}
 .setlist{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
@@ -385,14 +397,25 @@ html[data-shell="tv"] .state>.ico{width:5rem;height:5rem}
 .state.k-error>.ico,.state.k-offline>.ico{color:var(--danger)}
 .state h3{margin-bottom:var(--sp-2)}.state p{color:var(--text2);margin:0}.state .btn{margin-top:var(--sp-4)}
 .skel{pointer-events:none}
-.skel .img,.skel .t,.skel .s,.skel.hrow .himg,.skel.hrow .htxt b,.skelbox{background:linear-gradient(90deg,var(--s2),var(--s3),var(--s2));background-size:200% 100%;animation:sk 1.2s linear infinite;border-radius:var(--r-s)}
+/* 6.5.1: flat pieces; the container pulses its opacity (a compositor animation: no repaint per frame, one layer per card) */
+.skel .img,.skel .t,.skel .s,.skel.hrow .himg,.skel.hrow .htxt b,.skelbox{background:var(--s2);border-radius:var(--r-s)}
+.skel,.skelbox{animation:sk 1.4s ease-in-out infinite}
 .skel .img{border-radius:var(--r)}
 .skel .t{height:1em;margin-top:10px;width:80%}.skel .s{height:.8em;margin-top:6px;width:50%}
 .skel.hrow .htxt b{display:block;height:1em;width:60%}
 .skelbox{height:240px;border-radius:var(--r);margin-top:var(--sp-4)}
-@keyframes sk{to{background-position:-200% 0}}
+/* 6.5.1: the hero placeholder has the hero box itself, so nothing below jumps when the title arrives */
+.skelbox.skelhero{height:56vw;max-height:56vh;min-height:220px;margin:0 calc(-1 * var(--gutter));border-radius:0}
+html[data-shell="desktop"] .skelbox.skelhero,html[data-shell="tablet"] .skelbox.skelhero{height:56vh;max-height:620px;min-height:340px;border-radius:0 0 var(--r) var(--r)}
+html[data-shell="tv"] .skelbox.skelhero{height:45vh;max-height:none;min-height:0;margin:-3.375rem calc(-1 * var(--gutter)) 0 -2rem}
+html[dir="rtl"][data-shell="tv"] .skelbox.skelhero{margin:-3.375rem -2rem 0 calc(-1 * var(--gutter))}
+html[data-shell="phone"] .skelbox.skelhero{min-height:200px;height:52vw}
+.skelbox.skelline{height:1em;margin-top:var(--sp-4);max-width:860px;border-radius:var(--r-s)}.skelbox.skelline+.skelline{margin-top:8px;width:60%}
+.skelgrid>.row{margin-top:var(--sp-6)}
+@keyframes sk{50%{opacity:.5}}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{display:inline-block;width:28px;height:28px;border-radius:50%;border:3px solid var(--s3);border-top-color:var(--accent);animation:spin .8s linear infinite}
+.spinner.sm{width:1em;height:1em;border-width:2px;vertical-align:-.15em;margin-inline-end:.4em}
 /* ---- hero */
 .hero{position:relative;display:flex;align-items:flex-end;min-height:220px;height:56vw;max-height:56vh;margin:0 calc(-1 * var(--gutter));padding:var(--sp-5) var(--gutter);overflow:hidden;background:var(--s1)}
 html[data-shell="desktop"] .hero,html[data-shell="tablet"] .hero{height:56vh;max-height:620px;min-height:340px;border-radius:0 0 var(--r) var(--r)}
@@ -453,6 +476,10 @@ html[data-shell="phone"] .sheet:not(.sz-player) .grab{display:block;flex:none;wi
 html[dir="rtl"] .sheet.sz-player .close{left:auto;right:12px}html[dir="ltr"] .sheet.sz-player .close{right:auto;left:12px}
 .sheet.sz-player .player{max-height:100vh}
 @supports (height:1dvh){.sheet.sz-player .player{max-height:100dvh}}
+/* 6.5.1: a live channel on a wide screen - the picture leaves room for the name, the guide line and the actions */
+html:not([data-shell="phone"]) .sheet.sz-player .iptv-player{max-height:calc(100vh - 15rem);min-height:40vh}
+@supports (height:1dvh){html:not([data-shell="phone"]) .sheet.sz-player .iptv-player{max-height:calc(100dvh - 15rem);min-height:40dvh}}
+html:not([data-shell="phone"]) .sheet.sz-player .iptv-player+.detail{padding:var(--sp-4) var(--sp-5)}
 .sheet.noclose .close{display:none}
 .player{position:relative;aspect-ratio:16/9;background:#000;width:100%;display:block}
 .player iframe,.player video{width:100%;height:100%;border:0;display:block;background:#000}
@@ -468,40 +495,40 @@ html[data-shell="phone"] .detail{grid-template-columns:1fr;padding:var(--sp-4)}h
 .pl-host{position:relative;width:100%;height:100vh;background:#000;color:#fff;overflow:hidden}
 @supports (height:1dvh){.pl-host{height:100dvh}}
 .pl-host video,.pl-host iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;background:#000;object-fit:contain}
-.pl-top,.pl-bottom{position:absolute;left:0;right:0;z-index:2;transition:opacity var(--t) var(--ease)}
-.pl-top{top:0;display:flex;align-items:center;padding:12px 16px 40px;background:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,0))}
-.pl-bottom{bottom:0;padding:56px 16px 12px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.88))}
+.pl-host .pl-top,.pl-host .pl-bottom{position:absolute;left:0;right:0;z-index:2;transition:opacity var(--t) var(--ease)}
+.pl-host .pl-top{top:0;display:flex;align-items:center;padding:12px 16px 40px;background:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,0))}
+.pl-host .pl-bottom{bottom:0;padding:56px 16px 12px;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.88))}
 @supports (padding:env(safe-area-inset-top)){
-  .pl-top{padding:calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 40px calc(16px + env(safe-area-inset-left))}
-  .pl-bottom{padding:56px calc(16px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}}
-html[data-shell="tv"] .pl-top{padding:3.375rem 6rem 3rem}html[data-shell="tv"] .pl-bottom{padding:4rem 6rem 3.375rem}
-.pl-top>*+*,.pl-row>*+*,.pl-controls>*+*{margin-inline-start:var(--sp-2)}
-.pl-center{position:absolute;top:50%;left:50%;z-index:2;transform:translate(-50%,-50%);display:flex;align-items:center;transition:opacity var(--t) var(--ease)}
-.pl-center>*+*{margin-inline-start:var(--sp-6)}
-.pl-idle{cursor:none}
-.pl-idle .pl-top,.pl-idle .pl-bottom,.pl-idle .pl-center{opacity:0;pointer-events:none}
+  .pl-host .pl-top{padding:calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 40px calc(16px + env(safe-area-inset-left))}
+  .pl-host .pl-bottom{padding:56px calc(16px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}
+html[data-shell="tv"] .pl-host .pl-top{padding:3.375rem 6rem 3rem}html[data-shell="tv"] .pl-host .pl-bottom{padding:4rem 6rem 3.375rem}
+.pl-host .pl-top>*+*,.pl-host .pl-row>*+*,.pl-host .pl-controls>*+*{margin-inline-start:var(--sp-2)}
+.pl-host .pl-center{position:absolute;top:50%;left:50%;z-index:2;transform:translate(-50%,-50%);display:flex;align-items:center;transition:opacity var(--t) var(--ease)}
+.pl-host .pl-center>*+*{margin-inline-start:var(--sp-6)}
+.pl-host.pl-idle{cursor:none}
+.pl-host.pl-idle .pl-top,.pl-host.pl-idle .pl-bottom,.pl-host.pl-idle .pl-center{opacity:0;pointer-events:none}
 .pl-host:focus-within .pl-top,.pl-host:focus-within .pl-bottom{opacity:1;pointer-events:auto}
-.pl-titles{flex:1;min-width:0;display:grid}
-.pl-title{font-size:var(--fs-4);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pl-sub{font-size:var(--fs-2);color:#cfd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pl-row,.pl-controls{display:flex;align-items:center;flex-wrap:wrap}
-.pl-spacer{flex:1}
-.pl-btn{display:inline-flex;align-items:center;justify-content:center;min-width:var(--ctl);height:var(--ctl);padding:0 10px;border-radius:calc(var(--ctl) / 2);border:0;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;font-weight:600}
-.pl-btn.big{width:72px;height:72px;border-radius:50%;background:rgba(0,0,0,.55)}.pl-btn.big .ico{width:36px;height:36px}
-.pl-btn[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
-.pl-seek{flex:1;min-width:0;height:var(--ctl);accent-color:var(--accent);cursor:pointer;margin:0}
-.pl-time{font-size:var(--fs-2);font-variant-numeric:tabular-nums;white-space:nowrap}
-.pl-live{background:var(--live);color:#fff;font-size:var(--fs-1);font-weight:700;padding:0 8px;border-radius:4px;line-height:1.7}
-.pl-spinner{width:56px;height:56px;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .8s linear infinite}
-.pl-panel{position:absolute;top:0;bottom:0;z-index:4;width:360px;max-width:100%;overflow:auto;padding:var(--sp-4);background:rgba(20,24,33,.97);color:#eef1f6}
-html[dir="rtl"] .pl-panel{left:0}html[dir="ltr"] .pl-panel{right:0}
-html[data-shell="phone"] .pl-panel{top:auto;left:0;right:0;width:auto;max-height:70%;border-radius:var(--r) var(--r) 0 0}
-html[data-shell="tv"] .pl-panel{width:30rem;padding:3.375rem 2rem}
-.pl-opt{display:flex;align-items:center;width:100%;min-height:var(--ctl);padding:0 12px;border:0;border-radius:var(--r-s);background:none;color:inherit;text-align:start;cursor:pointer}
-.pl-opt[aria-checked="true"],.pl-opt[aria-pressed="true"]{color:var(--accent);font-weight:600}
-.pl-card{position:absolute;bottom:22%;z-index:3;max-width:420px;padding:var(--sp-4);border-radius:var(--r);background:rgba(20,24,33,.96);color:#eef1f6;box-shadow:var(--e2)}
-html[dir="rtl"] .pl-card{left:5%}html[dir="ltr"] .pl-card{right:5%}
-.pl-msg{position:absolute;top:50%;left:50%;z-index:3;transform:translate(-50%,-50%);max-width:80%;text-align:center;padding:var(--sp-4);border-radius:var(--r);background:rgba(0,0,0,.75);color:#fff}
+.pl-host .pl-titles{flex:1;min-width:0;display:grid}
+.pl-host .pl-title{font-size:var(--fs-4);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-host .pl-sub{font-size:var(--fs-2);color:#cfd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-host .pl-row,.pl-host .pl-controls{display:flex;align-items:center;flex-wrap:wrap}
+.pl-host .pl-spacer{flex:1}
+.pl-host .pl-btn{display:inline-flex;align-items:center;justify-content:center;min-width:var(--ctl);height:var(--ctl);padding:0 10px;border-radius:calc(var(--ctl) / 2);border:0;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;font-weight:600}
+.pl-host .pl-btn.big{width:72px;height:72px;border-radius:50%;background:rgba(0,0,0,.55)}.pl-host .pl-btn.big .ico{width:36px;height:36px}
+.pl-host .pl-btn[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.pl-host .pl-seek{flex:1;min-width:0;height:var(--ctl);accent-color:var(--accent);cursor:pointer;margin:0}
+.pl-host .pl-time{font-size:var(--fs-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pl-host .pl-live{background:var(--live);color:#fff;font-size:var(--fs-1);font-weight:700;padding:0 8px;border-radius:4px;line-height:1.7}
+.pl-host .pl-spinner{width:56px;height:56px;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .8s linear infinite}
+.pl-host .pl-panel{position:absolute;top:0;bottom:0;z-index:4;width:360px;max-width:100%;overflow:auto;padding:var(--sp-4);background:rgba(20,24,33,.97);color:#eef1f6}
+html[dir="rtl"] .pl-host .pl-panel{left:0}html[dir="ltr"] .pl-host .pl-panel{right:0}
+html[data-shell="phone"] .pl-host .pl-panel{top:auto;left:0;right:0;width:auto;max-height:70%;border-radius:var(--r) var(--r) 0 0}
+html[data-shell="tv"] .pl-host .pl-panel{width:30rem;padding:3.375rem 2rem}
+.pl-host .pl-opt{display:flex;align-items:center;width:100%;min-height:var(--ctl);padding:0 12px;border:0;border-radius:var(--r-s);background:none;color:inherit;text-align:start;cursor:pointer}
+.pl-host .pl-opt[aria-checked="true"],.pl-host .pl-opt[aria-pressed="true"]{color:var(--accent);font-weight:600}
+.pl-host .pl-card{position:absolute;bottom:22%;z-index:3;max-width:420px;padding:var(--sp-4);border-radius:var(--r);background:rgba(20,24,33,.96);color:#eef1f6;box-shadow:var(--e2)}
+html[dir="rtl"] .pl-host .pl-card{left:5%}html[dir="ltr"] .pl-host .pl-card{right:5%}
+.pl-host .pl-msg{position:absolute;top:50%;left:50%;z-index:3;transform:translate(-50%,-50%);max-width:80%;text-align:center;padding:var(--sp-4);border-radius:var(--r);background:rgba(0,0,0,.75);color:#fff}
 /* ---- pop layer: context menu and confirmation */
 .pop{position:fixed;top:0;right:0;bottom:0;left:0;z-index:65;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.45)}
 .pop.at{display:block;background:transparent;padding:0}
@@ -521,11 +548,11 @@ html[data-shell="tv"] .dialog{max-width:40rem}
 .toasts{position:fixed;left:0;right:0;bottom:calc(var(--tabs-h) + var(--radio-h) + var(--safe-b) + 16px);z-index:70;display:flex;flex-direction:column;align-items:center;pointer-events:none;padding:0 16px}
 html[data-shell="desktop"] .toasts,html[data-shell="tablet"] .toasts{padding-inline-start:calc(var(--rail-w) + 16px)}
 html[data-shell="tv"] .toasts{top:3.375rem;bottom:auto;align-items:flex-end;padding:0 6rem}
-.toast{pointer-events:auto;display:flex;align-items:center;max-width:560px;margin-top:8px;padding:10px 14px;background:var(--s3);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-s);box-shadow:var(--e2);animation:toastin var(--t) var(--ease)}
+.toast{pointer-events:auto;display:flex;align-items:center;max-width:560px;max-width:min(560px,100%);margin-top:8px;padding:10px 14px;background:var(--s3);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-s);box-shadow:var(--e2);animation:toastin var(--t) var(--ease)}
 html[data-shell="tv"] .toast{max-width:44rem;padding:1rem 1.25rem}
 .toast>.ico{width:20px;height:20px;margin-inline-end:10px;flex:none}
 .toast.k-error>.ico{color:var(--danger)}.toast.k-ok>.ico{color:var(--ok)}
-.toast span{flex:1;min-width:0}
+.toast span{flex:1;min-width:0;overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
 .toast button{flex:none;margin-inline-start:14px;min-height:32px;padding:0 10px;border:0;border-radius:var(--r-s);background:none;color:var(--accent-text);font-weight:700;cursor:pointer}
 @keyframes toastin{from{opacity:0;transform:translateY(8px)}}
 /* ---- mini player (radio) */
@@ -586,7 +613,7 @@ html[data-shell="phone"] .radiobar .favlabel{display:none}
 .rail-me{display:none}
 html[data-shell="tv"] .rail-me{display:flex}
 .hero.plain,html[data-shell="desktop"] .hero.plain,html[data-shell="tablet"] .hero.plain,html[data-shell="tv"] .hero.plain{height:auto;min-height:0;max-height:none;padding-top:var(--sp-6);padding-bottom:var(--sp-5);background:none}
-.card .t,.card .s,.htxt b,.htxt span,.hero-t,.hero .plot,.btxt b,.btxt small,.setrow .lab small{text-align:-webkit-match-parent;text-align:match-parent}
+.card .t,.card .s,.htxt b,.htxt span,.hero-t,.hero .plot,.btxt b,.btxt small,.setrow .lab small,.ptitle{text-align:-webkit-match-parent;text-align:match-parent}
 html[data-shell="tablet"] .brand{display:none}
 .iconbtn[disabled]{opacity:.3;cursor:default}
 /* 5.1: display size control, and no automatic zoom while typing (iOS zooms into a field whose text is under 16px) */
@@ -634,9 +661,9 @@ html[data-shell="desktop"] .hero.plain,html[data-shell="tablet"] .hero.plain{hei
 html[data-shell="desktop"] .hero.plain .actions .btn,html[data-shell="tv"] .hero.plain .actions .btn{flex:0 1 auto}
 html[data-shell="phone"] .hero{min-height:200px;height:52vw}
 html[data-shell="phone"] .hero.plain{min-height:0;height:auto}
-/* All in one on a fresh device: framed, its text, the button in the middle */
-.aio-first{margin:var(--sp-3) 0 var(--sp-4);padding:12px 16px 14px;border:1.5px solid var(--accent);border-radius:var(--r);background:var(--s1);text-align:center}
-.aio-first .btn{min-width:160px}
+/* 6.5.1: the welcome card carries the "All in one" button itself (no separate framed box) */
+.hero .kicker:empty{display:none}
+html[data-shell="tv"] .hero.plain .hero-txt{max-width:60ch}
 /* menu tiles: compact everywhere but on the television */
 .menu{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:var(--sp-3)}
 .tile{min-height:96px;padding:12px;border-radius:var(--r);transition:border-color var(--t-fast,.15s),background var(--t-fast,.15s),transform var(--t-fast,.15s)}
@@ -666,7 +693,7 @@ html[data-shell="phone"] .panel{padding:12px 14px}
 /* inputs: one height with the buttons */
 .bk_in,.input,input[type="text"].bk_in,input[type="password"].bk_in{min-height:var(--ctl)}
 /* a softer, more even surface */
-.panel,.tile,.sv_quick,.aio-first,.src_row{box-shadow:var(--e1)}
+.panel,.tile,.sv_quick,.src_row{box-shadow:var(--e1)}
 
 /* 6.1: our keyboard (he / en / ru), paste, copy and clipboard history - osk.js */
 .osk{position:fixed;inset-inline:0;bottom:0;z-index:900;display:flex;flex-direction:column;gap:6px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));
@@ -682,7 +709,7 @@ html[data-shell="phone"] .panel{padding:12px 14px}
   color:inherit;font:inherit;font-size:17px;cursor:pointer;padding:0}
 .osk_k.osk_w{flex:1.4 1 0;max-width:96px;font-size:14px}
 .osk_k.osk_space{flex:4 1 0;max-width:none}
-.osk_k.osk_go,.osk_k.on{background:var(--accent);color:#111}
+.osk_k.osk_go,.osk_k.on{background:var(--accent);color:var(--on-accent)}
 .osk_hist{display:flex;flex-direction:column;gap:4px;max-height:40vh;overflow:auto;max-width:760px;width:100%;margin:0 auto}
 .osk_hist[hidden]{display:none}
 .osk_h{text-align:start;padding:8px 10px;border-radius:8px;border:1px solid var(--line,rgba(255,255,255,.12));background:transparent;color:inherit;font:inherit;cursor:pointer;
@@ -696,7 +723,9 @@ html[data-shell="tv"] .osk_k{min-height:56px;font-size:22px;max-width:80px}
 
 /* ===================== 6.5 design layer: one elevation scale, smaller tidy controls, quiet depth =====================
    Only transform / box-shadow / opacity animate (cheap to paint). html.lite (shell_core wantLite: TV, <=2 GB, ?lite=1,
-   Settings > General) drops shadows, blur and sheen; prefers-reduced-motion keeps the global "no transition" rule. */
+   Settings > General) drops shadows, blur and sheen, and (6.5.1) snaps the TV rail open without the width animation or the
+   dimmed page; prefers-reduced-motion keeps the global "no transition" rule; prefers-reduced-transparency gives the phone
+   tab bar a solid surface. */
 /* buttons: one height scale, one radius scale, three variants */
 .btn{border-radius:var(--r-s);font-weight:var(--fw-m);letter-spacing:.01em;
   background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,0) 60%) var(--accent);box-shadow:var(--e2);
@@ -716,19 +745,19 @@ html[data-shell="tv"] .osk_k{min-height:56px;font-size:22px;max-width:80px}
 /* chips: 32 px pills */
 .chip{min-height:var(--ctl-s);padding:0 12px;border-radius:var(--r-pill);border-color:var(--line);box-shadow:var(--e1);
   transition:background var(--t-fast),border-color var(--t-fast)}
-html[data-input="touch"] .chip,html[data-shell="phone"] .chip{min-height:36px}
+html[data-input="touch"] .chip,html[data-shell="phone"] .chip{min-height:40px}
 html[data-shell="tv"] .chip{min-height:var(--ctl-s)}
 /* the close button: 36 px to the eye, 44 px to the finger */
 .close{width:36px;height:36px;font-size:20px;background:rgba(0,0,0,.55);box-shadow:var(--e2)}
 .close::before{content:"";position:absolute;inset:-4px}
 html[data-shell="tv"] .close{width:3rem;height:3rem}
 /* surfaces */
-.panel,.tile,.sv_quick,.aio-first,.src_row{box-shadow:var(--e1)}
+.panel,.tile,.sv_quick,.src_row{box-shadow:var(--e1)}
 .sug,.popmenu{box-shadow:var(--e3);border-radius:var(--r)}
 .sheet,.dialog{box-shadow:var(--e4);border-radius:var(--r-l)}
 html[data-shell="phone"] .sheet:not(.sz-player){border-radius:var(--r-l) var(--r-l) 0 0}
 .sheet.sz-player{box-shadow:none;border-radius:0}
-.toast{border-radius:var(--r-pill);padding:8px 16px;box-shadow:var(--e2)}
+.toast{border-radius:20px;padding:8px 16px;box-shadow:var(--e2)}
 .toast button{border-radius:var(--r-pill)}
 .osk_k,.osk_h{border-radius:var(--r-s)}
 .osk{box-shadow:var(--e4)}
@@ -741,6 +770,7 @@ html[data-shell="tv"] .rail{box-shadow:var(--e4)}
   :root[data-theme="light"][data-shell="phone"]:not(.lite) .tabs{background:rgba(255,255,255,.8)}}
 @media (prefers-color-scheme:light){@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
   :root:not([data-theme="dark"])[data-shell="phone"]:not(.lite) .tabs{background:rgba(255,255,255,.8)}}}
+@media (prefers-reduced-transparency:reduce){html[data-shell="phone"] .tabs{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:var(--s1)!important}}
 .rowh .rownav button{box-shadow:var(--e1)}
 /* typography: smaller card titles; the global scale stays (TV readability) */
 .card .t{font-size:var(--fs-2);font-weight:var(--fw-m);line-height:var(--lh-t)}
@@ -757,8 +787,8 @@ html[data-shell="tv"] .card:focus .img,html[data-shell="tv"] .card:focus-visible
 .card.skel .img{box-shadow:none}
 .card.skel .img::after{display:none}
 /* player */
-.pl-btn.big{width:64px;height:64px;box-shadow:var(--e2)}.pl-btn.big .ico{width:32px;height:32px}
-html[data-shell="tv"] .pl-btn.big{width:5rem;height:5rem}
+.pl-host .pl-btn.big{width:64px;height:64px;box-shadow:var(--e2)}.pl-host .pl-btn.big .ico{width:32px;height:32px}
+html[data-shell="tv"] .pl-host .pl-btn.big{width:5rem;height:5rem}
 /* lite: flat and still (TV keeps only its focus scale) */
 html.lite{--e1:none;--e2:none;--e3:none;--e4:none}
 html.lite[data-shell="tv"] .card:focus .img{box-shadow:0 0 0 var(--focus-w) var(--focus)}
@@ -770,10 +800,12 @@ html.lite .btn.ghost.danger{background:var(--s2)}
 html.lite .card .img::after{display:none}
 html.lite .card .img{transition:transform var(--t-fast)}
 html.lite[data-input="pointer"] .card:hover .img{transform:none}
-html.lite .skel .img,html.lite .skel .t,html.lite .skel .s,html.lite .skelbox,html.lite .skel.hrow .himg,html.lite .skel.hrow .htxt b{animation:none;background:var(--s2)}
+html.lite .skel,html.lite .skelbox{animation:none}
 html.lite .sheet,html.lite .dialog,html.lite .popmenu,html.lite .sug{border:1px solid var(--line)}
-@media (prefers-reduced-motion:reduce){html[data-input="pointer"] .card:hover .img,.card:focus-visible .img{transform:none}
-  .skel .img,.skel .t,.skel .s,.skelbox{background:var(--s2)}}
+html.lite[data-shell="tv"] .rail{transition:none}
+html.lite[data-shell="tv"].rail-open main{opacity:1}
+html.lite[data-shell="tv"].rail-open .rail{border-inline-end:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){html[data-input="pointer"] .card:hover .img,.card:focus-visible .img{transform:none}}
 /* 6.5: tidy action rows - primary buttons, then one round "⋯" for the rest (same height as every .btn) */
 .actions .moreacts{flex:none!important;width:var(--ctl);min-width:var(--ctl);height:var(--ctl);min-height:var(--ctl);padding:0;border-radius:50%}
 .actions .moreacts .ico{width:22px;height:22px}
@@ -788,3 +820,47 @@ html[data-shell="tv"] .actions .btn .ico{width:1.75rem;height:1.75rem}
 .passrow .passlab{display:flex;flex-direction:column;gap:6px;font-weight:600;color:var(--text)}
 .passrow .input{max-width:24rem}
 .btnrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* ===================== 6.5.1 polish ===================== */
+/* the main menu on Home: tablet = the phone tile (icon over name, no subtitle); desktop and TV = 6 x 2, equal heights */
+html[data-shell="tablet"] .menu.mainmenu{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (min-width:700px){html[data-shell="tablet"] .menu.mainmenu{grid-template-columns:repeat(6,minmax(0,1fr))}}
+html[data-shell="tablet"] .menu.mainmenu>.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;grid-template-columns:none;min-height:84px;padding:10px 6px}
+html[data-shell="tablet"] .menu.mainmenu>.tile .ic{grid-row:auto;margin:0}
+html[data-shell="tablet"] .menu.mainmenu>.tile b{white-space:normal;overflow:visible;text-overflow:clip;font-size:13.5px;line-height:1.2;max-width:100%;align-self:auto;grid-row:auto}
+html[data-shell="tablet"] .menu.mainmenu small{display:none}
+html[data-shell="desktop"] .menu.mainmenu,html[data-shell="tv"] .menu.mainmenu{grid-template-columns:repeat(6,minmax(0,1fr))}
+html[data-shell="desktop"] .menu.mainmenu>.tile b,html[data-shell="tv"] .menu.mainmenu>.tile b{max-width:100%}
+html[data-shell="desktop"] .menu.mainmenu>.tile:not(.tile_upd) small,html[data-shell="tv"] .menu.mainmenu>.tile:not(.tile_upd) small{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html[data-shell="desktop"] .menu.mainmenu>.tile_upd small,html[data-shell="tv"] .menu.mainmenu>.tile_upd small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:100%}
+html[data-shell="tablet"] .rail-i span{white-space:normal;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+html[data-shell="tablet"] .rail-i{min-height:56px}
+/* touch sizes on a phone: the confirmation's two buttons share the row at 48 px; small links get a 44 px hit area */
+html[data-shell="phone"] .dialog .actions{justify-content:stretch}
+html[data-shell="phone"] .dialog .actions .btn{flex:1 1 auto;min-width:0;min-height:48px}
+html[data-input="touch"] .me::after,html[data-shell="phone"] .me::after{content:"";position:absolute;top:-4px;right:-4px;bottom:-4px;left:-4px;border-radius:50%}
+.rowh .more{position:relative}
+.rowh .more::after{content:"";position:absolute;top:-6px;right:-4px;bottom:-6px;left:-4px}
+.toast button{position:relative}
+.toast button::after{content:"";position:absolute;top:-6px;right:-4px;bottom:-6px;left:-4px}
+html[data-shell="tv"] .toast button::after,html[data-shell="tv"] .rowh .more::after{display:none}
+html[data-shell="phone"] .seg button,html[data-shell="tablet"] .seg button{min-height:40px}
+/* the welcome card on a phone: the main button on its own line when there are three */
+html[data-shell="phone"] .hero.plain .actions{flex-wrap:wrap}
+/* chip strips: room for the focus ring (TV: ring + scale); rows and strips fade out at the far edge (not in lite) */
+.chips{padding-top:8px;padding-bottom:8px;margin-top:calc(var(--sp-3) - 4px);margin-bottom:calc(var(--sp-3) - 4px);scroll-padding:0 var(--gutter)}
+html[data-shell="tv"] .chips{padding-top:.75rem;padding-bottom:.75rem}
+@supports ((mask-image:none) or (-webkit-mask-image:none)){
+  html:not(.lite) .row,html:not(.lite) .chips{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - var(--gutter)),transparent);mask-image:linear-gradient(to right,#000 calc(100% - var(--gutter)),transparent)}
+  html[dir="rtl"]:not(.lite) .row,html[dir="rtl"]:not(.lite) .chips{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - var(--gutter)),transparent);mask-image:linear-gradient(to left,#000 calc(100% - var(--gutter)),transparent)}
+  html:not(.lite) .sheet .chips,html:not(.lite) .panel .chips,html:not(.lite) .chips.wrap,html[dir="rtl"]:not(.lite) .sheet .chips,html[dir="rtl"]:not(.lite) .panel .chips,html[dir="rtl"]:not(.lite) .chips.wrap,
+  html:not(.lite) .settings .row,html[dir="rtl"]:not(.lite) .settings .row{-webkit-mask-image:none;mask-image:none}
+}
+/* a station (or any card asked with opts.mono) without a picture: its initials on a coloured plate, not the app icon again */
+.card .img.noimg[data-mono]{background-image:none;background-color:hsl(220,32%,26%);background-color:hsl(var(--mono-h,220),32%,26%)}
+.card .img.noimg[data-mono]::before{content:attr(data-mono);position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:var(--fs-5);letter-spacing:.02em}
+/* Settings > Accounts > Sync: "Sync now" while a round runs (stays focusable: a disabled button would drop the TV focus) */
+.syncpanel .btn.busy{opacity:.55;cursor:default}
+/* the keyboard bar: sprite icons beside the labels */
+.osk_b{display:inline-flex;align-items:center}
+.osk_b .ico{width:18px;height:18px;margin-inline-end:6px}
