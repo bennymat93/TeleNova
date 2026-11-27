@@ -437,13 +437,23 @@
     on(root, 'mousemove', poke); on(root, 'focusin', poke);
 
     // ---------- play / pause / seek / volume
-    function toggle() { if (s.failed) return; if (v.paused || v.ended) play(); else v.pause(); poke(); }
+    function toggle() { iosPlayback(); if (s.failed) return; if (v.paused || v.ended) play(); else v.pause(); poke(); }
     function play() {
       const p = v.play();
       if (p && p.catch) p.catch((e) => { if (alive() && e && e.name === 'NotAllowedError') { big.hidden = false; bigTxt.hidden = false; spin.hidden = true; big.focus({preventScroll: true}); } });
     }
     // 6.1.5: the built-in engine's sound on iOS starts only inside a tap
-    function compatSound() { const c = s.compat; if (c && typeof c.resumeAudio === 'function') { try { c.resumeAudio(); } catch (e) { /* no sound yet */ } } }
+    // 6.6.1: iPhone / iPad Safari: sound through the silent switch (no effect where navigator.audioSession is missing)
+    function iosPlayback() { try { const n = G.navigator; if (n && n.audioSession && n.audioSession.type !== 'playback') n.audioSession.type = 'playback'; } catch (e) { /* not allowed */ } }
+    function compatSound() { iosPlayback(); const c = s.compat; if (c && typeof c.resumeAudio === 'function') { try { c.resumeAudio(); } catch (e) { /* no sound yet */ } } }
+    // 6.6.1: the engine's sound is held (iOS wants a tap): say so, and any tap / key on the player resumes it
+    function tapSound() { if (!s.compat || v.paused) return; bigTxt.textContent = t('pl_tap_sound'); big.hidden = false; bigTxt.hidden = false; }
+    on(v, 'needgesture', () => { if (s.compat && typeof s.compat.suspended === 'function' && s.compat.suspended()) tapSound(); });
+    on(v, 'soundon', () => { if (bigTxt.textContent === t('pl_tap_sound')) { big.hidden = true; bigTxt.hidden = true; bigTxt.textContent = t('pl_tap'); } });
+    const anyGesture = () => { try { if (s.compat && typeof s.compat.suspended === 'function' && s.compat.suspended()) compatSound(); } catch (e) { /* gone */ } };
+    root.addEventListener('pointerdown', anyGesture, {capture: true, passive: true});
+    root.addEventListener('keydown', anyGesture, {capture: true, passive: true});
+    s.cleanup.push(() => { root.removeEventListener('pointerdown', anyGesture, {capture: true}); root.removeEventListener('keydown', anyGesture, {capture: true}); });
     big.addEventListener('click', (e) => { e.stopPropagation(); compatSound(); bigTxt.textContent = t('pl_tap'); big.hidden = true; bigTxt.hidden = true; play(); root.focus({preventScroll: true}); });
     const total = () => (isFinite(v.duration) && v.duration > 0 ? v.duration : 0);
     function seekTo(x, quiet) {
@@ -467,7 +477,8 @@
       poke();
     }
     const volSaved = TN.get('player_vol', null) || {};
-    try { v.volume = volSaved.v >= 0 && volSaved.v <= 1 ? volSaved.v : 1; v.muted = !!volSaved.m; } catch (e) { /* fixed volume (iOS) */ }
+    // 6.6.1: a film never starts muted (a saved mute made every later film silent); the level is kept
+    try { v.volume = volSaved.v >= 0 && volSaved.v <= 1 ? volSaved.v : 1; v.muted = false; if (v.volume === 0) v.volume = 1; } catch (e) { /* fixed volume (iOS) */ }
     function drawVol() {
       const m = v.muted || v.volume === 0;
       setIco(muteB, m ? 'mute' : 'vol');
@@ -835,6 +846,9 @@
       const audioOnly = /^audio\//.test(s.mime || '');
       let kind = '';
       if (!audioOnly && v.videoWidth === 0 && v.readyState >= 2) kind = 'nopicture';
+      // 6.6.1: WebKit has neither counter; a sound track the file has but WebKit lists none of is a weak sign
+      else if (!v.muted && v.volume > 0 && !s.hls && !s.compat && v.audioTracks && v.audioTracks.length === 0 && typeof v.webkitAudioDecodedByteCount !== 'number' && v.mozHasAudio === undefined &&
+               s.sniff && s.sniff.audio && s.sniff.audio.length) kind = 'nosound';
       else if (!v.muted && v.volume > 0 && ((typeof v.webkitAudioDecodedByteCount === 'number' && v.webkitAudioDecodedByteCount === 0 && v.webkitVideoDecodedByteCount > 0) || v.mozHasAudio === false) && !s.hls) kind = 'nosound';
       if (v.currentTime > 12) softDone = true;
       if (!kind) return;

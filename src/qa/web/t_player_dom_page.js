@@ -290,6 +290,22 @@
     ok(await until(() => attached.length === 2, 3000), 'F2: Retry after an engine failure tries the engine again (not only the native attempt)');
     P.close();
     await sleep(300);
+    // 6.6.1: the engine's sound held (iPhone): needgesture shows 'tap for sound', a tap anywhere on the player resumes it
+    let held = true, resumes = 0;
+    providers.compat.attach = async (vid) => { Object.defineProperty(vid, 'paused', {configurable: true, get: () => false});
+      return {detach() { delete vid.paused; }, suspended: () => held, resumeAudio() { resumes++; held = false; vid.dispatchEvent(new Event('soundon')); }}; };
+    store.player_vol = {v: 0.4, m: true};
+    const f10 = await P.open({tg: {chat_id: -1001, msg_id: 3}, title: 'MKV'});
+    const bigT = () => rootEl() && rootEl().querySelector('.pl-big');
+    ok(await until(() => bigT() && !bigT().hidden, 3000), 'F3: held engine sound shows the tap-for-sound button');
+    ok(f10.video.muted === false && Math.abs(f10.video.volume - 0.4) < 0.01, 'F3: a saved mute does not carry to a new film, the level does');
+    held = true; resumes = 0; f10.video.dispatchEvent(new Event('needgesture'));
+    rootEl().dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+    ok(resumes === 1 && await until(() => bigT().hidden, 1500), 'F3: any tap on the player resumes the sound and hides the button');
+    rootEl().dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+    ok(resumes === 1, 'F3: no resume once the sound plays');
+    P.close();
+    await sleep(300);
     delete providers.compat; delete providers.sources.sniff; delete providers.sources.verdict; delete providers.tgplay.probe;
     providers.tgplay.open = tgOpen; mode = 'ok';
 

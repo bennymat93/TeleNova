@@ -1,5 +1,6 @@
 # TeleNova - QA / upgrade programme: progress
 
+- 2026-11-27: TeleNova 6.6.1 released: Telegram sound fix on the web (built-in engine holds sound until a tap, "tap for sound" prompt; iOS audioSession playback so the silent switch does not mute; files go to the engine only when no audio track is playable - DTS/TrueHD/Opus/Vorbis on Safari; saved mute no longer carries over). Next (owner): check sound on iPhone in Safari and the app, incl. the silent switch.
 - 2026-11-27: TeleNova 6.6.0 (V6.6) released (was planned as 6.5.1): Telegram connection supervisor (web + Kodi), player start fixes and a new symmetric toolbar, compact link sheet, shared progress percent + time left (web/progress.js, Kodi tnprogress.py), 67 UX / performance fixes, V6.6 guide section. Next (owner, on a device): airplane mode during playback, long background, Wi-Fi to mobile switch, QR sign-in, the new toolbar look.
 - 2026-11-19: BN Stream for Mac 6.0.1 released (`mac/BN-Stream-macOS-6.0.1.zip`, release `mac-6.0.1`, page `mac/`): universal, macOS 12+, desktop layout, built-in helper, open/save panels, Google sign-in sheet; checked on the CI runner (service worker, helper, Real-Debrid code, HLS playback, download saved, no cut at 760x560 and 1600x1000). Not checked: the file-open panel (needs a real click) and real sign-ins.
 

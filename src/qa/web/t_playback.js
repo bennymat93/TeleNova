@@ -136,6 +136,19 @@ const cand = (label, lang, source, text, log) => ({label, lang, source, score: 0
   const mp4 = R.sniff(bytes('....avc1....mp4a', [0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70]));
   eq([mp4.container, mp4.video, mp4.audio, R.verdict(mp4, chrome)], ['mp4', 'h264', ['aac'], {play: 'yes', why: ''}]);
   eq(R.verdict(R.sniff(bytes('', [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x41, 0x56, 0x49, 0x20])), chrome), {play: 'no', why: 'container'}, 'AVI');
+  // 6.6.1: Safari / WebKit plays no DTS, TrueHD, and (older iOS) no Opus / Vorbis in MP4: such a file goes to the engine,
+  // one playable track keeps it native, Edge / Safari keep native AC3 / E-AC3
+  const safari = (m) => /avc1|mp4a|ac-3|ec-3/.test(m), oldIos = (m) => /avc1|mp4a/.test(m), edge = (m) => /avc1|mp4a|ac-3|ec-3|webm|opus/.test(m);
+  eq(R.verdict({container: 'mp4', video: 'h264', audio: ['dts'], subs: false, he: false}, safari), {play: 'no', why: 'audio'}, 'DTS in MP4 on Safari -> engine');
+  eq(R.verdict({container: 'mp4', video: 'h264', audio: ['truehd'], subs: false, he: false}, safari), {play: 'no', why: 'audio'}, 'TrueHD on Safari -> engine');
+  eq(R.verdict({container: 'mp4', video: 'h264', audio: ['opus'], subs: false, he: false}, oldIos), {play: 'no', why: 'audio'}, 'Opus in MP4 on older iOS -> engine');
+  eq(R.verdict({container: 'mp4', video: 'h264', audio: ['vorbis'], subs: false, he: false}, safari), {play: 'no', why: 'audio'}, 'Vorbis on Safari -> engine');
+  eq(R.verdict({container: 'mp4', video: 'h264', audio: ['ac3'], subs: false, he: false}, safari), {play: 'yes', why: ''}, 'AC3 stays native on Safari');
+  eq(R.verdict({container: 'mp4', video: 'h264', audio: ['eac3'], subs: false, he: false}, edge), {play: 'yes', why: ''}, 'E-AC3 stays native on Edge');
+  eq(R.verdict({container: 'mp4', video: 'h264', audio: ['dts', 'aac'], subs: false, he: false}, safari), {play: 'yes', why: ''}, 'one AAC track keeps it native');
+  eq(R.verdict({container: 'mp4', video: 'h264', audio: ['aac'], subs: false, he: false}, none), {play: 'yes', why: ''}, 'AAC MP4 stays native');
+  eq(R.verdict({container: 'mp4', video: 'h264', audio: ['opus'], subs: false, he: false}, chrome), {play: 'yes', why: ''}, 'Opus plays in Chrome');
+  eq([R.audioPlayable('dts', () => 'maybe'), R.audioPlayable('xyz', () => true), R.audioPlayable('mp3', none)], [true, false, true], 'maybe counts as playable');
   eq(R.verdict(R.sniff(new Uint8Array(4)), chrome), {play: 'maybe', why: ''}, 'nothing known: try');
   // a torrent row (info hash only) carries what Real-Debrid needs, and no address
   const tz = R.parseStream({name: 'Torrentio\n1080p', title: 'Film.1080p.mkv\n👤 12 💾 2.1 GB', infoHash: 'A'.repeat(40), fileIdx: 2, behaviorHints: {filename: 'Film.1080p.mkv'}}, 'Torrentio');

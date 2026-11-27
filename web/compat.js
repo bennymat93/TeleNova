@@ -113,6 +113,11 @@
   const PROPS = ['currentTime', 'duration', 'paused', 'ended', 'volume', 'muted', 'playbackRate', 'readyState', 'videoWidth', 'videoHeight',
                  'buffered', 'error', 'play', 'pause', 'seeking'];
 
+  // 6.6.1: iPhone / iPad Safari: the 'playback' audio session plays through the ringer / silent switch (the WebAudio
+  // sound of the engine is silenced by it otherwise); no effect where the API is missing (the iOS app sets it natively)
+  function iosPlayback(g) {
+    try { const n = g && g.navigator; if (n && n.audioSession && n.audioSession.type !== 'playback') n.audioSession.type = 'playback'; } catch (e) { /* not allowed */ }
+  }
   // v: the player's <video>; url: https / same-origin / blob address. Resolves when the first picture or sound is ready.
   async function attach(v, url, opts) {
     opts = opts || {};
@@ -177,8 +182,23 @@
     player.on(E.TIMEOUT || 'timeout', () => fail(new Error('timeout')));
     // 6.1.5: the sound could not start (iOS / Safari want a tap first): the next play() or resumeAudio() resumes it
     player.on(E.RESUME || 'resume', () => { st.suspended = true; fire('needgesture'); });
-    const suspended = () => { try { if (typeof player.isSuspended === 'function') return !!player.isSuspended(); } catch (e) { /* not ready */ } return st.suspended; };
-    const resumeAudio = () => { try { const p = player.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* not ready */ } st.suspended = false; };
+    // 6.6.1: the engine's own state AND the RESUME event count (isSuspended() alone hid a sound held since start);
+    // in MSE mode the engine's inner <video> may be held muted - that is held sound too. In WebAudio mode the inner
+    // element is muted by design (the sound goes through the AudioContext), so that check is MSE-only.
+    const mediaEl = () => { try { return box.querySelector('video,audio'); } catch (e) { return null; } };
+    const isMSEMode = () => { try { return !!player.isMSE(); } catch (e) { return false; } };
+    const acHeld = () => { try { return typeof player.isSuspended === 'function' && !!player.isSuspended(); } catch (e) { return false; } };
+    const elHeld = () => { const m = isMSEMode() && mediaEl(); return !!(m && m.muted && !st.muted && st.vol > 0); };
+    const suspended = () => st.suspended || acHeld() || elHeld();
+    const resumeAudio = () => {
+      iosPlayback(G);
+      let p = null;
+      try { p = player.resume(); } catch (e) { /* not ready */ }   // synchronous start, inside the tap
+      if (isMSEMode() && !st.muted) { const m = mediaEl(); if (m) { try { m.muted = false; } catch (e) { /* fixed */ } } }
+      const settle = () => { if (!acHeld() && !elHeld()) st.suspended = false; applyVol(); if (!suspended()) fire('soundon'); };
+      if (p && p.then) p.then(settle, settle); else settle();
+      return p;
+    };
 
     const saved = {};
     const def = (name, d) => { saved[name] = Object.getOwnPropertyDescriptor(v, name); Object.defineProperty(v, name, Object.assign({configurable: true, enumerable: true}, d)); };
@@ -199,8 +219,9 @@
     def('videoHeight', {get: () => st.h});
     def('error', {get: () => st.err});
     def('buffered', {get: () => ({length: 0, start: () => 0, end: () => 0})});
-    def('volume', {get: () => st.vol, set: (x) => { st.vol = Math.max(0, Math.min(1, Number(x) || 0)); applyVol(); fire('volumechange'); }});
-    def('muted', {get: () => st.muted, set: (x) => { st.muted = !!x; applyVol(); fire('volumechange'); }});
+    // 6.6.1: turning the sound up / on while it is held resumes it (the setter runs inside the viewer's tap)
+    def('volume', {get: () => st.vol, set: (x) => { st.vol = Math.max(0, Math.min(1, Number(x) || 0)); applyVol(); if (st.vol > 0 && !st.muted && suspended()) resumeAudio(); fire('volumechange'); }});
+    def('muted', {get: () => st.muted, set: (x) => { st.muted = !!x; applyVol(); if (!st.muted && st.vol > 0 && suspended()) resumeAudio(); fire('volumechange'); }});
     def('playbackRate', {get: () => st.rate, set: (x) => { st.rate = Number(x) || 1; try { player.setPlaybackRate(st.rate); } catch (e) { /* not ready */ } fire('ratechange'); }});
     // 6.1.5: resume the sound synchronously, inside the tap, before the queued play
     def('play', {value: () => { if (suspended()) resumeAudio(); return run(() => (st.ended ? player.seek(toMs(0)).then(() => player.play()) : player.play())); }, writable: true});
@@ -237,11 +258,12 @@
       selectSubtitle: (id) => run(() => { if (id < 0) { player.setSubtitleEnable(false); return null; } player.setSubtitleEnable(true); return player.selectSubtitle(id); }),
       audios: () => (player.getStreams() || []).filter((x) => String(x.mediaType).toLowerCase() === 'audio')
         .map((x) => ({id: x.id, lang: String((x.metadata || {}).language || ''), title: String((x.metadata || {}).title || ''), on: x.id === player.getSelectedAudioStreamId()})),
-      selectAudio: (id) => run(() => player.selectAudio(id)),
+      selectAudio: (id) => run(() => player.selectAudio(id)).then(() => { applyVol(); if (suspended()) fire('needgesture'); }),
       resumeAudio, suspended};
     try {
       // 6.1.5: deadlines - the wasm decoders come from jsDelivr (libmedia 1.3.1 takes wasmBaseUrl / getWasm, a URL
       // only, no fetch timeout), so a hang there is caught here
+      iosPlayback(G);
       await deadline(player.load(url, {http: {credentials: 'omit'}, ioLoaderOptions: {preload: 1048576}}), 25000, 'load timeout');
       if (st.dead) throw new Error('closed');
       const streams = player.getStreams() || [];
@@ -281,7 +303,7 @@
       G.setTimeout(() => { try { if (supported() && G.document.head) { const l = G.document.createElement('link'); l.rel = 'dns-prefetch'; l.href = 'https://cdn.jsdelivr.net'; G.document.head.appendChild(l); } } catch (e) { /* no page */ } }, 3000);
     }
   } catch (e) { /* no timers */ }
-  const api = {supported, attach, warm, ready, preloadSecs, toMs, fromMs, activeCues, cueHtml, pickSubtitle};
+  const api = {supported, attach, warm, iosPlayback, ready, preloadSecs, toMs, fromMs, activeCues, cueHtml, pickSubtitle};
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (G.TN && G.TN.registerProvider) G.TN.registerProvider('compat', Object.assign({kinds: ['service'], label: 'Compatibility player'}, api));
 })(typeof self !== 'undefined' ? self : globalThis);

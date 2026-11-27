@@ -114,7 +114,7 @@ def main():
         run('users, lists and the sync loop in the browser (Node)', [node, os.path.join(HERE, 't_store.js'), lib])
         run('Kodi devices and browsers on one account (Python + Node)', [sys.executable, os.path.join(HERE, 't_mixed.py')])
         # 4.3.0: the module tests (pure parts, fake DOM) and the helper Worker's own test ran only by hand before
-        for name in ('t_matcher', 't_sources', 't_srt', 't_texts', 't_tgsearch', 't_content', 't_live', 't_playback', 't_shell', 't_compat', 'undef_web', 't_tglink', 't_tglogin', 't_aio',
+        for name in ('t_matcher', 't_sources', 't_srt', 't_texts', 't_tgsearch', 't_content', 't_live', 't_playback', 't_shell', 't_compat', 't_compat_sound', 'undef_web', 't_tglink', 't_tglogin', 't_aio',
                      't_player', 't_player_dom', 't_twins', 't_web65', 't_sw', 't_progress'):
             run('%s.js (Node)' % name, [node, os.path.join(HERE, name + '.js')], quiet=True)
         run('helper Worker (Node)', [node, os.path.join(WEB, '..', 'worker', 'test.mjs')], quiet=True)

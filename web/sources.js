@@ -219,7 +219,14 @@
   }
   // what a browser will do with such a file. can(mimeWithCodecs) -> boolean (video.canPlayType, injected for tests)
   // -> {play: 'yes'|'maybe'|'no', why: ''|'container'|'video'|'audio'}
-  const WEB_AUDIO = ['aac', 'opus', 'vorbis', 'mp3', 'flac'];
+  const AUDIO_MIME = {opus: ['audio/mp4; codecs="opus"', 'audio/webm; codecs="opus"'], vorbis: ['audio/webm; codecs="vorbis"', 'audio/ogg; codecs="vorbis"'],
+    flac: ['audio/mp4; codecs="flac"', 'audio/flac'], ac3: ['audio/mp4; codecs="ac-3"'], eac3: ['audio/mp4; codecs="ec-3"'],
+    dts: ['audio/mp4; codecs="dtsc"'], truehd: ['audio/mp4; codecs="mlpa"']};
+  function audioPlayable(a, can) {
+    if (a === 'aac' || a === 'mp3') return true;
+    const l = AUDIO_MIME[a];
+    return !!l && l.some((m) => { try { return !!can(m); } catch (e) { return false; } });
+  }
   function verdict(sn, can) {
     can = can || (() => false);
     if (!sn || !sn.container) return {play: 'maybe', why: ''};
@@ -227,10 +234,9 @@
     if (sn.video === 'mpeg4' || sn.video === 'mpeg2') return {play: 'no', why: 'video'};
     if (sn.video === 'hevc' && !can('video/mp4; codecs="hvc1.1.6.L93.B0"') && !can('video/mp4; codecs="hev1.1.6.L93.B0"')) return {play: 'no', why: 'video'};
     if (sn.video === 'av1' && !can('video/mp4; codecs="av01.0.05M.08"')) return {play: 'no', why: 'video'};
-    if (sn.audio.length && !sn.audio.some((a) => WEB_AUDIO.includes(a))) {
-      const ok = (sn.audio.includes('ac3') && can('audio/mp4; codecs="ac-3"')) || (sn.audio.includes('eac3') && can('audio/mp4; codecs="ec-3"'));
-      if (!ok) return {play: 'no', why: 'audio'};
-    }
+    // 6.6.1: every sound track is asked of the browser (Safari plays no Opus / Vorbis / FLAC in some containers, no DTS
+    // anywhere): only when NONE of them plays does the file go to the engine - AAC / MP3 are taken as playable
+    if (sn.audio.length && !sn.audio.some((a) => audioPlayable(a, can))) return {play: 'no', why: 'audio'};
     if (sn.container === 'mkv' && !can('video/x-matroska') && !can('video/webm; codecs="vp9"')) return {play: 'no', why: 'container'};
     return {play: sn.container === 'mkv' ? 'maybe' : 'yes', why: ''};
   }
@@ -265,7 +271,7 @@
     return null;
   }
   const seCode = (s, e) => 'S' + pad2(s) + 'E' + pad2(e);
-  const pure = {streamsOf, quality, sizeBytes, langs, sizeText, tags, ytId, parseStream, sortRows, recOf, needMbit, bestRows, onlyKinds, kindOf, releaseKey, dedup, filterRows, sniff, verdict, streamId,
+  const pure = {streamsOf, quality, sizeBytes, langs, sizeText, tags, ytId, parseStream, sortRows, recOf, needMbit, bestRows, onlyKinds, kindOf, releaseKey, dedup, filterRows, sniff, verdict, audioPlayable, streamId,
     addonBase, addonName, keyOf, epCode, clock, lastEpisodeOf, seCode};
   if (typeof module === 'object' && module.exports) { module.exports = pure; return; }
   const TN = G.TN;
